@@ -1,0 +1,16 @@
+FROM hashicorp/vault:1.13
+
+# Install jq for JSON parsing in auto-init scripts
+RUN apk add --no-cache jq
+
+# Copy configuration files
+COPY config/vault.hcl /vault/config/
+COPY policies/ /vault/policies/
+# Copy enhanced scripts including auto-init-vault.sh with improved error handling and key persistence
+COPY scripts/ /vault/scripts/
+
+# Set permissions without changing user
+RUN chmod +x /vault/scripts/*.sh
+
+# Use the entrypoint script for production mode
+CMD ["/vault/scripts/entrypoint.sh"]

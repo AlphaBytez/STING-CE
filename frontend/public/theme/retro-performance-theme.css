@@ -1,0 +1,860 @@
+/* 
+ * STING Retro Terminal - Performance Theme
+ * Optimized version of the retro terminal theme
+ * Same aesthetic, maximum performance - zero animations or heavy effects
+ */
+
+/* === Core Variables - Standardized with Retro Theme === */
+:root[data-theme="retro-performance"] {
+  /* Terminal Colors - Matching retro theme exactly */
+  --retro-perf-bg-primary: #000000;           /* Main background - pure black */
+  --retro-perf-bg-secondary: #0a0a0a;         /* Very dark for inputs */  
+  --retro-perf-bg-tertiary: #1a1a1a;          /* Card/panel backgrounds */
+  --retro-perf-bg-hover: #1f1f1f;             /* Hover states */
+  --retro-perf-bg-nav: #000000;               /* Navigation background */
+  
+  /* STING Brand Colors - Matching retro theme */
+  --retro-perf-yellow-bright: #fbbf24;        /* STING signature yellow */
+  --retro-perf-yellow-normal: #f59e0b;        /* Standard yellow */
+  --retro-perf-yellow-dim: #d97706;           /* Dimmed yellow */
+  --retro-perf-yellow-glow: rgba(251, 191, 36, 0.2); /* Yellow glow effect */
+  
+  /* Terminal accent colors - Matching retro theme */
+  --retro-perf-green-accent: #00ff41;         /* Classic terminal green */
+  --retro-perf-cyan: #00ffff;                 /* Pure terminal cyan */
+  --retro-perf-blue: #00ffff;                 /* Use cyan instead of blue */
+  --retro-perf-red: #ff4444;                  /* Bright terminal red */
+  --retro-perf-purple: #ff00ff;               /* Classic terminal magenta */
+  
+  /* Text Colors - Matching retro theme hierarchy */
+  --retro-perf-text-primary: #ffffff;         /* Primary text - white */
+  --retro-perf-text-secondary: #00ff41;       /* Secondary text - terminal green */
+  --retro-perf-text-muted: #888888;           /* Muted text - gray */
+  --retro-perf-text-bright: #ffffff;          /* Pure white */
+  --retro-perf-text-inverse: #000000;         /* Dark text */
+  
+  /* Borders - Matching retro theme */
+  --retro-perf-border: #006600;               /* Standard terminal green border */
+  --retro-perf-border-bright: #00ff41;        /* Bright green border */
+  --retro-perf-border-dark: #003300;          /* Darker borders */
+  --retro-perf-outline: #fbbf24;              /* Yellow focus outlines */
+  
+  /* Typography - Matching retro theme */
+  --retro-perf-font-mono: 'JetBrains Mono', 'Courier New', 'Monaco', 'Consolas', monospace;
+  --retro-perf-font-body: system-ui, -apple-system, sans-serif;
+  
+  /* Status Colors - Matching retro theme */
+  --retro-perf-success: #00ff41;              /* Terminal green for success */
+  --retro-perf-warning: #fbbf24;              /* STING yellow for warnings */
+  --retro-perf-error: #ff4444;                /* Terminal red for errors */
+  --retro-perf-info: #00ffff;                 /* Terminal cyan for info */
+  
+  /* Performance - No transitions, no animations */
+  --retro-perf-transition: none;
+  --retro-perf-radius: 0;
+  
+  /* CSS Variables for Preferences page and other components */
+  --color-primary: var(--retro-perf-yellow-bright);
+  --color-primary-hover: var(--retro-perf-yellow-normal);
+  --color-text: var(--retro-perf-text-primary);
+  --color-text-secondary: var(--retro-perf-text-secondary);
+  --color-text-inverse: var(--retro-perf-text-inverse);
+  --color-bg: var(--retro-perf-bg-primary);
+  --color-bg-elevated: var(--retro-perf-bg-tertiary);
+  --color-border: var(--retro-perf-border);
+  --radius-lg: var(--retro-perf-radius);
+}
+
+/* === Performance Reset - Remove ALL heavy effects === */
+[data-theme="retro-performance"] * {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  
+  /* Remove magnifying effects completely */
+  scale: 1 !important;
+  zoom: 1 !important;
+  
+  /* Optimize rendering */
+  backface-visibility: hidden;
+  -webkit-font-smoothing: subpixel-antialiased;
+  will-change: auto !important;
+}
+
+/* === Base Styles === */
+[data-theme="retro-performance"] {
+  background-color: var(--retro-perf-bg-primary);
+  color: var(--retro-perf-text-primary);
+  font-family: var(--retro-perf-font-body);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Remove scanlines and body effects completely */
+[data-theme="retro-performance"] body::before,
+[data-theme="retro-performance"] body::after {
+  display: none !important;
+}
+
+/* === Typography - Terminal style === */
+[data-theme="retro-performance"] h1,
+[data-theme="retro-performance"] h2,
+[data-theme="retro-performance"] h3,
+[data-theme="retro-performance"] h4,
+[data-theme="retro-performance"] h5,
+[data-theme="retro-performance"] h6 {
+  color: var(--retro-perf-text-bright);
+  font-family: var(--retro-perf-font-mono);
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+}
+
+[data-theme="retro-performance"] p,
+[data-theme="retro-performance"] span,
+[data-theme="retro-performance"] div {
+  font-family: var(--retro-perf-font-mono);
+}
+
+/* === Cards - Simple boxes === */
+[data-theme="retro-performance"] .dashboard-card,
+[data-theme="retro-performance"] .metric-card,
+[data-theme="retro-performance"] .stats-card,
+[data-theme="retro-performance"] [class*="card"] {
+  background: var(--retro-perf-bg-tertiary);
+  border: 1px solid var(--retro-perf-border);
+  border-radius: var(--retro-perf-radius);
+  padding: 1rem;
+  color: var(--retro-perf-text-primary);
+}
+
+[data-theme="retro-performance"] .dashboard-card:hover,
+[data-theme="retro-performance"] .metric-card:hover {
+  background: var(--retro-perf-bg-hover);
+  border-color: var(--retro-perf-border-bright);
+}
+
+/* === Buttons - Terminal style, no effects === */
+[data-theme="retro-performance"] button,
+[data-theme="retro-performance"] .floating-button,
+[data-theme="retro-performance"] .ant-btn {
+  background: transparent;
+  color: var(--retro-perf-text-primary);
+  border: 1px solid var(--retro-perf-border);
+  border-radius: var(--retro-perf-radius);
+  padding: 0.5rem 1rem;
+  font-family: var(--retro-perf-font-mono);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+[data-theme="retro-performance"] button:hover,
+[data-theme="retro-performance"] .floating-button:hover {
+  background: var(--retro-perf-bg-hover);
+  color: var(--retro-perf-text-bright);
+  border-color: var(--retro-perf-border-bright);
+}
+
+/* Primary buttons */
+[data-theme="retro-performance"] .ant-btn-primary,
+[data-theme="retro-performance"] button[type="submit"] {
+  background: var(--retro-perf-yellow-bright);
+  color: var(--retro-perf-text-inverse);
+  border-color: var(--retro-perf-yellow-bright);
+}
+
+[data-theme="retro-performance"] .ant-btn-primary:hover {
+  background: var(--retro-perf-yellow-dim);
+  border-color: var(--retro-perf-yellow-dim);
+}
+
+/* === Forms - Terminal inputs === */
+[data-theme="retro-performance"] input,
+[data-theme="retro-performance"] textarea,
+[data-theme="retro-performance"] select,
+[data-theme="retro-performance"] .ant-input,
+[data-theme="retro-performance"] .ant-select-selector {
+  background: var(--retro-perf-bg-secondary);
+  border: 1px solid var(--retro-perf-border);
+  border-radius: var(--retro-perf-radius);
+  color: var(--retro-perf-text-primary);
+  padding: 0.5rem;
+  font-family: var(--retro-perf-font-mono);
+}
+
+[data-theme="retro-performance"] input:focus,
+[data-theme="retro-performance"] textarea:focus,
+[data-theme="retro-performance"] select:focus {
+  outline: 1px solid var(--retro-perf-outline);
+  outline-offset: -1px;
+  border-color: var(--retro-perf-border-bright);
+}
+
+/* === REMOVED: Traditional Sidebar CSS === */
+/* Using floating navigation only */
+
+/* === Tables - Terminal style === */
+[data-theme="retro-performance"] table,
+[data-theme="retro-performance"] .ant-table {
+  background: var(--retro-perf-bg-tertiary);
+  border-collapse: collapse;
+  font-family: var(--retro-perf-font-mono);
+}
+
+[data-theme="retro-performance"] th,
+[data-theme="retro-performance"] .ant-table-thead > tr > th {
+  background: var(--retro-perf-bg-primary);
+  color: var(--retro-perf-text-bright);
+  font-weight: 600;
+  text-align: left;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--retro-perf-border);
+}
+
+[data-theme="retro-performance"] td,
+[data-theme="retro-performance"] .ant-table-tbody > tr > td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--retro-perf-border);
+  color: var(--retro-perf-text-primary);
+}
+
+[data-theme="retro-performance"] tr:hover td,
+[data-theme="retro-performance"] .ant-table-tbody > tr:hover > td {
+  background: var(--retro-perf-bg-hover);
+}
+
+/* === Modals - Simple terminal windows === */
+[data-theme="retro-performance"] .ant-modal-content,
+[data-theme="retro-performance"] .modal-content {
+  background: var(--retro-perf-bg-tertiary);
+  border: 1px solid var(--retro-perf-border);
+  border-radius: var(--retro-perf-radius);
+}
+
+[data-theme="retro-performance"] .ant-modal-header,
+[data-theme="retro-performance"] .modal-header {
+  background: transparent;
+  border-bottom: 1px solid var(--retro-perf-border);
+}
+
+[data-theme="retro-performance"] .ant-modal-title,
+[data-theme="retro-performance"] .modal-title {
+  color: var(--retro-perf-text-bright);
+  font-family: var(--retro-perf-font-mono);
+  font-weight: 600;
+}
+
+/* === Status Colors === */
+[data-theme="retro-performance"] .text-green-400,
+[data-theme="retro-performance"] .success {
+  color: var(--retro-perf-green) !important;
+}
+
+[data-theme="retro-performance"] .text-red-400,
+[data-theme="retro-performance"] .error {
+  color: var(--retro-perf-red) !important;
+}
+
+[data-theme="retro-performance"] .text-yellow-400,
+[data-theme="retro-performance"] .warning {
+  color: var(--retro-perf-yellow-bright) !important;
+}
+
+/* === Links === */
+[data-theme="retro-performance"] a {
+  color: var(--retro-perf-green);
+  text-decoration: none;
+}
+
+[data-theme="retro-performance"] a:hover {
+  color: var(--retro-perf-text-bright);
+  text-decoration: underline;
+}
+
+/* === Dashboard Specific Styles === */
+
+/* System Health Cards */
+[data-theme="retro-performance"] .system-health-card {
+  background: var(--retro-perf-bg-tertiary);
+  border: 1px solid var(--retro-perf-border);
+  color: var(--retro-perf-text-primary);
+}
+
+[data-theme="retro-performance"] .system-health-card:hover {
+  background: var(--retro-perf-bg-hover);
+  border-color: var(--retro-perf-border-bright);
+}
+
+/* Report Generation Section */
+[data-theme="retro-performance"] .report-generation-section {
+  background: var(--retro-perf-bg-tertiary);
+  border: 1px solid var(--retro-perf-border);
+}
+
+[data-theme="retro-performance"] .report-generation-title {
+  color: var(--retro-perf-text-bright);
+  font-family: var(--retro-perf-font-mono);
+  font-weight: 600;
+}
+
+/* Generate Report Button */
+[data-theme="retro-performance"] .generate-report-button {
+  background: var(--retro-perf-yellow-bright) !important;
+  color: var(--retro-perf-text-inverse) !important;
+  border: 1px solid var(--retro-perf-yellow-bright) !important;
+  font-family: var(--retro-perf-font-mono) !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="retro-performance"] .generate-report-button:hover {
+  background: var(--retro-perf-yellow-dim) !important;
+  border-color: var(--retro-perf-yellow-dim) !important;
+}
+
+/* Quick Actions Buttons */
+[data-theme="retro-performance"] .quick-action-button.floating-button {
+  background: transparent !important;
+  color: var(--retro-perf-yellow-bright) !important;
+  border: 1px solid var(--retro-perf-yellow-bright) !important;
+  font-family: var(--retro-perf-font-mono) !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="retro-performance"] .quick-action-button.floating-button:hover {
+  background: var(--retro-perf-yellow-bright) !important;
+  color: var(--retro-perf-text-inverse) !important;
+}
+
+/* === Bee Chat Button Fixes === */
+[data-theme="retro-performance"] .floating-button.bg-red-600,
+[data-theme="retro-performance"] .floating-button[class*="bg-red"] {
+  background: transparent !important;
+  color: var(--retro-perf-text-bright) !important;
+  border: 1px solid var(--retro-perf-red) !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="retro-performance"] .floating-button.bg-red-600:hover,
+[data-theme="retro-performance"] .floating-button[class*="bg-red"]:hover {
+  background: var(--retro-perf-red) !important;
+  color: var(--retro-perf-text-inverse) !important;
+}
+
+[data-theme="retro-performance"] .floating-button.bg-yellow-500,
+[data-theme="retro-performance"] .floating-button[class*="bg-yellow"] {
+  background: var(--retro-perf-yellow-bright) !important;
+  color: var(--retro-perf-text-inverse) !important;
+  border: 2px solid var(--retro-perf-yellow-bright) !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-theme="retro-performance"] .floating-button.bg-yellow-500:hover,
+[data-theme="retro-performance"] .floating-button[class*="bg-yellow"]:hover {
+  background: var(--retro-perf-yellow-normal) !important;
+  color: var(--retro-perf-text-inverse) !important;
+  border-color: var(--retro-perf-yellow-normal) !important;
+  box-shadow: 0 0 10px var(--retro-perf-yellow-glow) !important;
+}
+
+/* === Bee Chat Text Input Boxes === */
+[data-theme="retro-performance"] .bg-gray-600.border.border-gray-500,
+[data-theme="retro-performance"] textarea.bg-gray-600 {
+  border: 2px solid #000000 !important;
+  border-radius: 0 !important;
+  background-color: var(--retro-perf-bg-secondary) !important;
+  color: var(--retro-perf-text-primary) !important;
+  font-family: var(--retro-perf-font-mono) !important;
+}
+
+[data-theme="retro-performance"] .bg-gray-600.border.border-gray-500:focus,
+[data-theme="retro-performance"] textarea.bg-gray-600:focus {
+  border: 2px solid var(--retro-perf-green) !important;
+  outline: none !important;
+}
+
+/* === Scrollbars - Terminal style === */
+[data-theme="retro-performance"] ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+[data-theme="retro-performance"] ::-webkit-scrollbar-track {
+  background: var(--retro-perf-bg-primary);
+}
+
+[data-theme="retro-performance"] ::-webkit-scrollbar-thumb {
+  background: var(--retro-perf-border);
+}
+
+[data-theme="retro-performance"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--retro-perf-border-bright);
+}
+
+/* === Icons - Optimize size === */
+[data-theme="retro-performance"] svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* === Header buttons === */
+[data-theme="retro-performance"] .floating-header button,
+[data-theme="retro-performance"] .floating-header .ant-btn,
+[data-theme="retro-performance"] .ant-layout-header button {
+  background-color: transparent !important;
+  border: none !important;
+  color: var(--retro-perf-text-secondary) !important;
+}
+
+[data-theme="retro-performance"] .floating-header button:hover,
+[data-theme="retro-performance"] .ant-layout-header button:hover {
+  background-color: var(--retro-perf-bg-hover) !important;
+  color: var(--retro-perf-text-bright) !important;
+  border: 1px solid var(--retro-perf-border) !important;
+}
+
+/* === Performance Hacks === */
+[data-theme="retro-performance"] img {
+  loading: lazy;
+}
+
+/* Disable all hover effects on mobile */
+@media (hover: none) {
+  [data-theme="retro-performance"] *:hover {
+    all: unset !important;
+  }
+}
+
+/* === Accessibility === */
+[data-theme="retro-performance"] :focus-visible {
+  outline: 2px solid var(--retro-perf-outline);
+  outline-offset: 2px;
+}
+
+/* === Marketplace & Honey Jar Page Consistency === */
+
+/* Replace glassmorphism cards with black terminal cards */
+[data-theme="retro-performance"] .glass-subtle,
+[data-theme="retro-performance"] .glass-medium,
+[data-theme="retro-performance"] .glass-strong,
+[data-theme="retro-performance"] .glass-card,
+[data-theme="retro-performance"] .standard-card {
+  background: var(--retro-perf-bg-tertiary) !important;
+  border: 1px solid var(--retro-perf-border) !important;
+  border-radius: var(--retro-perf-radius) !important;
+}
+
+[data-theme="retro-performance"] .glass-subtle:hover,
+[data-theme="retro-performance"] .glass-medium:hover,
+[data-theme="retro-performance"] .glass-card:hover,
+[data-theme="retro-performance"] .standard-card:hover {
+  background: var(--retro-perf-bg-hover) !important;
+  border-color: var(--retro-perf-border-bright) !important;
+}
+
+/* Marketplace page cards */
+[data-theme="retro-performance"] .backdrop-blur-md.bg-white\/5,
+[data-theme="retro-performance"] .backdrop-blur-md.bg-gray-800\/50 {
+  background: var(--retro-perf-bg-tertiary) !important;
+  border: 1px solid var(--retro-perf-border) !important;
+}
+
+[data-theme="retro-performance"] .backdrop-blur-md.bg-white\/5:hover,
+[data-theme="retro-performance"] .backdrop-blur-md.bg-gray-800\/50:hover {
+  background: var(--retro-perf-bg-hover) !important;
+  border-color: var(--retro-perf-border-bright) !important;
+}
+
+/* Honey Jar page cards - match Hive Manager style */
+[data-theme="retro-performance"] .floating-button.bg-gray-800\/50 {
+  background: var(--retro-perf-bg-tertiary) !important;
+  border: 1px solid var(--retro-perf-border) !important;
+  color: var(--retro-perf-text-primary) !important;
+}
+
+[data-theme="retro-performance"] .floating-button.bg-gray-800\/50:hover {
+  background: var(--retro-perf-bg-hover) !important;
+  border-color: var(--retro-perf-border-bright) !important;
+  color: var(--retro-perf-text-bright) !important;
+}
+
+/* Form elements consistency */
+[data-theme="retro-performance"] .bg-gray-700,
+[data-theme="retro-performance"] .bg-gray-600,
+[data-theme="retro-performance"] .bg-gray-800 {
+  background: var(--retro-perf-bg-secondary) !important;
+  border: 1px solid var(--retro-perf-border) !important;
+  color: var(--retro-perf-text-primary) !important;
+}
+
+[data-theme="retro-performance"] .bg-gray-700:focus,
+[data-theme="retro-performance"] .bg-gray-600:focus,
+[data-theme="retro-performance"] .bg-gray-800:focus {
+  border-color: var(--retro-perf-border-bright) !important;
+  outline: 1px solid var(--retro-perf-outline) !important;
+  outline-offset: -1px !important;
+}
+
+/* Status badges with terminal colors */
+[data-theme="retro-performance"] .bg-green-100.text-green-800,
+[data-theme="retro-performance"] .bg-blue-100.text-blue-800,
+[data-theme="retro-performance"] .bg-purple-100.text-purple-800,
+[data-theme="retro-performance"] .bg-yellow-100.text-yellow-800,
+[data-theme="retro-performance"] .bg-gray-100.text-gray-800,
+[data-theme="retro-performance"] .bg-red-100.text-red-800 {
+  background: var(--retro-perf-bg-secondary) !important;
+  color: var(--retro-perf-text-primary) !important;
+  border: 1px solid var(--retro-perf-border) !important;
+  font-family: var(--retro-perf-font-mono) !important;
+}
+
+/* Colored status indicators */
+[data-theme="retro-performance"] .text-blue-600.bg-blue-100 {
+  background: transparent !important;
+  color: var(--retro-perf-cyan) !important;
+  border: 1px solid var(--retro-perf-border) !important;
+}
+
+[data-theme="retro-performance"] .text-green-600.bg-green-100 {
+  background: transparent !important;
+  color: var(--retro-perf-green) !important;
+  border: 1px solid var(--retro-perf-border) !important;
+}
+
+[data-theme="retro-performance"] .text-purple-600.bg-purple-100 {
+  background: transparent !important;
+  color: var(--retro-perf-text-primary) !important;
+  border: 1px solid var(--retro-perf-border) !important;
+}
+
+[data-theme="retro-performance"] .text-red-600.bg-red-100 {
+  background: transparent !important;
+  color: var(--retro-perf-red) !important;
+  border: 1px solid var(--retro-perf-border) !important;
+}
+
+/* === Settings Page Tab Text Fix === */
+[data-theme="retro-performance"] .ant-tabs-tab {
+  color: var(--retro-perf-text-primary) !important;
+}
+
+[data-theme="retro-performance"] .ant-tabs-tab:hover {
+  color: var(--retro-perf-text-bright) !important;
+}
+
+[data-theme="retro-performance"] .ant-tabs-tab-active {
+  color: var(--retro-perf-yellow-bright) !important;
+}
+
+[data-theme="retro-performance"] .ant-tabs-ink-bar {
+  background: var(--retro-perf-yellow-bright) !important;
+}
+
+/* === Terminal Scrollable Windows - Static Performance Style === */
+[data-theme="retro-performance"] .service-list,
+[data-theme="retro-performance"] .floating-nav-scrollable {
+  scrollbar-width: thin;
+  scrollbar-color: var(--retro-perf-border) var(--retro-perf-bg-secondary);
+  /* Static terminal window appearance */
+  border: 1px solid var(--retro-perf-border) !important;
+  background: var(--retro-perf-bg-primary) !important;
+  position: relative !important;
+}
+
+/* Add terminal scroll indicators */
+[data-theme="retro-performance"] .service-list::before,
+[data-theme="retro-performance"] .floating-nav-scrollable::before {
+  content: '▲' !important;
+  position: absolute !important;
+  top: 2px !important;
+  right: 2px !important;
+  color: var(--retro-perf-border) !important;
+  font-size: 8px !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+}
+
+[data-theme="retro-performance"] .service-list::after,
+[data-theme="retro-performance"] .floating-nav-scrollable::after {
+  content: '▼' !important;
+  position: absolute !important;
+  bottom: 2px !important;
+  right: 2px !important;
+  color: var(--retro-perf-border) !important;
+  font-size: 8px !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+}
+
+[data-theme="retro-performance"] .service-list::-webkit-scrollbar,
+[data-theme="retro-performance"] .floating-nav-scrollable::-webkit-scrollbar {
+  width: 12px;
+  background: var(--retro-perf-bg-secondary);
+  border: 1px solid var(--retro-perf-border);
+}
+
+[data-theme="retro-performance"] .service-list::-webkit-scrollbar-track,
+[data-theme="retro-performance"] .floating-nav-scrollable::-webkit-scrollbar-track {
+  background: var(--retro-perf-bg-secondary);
+  border-radius: 0;
+}
+
+[data-theme="retro-performance"] .service-list::-webkit-scrollbar-thumb,
+[data-theme="retro-performance"] .floating-nav-scrollable::-webkit-scrollbar-thumb {
+  background: var(--retro-perf-border);
+  border-radius: 0;
+  border: 1px solid var(--retro-perf-bg-secondary);
+}
+
+[data-theme="retro-performance"] .service-list::-webkit-scrollbar-thumb:hover,
+[data-theme="retro-performance"] .floating-nav-scrollable::-webkit-scrollbar-thumb:hover {
+  background: var(--retro-perf-border-bright);
+}
+
+/* === Hide Traditional Sidebar - Use Floating Nav Only === */
+/* ALL themes now use floating navigation */
+[data-theme="retro-performance"] .w-56:not(.floating-nav) {
+  display: none !important;
+}
+
+/* Ensure floating nav is always visible */
+[data-theme="retro-performance"] .floating-nav {
+  display: flex !important;
+  visibility: visible !important;
+}
+
+/* === Floating Navigation Items - Static Terminal Performance Style === */
+[data-theme="retro-performance"] .floating-nav-item {
+  background: var(--retro-perf-bg-tertiary) !important;
+  border: 1px solid var(--retro-perf-border) !important;
+  border-radius: var(--retro-perf-radius) !important;
+  color: var(--retro-perf-text-primary) !important;
+  font-family: var(--retro-perf-font-mono) !important;
+  text-transform: uppercase !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 1px !important;
+  position: relative !important;
+  /* Static terminal window styling */
+}
+
+/* Add static terminal corner brackets to nav items */
+[data-theme="retro-performance"] .floating-nav-item::before {
+  content: '┌─' !important;
+  position: absolute !important;
+  top: -1px !important;
+  left: -1px !important;
+  color: var(--retro-perf-border) !important;
+  font-size: 8px !important;
+  line-height: 1 !important;
+  pointer-events: none !important;
+}
+
+[data-theme="retro-performance"] .floating-nav-item::after {
+  content: '─┐' !important;
+  position: absolute !important;
+  top: -1px !important;
+  right: -1px !important;
+  color: var(--retro-perf-border) !important;
+  font-size: 8px !important;
+  line-height: 1 !important;
+  pointer-events: none !important;
+}
+
+[data-theme="retro-performance"] .floating-nav-item:hover {
+  background: var(--retro-perf-bg-hover) !important;
+  border-color: var(--retro-perf-border-bright) !important;
+  color: var(--retro-perf-text-bright) !important;
+  /* Disable all scaling/magnifying effects for maximum performance */
+  transform: none !important;
+  scale: 1 !important;
+  transition: none !important;
+}
+
+[data-theme="retro-performance"] .floating-nav-item.active {
+  background: var(--retro-perf-yellow-bright) !important;
+  border-color: var(--retro-perf-yellow-bright) !important;
+  color: var(--retro-perf-text-inverse) !important;
+}
+
+/* === Additional Scaling Effect Overrides === */
+/* Ensure no scaling effects are applied from other stylesheets */
+[data-theme="retro-performance"] .floating-button:hover,
+[data-theme="retro-performance"] .dashboard-card:hover,
+[data-theme="retro-performance"] .card-elevated:hover,
+[data-theme="retro-performance"] .dynamic-card:hover,
+[data-theme="retro-performance"] .stats-card:hover,
+[data-theme="retro-performance"] .activity-card:hover,
+[data-theme="retro-performance"] *:hover {
+  transform: none !important;
+  scale: 1 !important;
+  zoom: 1 !important;
+}
+
+/* === Floating Header - Static Terminal Performance Style === */
+[data-theme="retro-performance"] .floating-header {
+  background: var(--retro-perf-bg-primary) !important;
+  border-bottom: 2px solid var(--retro-perf-border-bright) !important;
+  box-shadow: none !important;
+  position: relative !important;
+}
+
+/* Add terminal title bar to header */
+[data-theme="retro-performance"] .floating-header::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 1px !important;
+  background: var(--retro-perf-border-bright) !important;
+  z-index: 1 !important;
+}
+
+/* Add floating nav title bar for performance theme */
+[data-theme="retro-performance"] .floating-nav {
+  background: var(--retro-perf-bg-secondary) !important;
+  border: 2px solid var(--retro-perf-border-bright) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  /* Ensure proper fixed positioning */
+  position: fixed !important;
+  left: 24px !important;
+  top: 50vh !important;
+  /* Disable all scaling/magnifying effects for maximum performance */
+  transform: translateY(-50%) !important;
+}
+
+/* Disable magnifying hover effects for performance */
+[data-theme="retro-performance"] .floating-nav:hover {
+  transform: translateY(-50%) !important; /* Keep only centering, no scaling */
+  min-width: var(--nav-width, 56px) !important; /* Don't expand width */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important; /* No effects for maximum performance */
+  border: 2px solid var(--retro-perf-border-bright) !important;
+  transition: none !important; /* No transitions for maximum performance */
+  padding: 6px 4px !important;
+  top: 50vh !important;
+}
+
+[data-theme="retro-performance"] .floating-nav::before {
+  /* content: '[ STING TERMINAL NAV ]' !important; */
+  position: absolute !important;
+  top: -2px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: var(--retro-perf-bg-secondary) !important;
+  color: var(--retro-perf-border-bright) !important;
+  font-family: var(--retro-perf-font-mono) !important;
+  font-size: 8px !important;
+  padding: 0 4px !important;
+  letter-spacing: 1px !important;
+  z-index: 1 !important;
+}
+
+[data-theme="retro-performance"] .floating-header h1,
+[data-theme="retro-performance"] .floating-header h2 {
+  font-family: var(--retro-perf-font-mono) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 2px !important;
+  color: var(--retro-perf-text-bright) !important;
+}
+
+/* Add padding to prevent overlap with header */
+[data-theme="retro-performance"] .floating-nav-persistent {
+  padding-top: 16px !important; /* Add space for the terminal nav header */
+}
+
+/* === Floating Navigation Divider - Terminal Performance Style === */
+[data-theme="retro-performance"] .floating-nav-divider {
+  border-top: 1px solid var(--retro-perf-border-bright) !important;
+  margin: 0.5rem 0 !important;
+  position: relative !important;
+}
+
+/* Add terminal divider decoration */
+[data-theme="retro-performance"] .floating-nav-divider::before {
+  content: '├─────────────────┤' !important;
+  position: absolute !important;
+  top: -1px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  color: var(--retro-perf-border-bright) !important;
+  font-family: var(--retro-perf-font-mono) !important;
+  font-size: 8px !important;
+  letter-spacing: 0 !important;
+  background: var(--retro-perf-bg-primary) !important;
+  padding: 0 2px !important;
+}
+
+/* Removed dashboard container adjustments - using floating nav consistently */
+
+/* Hide sidebar logo since it's already in header */
+/* Removed remaining sidebar logo and padding rules - using floating nav only */
+
+/* === Settings Pages Border Improvements === */
+[data-theme="retro-performance"] .ant-card,
+[data-theme="retro-performance"] .ant-form-item,
+[data-theme="retro-performance"] .ant-input,
+[data-theme="retro-performance"] .ant-select,
+[data-theme="retro-performance"] .ant-tabs-tab {
+  border-color: var(--retro-perf-border-bright) !important;
+}
+
+[data-theme="retro-performance"] .settings-section,
+[data-theme="retro-performance"] .ant-card-body {
+  border: 1px solid var(--retro-perf-border-bright) !important;
+  background: var(--retro-perf-bg-tertiary) !important;
+}
+
+[data-theme="retro-performance"] .ant-input,
+[data-theme="retro-performance"] .ant-input-affix-wrapper,
+[data-theme="retro-performance"] .ant-select-selector {
+  background: var(--retro-perf-bg-secondary) !important;
+  border: 1px solid var(--retro-perf-border-bright) !important;
+  color: var(--retro-perf-text-primary) !important;
+}
+
+/* === Settings Navigation & Menu Items === */
+[data-theme="retro-performance"] .ant-menu-item,
+[data-theme="retro-performance"] .settings-nav-item,
+[data-theme="retro-performance"] [class*="settings"] .ant-tabs-tab {
+  color: var(--retro-perf-text-primary) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-theme="retro-performance"] .ant-menu-item:hover,
+[data-theme="retro-performance"] .settings-nav-item:hover,
+[data-theme="retro-performance"] [class*="settings"] .ant-tabs-tab:hover {
+  color: var(--retro-perf-yellow-bright) !important;
+  background: rgba(251, 191, 36, 0.1) !important;
+  border-color: var(--retro-perf-yellow-bright) !important;
+}
+
+[data-theme="retro-performance"] .ant-menu-item-selected,
+[data-theme="retro-performance"] .settings-nav-item.active,
+[data-theme="retro-performance"] [class*="settings"] .ant-tabs-tab-active {
+  color: var(--retro-perf-yellow-bright) !important;
+  background: rgba(251, 191, 36, 0.15) !important;
+  border-color: var(--retro-perf-yellow-bright) !important;
+  font-weight: 600 !important;
+}
+
+/* Settings sections hover effect */
+[data-theme="retro-performance"] .settings-section:hover {
+  border-color: var(--retro-perf-yellow-bright) !important;
+  box-shadow: 0 0 10px var(--retro-perf-yellow-glow) !important;
+}
+
+[data-theme="retro-performance"] .ant-input:focus,
+[data-theme="retro-performance"] .ant-input-affix-wrapper:focus,
+[data-theme="retro-performance"] .ant-select-focused .ant-select-selector {
+  border-color: var(--retro-perf-yellow-bright) !important;
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.2) !important;
+}

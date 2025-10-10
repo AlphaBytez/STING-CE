@@ -1,0 +1,304 @@
+import os
+import logging
+import torch
+import time
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Any, Union
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+import uvicorn
+import traceback
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Environment variables
+MODEL_PATH = os.environ.get("MODEL_PATH", "/app/models/llama-3-8b")
+DEVICE_TYPE = os.environ.get("DEVICE_TYPE", "auto")  # cuda, cpu, or auto
+MODEL_NAME = os.environ.get("MODEL_NAME", "llama3")
+QUANTIZATION = os.environ.get("QUANTIZATION", "none")  # int8, int4, or none
+MAX_LENGTH = int(os.environ.get("MAX_LENGTH", "4096"))
+
+app = FastAPI(title="STING LLM Service")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Message format
+class Message(BaseModel):
+    role: str
+    content: str
+    
+class ChatRequest(BaseModel):
+    messages: List[Message]
+    model: Optional[str] = None
+    max_tokens: Optional[int] = 2048
+    temperature: Optional[float] = 0.7
+    system_prompt: Optional[str] = None
+    
+class ChatResponse(BaseModel):
+    model: str
+    response: str
+    usage: Dict[str, int]
+
+# Global variables for model and tokenizer
+model = None
+tokenizer = None
+
+# Define Llama 3 chat template
+LLAMA_3_CHAT_TEMPLATE = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+{{ system_prompt | default: "You are a helpful AI assistant. Be concise." }}<|eot_id|>
+
+{% for message in messages %}
+<|start_header_id|>{{ message["role"] }}<|end_header_id|>
+
+{{ message["content"] }}<|eot_id|>
+{% endfor %}
+
+<|start_header_id|>assistant<|end_header_id|>
+
+"""
+
+# Load model on startup
+@app.on_event("startup")
+async def startup_event():
+    global tokenizer, model
+    
+    logger.info(f"Starting LLM service with device_type={DEVICE_TYPE}, model={MODEL_NAME}, path={MODEL_PATH}")
+    logger.info(f"Using quantization setting: {QUANTIZATION}")
+    
+    try:
+        start_time = time.time()
+        
+        # Determine the device
+        if DEVICE_TYPE == "auto":
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        else:
+            device = DEVICE_TYPE
+            
+        logger.info(f"Using device: {device}")
+        
+        # Load tokenizer first
+        logger.info(f"Loading tokenizer from {MODEL_PATH}")
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+        
+        # Set the chat template for Llama 3
+        if MODEL_NAME.startswith("llama"):
+            logger.info("Setting Llama 3 chat template")
+            tokenizer.chat_template = LLAMA_3_CHAT_TEMPLATE
+        
+        # We'll load the model on first request to avoid startup delays
+        logger.info("Model will be loaded on first request")
+        
+        load_time = time.time() - start_time
+        logger.info(f"Startup completed in {load_time:.2f} seconds")
+        
+    except Exception as e:
+        logger.error(f"Failed during startup: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise
+
+def load_model_if_needed():
+    global model, tokenizer
+    
+    if model is not None:
+        return
+    
+    try:
+        logger.info(f"Loading model from {MODEL_PATH}")
+        
+        # Determine the device
+        if DEVICE_TYPE == "auto":
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        else:
+            device = DEVICE_TYPE
+            
+        # Configure quantization parameters using BitsAndBytesConfig (modern approach)
+        if QUANTIZATION == "int4":
+            logger.info("Using 4-bit quantization")
+            quantization_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.float16
+            )
+        elif QUANTIZATION == "int8":
+            logger.info("Using 8-bit quantization")
+            quantization_config = BitsAndBytesConfig(
+                load_in_8bit=True,
+            )
+        else:
+            quantization_config = None
+            logger.info("Using default precision")
+        
+        # Use the appropriate parameters based on quantization setting
+        model_load_params = {
+            "pretrained_model_name_or_path": MODEL_PATH,
+            "torch_dtype": torch.float16 if device == "cuda" else torch.float32,
+        }
+        
+        # Only set device_map if not using quantization (accelerate-loaded models require device_map="auto")
+        if quantization_config is None and device == "cpu":
+            model_load_params["device_map"] = "cpu"
+        else:
+            model_load_params["device_map"] = "auto"
+            
+        # Add quantization config if specified
+        if quantization_config is not None:
+            model_load_params["quantization_config"] = quantization_config
+            
+        logger.info(f"Loading from local directory: {MODEL_PATH}")
+        logger.info(f"Model params: {model_load_params}")
+        
+        model = AutoModelForCausalLM.from_pretrained(**model_load_params)
+        logger.info("Model loaded successfully")
+        
+    except Exception as e:
+        logger.error(f"Failed to load model: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise RuntimeError(f"Failed to load model: {str(e)}")
+
+@app.get("/health")
+def health_check():
+    model_status = "loaded" if model is not None else "not_loaded" 
+    return {
+        "status": "healthy",
+        "model": MODEL_NAME,
+        "device": model_status,
+        "uptime": time.time() - startup_time
+    }
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat_endpoint(request: ChatRequest):
+    try:
+        # Load model if needed
+        load_model_if_needed()
+        
+        # Prepare the input
+        messages = request.messages
+        
+        # Prepare system prompt if provided
+        if request.system_prompt:
+            messages = [Message(role="system", content=request.system_prompt)] + messages
+            
+        # Format conversation for the model
+        conversation = []
+        for msg in messages:
+            if msg.role == "user":
+                conversation.append({"role": "user", "content": msg.content})
+            elif msg.role == "assistant":
+                conversation.append({"role": "assistant", "content": msg.content})
+            elif msg.role == "system":
+                conversation.append({"role": "system", "content": msg.content})
+        
+        # Generate response
+        input_tokens = tokenizer.apply_chat_template(
+            conversation, 
+            return_tensors="pt"
+        )
+        
+        if torch.cuda.is_available() and model.device.type != "cpu":
+            input_tokens = input_tokens.to("cuda")
+            
+        with torch.no_grad():
+            outputs = model.generate(
+                input_tokens,
+                max_length=min(MAX_LENGTH, input_tokens.shape[1] + request.max_tokens),
+                do_sample=True,
+                temperature=request.temperature,
+                pad_token_id=tokenizer.eos_token_id
+            )
+        
+        # Decode the response
+        response_text = tokenizer.decode(outputs[0][input_tokens.shape[1]:], skip_special_tokens=True)
+        
+        # Count tokens (rough estimation)
+        input_token_count = input_tokens.shape[1]
+        output_token_count = outputs.shape[1] - input_tokens.shape[1]
+        
+        return {
+            "model": MODEL_NAME,
+            "response": response_text,
+            "usage": {
+                "prompt_tokens": input_token_count,
+                "completion_tokens": output_token_count,
+                "total_tokens": input_token_count + output_token_count
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Generation error: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Text generation failed: {str(e)}")
+
+@app.post("/generate")
+async def generate_endpoint(request: Request):
+    try:
+        # Load model if needed
+        load_model_if_needed()
+        
+        # Parse request body
+        body = await request.json()
+        messages = body.get("messages", [])
+        max_tokens = body.get("max_tokens", 2048)
+        temperature = body.get("temperature", 0.7)
+        
+        # Format conversation for the model
+        conversation = []
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            conversation.append({"role": role, "content": content})
+        
+        # Generate response
+        input_tokens = tokenizer.apply_chat_template(
+            conversation, 
+            return_tensors="pt"
+        )
+        
+        if torch.cuda.is_available() and model.device.type != "cpu":
+            input_tokens = input_tokens.to("cuda")
+            
+        with torch.no_grad():
+            outputs = model.generate(
+                input_tokens,
+                max_length=min(MAX_LENGTH, input_tokens.shape[1] + max_tokens),
+                do_sample=True,
+                temperature=temperature,
+                pad_token_id=tokenizer.eos_token_id
+            )
+        
+        # Decode the response
+        response_text = tokenizer.decode(outputs[0][input_tokens.shape[1]:], skip_special_tokens=True)
+        
+        # Count tokens (rough estimation)
+        input_token_count = input_tokens.shape[1]
+        output_token_count = outputs.shape[1] - input_tokens.shape[1]
+        
+        return {
+            "text": response_text,
+            "usage": {
+                "prompt_tokens": input_token_count,
+                "completion_tokens": output_token_count,
+                "total_tokens": input_token_count + output_token_count
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Generation error: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Text generation failed: {str(e)}")
+
+# Track startup time
+startup_time = time.time()
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8080, log_level="info")

@@ -1,0 +1,1729 @@
+#!/bin/bash
+# installation.sh - Installation and dependency management functions
+
+# Dependencies should be loaded by the main script
+# No need to source them again here
+
+# Main installation function
+install_msting() {
+    local start_llm=false
+    local interactive_prompt=true
+    local setup_admin=true  # Default to true for fresh installs
+    local admin_email=""
+    local cache_level="${CACHE_LEVEL:-moderate}"  # Accept cache level from environment or default
+    
+    # Parse arguments
+    for arg in "$@"; do
+        case "$arg" in
+            --start-llm)
+                start_llm=true
+                interactive_prompt=false
+                ;;
+            --setup-admin)
+                setup_admin=true
+                ;;
+            --admin-email=*)
+                admin_email="${arg#*=}"
+                setup_admin=true
+                ;;
+            --no-admin)
+                setup_admin=false
+                ;;
+            --no-prompt)
+                interactive_prompt=false
+                ;;
+        esac
+    done
+    
+    log_message "Starting STING installation..."
+    
+    # Check if already installed
+    if [ -d "${INSTALL_DIR}" ] && [ -f "${INSTALL_DIR}/docker-compose.yml" ]; then
+        log_message "STING is already installed at ${INSTALL_DIR}"
+        log_message "Use './manage_sting.sh reinstall' to reinstall"
+        return 1
+    fi
+    
+    # Create install directory
+    log_message "Creating installation directory at ${INSTALL_DIR}..."
+    mkdir -p "${INSTALL_DIR}"
+    
+    # Check prerequisites
+    if ! check_and_install_dependencies; then
+        log_message "Failed to install dependencies" "ERROR"
+        return 1
+    fi
+    
+    # Pull base Docker images
+    log_message "Pulling base Docker images..."
+    docker pull postgres:16-alpine
+    docker pull node:20-alpine
+    docker pull python:3.11-slim
+    
+    # Initialize STING using the master initialization function
+    if ! initialize_sting; then
+        log_message "Failed to initialize STING" "ERROR"
+        return 1
+    fi
+    
+    # Verify Python dependencies are properly installed
+    if ! verify_python_dependencies; then
+        log_message "Python dependencies verification failed" "ERROR"
+        return 1
+    fi
+    
+    # Install msting command
+    install_msting_command
+    
+    log_message "STING installation completed successfully!" "SUCCESS"
+    log_message "You can now use 'msting' command to manage STING"
+    
+    # macOS permission notice
+    if [[ "$(uname)" == "Darwin" ]]; then
+        log_message "📌 macOS Note: If you encounter permission errors with 'msting', run:"
+        log_message "   chmod +x ~/.sting-ce/manage_sting.sh"
+        log_message "   or use the fix script: ./fix_permissions.sh"
+    fi
+    
+    # Handle admin setup based on flags only (no interactive prompts)
+    if [ "$setup_admin" = true ] && [ "$interactive_prompt" = false ]; then
+        log_message "Setting up admin user as requested..."
+        setup_admin_user_post_install "$admin_email"
+    else
+        # Always show admin setup notice instead of prompting
+        # show_admin_setup_notice  # Deprecated - admin setup is automatic now
+        true  # no-op
+    fi
+    
+    # Handle LLM service startup based on flags only (no interactive prompts)
+    if [[ "$(uname)" == "Darwin" ]] && [ "$start_llm" = true ]; then
+        log_message "Starting LLM service as requested..."
+        start_llm_service_post_install
+    else
+        # Always show LLM startup notice instead of prompting
+        # show_llm_startup_notice  # Deprecated - LLM service is no longer used
+        true  # no-op
+    fi
+    
+    return 0
+}
+
+# Uninstall STING
+# Force cleanup all STING Docker resources
+force_cleanup_docker_resources() {
+    log_message "Performing aggressive Docker cleanup for STING resources..."
+    
+    # Stop and remove all containers with STING-related names
+    docker ps -a --format "{{.Names}}" | grep -E "(sting|kratos|chroma|knowledge)" | xargs -r docker rm -f 2>/dev/null || true
+    
+    # Remove all STING-related images
+    docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "(sting|kratos)" | xargs -r docker rmi -f 2>/dev/null || true
+    
+    # Remove all STING-related volumes
+    docker volume ls -q | grep -E "(sting|kratos|chroma|knowledge|postgres)" | xargs -r docker volume rm -f 2>/dev/null || true
+    
+    # Remove STING networks
+    docker network ls --format "{{.Name}}" | grep sting | xargs -r docker network rm 2>/dev/null || true
+    
+    # Clean up any orphaned containers, networks, and volumes
+    docker system prune -f 2>/dev/null || true
+    
+    log_message "Aggressive Docker cleanup completed"
+}
+
+uninstall_msting() {
+    local purge_models="$1"
+    
+    log_message "Starting STING uninstallation..."
+    
+    # Stop all services including all profiles
+    if [ -f "${INSTALL_DIR}/docker-compose.yml" ]; then
+        cd "${INSTALL_DIR}" || return 1
+        
+        log_message "Stopping any STING containers (with timeout protection)..."
+        
+        # Use timeout for all Docker commands to prevent hanging
+        # Stop all containers with STING-related names (bypass label filtering)
+        timeout 10s docker ps -a --format "{{.Names}}" 2>/dev/null | grep -E "(sting|STING)" | xargs -r timeout 5s docker stop 2>/dev/null || true
+        timeout 10s docker ps -a --format "{{.Names}}" 2>/dev/null | grep -E "(sting|STING)" | xargs -r timeout 5s docker kill 2>/dev/null || true
+        
+        # Alternative: stop by container name patterns directly
+        timeout 5s docker stop sting-ce-vault sting-ce-db sting-ce-app sting-ce-frontend sting-ce-kratos sting-ce-mailpit sting-ce-messaging sting-ce-redis sting-ce-llm-gateway sting-ce-external-ai 2>/dev/null || true
+        timeout 5s docker kill sting-ce-vault sting-ce-db sting-ce-app sting-ce-frontend sting-ce-kratos sting-ce-mailpit sting-ce-messaging sting-ce-redis sting-ce-llm-gateway sting-ce-external-ai 2>/dev/null || true
+        
+        log_message "Container stop attempts completed (may have timed out)"
+    fi
+    
+    # Remove containers and images with timeout protection
+    log_message "Removing Docker containers and images..."
+    
+    # Remove all STING-related containers with timeout
+    local container_patterns=("sting" "sting-ce")
+    for pattern in "${container_patterns[@]}"; do
+        if timeout 30s docker ps -a --filter "name=${pattern}" --format "{{.ID}}" 2>/dev/null | xargs -r docker rm -f 2>/dev/null; then
+            log_message "Containers matching '${pattern}' removed"
+        else
+            log_message "Container removal for '${pattern}' timed out or failed - continuing..." "WARNING"
+        fi
+    done
+    
+    # Remove STING images with timeout
+    if timeout 30s docker images --filter "reference=*sting*" --format "{{.ID}}" 2>/dev/null | xargs -r docker rmi -f 2>/dev/null; then
+        log_message "STING images removed"
+    else
+        log_message "Docker image removal timed out or failed - continuing..." "WARNING"
+    fi
+    
+    # Remove installation directory (but preserve backups and .venv unless --purge)
+    if [ -d "${INSTALL_DIR}" ]; then
+        log_message "Removing installation directory..."
+        
+        # Preserve important directories unless purging
+        local preserve_dirs=()
+        if [ -d "${INSTALL_DIR}/backups" ]; then
+            local backup_temp="/tmp/sting_backups_$(date +%s)"
+            mv "${INSTALL_DIR}/backups" "$backup_temp"
+            log_message "Backups preserved at: $backup_temp"
+        fi
+        
+        # Preserve .venv directory unless --purge is specified
+        if [ "$purge_models" != "--purge" ] && [ -d "${INSTALL_DIR}/.venv" ]; then
+            local venv_temp="/tmp/sting_venv_$(date +%s)"
+            mv "${INSTALL_DIR}/.venv" "$venv_temp"
+            preserve_dirs+=("$venv_temp")
+            log_message "Virtual environment preserved for faster reinstall"
+        fi
+        
+        # Remove the installation directory
+        rm -rf "${INSTALL_DIR}"
+        
+        # Restore preserved directories
+        if [ "$purge_models" != "--purge" ] && [ ${#preserve_dirs[@]} -gt 0 ]; then
+            mkdir -p "${INSTALL_DIR}"
+            for preserved_dir in "${preserve_dirs[@]}"; do
+                if [ -d "$preserved_dir" ]; then
+                    mv "$preserved_dir" "${INSTALL_DIR}/.venv"
+                    log_message "Virtual environment restored to ${INSTALL_DIR}/.venv"
+                fi
+            done
+        fi
+    fi
+    
+    # Remove models if purge flag is set
+    if [ "$purge_models" = "--purge" ]; then
+        # Source model_management.sh to get ensure_models_dir function
+        source "${SCRIPT_DIR}/model_management.sh"
+        local models_dir
+        models_dir=$(ensure_models_dir)
+        if [ -d "$models_dir" ]; then
+            log_message "Removing LLM models from $models_dir..."
+            rm -rf "$models_dir"
+        fi
+        
+        # Also remove Docker volume on macOS
+        if [[ "$(uname)" == "Darwin" ]]; then
+            docker volume rm llm_model_data 2>/dev/null || true
+        fi
+    fi
+    
+    # Remove msting command
+    if [ -L "/usr/local/bin/msting" ]; then
+        log_message "Removing msting command..."
+        sudo rm -f /usr/local/bin/msting 2>/dev/null || \
+            log_message "Please manually remove /usr/local/bin/msting with sudo"
+    fi
+    
+    # Remove Docker networks and remaining volumes
+    log_message "Cleaning up Docker networks and volumes..."
+    docker network rm sting_local 2>/dev/null || true
+    
+    # Remove any remaining STING-related volumes
+    docker volume ls -q | grep -E "(sting|kratos)" | xargs -r docker volume rm 2>/dev/null || true
+    
+    # Additional cleanup for orphaned containers
+    docker container prune -f 2>/dev/null || true
+    
+    # If there are still STING containers running, do aggressive cleanup
+    if docker ps --format "{{.Names}}" | grep -q -E "(sting|kratos|chroma|knowledge)"; then
+        log_message "Some STING containers still detected, performing aggressive cleanup..." "WARNING"
+        force_cleanup_docker_resources
+    fi
+    
+    log_message "STING uninstallation completed" "SUCCESS"
+    return 0
+}
+
+# Uninstall with confirmation
+uninstall_msting_with_confirmation() {
+    echo "⚠️  WARNING: This will remove STING and all its data!"
+    echo "   Add --purge to also remove downloaded LLM models"
+    echo ""
+    read -p "Are you sure you want to uninstall STING? (yes/no): " confirm
+    
+    if [ "$confirm" = "yes" ]; then
+        uninstall_msting "$@"
+    else
+        log_message "Uninstall cancelled"
+        return 1
+    fi
+}
+
+# Atomic Reinstall STING with rollback capability
+reinstall_msting() {
+    local fresh_install=false
+    local install_llm=false
+    local no_backup=false
+    local lean_backup=true  # Default to lean backup
+    local cache_level="moderate"  # Default cache buzzer level
+    local backup_dir="${INSTALL_DIR}.backup.$(date +%Y%m%d_%H%M%S)"
+    
+    # Parse arguments
+    for arg in "$@"; do
+        case "$arg" in
+            --fresh)
+                fresh_install=true
+                cache_level="full"  # Fresh install uses full cache clear
+                ;;
+            --llm)
+                install_llm=true
+                ;;
+            --no-backup)
+                no_backup=true
+                ;;
+            --full-backup)
+                lean_backup=false
+                ;;
+            --cache-minimal)
+                cache_level="minimal"
+                ;;
+            --cache-moderate)
+                cache_level="moderate"
+                ;;
+            --cache-full)
+                cache_level="full"
+                ;;
+        esac
+    done
+    
+    log_message "Starting atomic STING reinstallation..."
+    
+    # Phase 1: Create backup of existing installation (unless --no-backup is specified)
+    if [ "$no_backup" = false ] && [ -d "${INSTALL_DIR}" ]; then
+        # Source backup utilities
+        source "${SCRIPT_DIR}/backup_utils.sh" 2>/dev/null || {
+            # Fallback to full backup if backup_utils.sh not available
+            log_message "backup_utils.sh not found, using full backup"
+            lean_backup=false
+        }
+        
+        if [ "$lean_backup" = true ] && command -v create_lean_backup >/dev/null 2>&1; then
+            log_message "Creating lean backup of essential files..."
+            if ! create_lean_backup "${INSTALL_DIR}" "${backup_dir}"; then
+                log_message "Failed to create lean backup - aborting reinstall for safety" "ERROR"
+                return 1
+            fi
+        else
+            log_message "Creating full backup of installation..."
+            if ! rsync -a --delete "${INSTALL_DIR}/" "${backup_dir}/"; then
+                log_message "Failed to create backup - aborting reinstall for safety" "ERROR"
+                return 1
+            fi
+            log_message "Full backup created at: ${backup_dir}"
+        fi
+    elif [ "$no_backup" = true ]; then
+        log_message "Skipping backup creation (--no-backup flag specified)" "WARNING"
+    fi
+    
+    # Phase 2: Test if we can install (dry run check)
+    log_message "Performing pre-install validation..."
+    if ! check_and_install_dependencies; then
+        log_message "System dependencies check failed - cannot proceed with reinstall" "ERROR"
+        if [ "$no_backup" = false ] && [ -d "${backup_dir}" ]; then
+            restore_from_backup "${backup_dir}"
+        fi
+        return 1
+    fi
+    
+    # Save credentials if not fresh install
+    local saved_creds=""
+    if [ "$fresh_install" = false ] && [ -f "${INSTALL_DIR}/conf/secrets/hf_token.txt" ]; then
+        saved_creds=$(cat "${INSTALL_DIR}/conf/secrets/hf_token.txt")
+        log_message "Preserving existing credentials..."
+    fi
+    
+    # Phase 3: Uninstall existing installation
+    log_message "Removing existing installation..."
+    if [ "$fresh_install" = true ]; then
+        if ! uninstall_msting --purge; then
+            log_message "Uninstall failed - restoring from backup" "ERROR"
+            if [ "$no_backup" = false ] && [ -d "${backup_dir}" ]; then
+                restore_from_backup "${backup_dir}"
+            fi
+            return 1
+        fi
+    else
+        if ! uninstall_msting; then
+            log_message "Uninstall failed - restoring from backup" "ERROR"
+            if [ "$no_backup" = false ] && [ -d "${backup_dir}" ]; then
+                restore_from_backup "${backup_dir}"
+            fi
+            return 1
+        fi
+    fi
+    
+    # Wait a moment for cleanup
+    sleep 2
+    
+    # Phase 4: Attempt new installation
+    log_message "Installing fresh STING..."
+    # Export cache level for install_msting to use
+    export CACHE_LEVEL="$cache_level"
+    if ! install_msting; then
+        log_message "Installation failed - restoring from backup" "ERROR"
+        if [ "$no_backup" = false ] && [ -d "${backup_dir}" ]; then
+            restore_from_backup "${backup_dir}"
+        fi
+        return 1
+    fi
+    
+    # Phase 5: Verify installation health
+    log_message "Verifying installation health..."
+    if ! verify_installation_health; then
+        log_message "Installation health check failed - restoring from backup" "ERROR"
+        if [ "$no_backup" = false ] && [ -d "${backup_dir}" ]; then
+            restore_from_backup "${backup_dir}"
+        fi
+        return 1
+    fi
+    
+    # Phase 6: Restore credentials if saved
+    if [ -n "$saved_creds" ] && [ "$fresh_install" = false ]; then
+        log_message "Restoring saved credentials..."
+        save_hf_token "$saved_creds"
+    fi
+    
+    # Phase 7: Cleanup successful - remove backup (if one was created)
+    if [ "$no_backup" = false ] && [ -d "${backup_dir}" ]; then
+        log_message "Reinstall successful - cleaning up backup..."
+        rm -rf "${backup_dir}"
+        
+        # Clean up old installation backups according to retention policy
+        if command -v cleanup_installation_backups >/dev/null 2>&1; then
+            cleanup_installation_backups
+        fi
+    fi
+    
+    log_message "STING atomic reinstallation completed successfully!" "SUCCESS"
+    return 0
+}
+
+# Helper function to restore from backup
+restore_from_backup() {
+    local backup_dir="$1"
+    
+    if [ -z "$backup_dir" ] || [ ! -d "$backup_dir" ]; then
+        log_message "No valid backup directory provided" "ERROR"
+        return 1
+    fi
+    
+    log_message "Restoring installation from backup..." "WARNING"
+    
+    # Remove any partial installation (handle permission issues)
+    if [ -d "${INSTALL_DIR}" ]; then
+        # Try normal removal first
+        if ! rm -rf "${INSTALL_DIR}" 2>/dev/null; then
+            # If that fails, try with sudo for Docker-owned files
+            log_message "Normal removal failed, trying with elevated permissions..."
+            sudo rm -rf "${INSTALL_DIR}" || {
+                log_message "WARNING: Could not fully remove ${INSTALL_DIR}, some files may remain"
+            }
+        fi
+    fi
+    
+    # Restore from backup
+    if rsync -a --delete "${backup_dir}/" "${INSTALL_DIR}/"; then
+        # Ensure manage_sting.sh has execute permissions after restore
+        if [ -f "${INSTALL_DIR}/manage_sting.sh" ]; then
+            if ! chmod +x "${INSTALL_DIR}/manage_sting.sh" 2>/dev/null; then
+                log_message "WARNING: Failed to set execute permissions on manage_sting.sh after restore" "WARNING"
+                log_message "Services may still work, but 'msting' command requires: chmod +x ${INSTALL_DIR}/manage_sting.sh" "WARNING"
+            else
+                log_message "Execute permissions set on manage_sting.sh"
+            fi
+        fi
+        log_message "Installation restored from backup successfully"
+        log_message "Backup directory preserved at: ${backup_dir}"
+        return 0
+    else
+        log_message "Failed to restore from backup!" "ERROR"
+        log_message "Manual recovery required from: ${backup_dir}" "ERROR"
+        return 1
+    fi
+}
+
+# Helper function to verify installation health
+verify_installation_health() {
+    log_message "Checking critical files..."
+    
+    # Check for essential files
+    local critical_files=(
+        "${INSTALL_DIR}/manage_sting.sh"
+        "${INSTALL_DIR}/lib/installation.sh"
+        "${INSTALL_DIR}/lib/services.sh"
+        "${INSTALL_DIR}/conf/config.yml"
+        "${INSTALL_DIR}/conf/config_loader.py"
+    )
+    
+    for file in "${critical_files[@]}"; do
+        if [ ! -f "$file" ]; then
+            log_message "Critical file missing: $file" "ERROR"
+            return 1
+        fi
+    done
+    
+    # Check that manage_sting.sh is executable - auto-fix if not
+    if [ ! -x "${INSTALL_DIR}/manage_sting.sh" ]; then
+        log_message "manage_sting.sh is not executable - attempting to fix permissions..." "WARNING"
+        if chmod +x "${INSTALL_DIR}/manage_sting.sh" 2>/dev/null; then
+            log_message "Successfully fixed manage_sting.sh permissions" "SUCCESS"
+        else
+            log_message "Failed to fix manage_sting.sh permissions - may need manual intervention" "WARNING"
+            # Don't fail installation for permission issues - user can fix later
+        fi
+    fi
+    
+    # Test basic functionality only if file is executable
+    if [ -x "${INSTALL_DIR}/manage_sting.sh" ]; then
+        if ! "${INSTALL_DIR}/manage_sting.sh" help >/dev/null 2>&1; then
+            log_message "manage_sting.sh help command failed - script may have issues" "WARNING"
+            # Don't fail for help command - core services might still work
+        fi
+    else
+        log_message "Skipping manage_sting.sh functionality test due to permission issues" "WARNING"
+    fi
+    
+    log_message "Installation health check passed"
+    return 0
+}
+
+# Check and install system dependencies
+check_and_install_dependencies() {
+    log_message "Checking system dependencies..."
+    
+    log_message "DEBUG: Starting dependency checks..."
+    local missing_deps=()
+    
+    # Check Python 3
+    log_message "DEBUG: Checking Python3..."
+    if ! command -v python3 >/dev/null 2>&1; then
+        missing_deps+=("python3")
+    fi
+    log_message "DEBUG: Python3 check complete"
+    
+    # Check Python venv module
+    log_message "DEBUG: Checking Python venv..."
+    if ! python3 -m venv --help >/dev/null 2>&1; then
+        missing_deps+=("python3-venv")
+    fi
+    log_message "DEBUG: Python venv check complete"
+    
+    # Check pip
+    if ! command -v pip3 >/dev/null 2>&1; then
+        missing_deps+=("python3-pip")
+    fi
+    
+    # Check Docker
+    if ! command -v docker >/dev/null 2>&1; then
+        log_message "Docker is not installed. Installing Docker..."
+        if ! install_docker; then
+            log_message "Failed to install Docker" "ERROR"
+            return 1
+        fi
+    fi
+    
+    # Check Docker Compose
+    if ! docker compose version >/dev/null 2>&1; then
+        log_message "Docker Compose is not available" "ERROR"
+        return 1
+    fi
+    
+    # Install missing dependencies
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        log_message "Installing missing dependencies: ${missing_deps[*]}"
+        
+        if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y "${missing_deps[@]}"
+        elif command -v yum >/dev/null 2>&1; then
+            sudo yum install -y "${missing_deps[@]}"
+        else
+            log_message "Unable to install dependencies automatically. Please install: ${missing_deps[*]}" "ERROR"
+            return 1
+        fi
+    fi
+    
+    # Check for libmagic (required for knowledge service)
+    log_message "Checking libmagic for knowledge service..."
+    
+    if [[ "$(uname)" == "Darwin" ]]; then
+        # macOS: Use Homebrew
+        if ! command -v brew >/dev/null 2>&1; then
+            log_message "Homebrew not found. Please install Homebrew first." "ERROR"
+            log_message "Visit: https://brew.sh" "ERROR"
+            return 1
+        fi
+        
+        if ! brew list libmagic >/dev/null 2>&1; then
+            log_message "Installing libmagic via Homebrew..."
+            # Ensure we're in a valid directory for brew to work
+            local original_dir="$(pwd)"
+            cd /tmp || cd "$HOME" || cd /
+            export PWD="$(pwd)"
+            
+            if ! brew install libmagic; then
+                log_message "Failed to install libmagic" "ERROR"
+                # Try to restore original directory if it exists
+                [ -d "$original_dir" ] && cd "$original_dir" || true
+                return 1
+            fi
+            
+            # Try to restore original directory if it exists
+            [ -d "$original_dir" ] && cd "$original_dir" || true
+        else
+            log_message "libmagic already installed"
+        fi
+    else
+        # Linux: Use system package manager
+        if command -v apt-get >/dev/null 2>&1; then
+            # Debian/Ubuntu
+            if ! dpkg -l | grep -q libmagic1; then
+                log_message "Installing libmagic via apt-get..."
+                if ! sudo apt-get update && sudo apt-get install -y libmagic1 libmagic-dev; then
+                    log_message "Failed to install libmagic" "ERROR"
+                    return 1
+                fi
+            else
+                log_message "libmagic already installed"
+            fi
+        elif command -v yum >/dev/null 2>&1; then
+            # RHEL/CentOS/Fedora
+            if ! rpm -q file-libs >/dev/null 2>&1; then
+                log_message "Installing libmagic via yum..."
+                if ! sudo yum install -y file-libs file-devel; then
+                    log_message "Failed to install libmagic" "ERROR"
+                    return 1
+                fi
+            else
+                log_message "libmagic already installed"
+            fi
+        elif command -v dnf >/dev/null 2>&1; then
+            # Modern Fedora
+            if ! rpm -q file-libs >/dev/null 2>&1; then
+                log_message "Installing libmagic via dnf..."
+                if ! sudo dnf install -y file-libs file-devel; then
+                    log_message "Failed to install libmagic" "ERROR"
+                    return 1
+                fi
+            else
+                log_message "libmagic already installed"
+            fi
+        else
+            log_message "Unsupported package manager. Please install libmagic manually." "WARNING"
+            log_message "Required packages: libmagic1, libmagic-dev (Debian/Ubuntu) or file-libs, file-devel (RHEL/CentOS)" "WARNING"
+        fi
+    fi
+    
+    log_message "All dependencies are satisfied" "SUCCESS"
+    return 0
+}
+
+# Install Node.js
+install_nodejs() {
+    log_message "Checking Node.js installation..."
+    
+    # Check if Node.js is already installed
+    if command -v node >/dev/null 2>&1; then
+        local node_version
+        node_version=$(node -v)
+        log_message "Node.js is already installed: $node_version"
+        
+        # Check if npm is installed
+        if command -v npm >/dev/null 2>&1; then
+            local npm_version
+            npm_version=$(npm -v)
+            log_message "npm is already installed: $npm_version"
+            return 0
+        fi
+    fi
+    
+    log_message "Installing Node.js..."
+    
+    # Determine if we need sudo
+    local SUDO=""
+    if [ "$EUID" -ne 0 ]; then
+        SUDO="sudo"
+    fi
+    
+    if command -v apt-get >/dev/null 2>&1; then
+        # Install Node.js on Debian/Ubuntu
+        curl -fsSL https://deb.nodesource.com/setup_20.x | $SUDO -E bash -
+        $SUDO apt-get install -y nodejs
+    elif command -v yum >/dev/null 2>&1; then
+        # Install Node.js on RHEL/CentOS
+        curl -fsSL https://rpm.nodesource.com/setup_20.x | $SUDO bash -
+        $SUDO yum install -y nodejs
+    else
+        log_message "Unable to install Node.js automatically. Please install Node.js 20.x manually." "ERROR"
+        return 1
+    fi
+    
+    # Verify installation
+    if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+        log_message "Node.js installed successfully: $(node -v)" "SUCCESS"
+        log_message "npm installed successfully: $(npm -v)" "SUCCESS"
+        return 0
+    else
+        log_message "Node.js installation failed" "ERROR"
+        return 1
+    fi
+}
+
+# Install Docker
+install_docker() {
+    log_message "Installing Docker Engine..."
+    
+    # This installation is for Debian/Ubuntu systems
+    if ! command -v apt-get >/dev/null 2>&1; then
+        log_message "Docker installation script only supports Debian/Ubuntu systems" "ERROR"
+        log_message "Please install Docker manually from https://docs.docker.com/get-docker/"
+        return 1
+    fi
+    
+    # Update package index
+    sudo apt-get update
+    
+    # Install prerequisites
+    sudo apt-get install -y \
+        ca-certificates \
+        curl \
+        gnupg \
+        lsb-release
+    
+    # Add Docker's official GPG key
+    sudo mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    
+    # Set up the repository
+    echo \
+        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+        $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    
+    # Update package index again
+    sudo apt-get update
+    
+    # Install Docker Engine and Docker Compose plugin
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    
+    # Add current user to docker group
+    sudo usermod -aG docker "$USER"
+    
+    # Verify installation
+    if docker --version >/dev/null 2>&1; then
+        log_message "Docker installed successfully" "SUCCESS"
+        log_message "You may need to log out and back in for group changes to take effect"
+        return 0
+    else
+        log_message "Docker installation failed" "ERROR"
+        return 1
+    fi
+}
+
+# Install frontend dependencies
+install_frontend_dependencies() {
+    log_message "Installing frontend dependencies..."
+    
+    if [ ! -d "${INSTALL_DIR}/frontend" ]; then
+        log_message "Frontend directory not found" "ERROR"
+        return 1
+    fi
+    
+    cd "${INSTALL_DIR}/frontend" || return 1
+    
+    if [ -f "package.json" ]; then
+        log_message "Running npm install..."
+        npm install
+        return $?
+    else
+        log_message "package.json not found in frontend directory" "ERROR"
+        return 1
+    fi
+}
+
+# Install development dependencies
+install_dev_dependencies() {
+    log_message "Installing development dependencies..."
+    
+    # Wait for dev container to be ready
+    local max_attempts=30
+    local attempt=1
+    while [ $attempt -le $max_attempts ]; do
+        if docker compose ps dev 2>/dev/null | grep -q "Up"; then
+            break
+        fi
+        log_message "Waiting for development container... attempt $attempt/$max_attempts"
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+    
+    # Install Python development dependencies
+    if docker compose exec -T dev pip install -r requirements-dev.txt 2>/dev/null; then
+        log_message "Development dependencies installed successfully" "SUCCESS"
+        return 0
+    else
+        log_message "Failed to install development dependencies" "ERROR"
+        return 1
+    fi
+}
+
+# Install msting command
+install_msting_command() {
+    log_message "Installing msting command..."
+    
+    local target_path="/usr/local/bin/msting"
+    local source_path="${INSTALL_DIR}/manage_sting.sh"
+    
+    # Create a wrapper script that calls the installed version
+    local wrapper_content="#!/bin/bash
+# msting - STING Community Edition Management Command
+# This wrapper calls the installed manage_sting.sh script
+
+# Determine install directory
+if [[ \"\$(uname)\" == \"Darwin\" ]]; then
+    INSTALL_DIR=\"\${INSTALL_DIR:-\$HOME/.sting-ce}\"
+else
+    INSTALL_DIR=\"\${INSTALL_DIR:-/opt/sting-ce}\"
+fi
+
+# Call the actual script
+exec \"\$INSTALL_DIR/manage_sting.sh\" \"\$@\"
+"
+    
+    # Try to create wrapper without sudo first (since user owns /usr/local/bin on macOS)
+    if echo "$wrapper_content" > "$target_path" 2>/dev/null && chmod +x "$target_path" 2>/dev/null; then
+        log_message "msting command installed successfully" "SUCCESS"
+    elif echo "$wrapper_content" | sudo -n tee "$target_path" >/dev/null 2>&1; then
+        sudo -n chmod +x "$target_path" 2>/dev/null
+        log_message "msting command installed successfully with sudo" "SUCCESS"
+    else
+        log_message "Creating msting command requires sudo access"
+        log_message "Please run the following commands:"
+        log_message "sudo tee $target_path <<'EOF'"
+        echo "$wrapper_content"
+        log_message "EOF"
+        log_message "sudo chmod +x $target_path"
+    fi
+}
+
+# Install Python packages with progress indicator
+pip_install_with_progress() {
+    local package="$1"
+    local pip_args="${2:-}"
+    
+    echo -n "Installing $package"
+    
+    # Run pip install in background
+    pip install --prefer-binary $pip_args "$package" > /tmp/pip_install_$$.log 2>&1 &
+    local pip_pid=$!
+    
+    # Show progress spinner
+    local spin='-\|/'
+    local i=0
+    while kill -0 $pip_pid 2>/dev/null; do
+        i=$(( (i+1) %4 ))
+        printf "\rInstalling $package ${spin:$i:1}"
+        sleep 0.1
+    done
+    
+    # Check if installation succeeded
+    wait $pip_pid
+    local result=$?
+    
+    if [ $result -eq 0 ]; then
+        printf "\rInstalling $package... done\n"
+    else
+        printf "\rInstalling $package... failed\n"
+        cat /tmp/pip_install_$$.log
+    fi
+    
+    rm -f /tmp/pip_install_$$.log
+    return $result
+}
+
+
+# Helper function: Check for LLM models
+check_llm_models() {
+    log_message "Checking for LLM models..."
+    
+    local models_dir
+    models_dir=$(ensure_models_dir)
+    
+    # Check if any model files exist
+    if [ -d "$models_dir" ] && find "$models_dir" -name "*.bin" -o -name "*.gguf" | grep -q .; then
+        log_message "LLM models found in $models_dir"
+        return 0
+    else
+        log_message "No LLM models found"
+        return 1
+    fi
+}
+
+# Helper function: Ensure HuggingFace CLI is available
+ensure_hf_cli() {
+    if ! command -v huggingface-cli >/dev/null 2>&1; then
+        log_message "Installing HuggingFace CLI..."
+        pip_install_with_progress "huggingface-hub[cli]"
+        return $?
+    fi
+    return 0
+}
+
+# Helper function: Ensure HuggingFace authentication
+ensure_hf_auth() {
+    if [ -n "$HF_TOKEN" ]; then
+        log_message "HuggingFace token configured (authentication will happen in containers)"
+        # Authentication will be handled by the containers using the HF_TOKEN environment variable
+        return 0
+    fi
+    log_message "No HuggingFace token available" "WARNING"
+    return 1
+}
+
+# Helper function: Ensure models directory
+ensure_models_dir() {
+    if [[ "$(uname)" == "Darwin" ]]; then
+        # macOS: Use user's home directory
+        echo "$HOME/.sting/models"
+    else
+        # Linux: Use system directory
+        echo "/opt/sting-ce/models"
+    fi
+}
+
+# Wait for Vault service to be ready
+wait_for_vault() {
+    log_message "Waiting for Vault to initialize..."
+    local max_attempts=30
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        # Use docker exec directly to avoid docker compose warnings
+        if docker exec sting-ce-vault vault status 2>/dev/null | grep -q "Initialized.*true"; then
+            log_message "Vault is initialized"
+            return 0
+        fi
+        log_message "Waiting for Vault... attempt $attempt/$max_attempts"
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+    
+    log_message "Vault failed to initialize" "ERROR"
+    return 1
+}
+
+# Verify LLM service is ready to serve requests
+verify_llm_service_ready() {
+    log_message "Verifying LLM service readiness..."
+    local max_attempts=30
+    local attempt=1
+    local llm_port=8085  # Native LLM service port on macOS
+    
+    if [[ "$(uname)" != "Darwin" ]]; then
+        llm_port=8086  # Docker LLM gateway port on Linux
+    fi
+    
+    while [ $attempt -le $max_attempts ]; do
+        # Check if service responds to health check
+        if curl -s -f "http://localhost:${llm_port}/health" >/dev/null 2>&1; then
+            log_message "LLM service health check passed"
+            
+            # Test basic functionality with a simple request
+            if curl -s -f -X POST "http://localhost:${llm_port}/generate" \
+                -H "Content-Type: application/json" \
+                -d '{"prompt": "test", "max_tokens": 5}' >/dev/null 2>&1; then
+                log_message "LLM service is ready and responding to requests" "SUCCESS"
+                return 0
+            else
+                log_message "LLM service health OK but not responding to requests, attempt $attempt/$max_attempts"
+            fi
+        else
+            log_message "LLM service health check failed, attempt $attempt/$max_attempts"
+        fi
+        
+        sleep 10
+        attempt=$((attempt + 1))
+    done
+    
+    log_message "LLM service failed to become ready after $max_attempts attempts" "ERROR"
+    return 1
+}
+
+# Start LLM services based on platform and configuration
+start_llm_services() {
+    log_message "Starting universal LLM gateway and external AI services..."
+    
+    # Start the universal LLM gateway proxy (works on all platforms)
+    docker compose up -d llm-gateway-proxy
+    
+    # Start external AI service (connects to Ollama)
+    docker compose up -d external-ai
+    
+    log_message "Universal LLM services started successfully"
+    log_message "External AI service will connect to Ollama when available"
+    
+    return 0
+}
+
+# Show status of all services
+show_status() {
+    log_message "Service Status:"
+    docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+}
+
+# Check if all core services are healthy before starting LLM
+check_core_services_health() {
+    log_message "Checking core services health before LLM startup..."
+    local max_attempts=30
+    local attempt=1
+    local failed_services=()
+    
+    # Essential services that must be healthy
+    local essential_services=("db" "vault" "app" "frontend")
+    
+    for service in "${essential_services[@]}"; do
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+            if docker compose ps --format "{{.Name}}\t{{.Status}}" 2>/dev/null | grep "sting-ce-${service}" | grep -q "Up"; then
+                # Service is up, check if it's healthy
+                if docker compose exec -T "$service" echo "health check" >/dev/null 2>&1; then
+                    log_message "✅ Service $service is healthy"
+                    break
+                fi
+            fi
+            
+            if [ $attempt -eq $max_attempts ]; then
+                log_message "❌ Service $service failed health check after $max_attempts attempts" "ERROR"
+                failed_services+=("$service")
+                break
+            fi
+            
+            log_message "⏳ Waiting for $service to be healthy... attempt $attempt/$max_attempts"
+            sleep 5
+            attempt=$((attempt + 1))
+        done
+    done
+    
+    if [ ${#failed_services[@]} -gt 0 ]; then
+        log_message "❌ Failed services: ${failed_services[*]}" "ERROR"
+        log_message "LLM service startup aborted due to unhealthy core services" "ERROR"
+        return 1
+    fi
+    
+    log_message "✅ All core services are healthy" "SUCCESS"
+    return 0
+}
+
+# Start LLM service after installation with health checks
+start_llm_service_post_install() {
+    if [[ "$(uname)" != "Darwin" ]]; then
+        log_message "LLM service auto-start is only supported on macOS" "WARNING"
+        return 1
+    fi
+    
+    # Check core services health first
+    if ! check_core_services_health; then
+        log_message "Cannot start LLM service due to unhealthy core services" "ERROR"
+        return 1
+    fi
+    
+    # Load native LLM module
+    if ! source "${SCRIPT_DIR}/native_llm.sh"; then
+        log_message "Failed to load native LLM module" "ERROR"
+        return 1
+    fi
+    
+    # Start the native LLM service
+    log_message "🚀 Starting native LLM service..."
+    if start_native_llm_service; then
+        log_message "✅ LLM service started successfully!" "SUCCESS"
+        
+        # Verify the service is responding
+        if verify_llm_service_ready; then
+            log_message "🐝 Bee chatbot is now ready to use!" "SUCCESS"
+        else
+            log_message "⚠️  LLM service started but may not be fully ready" "WARNING"
+        fi
+    else
+        log_message "❌ Failed to start LLM service" "ERROR"
+        # show_llm_startup_notice  # Deprecated - LLM service is no longer used
+        return 1
+    fi
+}
+
+# Interactive prompt for LLM service startup
+prompt_llm_service_startup() {
+    if [[ "$(uname)" != "Darwin" ]]; then
+        # show_llm_startup_notice  # Deprecated - LLM service is no longer used
+        return
+    fi
+    
+    echo ""
+    echo -e "\033[1;33m🐝 STING installation completed successfully! \033[0m"
+    echo ""
+    echo -e "\033[1;36mWould you like to start the LLM service now to enable the Bee chatbot?\033[0m"
+    echo ""
+    echo "  This will:"
+    echo "  • Check that all core services are healthy"
+    echo "  • Start the native LLM service with Metal Performance Shaders (MPS)"
+    echo "  • Enable the Bee chatbot for immediate use"
+    echo ""
+    echo "  ⚠️  Note: This uses significant memory/CPU resources"
+    echo ""
+    
+    local choice
+    while true; do
+        read -p "Start LLM service now? (y/n): " choice
+        case "$choice" in
+            [Yy]* )
+                echo ""
+                start_llm_service_post_install
+                break
+                ;;
+            [Nn]* )
+                echo ""
+                log_message "LLM service startup skipped - you can start it later with: ./sting-llm start"
+                # show_llm_startup_notice  # Deprecated - LLM service is no longer used
+                break
+                ;;
+            * )
+                echo "Please answer yes (y) or no (n)."
+                ;;
+        esac
+    done
+}
+
+# Show prominent notice about starting LLM service on macOS
+show_llm_startup_notice() {
+    if [[ "$(uname)" == "Darwin" ]]; then
+        echo ""
+        echo -e "\033[1;36m╔═══════════════════════════════════════════════════════════════════════════════╗\033[0m"
+        echo -e "\033[1;36m║                                                                               ║\033[0m"
+        echo -e "\033[1;36m║  \033[1;33m🐝 IMPORTANT: Native LLM Service Setup Required for Bee Chatbot 🐝\033[1;36m        ║\033[0m"
+        echo -e "\033[1;36m║                                                                               ║\033[0m"
+        echo -e "\033[1;36m║  \033[1;37mThe native LLM service was not started during installation to prevent\033[1;36m      ║\033[0m"
+        echo -e "\033[1;36m║  \033[1;37mDocker crashes. To enable the Bee chatbot, start it manually:\033[1;36m           ║\033[0m"
+        echo -e "\033[1;36m║                                                                               ║\033[0m"
+        echo -e "\033[1;36m║  \033[1;32m📋 Start LLM Service:\033[1;36m                                                   ║\033[0m"
+        echo -e "\033[1;36m║     \033[1;97m./sting-llm start\033[1;36m                                                     ║\033[0m"
+        echo -e "\033[1;36m║                                                                               ║\033[0m"
+        echo -e "\033[1;36m║  \033[1;32m📋 Check LLM Status:\033[1;36m                                                    ║\033[0m"
+        echo -e "\033[1;36m║     \033[1;97m./sting-llm status\033[1;36m                                                    ║\033[0m"
+        echo -e "\033[1;36m║                                                                               ║\033[0m"
+        echo -e "\033[1;36m║  \033[1;32m📋 Stop LLM Service:\033[1;36m                                                    ║\033[0m"
+        echo -e "\033[1;36m║     \033[1;97m./sting-llm stop\033[1;36m                                                     ║\033[0m"
+        echo -e "\033[1;36m║                                                                               ║\033[0m"
+        echo -e "\033[1;36m║  \033[1;33m💡 Features:\033[1;36m                                                             ║\033[0m"
+        echo -e "\033[1;36m║     \033[1;37m• Metal Performance Shaders (MPS) GPU acceleration\033[1;36m                    ║\033[0m"
+        echo -e "\033[1;36m║     \033[1;37m• Phi-3 and TinyLlama models from HuggingFace\033[1;36m                       ║\033[0m"
+        echo -e "\033[1;36m║     \033[1;37m• Dynamic context system support\033[1;36m                                    ║\033[0m"
+        echo -e "\033[1;36m║     \033[1;37m• Automatic model downloading on first use\033[1;36m                          ║\033[0m"
+        echo -e "\033[1;36m║                                                                               ║\033[0m"
+        echo -e "\033[1;36m║  \033[1;31m⚠️  Note: Starting the LLM service uses significant memory/CPU.\033[1;36m          ║\033[0m"
+        echo -e "\033[1;36m║     \033[1;37mConsider stopping Docker services if you experience issues.\033[1;36m          ║\033[0m"
+        echo -e "\033[1;36m║                                                                               ║\033[0m"
+        echo -e "\033[1;36m║  \033[1;32m💡 Quick Start Options:\033[1;36m                                              ║\033[0m"
+        echo -e "\033[1;36m║     \033[1;37m• Install with LLM: ./install_sting.sh install --start-llm\033[1;36m           ║\033[0m"
+        echo -e "\033[1;36m║     \033[1;37m• Install without prompts: ./install_sting.sh install --no-prompt\033[1;36m   ║\033[0m"
+        echo -e "\033[1;36m║                                                                               ║\033[0m"
+        echo -e "\033[1;36m╚═══════════════════════════════════════════════════════════════════════════════╝\033[0m"
+        echo ""
+    fi
+}
+
+# Install Ollama if enabled in configuration
+install_ollama_if_enabled() {
+    log_message \"Checking Ollama configuration...\"
+    
+    # Check if Ollama is enabled in config
+    local ollama_enabled=\"true\"  # Default to true for new installations
+    local ollama_auto_install=\"true\"
+    
+    # Try to read from config if available
+    if [ -f \"${INSTALL_DIR}/env/llm-gateway.env\" ]; then
+        if grep -q \"OLLAMA_ENABLED=false\" \"${INSTALL_DIR}/env/llm-gateway.env\" 2>/dev/null; then
+            ollama_enabled=\"false\"
+        fi
+        if grep -q \"OLLAMA_AUTO_INSTALL=false\" \"${INSTALL_DIR}/env/llm-gateway.env\" 2>/dev/null; then
+            ollama_auto_install=\"false\"
+        fi
+    fi
+    
+    if [ \"$ollama_enabled\" = \"false\" ]; then
+        log_message \"Ollama is disabled in configuration, skipping installation\"
+        return 0
+    fi
+    
+    if [ \"$ollama_auto_install\" = \"false\" ]; then
+        log_message \"Ollama auto-install is disabled, skipping installation\"
+        log_message \"You can install manually with: ./manage_sting.sh install-ollama\"
+        return 0
+    fi
+    
+    # Check if Ollama is already installed
+    if command -v ollama >/dev/null 2>&1; then
+        log_message \"Ollama is already installed, checking status...\"
+        if curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
+            log_message \"✅ Ollama is running and ready\"
+            return 0
+        else
+            log_message \"Ollama is installed but not running, attempting to start...\"
+            # Try to start Ollama
+            if [ -f \"${SOURCE_DIR}/scripts/install_ollama.sh\" ]; then
+                bash \"${SOURCE_DIR}/scripts/install_ollama.sh\" --start-only
+            fi
+        fi
+    else
+        log_message \"Installing Ollama for universal LLM support...\"
+        if [ -f \"${SOURCE_DIR}/scripts/install_ollama.sh\" ]; then
+            # Set environment variables for the install script
+            export OLLAMA_AUTO_INSTALL=\"true\"
+            export OLLAMA_MODELS_TO_INSTALL=\"phi3:mini,deepseek-r1:latest\"
+            
+            if bash \"${SOURCE_DIR}/scripts/install_ollama.sh\"; then
+                log_message \"✅ Ollama installation completed successfully\"
+            else
+                log_message \"❌ Ollama installation failed\" \"ERROR\"
+                log_message \"You can install manually later with: ./manage_sting.sh install-ollama\" \"INFO\"
+                return 1
+            fi
+        else
+            log_message \"Ollama install script not found, skipping\" \"WARNING\"
+            return 1
+        fi
+    fi
+    
+    return 0
+}
+
+# Master initialization function that orchestrates the entire setup process
+initialize_sting() {
+    local source_dir="${SOURCE_DIR:-$(pwd)}"
+    log_message "Initializing STING environment..."
+
+    # Load required modules (ensure they're available)
+    local script_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    [ ! -f "$script_lib_dir/file_operations.sh" ] || source "$script_lib_dir/file_operations.sh"
+    [ ! -f "$script_lib_dir/configuration.sh" ] || source "$script_lib_dir/configuration.sh"
+    [ ! -f "$script_lib_dir/services.sh" ] || source "$script_lib_dir/services.sh"
+
+    # 1. Create basic directory structure and Docker resources
+    if ! prepare_basic_structure; then
+        log_message "Failed to prepare basic environment structure" "ERROR"
+        return 1
+    fi
+    
+
+    # 2. Skip HF token setup - using Ollama/External AI instead
+    # Legacy HF token support has been deprecated
+    log_message "Skipping HuggingFace token setup (using modern AI stack)"
+    
+    # 3. Setup Python virtual environment FIRST (needed for config generation)
+    setup_python_venv || {
+        log_message \"Failed to setup Python virtual environment\" \"WARNING\"
+    }
+    
+    # 4. Build and run the configuration container to generate initial env files
+    generate_initial_configuration
+    
+    # 4.5. Validate that all critical env files were generated
+    if ! validate_env_files; then
+        log_message "Installation cannot proceed without critical environment files" "ERROR"
+        log_message "Please fix the configuration issues and try again" "ERROR"
+        return 1
+    fi
+    
+    # 5. Now load the generated configuration into the shell
+    load_env_files
+    
+    # 5.5. Install Ollama for universal LLM support
+    install_ollama_if_enabled || {
+        log_message \"Ollama installation failed or skipped\" \"WARNING\"
+    }
+    
+    # 6. Setup complete environment with loaded variables
+    setup_environment
+    
+    # 6. Install services
+    if ! build_and_start_services "$cache_level"; then
+        log_message "Service startup failed during installation!" "ERROR"
+        
+        # Offer automatic cleanup on failure
+        if [ "$is_reinstall" != "true" ]; then
+            echo ""
+            log_message "Installation failed. Would you like to automatically clean up the partial installation?" "WARNING"
+            read -p "Clean up failed installation? (y/n): " cleanup_choice
+            
+            if [ "$cleanup_choice" = "y" ] || [ "$cleanup_choice" = "yes" ]; then
+                log_message "Cleaning up failed installation..." "INFO"
+                # Stop any running containers
+                if [ -f "${INSTALL_DIR}/docker-compose.yml" ]; then
+                    cd "${INSTALL_DIR}" || true
+                    docker compose down -v 2>/dev/null || true
+                fi
+                
+                # Remove partial installation directory  
+                if [ -d "${INSTALL_DIR}" ] && [ "${INSTALL_DIR}" != "/" ]; then
+                    rm -rf "${INSTALL_DIR}" 2>/dev/null || true
+                    log_message "Partial installation cleaned up" "INFO"
+                fi
+                
+                # Clean up Docker resources
+                docker system prune -f 2>/dev/null || true
+                log_message "Docker cleanup completed" "INFO"
+            else
+                log_message "Partial installation left for debugging. Clean up manually with: ./manage_sting.sh uninstall --purge" "INFO"
+            fi
+        fi
+        
+        if [ "$is_reinstall" = "true" ]; then
+            log_message "Try running a clean install with: ./manage_sting.sh reinstall --fresh" "WARNING"
+        else
+            log_message "If problems persist, check logs and try troubleshooting scripts in ./troubleshooting/" "WARNING"
+        fi
+        return 1
+    fi
+}
+
+# Creates basic directory structure and Docker resources
+prepare_basic_structure() {
+    log_message "Preparing basic environment structure..."
+
+    # Create Docker network
+    if ! docker network inspect sting_local >/dev/null 2>&1; then
+        log_message "Creating Docker network: sting_local"
+        if ! docker network create sting_local; then
+            log_message "ERROR: Failed to create Docker network sting_local" "ERROR"
+            return 1
+        fi
+        log_message "Docker network sting_local created successfully"
+    else
+        log_message "Docker network sting_local already exists"
+    fi
+
+    # Create Docker volumes
+    local volumes=("config_data" "postgres_data" "vault_data" "vault_file" "vault_logs" "sting_certs" "supertokens_logs" "sting_logs" "llm_logs" "llm_model_data")
+    for volume in "${volumes[@]}"; do
+        docker volume create "$volume"
+    done
+
+    # Create basic directory structure
+    mkdir -p "${INSTALL_DIR}/logs" "${INSTALL_DIR}/conf" "${INSTALL_DIR}/env" "${INSTALL_DIR}/certs"
+    chmod 755 "${INSTALL_DIR}/logs"
+    chmod 755 "${INSTALL_DIR}/conf"
+    chmod 700 "${INSTALL_DIR}/env"
+
+    # Copy essential files and directories from source
+    # For initial installation, use --delete flag to ensure a clean install
+    # For reinstalls, skip --delete to preserve unchanged files (faster)
+    copy_files_to_install_dir "$source_dir" "$INSTALL_DIR" "$delete_flag"
+    
+    # Ensure manage_sting.sh is executable after copying
+    if [ -f "${INSTALL_DIR}/manage_sting.sh" ]; then
+        if ! chmod +x "${INSTALL_DIR}/manage_sting.sh" 2>/dev/null; then
+            log_message "WARNING: Failed to set execute permissions on manage_sting.sh" "WARNING"
+            log_message "Installation will continue, but 'msting' command may require manual fix" "WARNING"
+            log_message "Fix with: chmod +x ${INSTALL_DIR}/manage_sting.sh" "WARNING"
+        else
+            log_message "Execute permissions successfully set on manage_sting.sh"
+        fi
+    fi
+    
+    # Ensure Kratos identity schema is present for config
+    kratos_schema_src="$source_dir/kratos/identity.schema.json"
+    kratos_schema_dest="${INSTALL_DIR}/conf/kratos/identity.schema.json"
+    mkdir -p "$(dirname "$kratos_schema_dest")"
+    if [ -f "$kratos_schema_src" ]; then
+        cp "$kratos_schema_src" "$kratos_schema_dest"
+        chmod 600 "$kratos_schema_dest"
+    fi
+    
+
+    log_message "Basic environment structure prepared successfully"
+    return 0
+}
+
+# Builds and starts all Docker services with retry logic
+build_and_start_services() {
+    local cache_level="${1:-moderate}"  # Accept cache level parameter, default to moderate
+    log_message "Building and starting services (cache level: $cache_level)..."
+    
+    # CRITICAL: Ensure Docker network exists FIRST before ANY docker compose operations
+    if ! docker network inspect sting_local >/dev/null 2>&1; then
+        log_message "Creating Docker network: sting_local"
+        docker network create sting_local || {
+            log_message "ERROR: Failed to create Docker network" "ERROR"
+            return 1
+        }
+    fi
+    
+    # Load all generated environment variables, including kratos.env
+    source_service_envs
+    
+    # Change to installation directory for Docker operations
+    cd "${INSTALL_DIR}" || {
+        log_message "Failed to change to installation directory" "ERROR"
+        return 1
+    }
+
+    
+    
+    # Legacy LLM building removed - using Ollama/External AI instead
+    log_message "Skipping legacy LLM image building - using modern Ollama/External AI stack"
+    
+    log_message "llm-base image built successfully"
+    
+    # Build all services except those that depend on llm-base
+    log_message "Building core service images..."
+    
+    # Use cache buzzer for truly fresh builds during reinstall
+    if [ -f "${SOURCE_DIR}/lib/docker.sh" ]; then
+        source "${SOURCE_DIR}/lib/docker.sh"
+        log_message "🐝 Using cache buzzer for fresh service builds (level: $cache_level)"
+        # Build all core services with cache buzzer using specified level
+        build_docker_services "" "true" "$cache_level"
+        if [ $? -ne 0 ]; then
+            log_message "Cache buzzer build failed, falling back to standard build" "WARNING"
+            # Fallback to standard build
+            if ! docker compose build --no-cache vault db app frontend kratos mailpit messaging profile chroma knowledge external-ai chatbot llm-gateway-proxy; then
+                log_message "Failed to build core Docker images" "ERROR"
+                return 1
+            fi
+        fi
+    else
+        # Standard build if cache buzzer not available
+        if ! docker compose build --no-cache vault db app frontend kratos mailpit messaging profile chroma knowledge external-ai chatbot llm-gateway-proxy; then
+            log_message "Failed to build core Docker images" "ERROR"
+            return 1
+        fi
+    fi
+    
+    # Build dev service with installation profile
+    if ! docker compose --profile installation build --no-cache dev; then
+        log_message "Failed to build dev service" "WARNING"
+        # Don't fail installation if dev service fails to build
+    fi
+    
+    # Modern LLM stack - no legacy services to build
+    log_message "Using modern Ollama/External AI stack - no legacy LLM services to build"
+
+    
+    # Sequential service startup with verification
+    log_message "Starting Vault service..."
+    docker compose up -d vault
+    wait_for_vault || return 1
+    
+    log_message "Starting database service..."
+    docker compose up -d db
+    wait_for_service "db" || return 1
+
+    # Start mail service for email verification
+    log_message "Starting mail service..."
+    docker compose up -d mailpit
+
+    # Start Kratos service (replacing SuperTokens)
+    if [ "$SKIP_KRATOS" != "true" ]; then
+        log_message "Starting Kratos service..."
+        docker compose up -d kratos
+        wait_for_service "kratos" || return 1
+    else
+        log_message "SKIP_KRATOS=true; skipping Kratos startup and healthcheck"
+    fi
+    
+    # Skipping SuperTokens service startup (migrating to Kratos)
+    # log_message "Starting authentication service..."
+    # verify_supertokens_env
+    # docker compose up -d supertokens
+    # wait_for_service "supertokens" || return 1
+    
+    log_message "Starting core application services..."
+    # Start dev service with installation profile
+    docker compose --profile installation up -d dev
+    # Start regular services without profiles
+    docker compose up -d app frontend
+    # Wait for core services to become healthy
+    wait_for_service dev       || return 1
+    wait_for_service app       || return 1
+    wait_for_service frontend  || return 1
+    
+    log_message "Starting knowledge system services..."
+    docker compose up -d chroma knowledge
+    wait_for_service knowledge || return 1
+
+    log_message "Loading environment variables..."
+    
+    # Skip HF_TOKEN handling - using Ollama/External AI instead
+    # Legacy HF token support has been deprecated
+    
+    # Start messaging and chatbot services
+    log_message "Starting auxiliary services..."
+    docker compose up -d messaging chatbot redis
+
+    # Optionally start LLM services unless explicitly skipped
+    if [ "${SKIP_LLM_STARTUP}" != "true" ]; then
+        log_message "Starting LLM services..."
+        start_llm_services
+    else
+        log_message "Skipping LLM services startup as requested."
+    fi
+    
+    # Final verification
+    log_message "Verifying all services are running..."
+    sleep 5
+    show_status
+    
+    log_message "All services started successfully"
+    return 0
+}
+
+# Admin Setup Functions for Post-Installation
+
+# Get environment-aware curl SSL options
+get_curl_ssl_options() {
+    local config_file="conf/config.yml"
+    if [ -f "$config_file" ]; then
+        local env=$(grep "env:" "$config_file" | awk '{print $2}' | head -1)
+        if [ "$env" = "development" ]; then
+            echo "-k"  # Skip SSL verification in development
+        else
+            echo ""   # Use proper SSL verification in production
+        fi
+    else
+        echo "-k"  # Default to skip SSL verification if config not found
+    fi
+}
+
+# Verify that core services are healthy for admin setup
+verify_services_for_admin() {
+    log_message "Verifying services are ready for admin setup..."
+    
+    # Get SSL options based on environment
+    local ssl_options=$(get_curl_ssl_options)
+    
+    # Check Kratos health
+    local max_attempts=30
+    local attempt=1
+    while [ $attempt -le $max_attempts ]; do
+        if curl $ssl_options -s https://localhost:4434/admin/health/ready >/dev/null 2>&1; then
+            log_message "✅ Kratos service is healthy"
+            break
+        fi
+        
+        if [ $attempt -eq $max_attempts ]; then
+            log_message "❌ Kratos service not ready after $max_attempts attempts" "ERROR"
+            return 1
+        fi
+        
+        log_message "⏳ Waiting for Kratos to be ready... attempt $attempt/$max_attempts"
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+    
+    # Check STING app health
+    attempt=1
+    while [ $attempt -le $max_attempts ]; do
+        if curl $ssl_options -s https://localhost:5050/health >/dev/null 2>&1; then
+            log_message "✅ STING app service is healthy"
+            return 0
+        fi
+        
+        if [ $attempt -eq $max_attempts ]; then
+            log_message "❌ STING app service not ready after $max_attempts attempts" "ERROR"
+            return 1
+        fi
+        
+        log_message "⏳ Waiting for STING app to be ready... attempt $attempt/$max_attempts"
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+}
+
+# Setup admin user automatically after installation
+setup_admin_user_post_install() {
+    local admin_email="$1"
+    
+    log_message "🐝 Setting up admin user..." "INFO"
+    
+    # Verify services are ready
+    if ! verify_services_for_admin; then
+        log_message "Cannot setup admin user - core services not ready" "ERROR"
+        return 1
+    fi
+    
+    # Call the setup script with appropriate flags
+    if [ -n "$admin_email" ]; then
+        log_message "Creating admin user with provided email: $admin_email"
+        echo -e "$admin_email\n1" | "${INSTALL_DIR}/setup_first_admin.sh"
+    else
+        log_message "Prompting for admin user details..."
+        "${INSTALL_DIR}/setup_first_admin.sh"
+    fi
+    
+    return $?
+}
+
+# Interactive prompt for admin setup
+prompt_admin_setup() {
+    echo ""
+    echo -e "\033[1;33m🐝 STING installation completed successfully! \033[0m"
+    echo ""
+    echo -e "\033[1;36mWould you like to create an admin user now?\033[0m"
+    echo ""
+    echo "  This will:"
+    echo "  • Create a Kratos identity for the admin user"
+    echo "  • Generate a temporary password (recommended)"
+    echo "  • Promote the user to super admin in STING"
+    echo "  • Enable access to 🐝 LLM Settings and other admin features"
+    echo ""
+    echo "  💡 Note: You can also create admin users later with: ./setup_first_admin.sh"
+    echo ""
+    
+    local choice
+    while true; do
+        read -p "Create admin user now? (y/n): " choice
+        case "$choice" in
+            [Yy]* )
+                echo ""
+                setup_admin_user_post_install
+                break
+                ;;
+            [Nn]* )
+                echo ""
+                log_message "Admin user setup skipped - you can create one later"
+                # show_admin_setup_notice  # Deprecated - admin setup is automatic now
+                break
+                ;;
+            * )
+                echo "Please answer yes (y) or no (n)."
+                ;;
+        esac
+    done
+}
+
+# Show prominent notice about admin setup
+show_admin_setup_notice() {
+    echo ""
+    echo -e "\033[1;36m╔═══════════════════════════════════════════════════════════════════════════════╗\033[0m"
+    echo -e "\033[1;36m║                                                                               ║\033[0m"
+    echo -e "\033[1;36m║  \033[1;33m🐝 IMPORTANT: Admin User Setup Required for Full STING Access 🐝\033[1;36m        ║\033[0m"
+    echo -e "\033[1;36m║                                                                               ║\033[0m"
+    echo -e "\033[1;36m║  \033[1;37mTo access admin features like LLM Settings, you need an admin user.\033[1;36m      ║\033[0m"
+    echo -e "\033[1;36m║                                                                               ║\033[0m"
+    echo -e "\033[1;36m║  \033[1;32m📋 Create Admin User:\033[1;36m                                                   ║\033[0m"
+    echo -e "\033[1;36m║     \033[1;97m./setup_first_admin.sh\033[1;36m                                               ║\033[0m"
+    echo -e "\033[1;36m║                                                                               ║\033[0m"
+    echo -e "\033[1;36m║  \033[1;32m📋 Create Admin with Custom Email:\033[1;36m                                      ║\033[0m"
+    echo -e "\033[1;36m║     \033[1;97mpython3 create_admin.py --email admin@yourcompany.com --temp-password\033[1;36m ║\033[0m"
+    echo -e "\033[1;36m║                                                                               ║\033[0m"
+    echo -e "\033[1;36m║  \033[1;32m📋 Check Admin Status:\033[1;36m                                                  ║\033[0m"
+    echo -e "\033[1;36m║     \033[1;97mpython3 check_admin.py\033[1;36m                                               ║\033[0m"
+    echo -e "\033[1;36m║                                                                               ║\033[0m"
+    echo -e "\033[1;36m║  \033[1;33m💡 Admin Features:\033[1;36m                                                      ║\033[0m"
+    echo -e "\033[1;36m║     \033[1;37m• 🐝 LLM Settings tab in Settings page\033[1;36m                              ║\033[0m"
+    echo -e "\033[1;36m║     \033[1;37m• Model management with progress tracking\033[1;36m                           ║\033[0m"
+    echo -e "\033[1;36m║     \033[1;37m• User management capabilities\033[1;36m                                     ║\033[0m"
+    echo -e "\033[1;36m║     \033[1;37m• System administration features\033[1;36m                                   ║\033[0m"
+    echo -e "\033[1;36m║                                                                               ║\033[0m"
+    echo -e "\033[1;36m║  \033[1;31m⚠️  Security Note: Use temporary passwords for initial admin setup.\033[1;36m      ║\033[0m"
+    echo -e "\033[1;36m║     \033[1;37mAdmins should change passwords on first login.\033[1;36m                      ║\033[0m"
+    echo -e "\033[1;36m║                                                                               ║\033[0m"
+    echo -e "\033[1;36m║  \033[1;32m💡 Quick Setup Options:\033[1;36m                                              ║\033[0m"
+    echo -e "\033[1;36m║     \033[1;37m• Install with admin: ./install_sting.sh install --setup-admin\033[1;36m      ║\033[0m"
+    echo -e "\033[1;36m║     \033[1;37m• Install without prompts: ./install_sting.sh install --no-prompt\033[1;36m   ║\033[0m"
+    echo -e "\\033[1;36m║                                                                               ║\\033[0m"
+    echo -e "\\033[1;36m╚═══════════════════════════════════════════════════════════════════════════════╝\\033[0m"
+    echo ""
+}
+
+# Verify Python dependencies are properly installed
+verify_python_dependencies() {
+    log_message "Verifying Python dependencies installation..."
+    
+    # Check if dev container is running
+    if ! docker compose ps dev 2>/dev/null | grep -q "Up"; then
+        log_message "Starting dev container for dependency verification..."
+        docker compose up -d dev
+        
+        # Wait for container to be ready
+        local max_attempts=30
+        local attempt=1
+        while [ $attempt -le $max_attempts ]; do
+            if docker compose ps dev 2>/dev/null | grep -q "Up"; then
+                break
+            fi
+            log_message "Waiting for dev container... attempt $attempt/$max_attempts"
+            sleep 2
+            attempt=$((attempt + 1))
+        done
+    fi
+    
+    # Test critical imports that were failing
+    log_message "Testing critical Python imports..."
+    
+    local test_imports=(
+        "flask_cors"
+        "app.services.user_service"
+        "app.models.user_models"
+        "sqlalchemy"
+        "cryptography"
+        "requests"
+    )
+    
+    local failed_imports=()
+    
+    for import_name in "${test_imports[@]}"; do
+        if ! docker compose exec -T dev python3 -c "import $import_name; print('✓ $import_name')" 2>/dev/null; then
+            failed_imports+=("$import_name")
+            log_message "Failed to import: $import_name" "WARNING"
+        fi
+    done
+    
+    if [ ${#failed_imports[@]} -eq 0 ]; then
+        log_message "All critical Python dependencies verified successfully" "SUCCESS"
+        return 0
+    else
+        log_message "Failed imports detected. Installing missing dependencies..." "WARNING"
+        
+        # Try to install missing dependencies
+        if docker compose exec -T dev pip install -r /app/app/requirements.txt 2>/dev/null; then
+            log_message "Additional dependencies installed successfully" "SUCCESS"
+            
+            # Re-test failed imports
+            local still_failed=()
+            for import_name in "${failed_imports[@]}"; do
+                if ! docker compose exec -T dev python3 -c "import $import_name" 2>/dev/null; then
+                    still_failed+=("$import_name")
+                fi
+            done
+            
+            if [ ${#still_failed[@]} -eq 0 ]; then
+                log_message "All dependencies now working after installation" "SUCCESS"
+                return 0
+            else
+                log_message "Some dependencies still failing: ${still_failed[*]}" "ERROR"
+                return 1
+            fi
+        else
+            log_message "Failed to install additional dependencies" "ERROR"
+            return 1
+        fi
+    fi
+}

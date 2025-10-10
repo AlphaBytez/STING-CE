@@ -1,0 +1,309 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # STING Application Logs
+  - job_name: sting-app
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: sting-app
+          service: app
+          __path__: /var/log/sting-app/*.log
+    pipeline_stages:
+      # First stage: Vault-aware sanitization
+      - replace:
+          expression: '(password|secret|token|key)=[^\s]+'
+          replace: '${1}=<VAULT_REF:sting/data/secrets/${1}>'
+      - replace:
+          expression: "Bearer [A-Za-z0-9\\-\\._~\\+\\/]+="
+          replace: 'Bearer <VAULT_REF:sting/data/auth/bearer_token>'
+      - replace:
+          expression: "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b"
+          replace: '<VAULT_REF:sting/data/pii/email_hash>'
+      # Second stage: Parse JSON logs
+      - json:
+          expressions:
+            level: level
+            timestamp: timestamp
+            message: message
+            service: service
+            trace_id: trace_id
+            user_id: user_id
+      # Third stage: Add labels
+      - labels:
+          level:
+          service:
+          trace_id:
+
+  # Kratos Authentication Logs  
+  - job_name: sting-kratos
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: sting-kratos
+          service: kratos
+          __path__: /var/log/kratos/*.log
+    pipeline_stages:
+      # Vault-aware sanitization for auth logs
+      - replace:
+          expression: '"password":"[^"]*"'
+          replace: '"password":"<VAULT_REF:sting/data/auth/password_hash>"'
+      - replace:
+          expression: '"session_token":"[^"]*"'
+          replace: '"session_token":"<VAULT_REF:sting/data/auth/session_token>"'
+      - replace:
+          expression: '"csrf_token":"[^"]*"'
+          replace: '"csrf_token":"<VAULT_REF:sting/data/auth/csrf_token>"'
+      - json:
+          expressions:
+            level: level
+            time: time
+            msg: msg
+            audience: audience
+            method: method
+            remote: remote
+            request: request
+            size: size
+            status: status
+            text_status: text_status
+            took: took
+      - timestamp:
+          source: time
+          format: RFC3339Nano
+      - labels:
+          level:
+          method:
+          status:
+
+  # Knowledge Service Logs
+  - job_name: sting-knowledge
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: sting-knowledge
+          service: knowledge
+          __path__: /var/log/knowledge-service/*.log
+    pipeline_stages:
+      # PII sanitization for knowledge service
+      - replace:
+          expression: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+          replace: '<VAULT_REF:sting/data/pii/ssn_hash>'
+      - replace:
+          expression: "\\b\\d{4}[- ]?\\d{4}[- ]?\\d{4}[- ]?\\d{4}\\b"
+          replace: '<VAULT_REF:sting/data/pii/credit_card_hash>'
+      - json:
+          expressions:
+            level: level
+            timestamp: timestamp
+            message: message
+            honey_jar_id: honey_jar_id
+            user_id: user_id
+            document_id: document_id
+      - labels:
+          level:
+          service:
+
+  # Chatbot/Bee Logs
+  - job_name: sting-chatbot
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: sting-chatbot
+          service: chatbot
+          __path__: /var/log/chatbot/*.log
+    pipeline_stages:
+      # Conversation privacy protection
+      - replace:
+          expression: '"user_message":"[^"]*"'
+          replace: '"user_message":"<VAULT_REF:sting/data/conversations/user_message_hash>"'
+      - replace:
+          expression: '"bot_response":"[^"]*"'
+          replace: '"bot_response":"<VAULT_REF:sting/data/conversations/bot_response_hash>"'
+      - json:
+          expressions:
+            level: level
+            timestamp: timestamp
+            message: message
+            session_id: session_id
+            user_id: user_id
+      - labels:
+          level:
+          service:
+          session_id:
+
+  # Database Logs
+  - job_name: sting-database
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: sting-database
+          service: postgresql
+          __path__: /var/log/postgresql/*.log
+    pipeline_stages:
+      # Database query sanitization
+      - replace:
+          expression: "VALUES \\([^)]*\\)"
+          replace: 'VALUES (<VAULT_REF:sting/data/db/query_values>)'
+      - replace:
+          expression: "= '[^']*'"
+          replace: "= '<VAULT_REF:sting/data/db/param_value>'"
+      - regex:
+          expression: "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}) (?P<timezone>\\w+) \\[(?P<pid>\\d+)\\] (?P<level>\\w+):\\s+(?P<message>.*)"
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02 15:04:05.000'
+      - labels:
+          level:
+          pid:
+          service:
+
+  # Temporary files for container logs (collected by external process)
+  - job_name: sting-app-container
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: sting-app-container
+          service: app
+          __path__: /var/log/containers/app.log
+    pipeline_stages:
+      # Generic container log sanitization
+      - replace:
+          expression: "(?i)(api[_-]?key|secret|token|password)\\s*[:=]\\s*[^\\s'\"]*"
+          replace: "${1}=<VAULT_REF:sting/data/secrets/${1}>"
+      - json:
+          expressions:
+            level: level
+            msg: message
+            service: service
+            timestamp: timestamp
+      - labels:
+          level:
+          service:
+
+  - job_name: sting-knowledge-container
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: sting-knowledge-container
+          service: knowledge
+          __path__: /var/log/containers/knowledge.log
+    pipeline_stages:
+      - replace:
+          expression: "(?i)(api[_-]?key|secret|token|password)\\s*[:=]\\s*[^\\s'\"]*"
+          replace: "${1}=<VAULT_REF:sting/data/secrets/${1}>"
+      - json:
+          expressions:
+            level: level
+            msg: message
+            service: service
+            timestamp: timestamp
+      - labels:
+          level:
+          service:
+
+  - job_name: sting-chatbot-container
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: sting-chatbot-container
+          service: chatbot
+          __path__: /var/log/containers/chatbot.log
+    pipeline_stages:
+      - replace:
+          expression: "(?i)(api[_-]?key|secret|token|password)\\s*[:=]\\s*[^\\s'\"]*"
+          replace: "${1}=<VAULT_REF:sting/data/secrets/${1}>"
+      - json:
+          expressions:
+            level: level
+            msg: message
+            service: service
+            timestamp: timestamp
+      - labels:
+          level:
+          service:
+
+  # Docker Build Logs - Enterprise Intelligence & Security
+  - job_name: sting-build-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: sting-build-logs
+          service: build-system
+          log_type: build
+          __path__: /var/log/builds/*.log
+    pipeline_stages:
+      # Build log sanitization - remove sensitive paths and tokens
+      - replace:
+          expression: "(?i)(token|key|secret|password)\\s*[:=]\\s*[^\\s'\"\\n]*"
+          replace: "${1}=<VAULT_REF:sting/data/build/secrets/${1}>"
+      - replace:
+          expression: "/Users/[^/\\s]+/"
+          replace: "<VAULT_REF:sting/data/build/user_path>/"
+      - replace:
+          expression: "(?i)authentication\\s+required.*"
+          replace: "authentication required <VAULT_REF:sting/data/build/auth_details>"
+      # Parse build stages and timing
+      - regex:
+          expression: "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2}\\s\\d{2}:\\d{2}:\\d{2}).*Step\\s+(?P<step>\\d+/\\d+)\\s*:\\s*(?P<command>\\S+)\\s+(?P<message>.*)"
+      - regex:
+          expression: "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2}\\s\\d{2}:\\d{2}:\\d{2}).*(?P<level>ERROR|WARN|INFO|DEBUG)\\s*:?\\s*(?P<message>.*)"
+      - regex:
+          expression: "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2}\\s\\d{2}:\\d{2}:\\d{2}).*\\[(?P<service>[^\\]]+)\\]\\s*(?P<operation>build|update|restart|start|stop)\\s*(?P<message>.*)"
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02 15:04:05'
+      - labels:
+          level:
+          step:
+          command:
+          service:
+          operation:
+          log_type: 
+
+  # Build Analytics - Performance & Success Metrics  
+  - job_name: sting-build-analytics
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: sting-build-analytics
+          service: build-system
+          log_type: analytics
+          __path__: /var/log/builds/analytics/*.log
+    pipeline_stages:
+      - json:
+          expressions:
+            timestamp: timestamp
+            service: service
+            operation: operation
+            duration_seconds: duration_seconds
+            cache_hit_ratio: cache_hit_ratio
+            build_size_mb: build_size_mb
+            success: success
+            error_count: error_count
+            warning_count: warning_count
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+      - labels:
+          service:
+          operation:
+          success:
+          log_type:

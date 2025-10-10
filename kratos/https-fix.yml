@@ -1,0 +1,32 @@
+# HTTPS configuration for Kratos
+# This should be applied to main.kratos.yml
+
+serve:
+  public:
+    # Change from http://0.0.0.0:4433 to https
+    base_url: https://localhost:4433
+    tls:
+      cert:
+        path: /etc/certs/server.crt
+      key:
+        path: /etc/certs/server.key
+    cors:
+      enabled: true
+      allowed_origins:
+        - https://localhost:8443
+      allowed_methods:
+        - GET
+        - POST
+        - OPTIONS
+      allowed_headers:
+        - "*"
+      allow_credentials: true
+  
+  admin:
+    # Change from http://0.0.0.0:4434 to https
+    base_url: https://localhost:4434
+    tls:
+      cert:
+        path: /etc/certs/server.crt
+      key:
+        path: /etc/certs/server.key

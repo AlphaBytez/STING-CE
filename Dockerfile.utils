@@ -1,0 +1,16 @@
+FROM python:3.12.8-slim
+
+WORKDIR /app
+
+# Copy all configuration files and app requirements
+COPY ./conf/ /app/conf/
+COPY ./app/requirements.txt /app/app/requirements.txt
+
+# Install Python dependencies from both sources
+RUN pip install --upgrade pip && \
+    pip install -r /app/conf/requirements.in && \
+    pip install -r /app/app/requirements.txt
+
+ENV INIT_MODE=development
+
+CMD ["tail", "-f", "/dev/null"]

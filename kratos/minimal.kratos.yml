@@ -1,0 +1,77 @@
+version: "v0.8.2-alpha.1"
+# Use in-memory DSN for testing
+dsn: memory
+log:
+  level: info
+
+serve:
+  public:
+    base_url: https://localhost:4433
+    tls:
+      cert:
+        path: /etc/certs/server.crt
+      key:
+        path: /etc/certs/server.key
+    cors:
+      enabled: true
+      allowed_origins:
+        - http://localhost:8443
+        - https://localhost:8443
+      allowed_methods:
+        - GET
+        - POST
+        - OPTIONS
+      allowed_headers:
+        - "*"
+      allow_credentials: true
+  admin:
+    base_url: https://localhost:4434
+    tls:
+      cert:
+        path: /etc/certs/server.crt
+      key:
+        path: /etc/certs/server.key
+
+identity:
+  schemas:
+    - id: default
+      url: file:///etc/config/kratos/identity.schema.extended.json
+
+selfservice:
+  default_browser_return_url: https://localhost:8443
+  flows:
+    login:
+      ui_url: https://localhost:8443/login
+      lifespan: 1h
+    registration:
+      ui_url: https://localhost:8443/register
+      lifespan: 1h
+  methods:
+    password:
+      enabled: true
+    webauthn:
+      enabled: true
+      config:
+        rp:
+          id: localhost
+          display_name: STING Authentication
+          origin: https://localhost:8443
+
+courier:
+  smtp:
+    connection_uri: smtps://test:test@mailslurper:1025/?skip_ssl_verify=true
+
+secrets:
+  cookie:
+    - 33078e5134e3f19ae0172307b414b766
+  cipher:
+    - 2d7df66210d1cb702f465220b40e4cd9
+
+session:
+  cookie:
+    name: ory_kratos_session
+    domain: localhost
+    path: /
+    same_site: Lax
+  lifespan: 24h
+  earliest_possible_extend: 1h

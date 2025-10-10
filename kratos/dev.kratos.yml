@@ -1,0 +1,122 @@
+version: "v0.8.2-alpha.1"
+
+dsn: postgresql://postgres:postgres@db:5432/sting_app?sslmode=disable
+
+log:
+  level: debug
+
+serve:
+  public:
+    base_url: https://localhost:4433
+    tls:
+      cert:
+        path: /etc/certs/server.crt
+      key:
+        path: /etc/certs/server.key
+    cors:
+      enabled: true
+      allowed_origins:
+        - http://localhost:8443
+        - https://localhost:8443
+      allowed_methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      allowed_headers:
+        - "*"
+      allow_credentials: true
+  admin:
+    base_url: https://localhost:4434
+    tls:
+      cert:
+        path: /etc/certs/server.crt
+      key:
+        path: /etc/certs/server.key
+
+identity:
+  default_schema_id: default
+  schemas:
+    - id: default
+      url: file:///etc/config/kratos/identity.schema.json
+
+selfservice:
+  default_browser_return_url: https://localhost:8443
+  allowed_return_urls:
+    - https://localhost:8443
+    - https://localhost:8443/dashboard
+    - https://localhost:8443/login
+    - https://localhost:8443/register
+    - https://localhost:8443/setup-passkey
+    - https://localhost:8443/verification
+  flows:
+    registration:
+      ui_url: https://localhost:8443/register
+      lifespan: 1h
+      enabled: true
+      after:
+        password:
+          hooks:
+            - hook: session
+            # Removed verification hook for development
+        webauthn:
+          hooks:
+            - hook: session
+            # Removed verification hook for development
+    verification:
+      enabled: true
+      ui_url: https://localhost:8443/verification
+      lifespan: 1h
+      after:
+        default_browser_return_url: https://localhost:8443/dashboard
+    login:
+      ui_url: https://localhost:8443/login
+      lifespan: 1h
+    error:
+      ui_url: https://localhost:8443/error
+
+    # Settings flow for updating user details like passkeys
+    settings:
+      ui_url: https://localhost:8443/settings
+      privileged_session_max_age: 15m
+      lifespan: 1h
+
+  methods:
+    password:
+      enabled: true
+      config:
+        haveibeenpwned_enabled: false
+        identifier_similarity_check_enabled: false
+        min_password_length: 8
+    webauthn:
+      enabled: true
+      config:
+        rp:
+          id: localhost
+          display_name: STING Authentication
+          # Multiple origins for better compatibility
+          origins:
+            - https://localhost:8443
+            - https://localhost:4433
+        passwordless: true  # Enable passwordless login with passkeys as primary method
+    link:
+      enabled: true
+      config:
+        lifespan: 15m
+
+secrets:
+  cookie:
+    - 33078e5134e3f19ae0172307b414b766
+  cipher:
+    - 2d7df66210d1cb702f465220b40e4cd9
+
+session:
+  cookie:
+    domain: localhost
+  lifespan: 24h
+
+courier:
+  smtp:
+    connection_uri: smtp://test:test@mailslurper:1025/?skip_ssl_verify=true

@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sting-installer"
+version = "0.1.0"
+description = "Interactive installer for STING using Typer and Rich"
+authors = [
+    { name="Your Name", email="you@example.com" }
+]
+dependencies = [
+    "typer>=0.4.0",
+    "rich>=10.0.0",
+    # Required for configuration loader
+    "PyYAML>=6.0",
+    # Required for admin user creation script
+    "Flask>=2.2.5",
+    "Flask-SQLAlchemy>=3.0.2",
+    "requests>=2.31.0"
+]
+readme = "README.md"
+keywords = ["sting", "installer", "cli", "rich", "typer"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.scripts]
+manage_sting = "sting_installer.cli:app"
+# msting command removed to avoid conflict with system wrapper in /usr/local/bin/msting
+
+[tool.setuptools.packages.find]
+include = ["sting_installer", "sting_installer.*"]

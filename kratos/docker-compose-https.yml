@@ -1,0 +1,29 @@
+services:
+  kratos:
+    image: oryd/kratos:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DSN=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/sting_app
+    volumes:
+      # Mount config files
+      - ${INSTALL_DIR}/conf/kratos/identity.schema.json:/etc/config/kratos/identity.schema.json:ro
+      - ./kratos/main.kratos.yml:/etc/config/kratos/kratos.yml:ro
+      # Mount certificates for HTTPS
+      - ./certs/server.crt:/etc/certs/server.crt:ro
+      - ./certs/server.key:/etc/certs/server.key:ro
+      - kratos_logs:/var/log/kratos
+    ports:
+      - '4433:4433'
+      - '4434:4434'
+    # Run migration then serve with HTTPS enabled
+    entrypoint: []
+    command: sh -c "kratos migrate sql -e --yes && kratos serve --dev --config /etc/config/kratos/kratos.yml"
+    healthcheck:
+      # Use HTTPS for health checks
+      test: ["CMD-SHELL", "wget --no-check-certificate --spider https://localhost:4434/admin/health/ready || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 40s

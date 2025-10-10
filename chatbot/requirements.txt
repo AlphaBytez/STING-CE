@@ -1,0 +1,30 @@
+# Bee Chatbot service requirements
+fastapi>=0.95.0
+uvicorn[standard]>=0.22.0
+pydantic>=2.0.0
+httpx>=0.24.0
+python-dotenv>=1.0.0
+pyyaml>=6.0
+cryptography>=41.0.0
+python-multipart>=0.0.6
+nanoid>=2.0.0
+typing-extensions>=4.8.0
+asyncpg>=0.29.0
+
+# For LLM integration (existing)
+llama-index>=0.10.0
+llama-index-core>=0.10.0
+# Removed llama-index-llms-llama-cpp due to build issues
+langchain>=0.1.0
+langchain-core>=0.1.0
+
+# Token counting
+tiktoken>=0.5.2
+
+# Redis for adaptive context caching
+redis>=4.5.0
+
+# For future ML/NLP features
+# transformers>=4.35.0
+# torch>=2.1.0
+# nltk>=3.8.0

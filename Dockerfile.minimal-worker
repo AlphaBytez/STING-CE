@@ -1,0 +1,21 @@
+FROM python:3.12.8-slim
+
+# Install minimal dependencies
+RUN pip install requests
+
+# Create worker directory
+WORKDIR /opt/worker
+
+# Copy only the minimal worker script
+COPY app/workers/minimal_report_worker.py .
+
+# Set environment
+ENV PYTHONPATH=/opt/worker
+ENV APP_SERVICE_URL=http://app:5050
+
+# Health check - lightweight version that doesn't create worker instances
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
+    CMD python3 -c "from minimal_report_worker import health_check_main; health_check_main()"
+
+# Run the minimal worker
+CMD ["python3", "minimal_report_worker.py"]

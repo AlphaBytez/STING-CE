@@ -1,0 +1,1727 @@
+/* 
+ * STING Retro Terminal Theme
+ * A lightweight, performance-focused theme inspired by classic terminals
+ * with strategic colorization and minimal visual effects
+ */
+
+/* === Core Variables === */
+:root[data-theme="retro-terminal"] {
+  /* Terminal Colors - Pure black backgrounds as requested */
+  --retro-bg-primary: #000000;           /* Main background - pure black */
+  --retro-bg-secondary: #0a0a0a;         /* Very dark for inputs */  
+  --retro-bg-tertiary: #1a1a1a;          /* Card/panel backgrounds - slightly lighter */
+  --retro-bg-hover: #1f1f1f;             /* Hover states */
+  --retro-bg-nav: #000000;               /* Navigation background - pure black */
+  
+  /* STING Brand Colors - maintained for identity */
+  --retro-yellow-bright: #fbbf24;        /* STING signature yellow */
+  --retro-yellow-normal: #f59e0b;        /* Standard yellow */
+  --retro-yellow-dim: #d97706;           /* Dimmed yellow */
+  --retro-yellow-glow: rgba(251, 191, 36, 0.2); /* Yellow glow effect */
+  
+  /* Code block colors */
+  --retro-code-bg: rgba(64, 64, 64, 0.2); /* Very subtle code background */
+  
+  /* Terminal accent colors - Classic retro palette */
+  --retro-green-accent: #00ff41;         /* Classic terminal green - DOS/Matrix style */
+  --retro-cyan: #00ffff;                 /* Pure terminal cyan */
+  --retro-blue: #00ffff;                 /* Use cyan instead of blue for retro authenticity */
+  --retro-red: #ff4444;                  /* Bright terminal red */
+  --retro-purple: #ff00ff;               /* Classic terminal magenta */
+  
+  /* Text Colors - classic terminal green tint */
+  --retro-text-primary: #00ff41;         /* Primary text - classic terminal green */
+  --retro-text-secondary: #00cc33;       /* Secondary text - dimmer green */
+  --retro-text-muted: #008822;           /* Muted text - darker green */
+  --retro-text-disabled: #005511;        /* Disabled text - very dark green */
+  --retro-text-inverse: #000000;         /* Dark text on light backgrounds */
+  --retro-text-bright: #ffffff;          /* Pure white for important elements */
+  
+  /* Border and outline */
+  --retro-border: #003300;               /* Standard borders - dark green */
+  --retro-border-bright: #00ff41;        /* Highlighted borders - terminal green */
+  --retro-outline: #fbbf24;              /* Focus outlines - STING yellow */
+  
+  /* Typography */
+  --retro-font-mono: 'JetBrains Mono', 'Fira Code', 'Source Code Pro', 'Roboto Mono', monospace;
+  --retro-font-body: 'IBM Plex Sans', 'Inter', system-ui, sans-serif;
+  
+  /* Performance optimizations */
+  --retro-transition-fast: 0.1s ease;
+  --retro-transition-normal: 0.15s ease;
+  --retro-shadow-minimal: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* === Base Elements === */
+[data-theme="retro-terminal"] body {
+  background-color: var(--retro-bg-primary);
+  color: var(--retro-text-primary);
+  font-family: var(--retro-font-body);
+  line-height: 1.4;
+  /* Disable expensive effects */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* === Layout Components === */
+
+/* Navigation bar and header */
+[data-theme="retro-terminal"] .navbar,
+[data-theme="retro-terminal"] .header,
+[data-theme="retro-terminal"] [class*="navbar"],
+[data-theme="retro-terminal"] [class*="header"],
+[data-theme="retro-terminal"] nav,
+[data-theme="retro-terminal"] header {
+  background-color: var(--retro-bg-nav) !important;
+  border-bottom: 1px solid var(--retro-border);
+  box-shadow: none;
+}
+
+/* Header bar specific styling */
+[data-theme="retro-terminal"] .header-bar,
+[data-theme="retro-terminal"] [class*="header-bar"] {
+  background-color: var(--retro-bg-nav) !important;
+  color: var(--retro-text-primary) !important;
+}
+
+/* Header icons and buttons */
+[data-theme="retro-terminal"] .header button,
+[data-theme="retro-terminal"] .header-bar button,
+[data-theme="retro-terminal"] .navbar button {
+  color: var(--retro-text-secondary) !important;
+  background-color: transparent !important;
+  border: 1px solid transparent;
+  border-radius: 0;
+  transition: var(--retro-transition-fast);
+}
+
+[data-theme="retro-terminal"] .header button:hover,
+[data-theme="retro-terminal"] .header-bar button:hover,
+[data-theme="retro-terminal"] .navbar button:hover {
+  color: var(--retro-yellow-bright) !important;
+  border-color: var(--retro-border);
+  background-color: var(--retro-bg-hover) !important;
+}
+
+/* Sidebar - Performance optimized with card background */
+[data-theme="retro-terminal"] .sidebar,
+[data-theme="retro-terminal"] [class*="sidebar"] {
+  background-color: var(--retro-bg-tertiary) !important; /* Match dashboard card backgrounds */
+  border-right: 1px solid var(--retro-border);
+  box-shadow: none; /* Remove expensive shadows */
+  
+  /* Disable expensive transform effects */
+  transform: none !important;
+  -webkit-transform: none !important;
+  will-change: auto !important;
+}
+
+/* Remove any magnifying/scaling effects from sidebar items */
+[data-theme="retro-terminal"] .sidebar *,
+[data-theme="retro-terminal"] [class*="sidebar"] * {
+  transform: none !important;
+  -webkit-transform: none !important;
+  transition: color var(--retro-transition-fast), background-color var(--retro-transition-fast) !important;
+}
+
+/* Override any hover scale effects in sidebar */
+[data-theme="retro-terminal"] .sidebar .nav-item:hover,
+[data-theme="retro-terminal"] .sidebar [class*="nav-item"]:hover,
+[data-theme="retro-terminal"] [class*="sidebar"] .nav-item:hover,
+[data-theme="retro-terminal"] [class*="sidebar"] [class*="nav-item"]:hover {
+  transform: none !important;
+  -webkit-transform: none !important;
+  scale: 1 !important;
+}
+
+/* Navigation icons and logos */
+[data-theme="retro-terminal"] .navbar svg,
+[data-theme="retro-terminal"] .header svg,
+[data-theme="retro-terminal"] nav svg {
+  color: var(--retro-yellow-bright) !important;
+}
+
+/* STING logo separation from black background */
+[data-theme="retro-terminal"] img[src="/sting-logo.png"] {
+  border: 2px solid var(--retro-green-accent) !important;
+  border-radius: 8px;
+  padding: 8px;
+  background-color: rgba(0, 255, 65, 0.1) !important;
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
+}
+
+[data-theme="retro-terminal"] .navbar [class*="icon"],
+[data-theme="retro-terminal"] .header [class*="icon"] {
+  color: var(--retro-text-secondary);
+}
+
+[data-theme="retro-terminal"] .navbar [class*="icon"]:hover,
+[data-theme="retro-terminal"] .header [class*="icon"]:hover {
+  color: var(--retro-yellow-bright);
+}
+
+/* Main content area - Pure black backgrounds */
+[data-theme="retro-terminal"] .main-content,
+[data-theme="retro-terminal"] [class*="main"],
+[data-theme="retro-terminal"] .bg-slate-900,
+[data-theme="retro-terminal"] .bg-slate-950,
+[data-theme="retro-terminal"] .bg-gray-900,
+[data-theme="retro-terminal"] .bg-gray-950,
+[data-theme="retro-terminal"] .bg-blue-900,
+[data-theme="retro-terminal"] .bg-blue-950,
+[data-theme="retro-terminal"] .min-h-screen,
+[data-theme="retro-terminal"] .h-screen,
+[data-theme="retro-terminal"] body,
+[data-theme="retro-terminal"] html {
+  background-color: var(--retro-bg-primary) !important;
+}
+
+/* Cards and panels */
+[data-theme="retro-terminal"] .card,
+[data-theme="retro-terminal"] [class*="card"],
+[data-theme="retro-terminal"] .panel,
+[data-theme="retro-terminal"] [class*="panel"],
+[data-theme="retro-terminal"] .bg-slate-800,
+[data-theme="retro-terminal"] .bg-slate-700,
+[data-theme="retro-terminal"] .bg-gray-800,
+[data-theme="retro-terminal"] .bg-gray-700,
+[data-theme="retro-terminal"] .bg-blue-800,
+[data-theme="retro-terminal"] .bg-blue-700 {
+  background-color: var(--retro-bg-tertiary) !important;
+  border: 1px solid var(--retro-border);
+  border-radius: 0; /* Sharp, terminal-like edges */
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* === Typography === */
+
+[data-theme="retro-terminal"] h1,
+[data-theme="retro-terminal"] h2,
+[data-theme="retro-terminal"] h3,
+[data-theme="retro-terminal"] h4,
+[data-theme="retro-terminal"] h5,
+[data-theme="retro-terminal"] h6 {
+  color: var(--retro-text-primary);
+  font-family: var(--retro-font-mono);
+  font-weight: 700;
+  letter-spacing: 0.025em;
+}
+
+/* "Sign in to STING" heading - match the green color from form inputs */
+[data-theme="retro-terminal"] .sting-glass-card h2.text-2xl.font-bold,
+[data-theme="retro-terminal"] .sting-glass-card h2,
+[data-theme="retro-terminal"] .login-container h2.text-2xl.font-bold,
+[data-theme="retro-terminal"] [class*="login"] h2.text-2xl.font-bold,
+[data-theme="retro-terminal"] .auth-container h2.text-2xl.font-bold,
+[data-theme="retro-terminal"] [class*="auth"] h2.text-2xl.font-bold,
+[data-theme="retro-terminal"] [data-testid*="login"] h2,
+[data-theme="retro-terminal"] [data-testid*="auth"] h2,
+/* Catch-all for login page headings */
+[data-theme="retro-terminal"] body h2.text-2xl.font-bold,
+/* High specificity override for all h2 elements in retro theme */
+html[data-theme="retro-terminal"] body h2.text-2xl.font-bold,
+html[data-theme="retro-terminal"] h2.font-bold,
+/* Very aggressive selector to ensure it applies */
+html[data-theme="retro-terminal"] * h2 {
+  color: var(--retro-green-accent) !important;
+}
+
+[data-theme="retro-terminal"] .text-white {
+  color: var(--retro-text-primary) !important;
+}
+
+[data-theme="retro-terminal"] .text-gray-400,
+[data-theme="retro-terminal"] .text-gray-300,
+[data-theme="retro-terminal"] .text-slate-400,
+[data-theme="retro-terminal"] .text-slate-300 {
+  color: var(--retro-text-secondary) !important;
+}
+
+[data-theme="retro-terminal"] .text-gray-500,
+[data-theme="retro-terminal"] .text-slate-500 {
+  color: var(--retro-text-muted) !important;
+}
+
+/* Code and monospace elements - Transparent backgrounds */
+[data-theme="retro-terminal"] code,
+[data-theme="retro-terminal"] pre,
+[data-theme="retro-terminal"] .font-mono,
+[data-theme="retro-terminal"] [class*="mono"] {
+  font-family: var(--retro-font-mono);
+  background-color: transparent !important; /* Remove black backgrounds */
+  color: var(--retro-text-primary);
+  border: 1px solid var(--retro-border-bright); /* Slightly brighter border for visibility */
+  border-radius: 0;
+  padding: 0.25rem 0.5rem; /* Add some padding for readability */
+}
+
+/* Inline code elements - even more transparent */
+[data-theme="retro-terminal"] code:not(pre code) {
+  background-color: rgba(64, 64, 64, 0.3) !important; /* Very subtle background */
+  border: none;
+  padding: 0.125rem 0.25rem;
+}
+
+/* === Interactive Elements === */
+
+/* Buttons */
+[data-theme="retro-terminal"] button,
+[data-theme="retro-terminal"] .btn {
+  font-family: var(--retro-font-mono);
+  font-weight: 600;
+  border-radius: 0;
+  border: 1px solid var(--retro-border);
+  transition: var(--retro-transition-fast);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+/* Primary buttons - Keep STING yellow */
+[data-theme="retro-terminal"] .bg-yellow-500,
+[data-theme="retro-terminal"] .bg-yellow-400 {
+  background-color: var(--retro-yellow-bright) !important;
+  color: var(--retro-text-inverse) !important;
+  border-color: var(--retro-yellow-bright);
+}
+
+[data-theme="retro-terminal"] .bg-yellow-500:hover,
+[data-theme="retro-terminal"] .bg-yellow-400:hover {
+  background-color: var(--retro-yellow-normal) !important;
+  border-color: var(--retro-yellow-normal);
+  box-shadow: 0 0 10px var(--retro-yellow-glow);
+}
+
+/* Secondary buttons */
+[data-theme="retro-terminal"] .bg-gray-600,
+[data-theme="retro-terminal"] .bg-slate-600 {
+  background-color: var(--retro-bg-tertiary) !important;
+  color: var(--retro-text-primary) !important;
+  border-color: var(--retro-border);
+}
+
+[data-theme="retro-terminal"] .bg-gray-600:hover,
+[data-theme="retro-terminal"] .bg-slate-600:hover {
+  background-color: var(--retro-bg-hover) !important;
+  border-color: var(--retro-border-bright);
+}
+
+/* Danger buttons */
+[data-theme="retro-terminal"] .bg-red-600,
+[data-theme="retro-terminal"] .bg-red-500 {
+  background-color: var(--retro-red) !important;
+  color: var(--retro-text-inverse) !important;
+  border-color: var(--retro-red);
+}
+
+/* Blue buttons - convert to retro-appropriate colors */
+[data-theme="retro-terminal"] .bg-blue-600,
+[data-theme="retro-terminal"] .bg-blue-500,
+[data-theme="retro-terminal"] .bg-blue-400,
+[data-theme="retro-terminal"] button.bg-blue-600,
+[data-theme="retro-terminal"] button.bg-blue-500 {
+  background-color: var(--retro-bg-tertiary) !important;
+  color: var(--retro-green-accent) !important;
+  border-color: var(--retro-green-accent) !important;
+  border-width: 1px;
+  border-style: solid;
+}
+
+[data-theme="retro-terminal"] .bg-blue-600:hover,
+[data-theme="retro-terminal"] .bg-blue-500:hover,
+[data-theme="retro-terminal"] .bg-blue-400:hover,
+[data-theme="retro-terminal"] button.bg-blue-600:hover,
+[data-theme="retro-terminal"] button.bg-blue-500:hover {
+  background-color: var(--retro-green-accent) !important;
+  color: var(--retro-text-inverse) !important;
+  border-color: var(--retro-green-accent) !important;
+}
+
+/* Links */
+[data-theme="retro-terminal"] a {
+  color: var(--retro-green-accent);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  transition: var(--retro-transition-fast);
+}
+
+[data-theme="retro-terminal"] a:hover {
+  color: var(--retro-yellow-bright);
+  text-decoration-style: solid;
+}
+
+/* === Form Elements === */
+
+[data-theme="retro-terminal"] input,
+[data-theme="retro-terminal"] textarea,
+[data-theme="retro-terminal"] select {
+  background-color: var(--retro-bg-secondary);
+  color: var(--retro-text-primary);
+  border: 1px solid var(--retro-border);
+  border-radius: 0;
+  font-family: var(--retro-font-mono);
+  transition: var(--retro-transition-fast);
+  box-shadow: none;
+}
+
+[data-theme="retro-terminal"] input:focus,
+[data-theme="retro-terminal"] textarea:focus,
+[data-theme="retro-terminal"] select:focus {
+  outline: 2px solid var(--retro-outline);
+  outline-offset: 1px;
+  border-color: var(--retro-green-accent);
+  background-color: var(--retro-bg-primary);
+}
+
+[data-theme="retro-terminal"] input::placeholder,
+[data-theme="retro-terminal"] textarea::placeholder {
+  color: var(--retro-text-muted);
+  font-style: italic;
+}
+
+/* === Status and Alert Colors === */
+
+/* Success states */
+[data-theme="retro-terminal"] .text-green-400,
+[data-theme="retro-terminal"] .text-green-300 {
+  color: var(--retro-green-accent) !important;
+}
+
+[data-theme="retro-terminal"] .bg-green-900 {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  border-color: var(--retro-green-accent);
+}
+
+/* Warning states - STING yellow */
+[data-theme="retro-terminal"] .text-yellow-400,
+[data-theme="retro-terminal"] .text-yellow-300 {
+  color: var(--retro-yellow-bright) !important;
+}
+
+[data-theme="retro-terminal"] .bg-yellow-900 {
+  background-color: var(--retro-yellow-glow) !important;
+  border-color: var(--retro-yellow-dim);
+}
+
+/* Error states */
+[data-theme="retro-terminal"] .text-red-400,
+[data-theme="retro-terminal"] .text-red-300,
+[data-theme="retro-terminal"] .bg-red-900 {
+  color: var(--retro-red) !important;
+  background-color: var(--retro-bg-secondary) !important;
+  border-color: #cc2020;
+}
+
+/* Info states - using cyan instead of blue for better retro feel */
+[data-theme="retro-terminal"] .text-blue-400,
+[data-theme="retro-terminal"] .text-blue-300,
+[data-theme="retro-terminal"] .bg-blue-900 {
+  color: var(--retro-cyan) !important;
+  background-color: var(--retro-bg-secondary) !important;
+  border-color: var(--retro-cyan);
+}
+
+/* === Dashboard Cards - Black Background === */
+
+/* General dashboard card styling - pure black background */
+[data-theme="retro-terminal"] .dashboard-card {
+  background-color: #000000 !important; /* Pure black background */
+  border: 1px solid var(--retro-border) !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* === Dashboard Card Icons - Make Transparent in Retro Mode === */
+
+/* Remove solid backgrounds from dashboard card icons */
+[data-theme="retro-terminal"] .dashboard-card .p-3.bg-gray-700\/50 {
+  background-color: transparent !important;
+  border: 1px solid var(--retro-border) !important;
+}
+
+[data-theme="retro-terminal"] .dashboard-card .p-3.bg-gray-700\/50:hover {
+  border-color: var(--retro-green-accent) !important;
+  box-shadow: 0 0 8px rgba(0, 255, 65, 0.2) !important;
+}
+
+/* Make all dashboard card icon containers transparent */
+[data-theme="retro-terminal"] .dashboard-card div[class*="bg-gray-"] {
+  background-color: transparent !important;
+  border: 1px solid var(--retro-border) !important;
+}
+
+/* === Report Generation Section - Ultra-Specific Retro Styling === */
+
+/* High specificity selectors to override Tailwind */
+[data-theme="retro-terminal"] .report-generation-card.dashboard-card {
+  background-color: #000000 !important; /* Pure black */
+  border: 2px solid var(--retro-green-accent) !important;
+  border-radius: 0 !important;
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.2) !important;
+  backdrop-filter: none !important;
+}
+
+/* Report Generation title - force green color (not blue) */
+[data-theme="retro-terminal"] .report-title.text-lg.font-semibold.text-blue-400 {
+  color: var(--retro-green-accent) !important;
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.15em !important;
+  font-weight: 700 !important;
+}
+
+/* View All link - force green with yellow hover (not blue) */
+[data-theme="retro-terminal"] .view-all-link.text-sm.text-blue-400 {
+  color: var(--retro-green-accent) !important;
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 0.1em !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+}
+
+[data-theme="retro-terminal"] .view-all-link.text-sm.text-blue-400:hover {
+  color: var(--retro-yellow-bright) !important;
+  text-shadow: 0 0 10px var(--retro-yellow-glow) !important;
+}
+
+/* Report Generation metric cards - ultra-specific styling */
+[data-theme="retro-terminal"] .report-metric-card.bg-gray-700\/50.rounded-lg {
+  background-color: var(--retro-bg-primary) !important;
+  border: 2px solid var(--retro-border) !important;
+  border-radius: 0 !important;
+  padding: 1.5rem !important;
+  position: relative !important;
+  transition: all var(--retro-transition-fast) !important;
+  min-height: 140px !important;
+}
+
+/* Terminal-style corner brackets for metric cards */
+[data-theme="retro-terminal"] .report-metric-card::before {
+  content: '┌' !important;
+  position: absolute !important;
+  top: -2px !important;
+  left: -2px !important;
+  color: var(--retro-green-accent) !important;
+  font-family: var(--retro-font-mono) !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  pointer-events: none !important;
+}
+
+[data-theme="retro-terminal"] .report-metric-card::after {
+  content: '┐' !important;
+  position: absolute !important;
+  top: -2px !important;
+  right: -2px !important;
+  color: var(--retro-green-accent) !important;
+  font-family: var(--retro-font-mono) !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  pointer-events: none !important;
+}
+
+/* Enhanced hover effects for metric cards */
+[data-theme="retro-terminal"] .report-metric-card:hover {
+  border-color: var(--retro-green-accent) !important;
+  border-width: 2px !important;
+  box-shadow: 
+    0 0 15px rgba(0, 255, 65, 0.4),
+    inset 0 0 10px rgba(0, 255, 65, 0.1) !important;
+  background-color: rgba(0, 255, 65, 0.03) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Metric card text styling */
+[data-theme="retro-terminal"] .report-metric-card .text-2xl.font-bold.text-white {
+  color: var(--retro-green-accent) !important;
+  font-family: var(--retro-font-mono) !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="retro-terminal"] .report-metric-card .text-2xl.font-bold.text-yellow-400 {
+  color: var(--retro-yellow-bright) !important;
+  font-family: var(--retro-font-mono) !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="retro-terminal"] .report-metric-card .text-sm.text-gray-400 {
+  color: var(--retro-text-secondary) !important;
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 0.05em !important;
+}
+
+[data-theme="retro-terminal"] .report-metric-card .text-xs.text-green-400 {
+  color: var(--retro-green-accent) !important;
+  font-family: var(--retro-font-mono) !important;
+}
+
+/* Fix Processing... text in report generation card */
+[data-theme="retro-terminal"] .report-metric-card .text-xs.text-blue-400 {
+  color: var(--retro-accent) !important;  /* Yellow for Processing... */
+  font-family: var(--retro-font-mono) !important;
+  background-color: transparent !important;  /* Remove any background */
+}
+
+@keyframes retro-pulse {
+  from {
+    box-shadow: 
+      0 0 10px rgba(0, 255, 65, 0.3),
+      inset 0 0 10px rgba(0, 255, 65, 0.1);
+  }
+  to {
+    box-shadow: 
+      0 0 15px rgba(0, 255, 65, 0.5),
+      inset 0 0 15px rgba(0, 255, 65, 0.2);
+  }
+}
+
+/* Report numbers styling */
+[data-theme="retro-terminal"] .dashboard-card .text-2xl.font-bold.text-white {
+  color: var(--retro-green-accent) !important;
+  font-family: var(--retro-font-mono) !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="retro-terminal"] .dashboard-card .text-2xl.font-bold.text-yellow-400 {
+  color: var(--retro-yellow-bright) !important;
+  font-family: var(--retro-font-mono) !important;
+  font-weight: 700 !important;
+}
+
+/* Report labels - convert gray to terminal green */
+[data-theme="retro-terminal"] .dashboard-card .text-sm.text-gray-400 {
+  color: var(--retro-text-secondary) !important;
+  font-family: var(--retro-font-mono) !important;
+  font-size: 0.75rem !important;
+  text-transform: uppercase !important;
+}
+
+/* Status indicators */
+[data-theme="retro-terminal"] .dashboard-card .text-xs.text-green-400 {
+  color: var(--retro-green-accent) !important;
+  font-family: var(--retro-font-mono) !important;
+}
+
+[data-theme="retro-terminal"] .dashboard-card .text-xs.text-blue-400 {
+  color: var(--retro-cyan) !important;
+  font-family: var(--retro-font-mono) !important;
+}
+
+/* Generate New Report button - STING yellow retro styling */
+[data-theme="retro-terminal"] .retro-report-button,
+[data-theme="retro-terminal"] .dashboard-card button[style*="backdrop-filter"] {
+  background: transparent !important;
+  border: 2px solid var(--retro-yellow-bright) !important;
+  border-radius: 0 !important;
+  color: var(--retro-yellow-bright) !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  font-weight: 600 !important;
+  transition: var(--retro-transition-fast) !important;
+}
+
+[data-theme="retro-terminal"] .retro-report-button:hover,
+[data-theme="retro-terminal"] .dashboard-card button[style*="backdrop-filter"]:hover {
+  background: var(--retro-yellow-bright) !important;
+  color: var(--retro-text-inverse) !important;
+  border-color: var(--retro-yellow-bright) !important;
+  transform: none !important;
+  box-shadow: 0 0 15px rgba(251, 191, 36, 0.4), inset 0 0 10px rgba(0, 0, 0, 0.3) !important;
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Report Generation grid layout adjustments */
+[data-theme="retro-terminal"] .dashboard-card .grid.grid-cols-2.gap-4 {
+  gap: 1rem !important;
+  margin: 1rem 0 !important;
+}
+
+/* Ensure proper spacing between grid items */
+[data-theme="retro-terminal"] .dashboard-card .grid > div {
+  min-height: 120px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+}
+
+/* Additional retro styling for entire Report Generation section */
+[data-theme="retro-terminal"] .dashboard-card[class*="lg:col-span-2"] {
+  border: 2px solid var(--retro-green-accent) !important;
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.15) !important;
+}
+
+[data-theme="retro-terminal"] .dashboard-card[class*="lg:col-span-2"]:hover {
+  box-shadow: 0 0 25px rgba(0, 255, 65, 0.25) !important;
+}
+
+/* File icon in button */
+[data-theme="retro-terminal"] .retro-report-button svg,
+[data-theme="retro-terminal"] .dashboard-card button[style*="backdrop-filter"] svg {
+  color: inherit !important;
+}
+
+/* Comprehensive blue-to-green color conversion for Report Generation */
+[data-theme="retro-terminal"] .dashboard-card *[class*="text-blue"] {
+  color: var(--retro-green-accent) !important;
+}
+
+[data-theme="retro-terminal"] .dashboard-card *[class*="text-blue"]:hover {
+  color: var(--retro-yellow-bright) !important;
+}
+
+/* Ensure the entire Report Generation card has proper retro styling */
+[data-theme="retro-terminal"] .lg\\:col-span-2 .dashboard-card {
+  background: #000000 !important; /* Pure black */
+  border: 2px solid var(--retro-green-accent) !important;
+  box-shadow: 
+    0 0 20px rgba(0, 255, 65, 0.15),
+    inset 0 1px 0 rgba(0, 255, 65, 0.1) !important;
+}
+
+/* === System Health Section - Complete Retro Styling === */
+
+/* System Health card container */
+[data-theme="retro-terminal"] .system-health-card.dashboard-card {
+  background-color: #000000 !important; /* Pure black */
+  border: 2px solid var(--retro-border) !important;
+  border-radius: 0 !important;
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.1) !important;
+  backdrop-filter: none !important;
+}
+
+/* System Health title */
+[data-theme="retro-terminal"] .system-health-title.text-lg.font-semibold.text-white {
+  color: var(--retro-green-accent) !important;
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  font-weight: 700 !important;
+}
+
+/* Expand button */
+[data-theme="retro-terminal"] .expand-button.text-gray-400 {
+  color: var(--retro-text-secondary) !important;
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 0.05em !important;
+}
+
+[data-theme="retro-terminal"] .expand-button.text-gray-400:hover {
+  color: var(--retro-yellow-bright) !important;
+}
+
+/* System status indicator */
+[data-theme="retro-terminal"] .system-status-indicator {
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* Last update time */
+[data-theme="retro-terminal"] .last-update-time.text-xs.text-gray-500 {
+  color: var(--retro-text-muted) !important;
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  font-size: 0.65rem !important;
+}
+
+/* Service items - boxy retro styling */
+[data-theme="retro-terminal"] .service-item.bg-gray-700\/30.rounded-lg {
+  background-color: var(--retro-bg-primary) !important;
+  border: 1px solid var(--retro-border) !important;
+  border-radius: 0 !important;
+  padding: 1rem !important;
+  position: relative !important;
+  transition: all var(--retro-transition-fast) !important;
+}
+
+[data-theme="retro-terminal"] .service-item:hover {
+  border-color: var(--retro-green-accent) !important;
+  box-shadow: 0 0 8px rgba(0, 255, 65, 0.2) !important;
+  background-color: rgba(0, 255, 65, 0.02) !important;
+}
+
+/* Service name styling */
+[data-theme="retro-terminal"] .service-name.text-sm.text-gray-300 {
+  color: var(--retro-text-primary) !important;
+  font-family: var(--retro-font-mono) !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  font-size: 0.8rem !important;
+}
+
+/* Service description */
+[data-theme="retro-terminal"] .service-description.text-xs.text-gray-500 {
+  color: var(--retro-text-muted) !important;
+  font-family: var(--retro-font-mono) !important;
+  font-size: 0.65rem !important;
+  text-transform: lowercase !important;
+}
+
+/* Service metrics */
+[data-theme="retro-terminal"] .service-metrics.text-xs.text-gray-500 {
+  color: var(--retro-text-secondary) !important;
+  font-family: var(--retro-font-mono) !important;
+  font-size: 0.7rem !important;
+}
+
+/* More services button */
+[data-theme="retro-terminal"] .more-services-button.text-xs.text-yellow-400 {
+  color: var(--retro-yellow-bright) !important;
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 0.05em !important;
+}
+
+[data-theme="retro-terminal"] .more-services-button.text-xs.text-yellow-400:hover {
+  color: var(--retro-green-accent) !important;
+  text-shadow: 0 0 5px var(--retro-green-accent) !important;
+}
+
+/* === Quick Actions Section - Retro Terminal Styling === */
+
+/* Quick Actions card container */
+[data-theme="retro-terminal"] .quick-actions-card.dashboard-card {
+  background-color: #000000 !important; /* Pure black */
+  border: 2px solid var(--retro-border) !important;
+  border-radius: 0 !important;
+  box-shadow: 0 0 10px rgba(0, 255, 65, 0.1) !important;
+}
+
+/* Quick Actions title */
+[data-theme="retro-terminal"] .quick-actions-title.text-lg.font-semibold.text-yellow-400 {
+  color: var(--retro-green-accent) !important;
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  font-weight: 700 !important;
+}
+
+/* Quick Action buttons - styled like Generate Report button */
+[data-theme="retro-terminal"] .quick-action-button.floating-button {
+  background-color: rgba(251, 191, 36, 0.2) !important;  /* Semi-transparent yellow background like Generate Report */
+  color: var(--retro-text-primary) !important;  /* White/light text for contrast */
+  border: 1px solid rgba(251, 191, 36, 0.3) !important;  /* Subtle yellow border */
+  border-radius: 0 !important;  /* Keep retro square edges */
+  padding: 0.75rem 1.5rem !important;
+  font-family: var(--retro-font-mono) !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  font-size: 0.85rem !important;
+  transition: all var(--retro-transition-fast) !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 4px 20px rgba(251, 191, 36, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="retro-terminal"] .quick-action-button.floating-button:hover {
+  background-color: rgba(251, 191, 36, 0.3) !important;  /* Slightly more opaque on hover */
+  color: var(--retro-text-primary) !important;  /* Keep white text */
+  border-color: rgba(251, 191, 36, 0.5) !important;
+  box-shadow: 0 8px 30px rgba(251, 191, 36, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  transform: translateY(-2px) !important;
+}
+}
+
+/* Quick Action button icons */
+[data-theme="retro-terminal"] .quick-action-button svg {
+  color: inherit !important;
+}
+
+/* Quick Action button text spans */
+[data-theme="retro-terminal"] .quick-action-button span {
+  color: inherit !important;
+  font-family: var(--retro-font-mono) !important;
+}
+
+/* === Special Components === */
+
+/* Navigation items */
+[data-theme="retro-terminal"] .nav-item,
+[data-theme="retro-terminal"] [class*="nav-"] {
+  color: var(--retro-text-secondary);
+  border-radius: 0;
+  transition: var(--retro-transition-fast);
+}
+
+[data-theme="retro-terminal"] .nav-item:hover,
+[data-theme="retro-terminal"] .nav-item.active {
+  color: var(--retro-yellow-bright);
+  background-color: var(--retro-bg-hover);
+  border-left: 3px solid var(--retro-yellow-bright);
+}
+
+/* Sidebar active items */
+[data-theme="retro-terminal"] .sidebar .active,
+[data-theme="retro-terminal"] [class*="sidebar"] .active {
+  background-color: var(--retro-yellow-glow);
+  color: var(--retro-yellow-bright);
+  border-left: 3px solid var(--retro-yellow-bright);
+}
+
+/* Progress bars */
+[data-theme="retro-terminal"] .progress-bar,
+[data-theme="retro-terminal"] [class*="progress"] {
+  background-color: var(--retro-bg-secondary);
+  border: 1px solid var(--retro-border);
+  border-radius: 0;
+  overflow: hidden;
+}
+
+[data-theme="retro-terminal"] .progress-fill,
+[data-theme="retro-terminal"] .bg-yellow-400 {
+  background-color: var(--retro-green-bright) !important;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 4px,
+    rgba(0, 0, 0, 0.1) 4px,
+    rgba(0, 0, 0, 0.1) 8px
+  );
+  animation: retro-progress 1s linear infinite;
+}
+
+@keyframes retro-progress {
+  0% { background-position: 0 0; }
+  100% { background-position: 16px 0; }
+}
+
+/* Modals and overlays */
+[data-theme="retro-terminal"] .modal,
+[data-theme="retro-terminal"] .overlay,
+[data-theme="retro-terminal"] .modal-backdrop,
+[data-theme="retro-terminal"] .ant-modal-mask,
+[data-theme="retro-terminal"] [class*="modal-mask"],
+[data-theme="retro-terminal"] [class*="overlay"],
+[data-theme="retro-terminal"] [class*="backdrop"] {
+  background-color: rgba(0, 0, 0, 0.9) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-theme="retro-terminal"] .modal-content,
+[data-theme="retro-terminal"] .ant-modal,
+[data-theme="retro-terminal"] .ant-modal-content,
+[data-theme="retro-terminal"] [class*="modal-content"],
+[data-theme="retro-terminal"] [class*="popup"],
+[data-theme="retro-terminal"] [class*="dialog"],
+[data-theme="retro-terminal"] .ant-drawer,
+[data-theme="retro-terminal"] .ant-drawer-content,
+[data-theme="retro-terminal"] .ant-popover,
+[data-theme="retro-terminal"] .ant-popover-content,
+[data-theme="retro-terminal"] .ant-tooltip,
+[data-theme="retro-terminal"] .ant-notification {
+  background-color: var(--retro-bg-tertiary) !important;
+  border: 2px solid var(--retro-green-accent) !important;
+  border-radius: 0 !important;
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.3) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: var(--retro-text-primary) !important;
+}
+
+/* Modal headers */
+[data-theme="retro-terminal"] .modal-header,
+[data-theme="retro-terminal"] .ant-modal-header,
+[data-theme="retro-terminal"] .ant-drawer-header,
+[data-theme="retro-terminal"] [class*="modal-header"] {
+  background-color: transparent !important;
+  border-bottom: 1px solid var(--retro-border) !important;
+  color: var(--retro-yellow-bright) !important;
+  font-family: var(--retro-font-mono) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+}
+
+[data-theme="retro-terminal"] .modal-title,
+[data-theme="retro-terminal"] .ant-modal-title,
+[data-theme="retro-terminal"] .ant-drawer-title,
+[data-theme="retro-terminal"] [class*="modal-title"] {
+  color: var(--retro-yellow-bright) !important;
+  font-family: var(--retro-font-mono) !important;
+}
+
+/* Modal body */
+[data-theme="retro-terminal"] .modal-body,
+[data-theme="retro-terminal"] .ant-modal-body,
+[data-theme="retro-terminal"] .ant-drawer-body,
+[data-theme="retro-terminal"] [class*="modal-body"] {
+  background-color: transparent !important;
+  color: var(--retro-text-primary) !important;
+}
+
+/* Modal footer */
+[data-theme="retro-terminal"] .modal-footer,
+[data-theme="retro-terminal"] .ant-modal-footer,
+[data-theme="retro-terminal"] .ant-drawer-footer,
+[data-theme="retro-terminal"] [class*="modal-footer"] {
+  background-color: transparent !important;
+  border-top: 1px solid var(--retro-border) !important;
+}
+
+/* Close buttons */
+[data-theme="retro-terminal"] .modal-close,
+[data-theme="retro-terminal"] .ant-modal-close,
+[data-theme="retro-terminal"] .ant-drawer-close,
+[data-theme="retro-terminal"] [class*="close-button"],
+[data-theme="retro-terminal"] button[aria-label*="close" i],
+[data-theme="retro-terminal"] button[title*="close" i] {
+  color: var(--retro-text-secondary) !important;
+  background: transparent !important;
+  border: none !important;
+  font-size: 18px !important;
+}
+
+[data-theme="retro-terminal"] .modal-close:hover,
+[data-theme="retro-terminal"] .ant-modal-close:hover,
+[data-theme="retro-terminal"] .ant-drawer-close:hover {
+  color: var(--retro-red) !important;
+  background-color: rgba(255, 68, 68, 0.1) !important;
+}
+
+/* Dropdowns and select menus */
+[data-theme="retro-terminal"] .ant-select-dropdown,
+[data-theme="retro-terminal"] .ant-dropdown,
+[data-theme="retro-terminal"] .ant-menu,
+[data-theme="retro-terminal"] select option,
+[data-theme="retro-terminal"] [class*="dropdown"],
+[data-theme="retro-terminal"] [class*="select-menu"] {
+  background-color: var(--retro-bg-tertiary) !important;
+  border: 1px solid var(--retro-border) !important;
+  border-radius: 0 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Dropdown items */
+[data-theme="retro-terminal"] .ant-select-item,
+[data-theme="retro-terminal"] .ant-dropdown-menu-item,
+[data-theme="retro-terminal"] .ant-menu-item,
+[data-theme="retro-terminal"] [class*="dropdown-item"],
+[data-theme="retro-terminal"] option {
+  color: var(--retro-text-primary) !important;
+  background-color: transparent !important;
+  border-radius: 0 !important;
+}
+
+[data-theme="retro-terminal"] .ant-select-item:hover,
+[data-theme="retro-terminal"] .ant-dropdown-menu-item:hover,
+[data-theme="retro-terminal"] .ant-menu-item:hover,
+[data-theme="retro-terminal"] [class*="dropdown-item"]:hover {
+  background-color: rgba(0, 255, 65, 0.1) !important;
+  color: var(--retro-green-accent) !important;
+}
+
+/* Notifications and alerts */
+[data-theme="retro-terminal"] .ant-notification-notice,
+[data-theme="retro-terminal"] .ant-message,
+[data-theme="retro-terminal"] .toast,
+[data-theme="retro-terminal"] [class*="notification"],
+[data-theme="retro-terminal"] [class*="alert"] {
+  background-color: var(--retro-bg-tertiary) !important;
+  border: 1px solid var(--retro-border) !important;
+  border-radius: 0 !important;
+  color: var(--retro-text-primary) !important;
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.2) !important;
+}
+
+/* Success notifications */
+[data-theme="retro-terminal"] .ant-notification-notice-success,
+[data-theme="retro-terminal"] .alert-success,
+[data-theme="retro-terminal"] .toast-success {
+  border-color: var(--retro-green-accent) !important;
+  background-color: rgba(0, 255, 65, 0.05) !important;
+}
+
+/* Error notifications */
+[data-theme="retro-terminal"] .ant-notification-notice-error,
+[data-theme="retro-terminal"] .alert-error,
+[data-theme="retro-terminal"] .toast-error {
+  border-color: var(--retro-red) !important;
+  background-color: rgba(255, 68, 68, 0.05) !important;
+}
+
+/* Warning notifications */
+[data-theme="retro-terminal"] .ant-notification-notice-warning,
+[data-theme="retro-terminal"] .alert-warning,
+[data-theme="retro-terminal"] .toast-warning {
+  border-color: var(--retro-yellow-bright) !important;
+  background-color: var(--retro-yellow-glow) !important;
+}
+
+/* === Performance Optimizations === */
+
+/* Disable expensive effects globally for this theme */
+[data-theme="retro-terminal"] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-theme="retro-terminal"] *::before,
+[data-theme="retro-terminal"] *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Reduce box shadows to minimum */
+[data-theme="retro-terminal"] .shadow,
+[data-theme="retro-terminal"] .shadow-lg,
+[data-theme="retro-terminal"] .shadow-xl,
+[data-theme="retro-terminal"] [class*="shadow-"] {
+  box-shadow: var(--retro-shadow-minimal) !important;
+}
+
+/* === Terminal-specific Effects === */
+
+/* Subtle scanline effect for authentic feel (optional, can be disabled) */
+[data-theme="retro-terminal"] body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background-image: 
+    linear-gradient(
+      transparent 50%,
+      rgba(0, 255, 65, 0.02) 50%
+    );
+  background-size: 100% 2px;
+  animation: retro-flicker 0.15s linear infinite;
+  z-index: 1000;
+}
+
+@keyframes retro-flicker {
+  0% { opacity: 1; }
+  98% { opacity: 1; }
+  99% { opacity: 0.98; }
+  100% { opacity: 1; }
+}
+
+/* === Bee Chat Button Fixes === */
+
+/* Fix clear button text color - ensure high contrast */
+[data-theme="retro-terminal"] .floating-button.bg-red-600,
+[data-theme="retro-terminal"] .floating-button[class*="bg-red"] {
+  background-color: transparent !important;
+  color: var(--retro-text-primary) !important;  /* White text */
+  border: 2px solid #ef4444 !important;  /* Red border */
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px !important;
+  padding: 0.5rem 0.75rem !important;
+}
+
+[data-theme="retro-terminal"] .floating-button.bg-red-600:hover,
+[data-theme="retro-terminal"] .floating-button[class*="bg-red"]:hover {
+  background-color: #ef4444 !important;  /* Red background on hover */
+  color: #000000 !important;  /* Black text for contrast on red background */
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5) !important;
+}
+
+/* Fix send button text color - ensure high contrast */
+[data-theme="retro-terminal"] .floating-button.bg-yellow-500.text-black,
+[data-theme="retro-terminal"] .floating-button.bg-yellow-500,
+[data-theme="retro-terminal"] .floating-button[class*="bg-yellow"] {
+  background-color: transparent !important;
+  color: var(--retro-accent) !important;  /* Yellow text */
+  border: 2px solid var(--retro-accent) !important;  /* Yellow border */
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px !important;
+  padding: 0.5rem 0.75rem !important;
+}
+
+[data-theme="retro-terminal"] .floating-button.bg-yellow-500:hover,
+[data-theme="retro-terminal"] .floating-button[class*="bg-yellow"]:hover {
+  background-color: var(--retro-accent) !important;  /* Yellow background on hover */
+  color: #000000 !important;  /* Black text for contrast on yellow background */
+  border-color: var(--retro-yellow-bright) !important;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.5) !important;
+}
+
+/* Disabled state for send button */
+[data-theme="retro-terminal"] .floating-button[class*="bg-yellow"]:disabled {
+  background-color: transparent !important;
+  color: var(--retro-text-secondary) !important;
+  border-color: var(--retro-text-secondary) !important;
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+/* === Bee Reports Page Dark Theme === */
+
+/* Main page container */
+[data-theme="retro-terminal"] .bee-reports-page {
+  background-color: var(--retro-bg-primary) !important;
+  color: var(--retro-text-primary) !important;
+}
+
+/* Ant Design Table Dark Theme for Reports */
+[data-theme="retro-terminal"] .dark-table .ant-table {
+  background-color: var(--retro-bg-secondary) !important;
+  color: var(--retro-text-primary) !important;
+  border: 2px solid var(--retro-green-accent) !important;
+  border-radius: 0 !important;
+}
+
+[data-theme="retro-terminal"] .dark-table .ant-table-thead > tr > th {
+  background-color: var(--retro-bg-tertiary) !important;
+  color: var(--retro-accent) !important;
+  border-bottom: 1px solid var(--retro-green-accent) !important;
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  font-weight: 700 !important;
+  letter-spacing: 1px !important;
+}
+
+[data-theme="retro-terminal"] .dark-table .ant-table-tbody > tr > td {
+  background-color: var(--retro-bg-secondary) !important;
+  color: var(--retro-text-primary) !important;
+  border-bottom: 1px solid rgba(34, 197, 94, 0.2) !important;
+  font-family: var(--retro-font-mono) !important;
+}
+
+[data-theme="retro-terminal"] .dark-table .ant-table-tbody > tr:hover > td {
+  background-color: var(--retro-bg-tertiary) !important;
+  box-shadow: inset 0 0 10px rgba(34, 197, 94, 0.2) !important;
+}
+
+[data-theme="retro-terminal"] .dark-table .ant-table-pagination {
+  background-color: var(--retro-bg-secondary) !important;
+}
+
+[data-theme="retro-terminal"] .dark-table .ant-pagination-item {
+  background-color: var(--retro-bg-tertiary) !important;
+  border: 1px solid var(--retro-green-accent) !important;
+  border-radius: 0 !important;
+}
+
+[data-theme="retro-terminal"] .dark-table .ant-pagination-item a {
+  color: var(--retro-text-primary) !important;
+  font-family: var(--retro-font-mono) !important;
+}
+
+[data-theme="retro-terminal"] .dark-table .ant-pagination-item-active {
+  background-color: var(--retro-green-accent) !important;
+  border-color: var(--retro-green-accent) !important;
+}
+
+[data-theme="retro-terminal"] .dark-table .ant-pagination-item-active a {
+  color: #000000 !important;
+}
+
+/* Ant Design Select Dark Theme for Reports */
+[data-theme="retro-terminal"] .bee-reports-page .ant-select-dropdown {
+  background-color: var(--retro-bg-secondary) !important;
+  border: 2px solid var(--retro-green-accent) !important;
+  border-radius: 0 !important;
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.3) !important;
+}
+
+[data-theme="retro-terminal"] .bee-reports-page .ant-select-item {
+  color: var(--retro-text-primary) !important;
+  font-family: var(--retro-font-mono) !important;
+}
+
+[data-theme="retro-terminal"] .bee-reports-page .ant-select-item-option-selected {
+  background-color: var(--retro-bg-tertiary) !important;
+  color: var(--retro-accent) !important;
+}
+
+[data-theme="retro-terminal"] .bee-reports-page .ant-select-item-option-active {
+  background-color: rgba(34, 197, 94, 0.2) !important;
+}
+
+/* Ant Design Input Dark Theme for Reports */
+[data-theme="retro-terminal"] .bee-reports-page .ant-input {
+  background-color: var(--retro-bg-tertiary) !important;
+  color: var(--retro-text-primary) !important;
+  border: 1px solid var(--retro-green-accent) !important;
+  border-radius: 0 !important;
+  font-family: var(--retro-font-mono) !important;
+}
+
+[data-theme="retro-terminal"] .bee-reports-page .ant-input:focus,
+[data-theme="retro-terminal"] .bee-reports-page .ant-input-focused {
+  border-color: var(--retro-accent) !important;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.3) !important;
+}
+
+/* Ant Design Search Input Dark Theme */
+[data-theme="retro-terminal"] .bee-reports-page .ant-input-search .ant-input-group-addon {
+  background-color: var(--retro-bg-tertiary) !important;
+  border: 1px solid var(--retro-green-accent) !important;
+  border-left: none !important;
+}
+
+[data-theme="retro-terminal"] .bee-reports-page .ant-input-search .ant-input-search-button {
+  background-color: var(--retro-green-accent) !important;
+  border-color: var(--retro-green-accent) !important;
+  color: #000000 !important;
+}
+
+/* Ant Design Tags Dark Theme for Reports */
+[data-theme="retro-terminal"] .bee-reports-page .ant-tag {
+  background-color: var(--retro-bg-tertiary) !important;
+  color: var(--retro-text-primary) !important;
+  border: 1px solid var(--retro-green-accent) !important;
+  border-radius: 0 !important;
+  font-family: var(--retro-font-mono) !important;
+  font-size: 10px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* Ant Design Button Dark Theme for Reports */
+[data-theme="retro-terminal"] .bee-reports-page .ant-btn-primary {
+  background-color: var(--retro-green-accent) !important;
+  border-color: var(--retro-green-accent) !important;
+  color: #000000 !important;
+  border-radius: 0 !important;
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px !important;
+}
+
+[data-theme="retro-terminal"] .bee-reports-page .ant-btn-primary:hover {
+  background-color: var(--retro-accent) !important;
+  border-color: var(--retro-accent) !important;
+  box-shadow: 0 0 15px rgba(251, 191, 36, 0.5) !important;
+}
+
+/* Ant Design Progress Dark Theme for Reports */
+[data-theme="retro-terminal"] .bee-reports-page .ant-progress-bg {
+  background-color: var(--retro-bg-tertiary) !important;
+}
+
+[data-theme="retro-terminal"] .bee-reports-page .ant-progress-inner {
+  background-color: var(--retro-bg-secondary) !important;
+}
+
+/* Ant Design Badge Dark Theme for Reports */
+[data-theme="retro-terminal"] .bee-reports-page .ant-badge-count {
+  background-color: var(--retro-green-accent) !important;
+  color: #000000 !important;
+  font-family: var(--retro-font-mono) !important;
+  font-weight: 700 !important;
+}
+
+/* Ant Design Tabs Dark Theme for Reports */
+[data-theme="retro-terminal"] .bee-reports-page .reports-tabs .ant-tabs-tab {
+  color: var(--retro-text-secondary) !important;
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  font-weight: 600 !important;
+  letter-spacing: 1px !important;
+}
+
+[data-theme="retro-terminal"] .bee-reports-page .reports-tabs .ant-tabs-tab:hover {
+  color: var(--retro-accent) !important;
+}
+
+[data-theme="retro-terminal"] .bee-reports-page .reports-tabs .ant-tabs-tab-active {
+  color: var(--retro-accent) !important;
+}
+
+[data-theme="retro-terminal"] .bee-reports-page .reports-tabs .ant-tabs-ink-bar {
+  background: var(--retro-accent) !important;
+  height: 3px !important;
+}
+
+[data-theme="retro-terminal"] .bee-reports-page .reports-tabs .ant-tabs-content-holder {
+  background-color: transparent !important;
+}
+
+/* Ant Design Empty State for Reports */
+[data-theme="retro-terminal"] .bee-reports-page .ant-empty {
+  color: var(--retro-text-secondary) !important;
+}
+
+[data-theme="retro-terminal"] .bee-reports-page .ant-empty-description {
+  color: var(--retro-text-secondary) !important;
+  font-family: var(--retro-font-mono) !important;
+}
+
+/* === Fix Black Boxes Behind Metric Card Icons === */
+
+/* Remove black boxes from metric card icon backgrounds */
+[data-theme="retro-terminal"] .metric-card .icon-wrapper,
+[data-theme="retro-terminal"] .metric-card [class*="icon-container"],
+[data-theme="retro-terminal"] .metric-card [class*="bg-yellow"],
+[data-theme="retro-terminal"] .metric-card [class*="bg-blue"],
+[data-theme="retro-terminal"] .metric-card [class*="bg-red"],
+[data-theme="retro-terminal"] .metric-card [class*="bg-green"],
+[data-theme="retro-terminal"] .metric-card [class*="bg-purple"],
+[data-theme="retro-terminal"] .dashboard-card [class*="rounded-full"],
+[data-theme="retro-terminal"] .dashboard-card [class*="rounded-lg"] {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* === Sidebar Navigation Retro Theme === */
+
+/* Efficient retro sidebar - no animations, pure functionality */
+[data-theme="retro-terminal"] div.w-56.shadow-lg.rounded-r-3xl {
+  background-color: var(--retro-bg-secondary) !important;
+  border: 2px solid var(--retro-green-accent) !important;
+  border-radius: 0 !important;  /* No rounded corners in retro */
+  box-shadow: none !important;  /* Remove shadow for performance */
+  transition: none !important;  /* Remove all transitions */
+}
+
+/* Force override of all dynamic background classes */
+[data-theme="retro-terminal"] .w-56.bg-slate-700,
+[data-theme="retro-terminal"] .w-56.bg-white,
+[data-theme="retro-terminal"] .w-56.bg-amber-500 {
+  background-color: var(--retro-bg-secondary) !important;
+}
+
+/* Sidebar logo area */
+[data-theme="retro-terminal"] .w-56 h1.text-2xl.font-bold,
+[data-theme="retro-terminal"] .w-56 h1 {
+  color: var(--retro-accent) !important;
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 2px !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.5) !important;
+}
+
+/* Sidebar menu items - ultra-specific selectors to override dynamic classes */
+[data-theme="retro-terminal"] .w-56 nav ul li a.flex.items-center,
+[data-theme="retro-terminal"] .w-56 nav a {
+  background-color: transparent !important;
+  color: var(--retro-text-primary) !important;
+  border: 1px solid transparent !important;
+  border-radius: 0 !important;
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  font-size: 0.8rem !important;
+  letter-spacing: 1px !important;
+  transition: none !important;  /* No transition for instant response */
+  padding: 0.75rem !important;
+  margin-bottom: 0.25rem !important;
+}
+
+/* Override all text color classes */
+[data-theme="retro-terminal"] .w-56 nav a.text-gray-100,
+[data-theme="retro-terminal"] .w-56 nav a.text-gray-800,
+[data-theme="retro-terminal"] .w-56 nav a.text-gray-900 {
+  color: var(--retro-text-primary) !important;
+}
+
+/* Active menu item - ultra-specific to override bg-amber-600 text-white */
+[data-theme="retro-terminal"] .w-56 nav ul li a.bg-amber-600.text-white,
+[data-theme="retro-terminal"] .w-56 nav a.bg-amber-600,
+[data-theme="retro-terminal"] .w-56 nav a[class*="bg-amber"] {
+  background-color: var(--retro-green-accent) !important;
+  color: #000000 !important;
+  border: 1px solid var(--retro-green-accent) !important;
+  font-weight: 700 !important;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Hover state - ultra-specific to override hover classes */
+[data-theme="retro-terminal"] .w-56 nav a.hover\\:text-white:hover,
+[data-theme="retro-terminal"] .w-56 nav a.hover\\:bg-slate-600:hover,
+[data-theme="retro-terminal"] .w-56 nav a:hover:not([class*="bg-amber"]) {
+  background-color: rgba(34, 197, 94, 0.1) !important;
+  color: var(--retro-green-accent) !important;
+  border: 1px solid var(--retro-green-accent) !important;
+  transition: none !important;  /* Instant hover effect */
+}
+
+/* Menu icons - override any icon color classes */
+[data-theme="retro-terminal"] .w-56 nav a svg.mr-3.w-5.h-5,
+[data-theme="retro-terminal"] .w-56 nav a svg {
+  color: currentColor !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* Remove all animations from sidebar - ultra-broad selector */
+[data-theme="retro-terminal"] .w-56 *,
+[data-theme="retro-terminal"] .w-56 nav *,
+[data-theme="retro-terminal"] .w-56 nav a * {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* === Grafana Dashboard Retro Theme === */
+
+/* Grafana dashboard container */
+[data-theme="retro-terminal"] .grafana-dashboard-container {
+  background-color: var(--retro-bg-secondary) !important;
+  border: 2px solid var(--retro-green-accent) !important;
+  border-radius: 0 !important;
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.3) !important;
+}
+
+[data-theme="retro-terminal"] .grafana-dashboard-container h3 {
+  color: var(--retro-accent) !important;
+  font-family: var(--retro-font-mono) !important;
+  text-transform: uppercase !important;
+  font-weight: 700 !important;
+  letter-spacing: 1px !important;
+}
+
+[data-theme="retro-terminal"] .grafana-dashboard-container p {
+  color: var(--retro-text-secondary) !important;
+  font-family: var(--retro-font-mono) !important;
+}
+
+/* Grafana placeholder/loading message */
+[data-theme="retro-terminal"] .grafana-content {
+  background-color: var(--retro-bg-tertiary) !important;
+  border-top: 1px solid var(--retro-green-accent) !important;
+}
+
+[data-theme="retro-terminal"] .grafana-content iframe {
+  filter: brightness(0.9) contrast(1.1) !important;
+}
+  100% { opacity: 1; }
+}
+
+/* Text cursor effect for inputs */
+[data-theme="retro-terminal"] input:focus,
+[data-theme="retro-terminal"] textarea:focus {
+  caret-color: var(--retro-green-bright);
+  animation: retro-cursor 1s infinite;
+}
+
+@keyframes retro-cursor {
+  0%, 50% { caret-color: var(--retro-green-bright); }
+  51%, 100% { caret-color: transparent; }
+}
+
+/* === Responsive Adjustments === */
+
+@media (max-width: 768px) {
+  [data-theme="retro-terminal"] {
+    /* Further reduce effects on mobile for better performance */
+    --retro-transition-fast: 0s;
+    --retro-transition-normal: 0s;
+  }
+  
+  /* Disable scanlines on mobile */
+  [data-theme="retro-terminal"] body::before {
+    display: none;
+  }
+}
+
+/* === Accessibility === */
+
+[data-theme="retro-terminal"] :focus-visible {
+  outline: 2px solid var(--retro-outline);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  [data-theme="retro-terminal"] {
+    --retro-text-primary: #ffffff;
+    --retro-bg-primary: #000000;
+    --retro-border: #ffffff;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="retro-terminal"] * {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  [data-theme="retro-terminal"] body::before {
+    display: none;
+  }
+}
+
+/* === Header Button Fixes === */
+
+/* Fix dark green boxes around logout/notification buttons */
+[data-theme="retro-terminal"] .floating-header button,
+[data-theme="retro-terminal"] .floating-header .ant-btn,
+[data-theme="retro-terminal"] .ant-layout-header button,
+[data-theme="retro-terminal"] .ant-layout-header .ant-btn {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--retro-text-secondary) !important;
+}
+
+[data-theme="retro-terminal"] .floating-header button:hover,
+[data-theme="retro-terminal"] .floating-header .ant-btn:hover,
+[data-theme="retro-terminal"] .ant-layout-header button:hover,
+[data-theme="retro-terminal"] .ant-layout-header .ant-btn:hover {
+  background-color: rgba(0, 255, 65, 0.1) !important;
+  color: var(--retro-green-accent) !important;
+  border: 1px solid var(--retro-border) !important;
+  box-shadow: none !important;
+}
+
+/* Specific fix for logout and notification icons */
+[data-theme="retro-terminal"] [class*="logout"],
+[data-theme="retro-terminal"] [class*="notification"],
+[data-theme="retro-terminal"] .ant-btn-icon-only {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Ant Design button override for header area */
+[data-theme="retro-terminal"] .ant-btn-text {
+  background: transparent !important;
+  border: none !important;
+  color: var(--retro-text-secondary) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="retro-terminal"] .ant-btn-text:hover {
+  background-color: rgba(0, 255, 65, 0.1) !important;
+  color: var(--retro-green-accent) !important;
+}
+
+/* === Bee Chat Text Input Boxes === */
+[data-theme="retro-terminal"] .bg-gray-600.border.border-gray-500,
+[data-theme="retro-terminal"] textarea.bg-gray-600 {
+  border: 2px solid #000000 !important;
+  border-radius: 0 !important;
+  background-color: var(--retro-bg-secondary) !important;
+  color: var(--retro-text-primary) !important;
+  font-family: var(--retro-font-family) !important;
+}
+
+[data-theme="retro-terminal"] .bg-gray-600.border.border-gray-500:focus,
+[data-theme="retro-terminal"] textarea.bg-gray-600:focus {
+  border: 2px solid var(--retro-primary) !important;
+  outline: none !important;
+  box-shadow: inset 0 0 3px rgba(0, 255, 0, 0.3) !important;
+}
+
+/* === Security Settings Border Reduction === */
+
+/* Reduce excessive borders in security settings */
+[data-theme="retro-terminal"] .glass-subtle {
+  border: none !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="retro-terminal"] .glass-card {
+  border: 1px solid var(--retro-border) !important;
+  background: var(--retro-bg-primary) !important;
+}
+
+/* Clean up passkey/settings component borders */
+[data-theme="retro-terminal"] .bg-slate-700\/50 {
+  border: none !important;
+  background: rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="retro-terminal"] .bg-slate-700\/30 {
+  border: none !important;
+  background: rgba(0, 0, 0, 0.2) !important;
+}
+
+[data-theme="retro-terminal"] .bg-blue-900\/20,
+[data-theme="retro-terminal"] .bg-amber-900\/20 {
+  border: 1px solid var(--retro-border) !important;
+  background: rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Remove inner borders from info sections */
+[data-theme="retro-terminal"] .border-red-500\/30,
+[data-theme="retro-terminal"] .border-green-500\/30,
+[data-theme="retro-terminal"] .border-blue-500\/30,
+[data-theme="retro-terminal"] .border-amber-700\/50 {
+  border: none !important;
+  background: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* === API Key Modal Fixes === */
+
+/* Main modal container */
+[data-theme="retro-terminal"] .bg-slate-800.rounded-2xl {
+  background: var(--retro-bg-primary) !important;
+  border: 2px solid var(--retro-green-accent) !important;
+  color: var(--retro-text-primary) !important;
+  border-radius: 0 !important;
+}
+
+/* Modal backdrop */
+[data-theme="retro-terminal"] .bg-black\/50 {
+  background: rgba(0, 0, 0, 0.85) !important;
+}
+
+/* Form inputs */
+[data-theme="retro-terminal"] .bg-slate-700.border.border-slate-600 {
+  background: var(--retro-bg-secondary) !important;
+  border: 1px solid var(--retro-border) !important;
+  color: var(--retro-text-primary) !important;
+  font-family: var(--retro-font-family) !important;
+  border-radius: 0 !important;
+}
+
+[data-theme="retro-terminal"] .bg-slate-700.border.border-slate-600:focus {
+  border-color: var(--retro-green-accent) !important;
+  box-shadow: inset 0 0 3px rgba(0, 255, 0, 0.3) !important;
+}
+
+/* Modal borders and separators */
+[data-theme="retro-terminal"] .border-slate-700 {
+  border-color: var(--retro-border) !important;
+}
+
+/* API key display fields */
+[data-theme="retro-terminal"] .p-3.bg-slate-700 {
+  background: var(--retro-bg-secondary) !important;
+  border: 1px solid var(--retro-border) !important;
+  color: var(--retro-green-accent) !important;
+  font-family: var(--retro-font-family) !important;
+  border-radius: 0 !important;
+}
+
+/* Info sections in modals */
+[data-theme="retro-terminal"] .bg-yellow-900\/20.border.border-yellow-800\/50,
+[data-theme="retro-terminal"] .bg-blue-900\/20.border.border-blue-800\/50 {
+  background: rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid var(--retro-border) !important;
+  border-radius: 0 !important;
+}
+
+/* Code blocks */
+[data-theme="retro-terminal"] .bg-slate-900\/50 {
+  background: var(--retro-bg-primary) !important;
+  border: 1px solid var(--retro-border) !important;
+  color: var(--retro-green-accent) !important;
+  font-family: var(--retro-font-family) !important;
+  border-radius: 0 !important;
+}
+
+/* Checkbox styling */
+[data-theme="retro-terminal"] input[type="checkbox"] {
+  background: var(--retro-bg-secondary) !important;
+  border-color: var(--retro-border) !important;
+}
+
+[data-theme="retro-terminal"] input[type="checkbox"]:checked {
+  background: var(--retro-green-accent) !important;
+  border-color: var(--retro-green-accent) !important;
+}

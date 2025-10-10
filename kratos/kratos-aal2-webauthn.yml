@@ -1,0 +1,237 @@
+# Enhanced Kratos configuration with AAL2 WebAuthn support
+# This configuration enables WebAuthn/Passkeys for both AAL1 and AAL2 authentication
+
+version: v1.3.0
+dsn: postgresql://postgres:postgres@db:5432/sting_app?sslmode=disable
+
+log:
+  level: debug
+
+serve:
+  public:
+    base_url: https://localhost:8443
+    host: 0.0.0.0
+    port: 4433
+    tls:
+      cert:
+        path: /etc/certs/server.crt
+      key:
+        path: /etc/certs/server.key
+    cors:
+      enabled: true
+      allowed_origins:
+        - http://localhost:8443
+        - https://localhost:8443
+        - http://localhost:3000
+        - https://localhost:3000
+      allowed_methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      allowed_headers:
+        - Authorization
+        - Content-Type
+        - X-CSRF-Token
+        - Cookie
+      exposed_headers:
+        - Set-Cookie
+      allow_credentials: true
+
+  admin:
+    base_url: https://0.0.0.0:4434
+    host: 0.0.0.0
+    port: 4434
+    tls:
+      cert:
+        path: /etc/certs/server.crt
+      key:
+        path: /etc/certs/server.key
+
+identity:
+  default_schema_id: default
+  schemas:
+    - id: default
+      url: file:///etc/config/kratos/identity.schema.json
+
+selfservice:
+  default_browser_return_url: https://localhost:8443/dashboard
+  
+  allowed_return_urls:
+    - https://localhost:8443
+    - https://localhost:8443/dashboard
+    - https://localhost:8443/dashboard/reports
+    - https://localhost:8443/dashboard/settings
+    - https://localhost:8443/login
+    - https://localhost:8443/register
+    - https://localhost:8443/post-registration
+    - http://localhost:8443
+    - http://localhost:8443/dashboard
+    - http://localhost:8443/dashboard/reports
+    - http://localhost:8443/dashboard/settings
+    - http://localhost:8443/login
+    - http://localhost:8443/register
+    - http://localhost:8443/post-registration
+    - https://localhost:8443/*
+    - http://localhost:8443/*
+    - http://localhost:3000/*
+    - https://localhost:3000/*
+
+  flows:
+    error:
+      ui_url: https://localhost:8443/error
+
+    settings:
+      ui_url: https://localhost:8443/dashboard/settings/security
+      lifespan: 1h
+      privileged_session_max_age: 24h
+      required_aal: aal1
+      after:
+        default_browser_return_url: https://localhost:8443/dashboard/settings
+
+    login:
+      ui_url: https://localhost:8443/login
+      lifespan: 1h
+      after:
+        default_browser_return_url: https://localhost:8443/dashboard
+        code:
+          hooks:
+            - hook: require_verified_address
+        webauthn:
+          hooks:
+            - hook: require_verified_address
+
+    registration:
+      ui_url: https://localhost:8443/register
+      lifespan: 1h
+      after:
+        code:
+          hooks:
+            - hook: session
+        default_browser_return_url: https://localhost:8443/post-registration
+      
+      enable_legacy_one_step: false
+
+    verification:
+      enabled: false
+      ui_url: https://localhost:8443/verification
+      lifespan: 1h
+      after:
+        default_browser_return_url: https://localhost:8443/dashboard
+
+    recovery:
+      enabled: true
+      ui_url: https://localhost:8443/recovery
+      lifespan: 1h
+      after:
+        default_browser_return_url: https://localhost:8443/dashboard
+
+    logout:
+      after:
+        default_browser_return_url: https://localhost:8443/login
+
+  methods:
+    # Disable password method for passwordless auth
+    password:
+      enabled: false
+
+    # WebAuthn/Passkey configuration for AAL1 and AAL2
+    webauthn:
+      enabled: true
+      config:
+        # CRITICAL: Set to false to enable AAL2 support
+        passwordless: false
+        
+        # Relying Party configuration
+        rp:
+          id: localhost
+          display_name: STING Platform
+          origins:
+            - https://localhost:8443
+            - http://localhost:8443
+            - https://localhost:3000
+            - http://localhost:3000
+        
+        # User verification requirement for AAL2
+        user_verification: preferred
+
+    # TOTP for AAL2 authentication
+    totp:
+      enabled: true
+      config:
+        issuer: STING Authentication
+
+    # Recovery codes as backup
+    lookup_secret:
+      enabled: true
+
+    # Email link authentication
+    link:
+      enabled: true
+      config:
+        lifespan: 1h
+
+    # Email code authentication (primary method)
+    code:
+      enabled: true
+      config:
+        passwordless_enabled: true
+        lifespan: 15m
+
+# Session configuration
+session:
+  cookie:
+    name: ory_kratos_session
+    domain: localhost
+    path: /
+    same_site: Lax
+    secure: false  # Set to true in production with HTTPS
+  lifespan: 24h
+  earliest_possible_extend: 1h
+  whoami:
+    required_aal: aal1
+    tokenizer:
+      templates:
+        - ttl: 1h
+          claims: |
+            {
+              "sub": "{{ .Identity.ID }}",
+              "email": "{{ .Identity.traits.email }}",
+              "role": "{{ .Identity.traits.role }}",
+              "aal": "{{ .AuthenticationAssuranceLevel }}"
+            }
+
+# Authentication Assurance Level configuration
+authenticator_assurance_level:
+  # Require AAL2 for specific operations
+  required_aal_for_settings_flow: aal1
+
+# Secrets (generate new ones for production!)
+secrets:
+  cookie:
+    - b8b7a6a76d944a64229dc9e1c858c60a
+  cipher:
+    - 8b530c69d41d77b45851e34a71f895c6
+
+# Email courier configuration
+courier:
+  smtp:
+    connection_uri: smtp://mailpit:1025/?skip_ssl_verify=true&disable_starttls=true
+    from_address: noreply@sting.local
+    from_name: STING Platform
+  template_override_path: /etc/config/kratos/courier-templates/
+
+# Hashers configuration for imported passwords (if needed)
+hashers:
+  argon2:
+    parallelism: 1
+    memory: 128MB
+    iterations: 2
+    salt_length: 16
+    key_length: 32
+
+# Feature flags
+feature_flags:
+  use_continue_with_transitions: true
+  cacheable_sessions: true

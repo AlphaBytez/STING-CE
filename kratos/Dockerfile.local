@@ -1,0 +1,15 @@
+FROM oryd/kratos:latest
+
+# Set environment variables directly
+ENV DSN="postgresql://postgres:postgres@db:5432/sting_app"
+
+# Copy the minimal template and identity schema directly
+COPY minimal.kratos.yml /etc/config/kratos/kratos.yml
+COPY identity.schema.json /etc/config/kratos/identity.schema.json
+COPY start-kratos.sh /start-kratos.sh
+
+# Make the script executable
+RUN chmod +x /start-kratos.sh
+
+# Use our script as the entrypoint
+ENTRYPOINT ["/start-kratos.sh"]

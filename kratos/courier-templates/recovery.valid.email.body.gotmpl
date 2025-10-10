@@ -1,0 +1,14 @@
+Hi {{ .Identity.traits.name.first }},
+
+You (or someone else) requested a password recovery link for your STING account.
+
+Click the link below to reset your password:
+
+{{ .RecoveryURL }}
+
+This link will expire in {{ .ExpiresInMinutes }} minutes.
+
+If you didn't request this, please ignore this email. Your password will remain unchanged.
+
+Best,
+The STING Team

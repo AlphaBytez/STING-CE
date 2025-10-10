@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your STING Login Code</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #f1f5f9;
+            line-height: 1.6;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+        }
+        
+        .email-content {
+            padding: 40px 20px;
+        }
+        
+        .glass-card {
+            background: rgba(51, 65, 85, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 16px;
+            padding: 40px;
+            margin: 20px 0;
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.25),
+                0 0 0 1px rgba(255, 255, 255, 0.05);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo-container {
+            margin-bottom: 24px;
+        }
+        
+        .logo {
+            max-width: 120px;
+            height: auto;
+        }
+        
+        .brand-name {
+            font-size: 32px;
+            font-weight: 700;
+            color: #fbbf24;
+            margin: 16px 0 8px 0;
+            text-align: center;
+            letter-spacing: -0.025em;
+        }
+        
+        .tagline {
+            color: #94a3b8;
+            font-size: 14px;
+            margin: 0;
+            text-align: center;
+        }
+        
+        .greeting {
+            font-size: 18px;
+            color: #f1f5f9;
+            margin-bottom: 24px;
+        }
+        
+        .message {
+            font-size: 16px;
+            color: #e2e8f0;
+            margin-bottom: 32px;
+            line-height: 1.7;
+        }
+        
+        .code-container {
+            background: rgba(251, 191, 36, 0.1);
+            border: 2px solid #fbbf24;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 32px 0;
+            text-align: center;
+            position: relative;
+        }
+        
+        .code-label {
+            font-size: 14px;
+            color: #fbbf24;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 12px;
+        }
+        
+        .login-code {
+            font-size: 36px;
+            font-weight: 700;
+            color: #fbbf24;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            letter-spacing: 0.3em;
+            margin: 0;
+            padding: 8px 16px;
+            background: rgba(251, 191, 36, 0.1);
+            border-radius: 8px;
+            display: inline-block;
+            user-select: all;
+            -webkit-user-select: all;
+            -moz-user-select: all;
+            cursor: pointer;
+        }
+        
+        .copy-hint {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 12px;
+            font-style: italic;
+        }
+        
+        .security-notice {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 24px 0;
+        }
+        
+        .security-notice .icon {
+            color: #ef4444;
+            margin-right: 8px;
+        }
+        
+        .security-text {
+            font-size: 14px;
+            color: #fecaca;
+            margin: 0;
+        }
+        
+        .expiry-info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+        
+        .expiry-text {
+            font-size: 14px;
+            color: #93c5fd;
+            margin: 0;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 32px;
+            border-top: 1px solid rgba(100, 116, 139, 0.3);
+        }
+        
+        .footer-text {
+            font-size: 13px;
+            color: #64748b;
+            margin: 8px 0;
+        }
+        
+        .help-link {
+            color: #fbbf24;
+            text-decoration: none;
+        }
+        
+        .help-link:hover {
+            text-decoration: underline;
+        }
+        
+        /* Dark mode compatibility */
+        @media (prefers-color-scheme: dark) {
+            .email-container {
+                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            }
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 480px) {
+            .email-content {
+                padding: 20px 16px;
+            }
+            
+            .glass-card {
+                padding: 24px 20px;
+            }
+            
+            .login-code {
+                font-size: 28px;
+                letter-spacing: 0.2em;
+            }
+            
+            .brand-name {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="email-content">
+            <div class="glass-card">
+                <div class="header">
+                    <div class="logo-container">
+                        <!-- Note: Replace with actual hosted logo URL -->
+                        <div class="brand-name">STING</div>
+                        <p class="tagline">Secure Intelligence & Analytics Platform</p>
+                    </div>
+                </div>
+                
+                <div class="greeting">
+                    Hi{{if .Identity.traits.name.first}} {{.Identity.traits.name.first}}{{else if .Identity.traits.email}} {{.Identity.traits.email}}{{end}},
+                </div>
+                
+                <div class="message">
+                    You requested to sign in to your STING account using a one-time verification code. 
+                    Use the code below to complete your login.
+                </div>
+                
+                <div class="code-container">
+                    <div class="code-label">Your Login Code</div>
+                    <div class="login-code">{{.LoginCode}}</div>
+                    <div class="copy-hint">👆 Tap to select and copy</div>
+                </div>
+                
+                <div class="expiry-info">
+                    <p class="expiry-text">
+                        ⏰ This code will expire in <strong>15 minutes</strong> for security reasons.
+                    </p>
+                </div>
+                
+                <div class="security-notice">
+                    <p class="security-text">
+                        🔒 <strong>Security Notice:</strong> Never share this code with anyone. STING staff will never ask for your verification code.
+                    </p>
+                </div>
+                
+                <div class="message">
+                    If you didn't request this code, please ignore this email or contact our support team if you're concerned about unauthorized access attempts.
+                </div>
+                
+                <div class="footer">
+                    <p class="footer-text">
+                        This email was sent from the STING Platform. 
+                        <a href="#" class="help-link">Need help?</a>
+                    </p>
+                    <p class="footer-text">
+                        STING - Secure Intelligence & Analytics Platform
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

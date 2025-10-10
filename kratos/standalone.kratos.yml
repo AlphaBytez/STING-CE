@@ -1,0 +1,51 @@
+version: v0.8.2-alpha.1
+dsn: postgresql://postgres:postgres@db:5432/sting_app
+log:
+  level: info
+
+serve:
+  public:
+    base_url: http://0.0.0.0:4433
+    cors:
+      enabled: true
+      allowed_origins:
+        - http://localhost:8443
+        - https://localhost:8443
+      allowed_methods:
+        - GET
+        - POST
+        - OPTIONS
+      allowed_headers:
+        - "*"
+      allow_credentials: true
+  admin:
+    base_url: http://0.0.0.0:4434
+
+identity:
+  schemas:
+    - id: default
+      url: file:///etc/config/kratos/identity.schema.json
+
+selfservice:
+  default_browser_return_url: https://localhost:8443
+  flows:
+    login:
+      ui_url: https://localhost:8443/login
+      lifespan: 1h
+    registration:
+      ui_url: https://localhost:8443/register
+      lifespan: 1h
+  methods:
+    password:
+      enabled: true
+    webauthn:
+      enabled: true
+      config:
+        rp:
+          id: localhost
+          display_name: STING Authentication
+          origin: https://localhost:8443
+
+courier:
+  smtp:
+    connection_uri: smtps://test:test@mailslurper:1025/?skip_ssl_verify=true

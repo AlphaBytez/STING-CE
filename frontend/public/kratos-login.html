@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STING Login</title>
+    <!-- Note: CSS will be included inline below -->
+    <style>
+        /* Import Inter font */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300..900&display=swap');
+        
+        /* STING Color Variables */
+        :root {
+            --sting-yellow: #ffd700;
+            --sting-dark: #1a1a1a;
+            --sting-gray: #2a2a2a;
+            --sting-light-gray: #f5f5f5;
+            --sting-text: #ffffff;
+            --sting-error: #ff6b6b;
+            --sting-success: #51cf66;
+        }
+        
+        /* STING Enhanced Kratos Login Page */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .kratos-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+        }
+        
+        .kratos-card {
+            background: rgba(42, 42, 42, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 450px;
+            width: 100%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .sting-logo {
+            display: block;
+            width: 120px;
+            height: 60px;
+            margin: 0 auto 2rem;
+            background: url('/sting-logo.png') no-repeat center;
+            background-size: contain;
+        }
+        
+        .kratos-title {
+            color: var(--sting-yellow);
+            text-align: center;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            font-size: 1.75rem;
+        }
+        
+        .auth-step {
+            display: none;
+        }
+        
+        .auth-step.active {
+            display: block;
+        }
+        
+        /* Form styling matching STING design */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            color: #f5f5f5;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        
+        .form-input {
+            background: rgba(26, 26, 26, 0.8);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            color: var(--sting-text);
+            border-radius: 8px;
+            padding: 0.875rem;
+            width: 100%;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+        
+        .form-input:focus {
+            border-color: var(--sting-yellow);
+            box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.2);
+            outline: none;
+        }
+        
+        .btn {
+            padding: 0.875rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s ease;
+            border: none;
+            font-size: 1rem;
+        }
+        
+        .btn-primary {
+            background: var(--sting-yellow);
+            color: var(--sting-dark);
+        }
+        
+        .btn-primary:hover {
+            background: #e6c200;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: var(--sting-yellow);
+            border: 1px solid var(--sting-yellow);
+            margin-top: 0.75rem;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 215, 0, 0.1);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        /* Loading spinner */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 215, 0, 0.3);
+            border-radius: 50%;
+            border-top-color: #ffd700;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 0.5rem;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Status messages */
+        .message {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        
+        .message-loading {
+            background: rgba(255, 215, 0, 0.1);
+            color: #ffd700;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+        
+        .message-error {
+            background: rgba(255, 107, 107, 0.1);
+            color: #ff6b6b;
+            border: 1px solid #ff6b6b;
+        }
+        
+        .message-success {
+            background: rgba(81, 207, 102, 0.1);
+            color: #51cf66;
+            border: 1px solid #51cf66;
+        }
+        
+        .message-info {
+            background: rgba(116, 192, 252, 0.1);
+            color: #74c0fc;
+            border: 1px solid #74c0fc;
+        }
+        
+        /* Passkey indicator */
+        .passkey-indicator {
+            background: rgba(81, 207, 102, 0.1);
+            color: #51cf66;
+            border: 1px solid #51cf66;
+            padding: 0.5rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+        
+        .passkey-indicator.show {
+            display: block;
+        }
+        
+        /* Code input styling */
+        .code-input {
+            text-align: center;
+            font-size: 1.25rem;
+            letter-spacing: 0.25rem;
+            font-family: 'Courier New', monospace;
+        }
+        
+        /* Development mode indicator */
+        .dev-info {
+            background: rgba(147, 51, 234, 0.1);
+            color: #a855f7;
+            border: 1px solid rgba(147, 51, 234, 0.3);
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            text-align: center;
+        }
+        
+        /* Hide elements */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="kratos-container">
+        <div class="kratos-card">
+            <div class="sting-logo"></div>
+            <h1 id="page-title" class="kratos-title">Welcome to STING</h1>
+            
+            <!-- Loading State -->
+            <div id="loading-state" class="message message-loading">
+                <div class="loading-spinner"></div>
+                <span>Initializing secure authentication...</span>
+            </div>
+            
+            <!-- Error State -->
+            <div id="error-state" class="message message-error hidden">
+                <span id="error-text">⚠️ Authentication error occurred</span>
+            </div>
+            
+            <!-- Success State -->
+            <div id="success-state" class="message message-success hidden">
+                <span id="success-text">✅ Authentication successful</span>
+            </div>
+            
+            <!-- Info Messages -->
+            <div id="info-state" class="message message-info hidden">
+                <span id="info-text">📧 Email sent - check your inbox</span>
+            </div>
+            
+            <!-- Kratos Form Container -->
+            <div id="kratos-form">
+                <!-- Kratos will inject the actual form here -->
+            </div>
+            
+            <!-- Registration Link -->
+            <div id="registration-link" class="text-center" style="margin-top: 1.5rem; color: #9ca3af; font-size: 0.875rem;">
+                Don't have an account? 
+                <a href="/register" style="color: #ffd700; text-decoration: none;">Sign up here</a>
+            </div>
+            
+            <!-- Development Mode Info -->
+            <div id="dev-info" class="dev-info hidden">
+                🔧 Dev Mode: Check <a href="http://localhost:8025" target="_blank" style="color: #a855f7; text-decoration: underline;">Mailpit</a> for emails
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // STING Kratos Authentication Handler
+        class STINGKratosAuth {
+            constructor() {
+                this.flowData = null;
+                this.currentStep = 'email';
+                this.userEmail = '';
+                this.hasPasskey = false;
+                this.isAAL2 = false;
+                this.flowId = null;
+                
+                this.initializeElements();
+                this.setupEventListeners();
+                this.checkDevelopmentMode();
+                this.initializeFlow();
+            }
+            
+            initializeElements() {
+                // Get all DOM elements
+                this.elements = {
+                    loadingState: document.getElementById('loading-state'),
+                    errorState: document.getElementById('error-state'),
+                    successState: document.getElementById('success-state'),
+                    infoState: document.getElementById('info-state'),
+                    pageTitle: document.getElementById('page-title'),
+                    errorText: document.getElementById('error-text'),
+                    successText: document.getElementById('success-text'),
+                    infoText: document.getElementById('info-text'),
+                    devInfo: document.getElementById('dev-info'),
+                    kratosForm: document.getElementById('kratos-form')
+                };
+            }
+            
+            setupEventListeners() {
+                // No custom event listeners needed - Kratos form handles everything
+                console.log('🔐 Using native Kratos form handling');
+            }
+            
+            async initializeFlow() {
+                try {
+                    console.log('🔐 Initializing STING Kratos authentication flow');
+                    
+                    const urlParams = new URLSearchParams(window.location.search);
+                    this.flowId = urlParams.get('flow');
+                    this.isAAL2 = urlParams.get('aal') === 'aal2';
+                    
+                    if (this.isAAL2) {
+                        this.elements.pageTitle.textContent = 'Secure Access Required';
+                        console.log('🔐 AAL2 flow detected');
+                    }
+                    
+                    if (!this.flowId) {
+                        // Create new flow if no flow ID provided
+                        console.log('🔐 No flow ID - creating new login flow');
+                        await this.createNewFlow();
+                    } else {
+                        // Fetch existing flow data
+                        console.log('🔐 Fetching existing flow:', this.flowId);
+                        await this.fetchFlowData();
+                    }
+                    
+                    // Instead of custom form, render the actual Kratos form
+                    this.renderKratosFormDirectly();
+                    this.hideLoading();
+                    
+                } catch (error) {
+                    console.error('🔐 Flow initialization error:', error);
+                    this.showError(`Initialization failed: ${error.message}`);
+                }
+            }
+            
+            async createNewFlow() {
+                const aal = this.isAAL2 ? '?aal=aal2' : '';
+                const response = await fetch(`/.ory/self-service/login/browser${aal}`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to create flow: ${response.status}`);
+                }
+                
+                this.flowData = await response.json();
+                this.flowId = this.flowData.id;
+                console.log('🔐 Created new flow:', this.flowId);
+            }
+            
+            async fetchFlowData() {
+                const response = await fetch(`/.ory/self-service/login/flows?id=${this.flowId}`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch flow: ${response.status}`);
+                }
+                
+                this.flowData = await response.json();
+                console.log('🔐 Fetched flow data:', this.flowData);
+            }
+            
+            async handleEmailSubmit() {
+                const email = this.elements.emailInput.value.trim();
+                if (!email) return;
+                
+                this.userEmail = email;
+                this.setLoading(this.elements.emailSubmit, 'Sending code...');
+                
+                try {
+                    console.log('🔐 Submitting email for code:', email);
+                    
+                    // Submit identifier to Kratos
+                    const formData = new URLSearchParams();
+                    formData.append('identifier', email);
+                    formData.append('method', 'code');
+                    
+                    // Add CSRF token if available
+                    const csrfToken = this.extractCSRFToken();
+                    if (csrfToken) {
+                        formData.append('csrf_token', csrfToken);
+                    }
+                    
+                    const response = await fetch(this.flowData.ui.action, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Accept': 'application/json'
+                        },
+                        body: formData
+                    });
+                    
+                    if (response.ok) {
+                        this.flowData = await response.json();
+                        this.showInfo('📧 Verification code sent to your email');
+                        this.showStep('code');
+                        this.elements.codeInput.focus();
+                    } else {
+                        const errorData = await response.json();
+                        throw new Error(errorData.ui?.messages?.[0]?.text || `Request failed: ${response.status}`);
+                    }
+                    
+                } catch (error) {
+                    console.error('🔐 Email submission error:', error);
+                    this.showError(error.message);
+                } finally {
+                    this.clearLoading(this.elements.emailSubmit, 'Continue with Email');
+                }
+            }
+            
+            async handleCodeSubmit() {
+                const code = this.elements.codeInput.value.trim();
+                if (!code || code.length !== 6) {
+                    this.showError('Please enter a 6-digit verification code');
+                    return;
+                }
+                
+                this.setLoading(this.elements.codeSubmit, 'Verifying...');
+                
+                try {
+                    console.log('🔐 Submitting verification code');
+                    
+                    const formData = new URLSearchParams();
+                    formData.append('code', code);
+                    formData.append('method', 'code');
+                    
+                    // Add CSRF token if available
+                    const csrfToken = this.extractCSRFToken();
+                    if (csrfToken) {
+                        formData.append('csrf_token', csrfToken);
+                    }
+                    
+                    const response = await fetch(this.flowData.ui.action, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Accept': 'application/json'
+                        },
+                        body: formData
+                    });
+                    
+                    const responseData = await response.json();
+                    
+                    if (response.ok) {
+                        // Check for session or redirect
+                        if (responseData.session) {
+                            this.showSuccess('✅ Authentication successful!');
+                            setTimeout(() => {
+                                window.location.href = '/dashboard';
+                            }, 1000);
+                        } else if (responseData.continue_with) {
+                            // Handle continue_with actions
+                            this.handleContinueWith(responseData.continue_with);
+                        } else {
+                            // Flow completed - redirect to dashboard
+                            this.showSuccess('✅ Login successful!');
+                            setTimeout(() => {
+                                window.location.href = '/dashboard';
+                            }, 1000);
+                        }
+                    } else {
+                        // Handle errors including AAL2 requirements
+                        if (response.status === 422 && responseData.redirect_browser_to) {
+                            console.log('🔐 AAL2 required - redirecting');
+                            window.location.href = responseData.redirect_browser_to;
+                        } else {
+                            throw new Error(responseData.ui?.messages?.[0]?.text || 'Verification failed');
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.error('🔐 Code verification error:', error);
+                    this.showError(error.message);
+                } finally {
+                    this.clearLoading(this.elements.codeSubmit, 'Verify Code');
+                }
+            }
+            
+            async checkEmailForPasskeys() {
+                const email = this.elements.emailInput.value.trim();
+                if (!email || !email.includes('@')) {
+                    this.hidePasskeyOption();
+                    return;
+                }
+                
+                // Debounced passkey check
+                clearTimeout(this.passkeyCheckTimeout);
+                this.passkeyCheckTimeout = setTimeout(async () => {
+                    try {
+                        // Check for passkeys via STING API
+                        const response = await fetch(`/api/auth/passkeys/check`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email })
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.hasPasskeys) {
+                                this.showPasskeyOption();
+                            } else {
+                                this.hidePasskeyOption();
+                            }
+                        }
+                    } catch (error) {
+                        console.log('🔐 Passkey check failed:', error.message);
+                        this.hidePasskeyOption();
+                    }
+                }, 1000);
+            }
+            
+            async handlePasskeyLogin() {
+                this.setLoading(this.elements.passkeyButton, 'Authenticating...');
+                
+                try {
+                    console.log('🔐 Starting passkey authentication');
+                    this.showError('Passkey authentication not yet implemented in Kratos UI');
+                    // TODO: Implement WebAuthn flow with Kratos
+                } catch (error) {
+                    console.error('🔐 Passkey authentication error:', error);
+                    this.showError(error.message);
+                } finally {
+                    this.clearLoading(this.elements.passkeyButton, '🔑 Sign in with Passkey');
+                }
+            }
+            
+            renderKratosFormDirectly() {
+                console.log('🔐 Rendering Kratos form directly:', this.flowData);
+                
+                // Clear and render the Kratos form
+                this.renderKratosForm(this.flowData);
+            }
+            
+            renderKratosForm(flowData) {
+                const formContainer = document.getElementById('kratos-form') || document.createElement('div');
+                formContainer.innerHTML = ''; // Clear existing content
+                
+                // Create form element using Kratos structure
+                const form = document.createElement('form');
+                form.method = flowData.ui.method;
+                form.action = flowData.ui.action;
+                
+                // Render all Kratos form nodes exactly as they come
+                flowData.ui.nodes.forEach(node => {
+                    if (node.type === 'input') {
+                        const fieldDiv = document.createElement('div');
+                        fieldDiv.className = 'form-group';
+                        
+                        // Add label if available
+                        if (node.meta && node.meta.label && node.meta.label.text) {
+                            const label = document.createElement('label');
+                            label.textContent = node.meta.label.text;
+                            label.className = 'form-label';
+                            label.setAttribute('for', node.attributes.name);
+                            fieldDiv.appendChild(label);
+                        }
+                        
+                        // Create input field with exact Kratos attributes
+                        const input = document.createElement('input');
+                        Object.keys(node.attributes).forEach(attr => {
+                            input.setAttribute(attr, node.attributes[attr]);
+                        });
+                        
+                        // Apply STING styling
+                        input.className = 'form-input';
+                        if (node.attributes.name === 'code') {
+                            input.className += ' code-input';
+                        }
+                        
+                        fieldDiv.appendChild(input);
+                        
+                        // Show any field-specific messages
+                        if (node.messages && node.messages.length > 0) {
+                            node.messages.forEach(message => {
+                                const msgDiv = document.createElement('div');
+                                msgDiv.className = `message message-${message.type}`;
+                                msgDiv.textContent = message.text;
+                                fieldDiv.appendChild(msgDiv);
+                            });
+                        }
+                        
+                        form.appendChild(fieldDiv);
+                    }
+                });
+                
+                // Add submit button
+                const submitDiv = document.createElement('div');
+                const submitButton = document.createElement('button');
+                submitButton.type = 'submit';
+                submitButton.textContent = this.isAAL2 ? 'Continue Authentication' : 'Continue';
+                submitButton.className = 'btn btn-primary';
+                submitDiv.appendChild(submitButton);
+                form.appendChild(submitDiv);
+                
+                // Show form messages
+                if (flowData.ui.messages && flowData.ui.messages.length > 0) {
+                    flowData.ui.messages.forEach(message => {
+                        const msgDiv = document.createElement('div');
+                        msgDiv.className = `message message-${message.type}`;
+                        msgDiv.textContent = message.text;
+                        form.insertBefore(msgDiv, form.firstChild);
+                    });
+                }
+                
+                formContainer.appendChild(form);
+                
+                // Focus first input
+                const firstInput = form.querySelector('input[type="text"], input[type="email"]');
+                if (firstInput) {
+                    firstInput.focus();
+                }
+            }
+
+            handleContinueWith(continueWith) {
+                console.log('🔐 Processing continue_with actions:', continueWith);
+                
+                for (const action of continueWith) {
+                    if (action.action === 'redirect_browser_to') {
+                        console.log('🔐 Redirecting to:', action.redirect_browser_to);
+                        window.location.href = action.redirect_browser_to;
+                        return;
+                    }
+                }
+            }
+            
+            extractCSRFToken() {
+                if (!this.flowData?.ui?.nodes) return null;
+                
+                const csrfNode = this.flowData.ui.nodes.find(
+                    node => node.attributes?.name === 'csrf_token'
+                );
+                return csrfNode?.attributes?.value || null;
+            }
+            
+            showStep(step) {
+                // Hide all steps
+                this.elements.emailStep.classList.remove('active');
+                this.elements.codeStep.classList.remove('active');
+                
+                // Show target step
+                if (step === 'email') {
+                    this.elements.emailStep.classList.add('active');
+                    this.elements.emailInput.focus();
+                } else if (step === 'code') {
+                    this.elements.codeStep.classList.add('active');
+                    this.elements.codeInput.focus();
+                }
+                
+                this.currentStep = step;
+            }
+            
+            showPasskeyOption() {
+                this.hasPasskey = true;
+                this.elements.passkeyIndicator.classList.add('show');
+                this.elements.passkeyButton.classList.remove('hidden');
+            }
+            
+            hidePasskeyOption() {
+                this.hasPasskey = false;
+                this.elements.passkeyIndicator.classList.remove('show');
+                this.elements.passkeyButton.classList.add('hidden');
+            }
+            
+            hideLoading() {
+                this.elements.loadingState.classList.add('hidden');
+            }
+            
+            showError(message) {
+                this.elements.errorText.textContent = message;
+                this.elements.errorState.classList.remove('hidden');
+                this.elements.successState.classList.add('hidden');
+                this.elements.infoState.classList.add('hidden');
+            }
+            
+            showSuccess(message) {
+                this.elements.successText.textContent = message;
+                this.elements.successState.classList.remove('hidden');
+                this.elements.errorState.classList.add('hidden');
+                this.elements.infoState.classList.add('hidden');
+            }
+            
+            showInfo(message) {
+                this.elements.infoText.textContent = message;
+                this.elements.infoState.classList.remove('hidden');
+                this.elements.errorState.classList.add('hidden');
+                this.elements.successState.classList.add('hidden');
+            }
+            
+            setLoading(button, text) {
+                button.disabled = true;
+                button.innerHTML = `<div class="loading-spinner"></div>${text}`;
+            }
+            
+            clearLoading(button, text) {
+                button.disabled = false;
+                button.innerHTML = text;
+            }
+            
+            checkDevelopmentMode() {
+                // Show dev info if we're in development
+                if (window.location.hostname === 'localhost') {
+                    this.elements.devInfo.classList.remove('hidden');
+                }
+            }
+        }
+        
+        // Initialize STING Kratos authentication when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🔐 Initializing STING Kratos authentication system');
+            new STINGKratosAuth();
+        });
+    </script>
+</body>
+</html>

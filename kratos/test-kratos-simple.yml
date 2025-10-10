@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: kratos
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: kratos
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kratos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  kratos-migrate:
+    image: oryd/kratos:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DSN: postgres://kratos:secret@postgres:5432/kratos?sslmode=disable
+    volumes:
+      - ./kratos.yml:/etc/config/kratos.yml:ro
+    command: migrate sql -e --yes
+
+  kratos:
+    image: oryd/kratos:latest
+    depends_on:
+      kratos-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "4433:4433"
+      - "4434:4434"
+    environment:
+      DSN: postgres://kratos:secret@postgres:5432/kratos?sslmode=disable
+      LOG_LEVEL: debug
+    volumes:
+      - ./kratos.yml:/etc/config/kratos.yml:ro
+      - ./identity.schema.json:/etc/config/identity.schema.json:ro
+    command: serve -c /etc/config/kratos.yml --dev

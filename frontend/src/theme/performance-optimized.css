@@ -1,0 +1,159 @@
+/**
+ * STING Performance-Optimized Theme
+ * Reduced GPU usage while maintaining visual appeal
+ */
+
+/* === PERFORMANCE-OPTIMIZED GLASS EFFECTS === */
+.glass-light {
+  background: rgba(226, 232, 240, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  /* Removed backdrop-filter - major GPU saver */
+}
+
+.glass-dark {
+  background: rgba(26, 31, 46, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  /* Removed backdrop-filter - major GPU saver */
+}
+
+.glass-card {
+  background: rgba(26, 31, 46, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  /* Single shadow instead of 5 layered shadows */
+}
+
+/* === PERFORMANCE-OPTIMIZED STACKABLE SYSTEM === */
+.glass-subtle {
+  background: rgba(26, 31, 46, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  /* Simplified transition */
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.glass-medium {
+  background: rgba(26, 31, 46, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.glass-strong {
+  background: rgba(26, 31, 46, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* === PERFORMANCE GRAINS GLASS === */
+.grains-glass {
+  background: rgba(26, 31, 46, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  transition: background-color 0.2s ease;
+  position: relative;
+}
+
+/* Remove the complex ::after pseudo-element */
+.grains-glass::after {
+  display: none;
+}
+
+/* === FLOATING BUTTON OPTIMIZATIONS === */
+.floating-button {
+  background: rgba(26, 31, 46, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background-color 0.2s ease, transform 0.15s ease;
+  will-change: transform; /* Optimize for transform changes */
+}
+
+.floating-button:hover {
+  background: rgba(26, 31, 46, 0.8);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* === DISABLE EXPENSIVE ANIMATIONS IN PERFORMANCE MODE === */
+.glass-subtle:hover,
+.glass-medium:hover,
+.glass-strong:hover {
+  /* No backdrop-filter changes on hover */
+  background: rgba(26, 31, 46, 0.5);
+}
+
+/* === REDUCE ANIMATION COMPLEXITY === */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Simpler spin animation */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease;
+}
+
+/* === PERFORMANCE HINTS FOR BROWSER === */
+.glass-card,
+.glass-subtle,
+.glass-medium,
+.glass-strong,
+.grains-glass,
+.floating-button {
+  /* Tell browser to use GPU for these elements only when needed */
+  will-change: auto;
+  /* Enable hardware acceleration for specific properties only */
+  transform: translateZ(0);
+}
+
+/* === REDUCE REPAINTS === */
+.dynamic-card-subtle {
+  background: rgba(26, 31, 46, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  /* No backdrop filters */
+}
+
+.dynamic-card-medium {
+  background: rgba(26, 31, 46, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* === PERFORMANCE METRICS INDICATOR === */
+.performance-mode-indicator {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(34, 197, 94, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+.performance-mode-indicator::after {
+  content: "⚡ Performance Mode";
+}

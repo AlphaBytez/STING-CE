@@ -1,0 +1,332 @@
+# STING System Architecture Knowledge Base for Bee
+# This file provides comprehensive system knowledge for intelligent support assistance
+
+metadata:
+  version: "1.0.0"
+  last_updated: "2025-01-12"
+  description: "Complete STING architecture knowledge for AI support assistance"
+
+system_overview:
+  name: "STING-CE"
+  full_name: "Secure Technological Intelligence and Networking Guardian - Community Edition"
+  architecture: "Microservices with Docker containerization"
+  primary_ports:
+    frontend: 8443
+    api: 5050
+    database: 5433
+    kratos_public: 4433
+    kratos_admin: 4434
+    ollama: 11434
+    chatbot: 8888
+    knowledge: 8090
+
+# Service dependency mapping for intelligent diagnostics
+services:
+  # Core Infrastructure Services
+  vault:
+    description: "HashiCorp Vault for secrets management"
+    port: 8200
+    container_name: "sting-ce-vault"
+    dependencies: []
+    log_patterns:
+      startup: ["vault server", "core: security barrier not initialized"]
+      healthy: ["core: post-unseal setup complete", "core: vault is unsealed"]
+      errors: ["core: failed to initialize barrier", "storage backend offline"]
+    common_issues:
+      - "Vault sealed"
+      - "Storage backend connection issues"
+      - "Token authentication failures"
+
+  db:
+    description: "PostgreSQL database"
+    port: 5432
+    external_port: 5433
+    container_name: "sting-ce-db"
+    dependencies: ["vault"]
+    databases:
+      - "sting_app"
+      - "sting_messaging"
+      - "kratos"
+    log_patterns:
+      startup: ["database system is ready to accept connections"]
+      healthy: ["listening on"]
+      errors: ["FATAL", "connection refused", "role .* does not exist"]
+    common_issues:
+      - "Database connection failures"
+      - "Role/permission issues"
+      - "Out of disk space"
+      - "Connection limit exceeded"
+
+  kratos:
+    description: "Ory Kratos authentication service"
+    ports: [4433, 4434]
+    container_name: "sting-ce-kratos"
+    dependencies: ["db", "vault"]
+    handles:
+      - "User authentication"
+      - "Password flows"
+      - "WebAuthn/Passkey management"
+      - "Session management"
+      - "Email verification"
+      - "AAL2 step-up authentication"
+    log_patterns:
+      startup: ["Setting up Kratos", "migrations completed"]
+      healthy: ["server listening on"]
+      errors: ["failed to initialize", "database connection", "SQLSTATE"]
+    common_issues:
+      - "AAL2 redirect loops"
+      - "Email delivery failures"
+      - "Database migration issues"
+      - "WebAuthn registration failures"
+      - "Session synchronization problems"
+
+  # Application Services
+  app:
+    description: "Flask backend API"
+    port: 5050
+    container_name: "sting-ce-app"
+    dependencies: ["db", "kratos", "vault", "redis"]
+    handles:
+      - "REST API endpoints"
+      - "Session coordination with Kratos"
+      - "User management"
+      - "File operations"
+      - "Admin functionality"
+      - "Support ticket management (new)"
+    log_patterns:
+      startup: ["Flask app starting", "Running on"]
+      healthy: ["POST /api/health", "GET /api/health"]
+      errors: ["500 Internal Server Error", "Database connection", "Kratos API"]
+    common_issues:
+      - "Session coordination failures"
+      - "Database connection issues"
+      - "Kratos communication errors"
+      - "File upload problems"
+      - "Redis connection issues"
+
+  frontend:
+    description: "React frontend application"
+    port: 3010
+    external_port: 8443
+    container_name: "sting-ce-frontend"
+    dependencies: ["app", "kratos"]
+    handles:
+      - "User interface"
+      - "Authentication flows"
+      - "Dashboard functionality"
+      - "Settings management"
+      - "Support request UI (new)"
+    log_patterns:
+      startup: ["webpack compiled", "Server started"]
+      healthy: ["GET /", "static files served"]
+      errors: ["Failed to compile", "Module not found", "API call failed"]
+    common_issues:
+      - "Build compilation errors"
+      - "API communication failures"
+      - "Authentication redirect issues"
+      - "Route not found errors"
+
+  # AI Services
+  chatbot:
+    description: "Bee AI assistant service"
+    port: 8888
+    container_name: "sting-ce-chatbot"
+    dependencies: ["external-ai", "knowledge", "app"]
+    handles:
+      - "AI chat conversations"
+      - "System knowledge queries"
+      - "Support request assistance (new)"
+      - "Context management"
+    log_patterns:
+      startup: ["Bee server starting", "Context manager initialized"]
+      healthy: ["POST /chat", "Context loaded"]
+      errors: ["LLM endpoint failed", "Knowledge base unavailable", "Context error"]
+    common_issues:
+      - "LLM service connectivity"
+      - "Context memory issues"
+      - "Knowledge base synchronization"
+      - "Token limit exceeded"
+
+  external-ai:
+    description: "External AI service for LLM processing"
+    port: 8091
+    container_name: "sting-ce-external-ai"
+    dependencies: ["ollama"]
+    handles:
+      - "LLM model processing"
+      - "Ollama integration"
+      - "Model routing"
+    log_patterns:
+      startup: ["External AI service starting", "Ollama connection established"]
+      healthy: ["POST /generate", "Model loaded"]
+      errors: ["Ollama unavailable", "Model loading failed", "Generation timeout"]
+    common_issues:
+      - "Ollama service connection"
+      - "Model loading failures"
+      - "Memory exhaustion"
+      - "Generation timeouts"
+
+  knowledge:
+    description: "Honey Jar knowledge management system"
+    port: 8090
+    container_name: "sting-ce-knowledge"
+    dependencies: ["db", "chroma"]
+    handles:
+      - "Document processing"
+      - "Vector search"
+      - "Knowledge base management"
+      - "Semantic search"
+    log_patterns:
+      startup: ["Knowledge service starting", "Vector database connected"]
+      healthy: ["POST /search", "Document processed"]
+      errors: ["Chroma connection failed", "Processing error", "Vector store unavailable"]
+    common_issues:
+      - "Vector database connectivity"
+      - "Document processing failures"
+      - "Search index corruption"
+      - "Memory issues with large documents"
+
+# Issue-to-Service mapping for intelligent diagnostics
+issue_mappings:
+  authentication:
+    description: "Login, logout, session, password issues"
+    primary_services: ["kratos", "app"]
+    secondary_services: ["db", "vault", "frontend"]
+    diagnostic_flags: ["--auth-focus", "--include-startup"]
+    log_sources: ["kratos", "app", "db"]
+    common_patterns:
+      - "AAL2 redirect loops"
+      - "Email verification failures"
+      - "Session synchronization issues"
+      - "WebAuthn/Passkey problems"
+
+  frontend_loading:
+    description: "UI not loading, routing issues, build problems"
+    primary_services: ["frontend"]
+    secondary_services: ["app", "nginx"]
+    diagnostic_flags: ["--include-startup"]
+    log_sources: ["frontend", "nginx"]
+    common_patterns:
+      - "Build compilation errors"
+      - "Route not found"
+      - "API communication failures"
+      - "Asset loading issues"
+
+  api_errors:
+    description: "Backend API failures, 500 errors, database issues"
+    primary_services: ["app"]
+    secondary_services: ["db", "kratos", "vault", "redis"]
+    diagnostic_flags: ["--include-startup"]
+    log_sources: ["app", "db"]
+    common_patterns:
+      - "Database connection failures"
+      - "Session coordination errors"
+      - "Kratos API communication issues"
+
+  ai_chat:
+    description: "Bee not responding, chat failures, model issues"
+    primary_services: ["chatbot", "external-ai"]
+    secondary_services: ["ollama", "knowledge"]
+    diagnostic_flags: ["--llm-focus", "--performance"]
+    log_sources: ["chatbot", "external-ai", "ollama"]
+    common_patterns:
+      - "LLM endpoint failures"
+      - "Context memory issues"
+      - "Model loading problems"
+      - "Generation timeouts"
+
+  database:
+    description: "Database connection, data corruption, migration issues"
+    primary_services: ["db"]
+    secondary_services: ["app", "kratos", "knowledge"]
+    diagnostic_flags: ["--include-startup"]
+    log_sources: ["db", "app", "kratos"]
+    common_patterns:
+      - "Connection refused"
+      - "Role does not exist"
+      - "Migration failures"
+      - "Disk space issues"
+
+  performance:
+    description: "Slow responses, high resource usage, memory issues"
+    primary_services: ["all"]
+    secondary_services: []
+    diagnostic_flags: ["--performance", "--hours", "2"]
+    log_sources: ["all"]
+    common_patterns:
+      - "High memory usage"
+      - "CPU exhaustion"
+      - "Slow query performance"
+      - "Container restarts"
+
+# Support command mappings
+support_commands:
+  log_capture:
+    description: "Capture logs from specific services"
+    command_template: "docker logs --tail {lines} sting-ce-{service}"
+    default_lines: 30
+    
+  service_status:
+    description: "Check service health status"
+    command_template: "./manage_sting.sh status"
+    
+  honey_jar_creation:
+    description: "Create diagnostic bundle"
+    command_template: "./manage_sting.sh buzz collect {flags}"
+    
+  service_restart:
+    description: "Restart specific service"
+    command_template: "./manage_sting.sh restart {service}"
+
+# Bee response patterns for support
+bee_support_responses:
+  issue_analysis:
+    template: "I can see this is likely a {service_type} issue. The {primary_service} service handles {functionality}. Let me check the relevant logs and create a focused diagnostic bundle."
+    
+  log_capture_suggestion:
+    template: "I'll capture the last {lines} lines from {services}. Should I also include {secondary_services} logs since they work together?"
+    
+  diagnostic_creation:
+    template: "Creating a diagnostic bundle focused on {issue_type} with these flags: {diagnostic_flags}. This will include logs from {log_sources}."
+    
+  permission_check:
+    template: "I need to verify you have admin permissions before I can create support requests or access system logs. Please confirm your authorization."
+
+# Service restart order for troubleshooting
+restart_order:
+  full_system:
+    - vault
+    - db
+    - kratos
+    - app
+    - frontend
+    - external-ai
+    - chatbot
+    - knowledge
+    
+  auth_issues:
+    - kratos
+    - app
+    - frontend
+    
+  ai_issues:
+    - external-ai
+    - chatbot
+    - ollama
+
+# Common troubleshooting commands
+troubleshooting_commands:
+  check_services: "./manage_sting.sh status"
+  restart_service: "./manage_sting.sh restart {service}"
+  view_logs: "./manage_sting.sh logs {service}"
+  create_diagnostics: "./manage_sting.sh buzz collect --{focus}-focus"
+  regenerate_config: "./manage_sting.sh regenerate-env"
+  reset_config: "./manage_sting.sh reset-config"
+  
+# File locations for diagnostics
+important_paths:
+  logs: "${INSTALL_DIR}/logs"
+  config: "${INSTALL_DIR}/conf/config.yml"
+  env_files: "${INSTALL_DIR}/env/"
+  honey_jars: "${INSTALL_DIR}/support_bundles"
+  docker_compose: "${INSTALL_DIR}/docker-compose.yml"

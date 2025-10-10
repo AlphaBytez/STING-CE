@@ -1,0 +1,65 @@
+--- a/app/routes/auth_routes.py
++++ b/app/routes/auth_routes.py
+@@ -972,11 +972,23 @@ def change_password():
+                 return jsonify({'error': 'Failed to get user identity'}), 500
+             
+             # Prepare update data with all required fields
++            # IMPORTANT: Clear force_password_change BEFORE updating password
++            # This prevents session issues after password change
++            updated_traits = full_identity.get('traits', {}).copy()
++            if updated_traits.get('force_password_change', False):
++                logger.info("Clearing force_password_change flag before password update")
++                updated_traits['force_password_change'] = False
++            
+             update_data = {
+                 'schema_id': full_identity.get('schema_id', 'default'),
+                 'state': full_identity.get('state', 'active'),
+-                'traits': full_identity.get('traits', {}),
++                'traits': updated_traits,  # Use updated traits with flag cleared
+                 'credentials': {
+                     'password': {
+                         'config': {
+@@ -1009,11 +1021,9 @@ def change_password():
+                 else:
+                     return jsonify({'error': 'Failed to update password'}), 500
+                 
+-            # Clear force_password_change flag
+-            traits_updated = update_identity_traits(user.email, {'force_password_change': False})
+-            if not traits_updated:
+-                logger.warning("Failed to clear force_password_change flag")
+-            
++            # Note: force_password_change flag was already cleared above
++            logger.info("Password updated successfully with force_password_change cleared")
++                        
+             # If this is the admin user, mark password as changed
+             if user.email == 'admin@sting.local':
+                 try:
+@@ -1025,10 +1035,24 @@ def change_password():
+                 except Exception as e:
+                     logger.error(f"Error marking admin password change: {e}")
+                 
+-            return jsonify({
++            # Check if session is still valid after password change
++            session_token = request.cookies.get('ory_kratos_session')
++            if session_token:
++                whoami_response = requests.get(
++                    f"{KRATOS_PUBLIC_URL}/sessions/whoami",
++                    cookies={'ory_kratos_session': session_token},
++                    verify=False
++                )
++                session_valid = whoami_response.status_code == 200
++            else:
++                session_valid = False
++                
++            response_data = {
+                 'success': True,
+-                'message': 'Password changed successfully'
+-            })
++                'message': 'Password changed successfully',
++                'session_valid': session_valid,
++                'requires_login': not session_valid
++            }
++            
++            return jsonify(response_data)
+             
+         except Exception as e:
