@@ -14,7 +14,7 @@
 Self-hosted platform for secure, private LLM deployment with complete data sovereignty. Features innovative "Honey Jar" knowledge management, enterprise-grade authentication, and the Bee AI assistant. Built for organizations that value privacy and control over their AI infrastructure.
 
 <p align="center">
-  <img src="assets/screenshots/dashboard-v1.png" alt="STING-CE Dashboard" width="800"/>
+  <img src="assets/screenshots/dashboard-v1.png" alt="STING-CE Dashboard" width="750"/>
 </p>
 
 ## ✨ Features
@@ -34,7 +34,7 @@ Self-hosted platform for secure, private LLM deployment with complete data sover
 - **Background Processing** - Automatic document chunking and embedding
 
 <p align="center">
-  <img src="assets/screenshots/honey-jar-creation.gif" alt="Honey Jar Knowledge Management" width="700"/>
+  <img src="assets/screenshots/honey-jar-creation.gif" alt="Honey Jar Knowledge Management" width="750"/>
 </p>
 
 ### 🤖 AI-Powered Assistant (Bee)
@@ -44,7 +44,7 @@ Self-hosted platform for secure, private LLM deployment with complete data sover
 - **Contextual Responses** - Bee leverages your knowledge bases for accurate answers
 
 <p align="center">
-  <img src="assets/screenshots/bee-chat-interface.gif" alt="Bee AI Assistant Chat Interface" width="700"/>
+  <img src="assets/screenshots/bee-chat-interface.gif" alt="Bee AI Assistant Chat Interface" width="750"/>
 </p>
 
 ### 🔒 Security & Privacy
