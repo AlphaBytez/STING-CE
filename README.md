@@ -261,15 +261,40 @@ STING-CE is developed and maintained by **AlphaBytez**, a software development c
 
 ## 🙏 Acknowledgments
 
-STING-CE is built on the shoulders of giants:
+STING-CE is built on the shoulders of giants. We're grateful to the open-source community and these outstanding projects:
 
-- **Ory Kratos** - Modern authentication flows
-- **HashiCorp Vault** - Secrets management
-- **ChromaDB** - Vector database for AI
-- **Ollama** - Local LLM deployment
-- **Docker** - Containerization
+### Core Infrastructure
+- **[Ory Kratos](https://www.ory.sh/kratos/)** - Identity and authentication management with WebAuthn support
+- **[HashiCorp Vault](https://www.vaultproject.io/)** - Enterprise-grade secrets management
+- **[Docker](https://www.docker.com/)** - Containerization platform for simplified deployment
+- **[PostgreSQL](https://www.postgresql.org/)** - Reliable, powerful relational database
+- **[Redis](https://redis.io/)** - In-memory data structure store for caching and sessions
 
-See [CREDITS.md](CREDITS.md) for complete list of third-party libraries.
+### AI & Knowledge Management
+- **[Ollama](https://ollama.ai/)** - Simplified local LLM deployment and management
+- **[ChromaDB](https://www.trychroma.com/)** - Open-source vector database for embeddings
+- **[Sentence Transformers](https://www.sbert.net/)** - State-of-the-art sentence embeddings
+
+### Application Framework
+- **[Flask](https://flask.palletsprojects.com/)** - Lightweight Python web framework for our API
+- **[FastAPI](https://fastapi.tiangolo.com/)** - Modern Python framework for knowledge services
+- **[React](https://react.dev/)** - Component-based UI library
+- **[Vite](https://vitejs.dev/)** - Fast frontend build tool
+- **[Material-UI](https://mui.com/)** - React component library
+
+### Development Tools
+- **[Mailpit](https://github.com/axllent/mailpit)** - Email testing tool for development
+- **[Grafana](https://grafana.com/)** - Observability and monitoring dashboards
+- **[Loki](https://grafana.com/oss/loki/)** - Log aggregation system
+
+### Community
+Special thanks to:
+- The Ory community for excellent authentication patterns
+- The ChromaDB team for vector database innovation
+- The Ollama project for making LLMs accessible
+- All open-source contributors who make projects like STING possible
+
+See [CREDITS.md](CREDITS.md) for the complete list of third-party libraries and licenses.
 
 ## 📊 Project Status
 

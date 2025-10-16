@@ -1,315 +1,226 @@
-# STING Assistant CE: Secure Trusted Intelligence and Networking Guardian Assistant
+# STING-CE Documentation
 
 <div align="center">
-  <img src="../assets/sting-logo copy.png" alt="STING Logo" width="200"/>
+  <img src="../assets/sting-logo.webp" alt="STING Logo" width="200"/>
   <br/>
-  <p><i>Unleashing secure, private, and powerful language models for enterprise applications</i></p>
+  <p><i>Secure Trusted Intelligence and Networking Guardian</i></p>
+  <p><strong>Bee Smart. Bee Secure.</strong></p>
 </div>
 
 ---
 
-## 🐝 About STING Assistant CE
+## 📚 Welcome to STING-CE Documentation
 
-STING (Secure Trusted Intelligence and Networking Guardian Assistant) Community Edition is a comprehensive platform designed to provide enterprises with secure, private access to language model capabilities. It combines state-of-the-art LLM technology with robust authentication, privacy controls, and a user-friendly interface.
+This documentation directory contains comprehensive guides for installing, configuring, operating, and developing with STING-CE.
 
-### Key Features
+**For the main project overview, see the [project README](../../README.md).**
 
-- 🔒 **Enterprise-grade security** with Ory Kratos authentication
-- 🤖 **Multiple LLM support** including Llama 3, Phi-3, and Zephyr
-- 🔐 **Passkey authentication** for passwordless security
-- 🔍 **Content filtering** to prevent data leakage and toxic outputs
-- 📊 **Intelligent routing** based on query content type
-- 🔧 **Modular architecture** for easy customization and extension
-- 🐳 **Docker-based deployment** for simplified installation and management
-- 🌐 **Integrated RESTful API** for easy integration with existing systems
+## 🚀 Quick Start
 
-## 🚀 Getting Started
+If you're new to STING-CE, start here:
 
-### Prerequisites
+1. **[Installation Guide](../INSTALL.md)** - Get STING-CE up and running
+2. **[Quick Start](../../README.md#-quick-start)** - One-line installation command
+3. **[Configuration Guide](operations/)** - Configure STING-CE for your environment
 
-- Docker and Docker Compose
-- Python 3.9+
-- Node.js 14+
-- 8+ GB RAM (16+ GB recommended for optimal performance)
-- (Optional) GPU for accelerated model inference
+## 📖 Documentation Structure
 
-### Installation
+### Installation & Setup
+- **[INSTALL.md](../INSTALL.md)** - Detailed installation instructions
+- **[Operations Guides](operations/)** - Service management and configuration
+- **[Platform Compatibility](PLATFORM_COMPATIBILITY_GUIDE.md)** - macOS, WSL, and Linux support
 
-1. **Clone the repository**
+### Features & Capabilities
+- **[Honey Jar System](features/HONEY_JAR_TECHNICAL_REFERENCE.md)** - Knowledge management with vector search
+- **[Passwordless Authentication](features/PASSWORDLESS_AUTHENTICATION.md)** - WebAuthn and magic links
+- **[PII Detection](features/PII_DETECTION_SYSTEM.md)** - Automatic sensitive data protection
+- **[Bee Chat](features/BEE_CHAT_MESSAGING_ARCHITECTURE.md)** - AI assistant with context awareness
 
-```bash
-git clone https://github.com/yourusername/STING-CE.git
-cd STING-CE/STING
-```
+### Architecture & Development
+- **[System Architecture](architecture/system-architecture.md)** - Overall system design
+- **[Technical Architecture](architecture/technical-architecture.md)** - Implementation details
+- **[API Documentation](api/)** - REST API reference
+- **[CLAUDE.md](CLAUDE.md)** - Developer guide for working with the codebase
 
-2. **Run pre-installation setup**
+### Guides
+- **[AI Assistant Setup](guides/AI_ASSISTANT.md)** - Configure Bee with Ollama
+- **[Ollama Setup](guides/OLLAMA_SETUP_GUIDE.md)** - Local LLM deployment
+- **[Passkey Quickstart](guides/PASSKEY_QUICKSTART.md)** - WebAuthn setup
+- **[Honey Jar User Guide](features/HONEY_JAR_USER_GUIDE.md)** - Knowledge base management
 
-```bash
-./pre_install.sh
-```
+## 🏗️ Architecture Overview
 
-3. **Install STING**
-
-```bash
-./install_sting.sh install --debug
-```
-
-4. **Set up Hugging Face token** (required for model access)
-
-```bash
-./setup_hf_token.sh
-```
-
-5. **Verify LLM services' health**
-
-```bash
-./check_llm_health.sh
-```
-
-### Managing Services
-
-- **Start all services**: `./manage_sting.sh start`
-- **Stop services**: `./manage_sting.sh stop`
-- **Restart specific service**: `./manage_sting.sh restart [service]`
-- **Check logs**: `./manage_sting.sh logs [service]`
-
-## 🏗️ Architecture
-
-STING employs a microservices architecture with the following components:
-
-1. **Frontend** (React): User interface for interacting with the system
-2. **Backend API** (Flask): Core business logic and API endpoints
-3. **Authentication** (Ory Kratos): Identity, authentication, and user management
-4. **LLM Gateway**: Routes requests to appropriate model services
-5. **Model Services**: Run specific LLM models (Llama 3, Phi-3, Zephyr)
-6. **Database** (PostgreSQL): Stores user data, conversations, and configuration
-7. **Vault**: Securely manages secrets and credentials
-8. **Knowledge Service**: Honey jar knowledge management with vector search
-9. **Bee Assistant**: AI-powered chatbot with context awareness
-
-### Component Diagram
+STING-CE is built on a microservices architecture with complete data sovereignty:
 
 ```
 ┌─────────────┐     ┌────────────┐     ┌───────────────┐
-│   Frontend  │────▶│  Backend   │────▶│  LLM Gateway  │
+│   Frontend  │────▶│  Backend   │────▶│      Bee      │
+│   (React)   │     │  (Flask)   │     │  (Chatbot)    │
 └─────────────┘     └────────────┘     └───────┬───────┘
        │                   │                    │
        │                   │                    ▼
        │                   │           ┌────────────────┐
-       │                   │           │  Model Services │
+       │                   │           │   Knowledge    │
+       │                   │           │  (ChromaDB)    │
        ▼                   ▼           └────────────────┘
 ┌─────────────┐     ┌────────────┐
-│   Kratos    │     │  Database  │
-└─────────────┘     └────────────┘
+│   Kratos    │     │  Database  │     ┌────────────────┐
+│   (Auth)    │     │(PostgreSQL)│     │     Vault      │
+└─────────────┘     └────────────┘     │   (Secrets)    │
+                                       └────────────────┘
+       │                   │                    │
+       └───────────────────┴────────────────────┘
+                           │
+                    ┌──────▼──────┐
+                    │   Ollama    │
+                    │   (LLMs)    │
+                    └─────────────┘
 ```
 
-## 🛠️ Development
+### Core Components
 
-### Running in Development Mode
+**Frontend (Port 8443)**
+- React-based UI with Material-UI
+- Passwordless authentication flows
+- Honey Jar knowledge management interface
+- Real-time chat with Bee
 
-1. Start all services in debug mode
-   ```bash
-   ./manage_sting.sh start -d
-   ```
+**Backend API (Port 5050)**
+- Flask REST API
+- PII detection and serialization
+- Session management with AAL2 support
+- Audit logging
 
-2. Run React development server
-   ```bash
-   cd frontend
-   npm run start
-   ```
+**Authentication (Ports 4433/4434)**
+- Ory Kratos for identity management
+- WebAuthn/Passkeys support
+- Magic link authentication
+- Multi-factor authentication (TOTP)
+
+**AI & Knowledge**
+- Bee chatbot service (Port 8888)
+- Knowledge service with ChromaDB (Port 8090)
+- Ollama for LLM deployment (Port 11434)
+- Vector embeddings with Sentence Transformers
+
+**Infrastructure**
+- PostgreSQL databases (separate for app, Kratos, messaging)
+- HashiCorp Vault for secrets
+- Redis for caching and sessions
+- Mailpit for development email testing
+
+## 🛠️ Common Operations
+
+### Service Management
+
+```bash
+# From repository root
+./manage_sting.sh start          # Start all services
+./manage_sting.sh stop           # Stop all services
+./manage_sting.sh restart        # Restart all services
+./manage_sting.sh status         # Check service health
+./manage_sting.sh logs [service] # View service logs
+```
+
+### Configuration
+
+All configuration is managed through `STING/conf/config.yml`:
+
+```yaml
+system:
+  domain: localhost
+  protocol: https
+
+email:
+  mode: development  # or 'production'
+
+llm:
+  provider: ollama
+  base_url: http://localhost:11434
+  default_model: phi3:mini
+```
+
+After editing configuration:
+```bash
+./manage_sting.sh restart
+```
 
 ### Accessing Services
 
-- Frontend: https://localhost:8443
-- Backend API: https://localhost:5050
-- LLM Gateway: http://localhost:8080
-- Kratos Admin: https://localhost:4434
-- Kratos Public: https://localhost:4433
+- **Frontend**: https://localhost:8443
+- **API**: https://localhost:5050
+- **Mailpit** (dev): http://localhost:8025
+- **Vault UI**: http://localhost:8200
+- **Grafana** (if enabled): http://localhost:3001
 
-## 🔧 Configuration
+## 📊 Key Features
 
-STING provides comprehensive configuration options through a central configuration file:
+### 🍯 Honey Jar Knowledge Management
 
-- **Main configuration**: `/conf/config.yml`
-- **Environment variables**: Generated from configuration to `.env` files
-- **📚 Full Guide**: See [Configuration Management Guide](./CONFIGURATION_MANAGEMENT.md)
+Create semantic knowledge bases from your documents:
+- Upload PDFs, DOCX, Markdown, and more
+- Automatic text extraction and chunking
+- Vector embeddings for semantic search
+- Query with Bee for context-aware responses
 
-### Key Configuration Areas
+[Learn more →](features/HONEY_JAR_TECHNICAL_REFERENCE.md)
 
-1. **System Configuration**: [Configuration Management Guide](./CONFIGURATION_MANAGEMENT.md)
-2. **Honey Jar Access Control**: [Access Control Documentation](./HONEY_JAR_ACCESS_CONTROL.md)
-3. **Authentication Setup**: [Kratos Integration Guide](./KRATOS_INTEGRATION_GUIDE.md)
-4. **Admin Setup**: [Admin Setup Guide](./ADMIN_SETUP.md)
+### 🐝 Bee AI Assistant
 
-### Configure LLM Models
+Chat with your AI assistant that understands your knowledge:
+- Context-aware responses using Honey Jars
+- Multiple LLM support via Ollama
+- Conversation history and summarization
+- Tool integration capabilities
 
-Edit `/conf/config.yml` to modify LLM-related settings:
+[Learn more →](features/BEE_CHAT_MESSAGING_ARCHITECTURE.md)
 
-```yaml
-llm_service:
-  default_model: "llama3"
-  models:
-    llama3:
-      enabled: true
-      max_tokens: 1024
-      temperature: 0.7
-    phi3:
-      enabled: true
-      max_tokens: 1024
-      temperature: 0.7
-    zephyr:
-      enabled: true
-      max_tokens: 1024
-      temperature: 0.7
-```
+### 🔐 Enterprise Authentication
 
-### Content Filtering
+Modern, secure authentication without passwords:
+- WebAuthn/Passkeys for biometric login
+- Magic links via email
+- TOTP two-factor authentication
+- Recovery codes for account access
 
-Adjust content filtering settings in the configuration:
+[Learn more →](features/PASSWORDLESS_AUTHENTICATION.md)
 
-```yaml
-llm_service:
-  filtering:
-    toxicity:
-      enabled: true
-      threshold: 0.7
-    data_leakage:
-      enabled: true
-```
+### 🛡️ Data Privacy
 
-## 📄 Setting Up Hugging Face Token
+Complete control over your sensitive data:
+- Automatic PII detection and serialization
+- Data stays on your infrastructure
+- Audit logging for compliance
+- Zero-trust architecture
 
-For optimal performance with the LLM services, it's recommended to set up a Hugging Face token:
+[Learn more →](features/PII_DETECTION_SYSTEM.md)
 
-1. Sign up for a free account at [Hugging Face](https://huggingface.co)
-2. Create a token at https://huggingface.co/settings/tokens (read access is sufficient)
-3. Set up your token using our helper script:
+## 🔍 Additional Resources
 
-```bash
-./setup_hf_token.sh
-# Or provide the token directly:
-./setup_hf_token.sh YOUR_TOKEN_HERE
-```
+### Platform-Specific Guides
+- **macOS**: Native Ollama integration with Metal acceleration
+- **WSL**: Full support with Docker Desktop
+- **Debian/Ubuntu**: Production-ready deployment
 
-Benefits of using a Hugging Face token:
-- Faster model downloads
-- Access to gated models
-- Higher rate limits
-- No anonymous download restrictions
+### Development
+- **[CLAUDE.md](CLAUDE.md)** - Complete developer reference
+- **[Testing Guide](TESTING.md)** - Running tests and validation
+- **[Architecture Docs](architecture/)** - System design details
 
-## 🔄 API Endpoints
+### Support
+- **Security Issues**: security@alphabytez.dev
+- **General Questions**: olliec@alphabytez.dev
+- **GitHub Issues**: For bugs and feature requests
 
-STING exposes the following API endpoints:
+## 🎯 What's Next?
 
-### Authentication Endpoints
-
-- `POST /api/auth/register`: Register new user
-- `POST /api/auth/login`: Login user
-- `POST /api/auth/refresh`: Refresh authentication token
-- `POST /api/auth/logout`: Logout user
-
-### LLM Endpoints
-
-- `POST /api/llm/generate`: Generate text from LLM
-- `GET /api/llm/models`: List available models
-- `GET /api/llm/health`: Check LLM services health
-
-## 🔍 Testing Ory Kratos Independently
-
-If you need to iterate on Kratos configuration without running the full STING stack:
-
-1. Install `envsubst` (part of the `gettext` package) on your host.
-2. Set the required environment variables:
-   ```bash
-   export DSN=postgresql://postgres:postgres@db:5432/sting_app
-   export KRATOS_PUBLIC_URL=http://localhost:4433
-   export KRATOS_ADMIN_URL=http://localhost:4434
-   export FRONTEND_URL=https://localhost:8443
-   export IDENTITY_DEFAULT_SCHEMA_URL=file:///etc/config/kratos/identity.schema.json
-   export LOGIN_UI_URL=https://localhost:8443/login
-   export REGISTRATION_UI_URL=https://localhost:8443/register
-   export SESSION_SECRET=your-session-secret
-   ```
-3. Generate a test config from the minimal template:
-   ```bash
-   envsubst < kratos/minimal.kratos.yml > kratos/test-kratos.yml
-   ```
-4. Launch the isolated Postgres+Kratos stack:
-   ```bash
-   docker compose -f docker-compose.kratos-test.yml up --build
-   ```
-5. Inspect Kratos logs on ports 4433/4434, tweak `kratos/minimal.kratos.yml`, and repeat until Kratos boots without errors.
-
-## 🔒 Security Features
-
-STING implements several security features:
-
-1. **Authentication**: Modern authentication using Ory Kratos
-2. **Passkeys**: WebAuthn/FIDO2 support for passwordless authentication
-3. **Environment isolation**: All services run in isolated Docker containers
-4. **Secure secrets**: Vault integration for secret management
-5. **Content filtering**: Toxicity and data leakage detection
-6. **HTTPS**: Secure communication between services
-7. **Input validation**: Thorough validation on all API endpoints
-
-## 📚 Documentation
-
-### Configuration & Administration
-- [**⚙️ Configuration Management Guide**](CONFIGURATION_MANAGEMENT.md) - Complete guide to STING configuration via config.yml
-- [**🔐 Honey Jar Access Control**](HONEY_JAR_ACCESS_CONTROL.md) - Configure permissions and access control for knowledge bases
-- [**👤 Admin Setup Guide**](ADMIN_SETUP.md) - Setting up admin users and managing permissions
-- [**🐝👑 Queen's Hive Domain Setup**](QUEENS_HIVE_DOMAIN.md) - Configure custom domain for consistent development experience
-
-### Core Features
-- [Passkey Implementation Guide](PASSKEY_IMPLEMENTATION_GUIDE.md)
-- [Passkey Users Guide](PASSKEY_USERS_GUIDE.md)
-- [STING Chatbot Integration](STING_CHATBOT_INTEGRATION.md)
-- [Email Verification Testing](EMAIL_VERIFICATION_TESTING.md)
-- [Kratos Integration Guide](KRATOS_INTEGRATION_GUIDE.md)
-- [Kratos Login Guide](KRATOS_LOGIN_GUIDE.md)
-- [LLM Health Check](LLM_HEALTH_CHECK.md)
-
-### Performance & Administration
-- [**🚀 Performance Administration Guide**](PERFORMANCE_ADMIN_GUIDE.md) - Complete guide for optimizing STING performance
-- [**🐝 Cache Buzzer Admin Guide**](CACHE_BUZZER_GUIDE.md) - Fix Docker cache issues and ensure truly fresh container builds
-- [**⚡ Performance Quick Reference**](PERFORMANCE_QUICK_REFERENCE.md) - Quick commands and troubleshooting for admins
-
-## 🗺️ Roadmap
-
-- [ ] Advanced role-based access control
-- [ ] Multi-tenant isolation
-- [ ] Fine-tuning capabilities for custom models
-- [ ] Conversation memory and history
-- [ ] Document upload and processing
-- [ ] Advanced analytics dashboard
-- [ ] Plugin architecture for customization
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- [Llama 3](https://ai.meta.com/llama/) by Meta AI
-- [Phi-3](https://www.microsoft.com/en-us/research/blog/phi-3-mini-the-worlds-most-efficient-open-small-language-model/) by Microsoft
-- [Zephyr](https://huggingface.co/HuggingFaceH4/zephyr-7b-beta) by HuggingFace
-- [Ory Kratos](https://www.ory.sh/kratos/) for authentication
-- [FastAPI](https://fastapi.tiangolo.com/) for API development
-- [React](https://reactjs.org/) for frontend development
-- [Docker](https://www.docker.com/) for containerization
+1. **Complete Installation**: Follow the [installation guide](../INSTALL.md)
+2. **Configure Your System**: Set up [email](operations/) and [LLM](guides/OLLAMA_SETUP_GUIDE.md)
+3. **Create Your First Honey Jar**: Upload documents to the [knowledge system](features/HONEY_JAR_USER_GUIDE.md)
+4. **Chat with Bee**: Try the [AI assistant](features/BEE_CHAT_MESSAGING_ARCHITECTURE.md)
 
 ---
 
-<div align="center">
-  <p>Built with ❤️ for secure, private AI applications</p>
-</div>
+**Made with ❤️ by [AlphaBytez](https://github.com/alphabytez) and the STING-CE Community**
+
+*Bee Smart. Bee Secure.*
