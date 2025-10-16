@@ -59,6 +59,13 @@ Self-hosted platform for secure, private LLM deployment with complete data sover
 - **Automatic Validation** - Built-in health checks for all services
 - **Hot Reload** - Development mode with live updates
 
+### 🎨 Modern UI & Theming
+- **Glass Morphism Design** - Modern STING V2 theme with floating elements
+- **Responsive Interface** - Optimized for desktop, tablet, and mobile
+- **Multiple Themes** - Customizable themes including modern glass, retro terminal, and more
+- **Accessibility** - WCAG-compliant design with keyboard navigation
+- **Dark Mode Support** - Built-in support for light and dark themes
+
 ## 🚧 Development Status
 
 **STING-CE is under active development!** While the core platform is functional and deployable, not all features listed above are fully enabled or production-ready. Some features may require additional configuration, bug fixes, or implementation work.
@@ -164,9 +171,10 @@ nano STING/conf/config.yml
 
 Comprehensive documentation is available in the `STING/docs/` directory:
 
-- **Installation**: [STING/docs/INSTALL.md](STING/docs/INSTALL.md)
+- **Installation**: [STING/docs/README.md](STING/docs/README.md) or [Fresh Install Guide](STING/docs/platform/guides/fresh-install-guide.md)
 - **Configuration**: [STING/docs/operations/](STING/docs/operations/)
 - **API Reference**: [STING/docs/api/](STING/docs/api/)
+- **Architecture**: [STING/docs/architecture/](STING/docs/architecture/)
 - **Security**: [SECURITY.md](SECURITY.md)
 
 ## 🛠️ Management
@@ -323,11 +331,12 @@ See [CREDITS.md](CREDITS.md) for the complete list of third-party libraries and 
 
 ## 📊 Project Status
 
-- **Version**: 1.0.0-ce
+- **Version**: 1.0.0-ce ([Changelog](CHANGELOG.md))
 - **Status**: Active Development
-- **Platform**: Linux (Ubuntu/Debian)
-- **License**: Apache 2.0
-- **Language**: Python 3.11+, JavaScript (React)
+- **Platforms**: Linux (Ubuntu/Debian), macOS, WSL2
+- **License**: Apache 2.0 ([View License](LICENSE))
+- **Languages**: Python 3.11+, JavaScript (React)
+- **Release Date**: October 2025
 
 ---
 
