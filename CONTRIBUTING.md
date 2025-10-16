@@ -6,12 +6,14 @@ Thank you for your interest in contributing to STING-CE! This project is develop
 
 We welcome contributions in many forms:
 
-- **Bug Reports**: Found a bug? Let us know!
-- **Feature Requests**: Have an idea? We'd love to hear it!
-- **Code Contributions**: Want to fix a bug or add a feature? Awesome!
-- **Documentation**: Help improve our docs
-- **Testing**: Test new releases and report issues
-- **Community Support**: Help others in discussions
+- **Bug Reports**: Found a bug? Let us know! Opening an issue is a valuable contribution
+- **Feature Requests**: Have an idea? We'd love to hear it! Issues help shape the roadmap
+- **Code Contributions**: Want to fix a bug or add a feature? Awesome! Pull requests welcome
+- **Documentation**: Help improve our docs - typo fixes, clarifications, examples
+- **Testing**: Test new releases and report issues - real-world feedback is invaluable
+- **Community Support**: Help others in discussions and share your experience
+
+> **Remember:** You don't need to write code to contribute! Issues, documentation improvements, and helping other users are all valuable contributions to the project.
 
 ## 🚀 Getting Started
 
