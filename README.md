@@ -11,7 +11,7 @@
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![AlphaBytez](https://img.shields.io/badge/by-AlphaBytez-blue.svg)](https://github.com/alphabytez)
 
-A comprehensive security and authentication platform with AI-powered assistance. Built for developers who need enterprise-grade authentication without the enterprise complexity.
+Self-hosted platform for secure, private LLM deployment with complete data sovereignty. Features innovative "Honey Jar" knowledge management, enterprise-grade authentication, and the Bee AI assistant. Built for developers who value privacy and control over their AI infrastructure.
 
 ## ✨ Features
 
@@ -22,11 +22,18 @@ A comprehensive security and authentication platform with AI-powered assistance.
 - **Session Management** - AAL2 (Two-factor) session controls
 - **OAuth2/OIDC** - Standard protocol support via Ory Kratos
 
-### 🤖 AI-Powered Security Assistant (B.E.E.)
-- **Intelligent Chat Interface** - Natural language security queries
-- **Knowledge Base Integration** - ChromaDB-powered context retrieval
+### 🍯 Honey Jar Knowledge Management
+- **Semantic Search** - Vector-based knowledge retrieval with ChromaDB
+- **Multi-Format Support** - PDF, DOCX, HTML, JSON, Markdown, TXT
+- **Private & Secure** - Your data stays on your infrastructure
+- **Bee Integration** - AI assistant queries your knowledge bases for context
+- **Background Processing** - Automatic document chunking and embedding
+
+### 🤖 AI-Powered Assistant (Bee)
+- **Intelligent Chat Interface** - Natural language queries with Bee (B. Sting)
+- **Knowledge Base Integration** - ChromaDB-powered context retrieval from Honey Jars
 - **Multi-LLM Support** - Works with Ollama, OpenAI, LM Studio, vLLM
-- **Security Analysis** - Automated threat detection and recommendations
+- **Contextual Responses** - Bee leverages your knowledge bases for accurate answers
 
 ### 🔒 Security & Privacy
 - **Vault Integration** - HashiCorp Vault for secrets management
@@ -155,8 +162,8 @@ STING-CE uses a microservices architecture:
 - **API**: Flask REST API with PII protection
 - **Kratos**: Ory Kratos for authentication flows
 - **Vault**: HashiCorp Vault for secrets
-- **BEE**: AI assistant (chatbot service)
-- **Knowledge**: ChromaDB vector database
+- **Bee**: AI assistant chatbot (B. Sting)
+- **Knowledge**: ChromaDB vector database for Honey Jars
 - **Database**: PostgreSQL for application data
 - **Redis**: Caching and session storage
 - **Mailpit**: Development email catcher
