@@ -11,7 +11,7 @@
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![AlphaBytez](https://img.shields.io/badge/by-AlphaBytez-blue.svg)](https://github.com/alphabytez)
 
-Self-hosted platform for secure, private LLM deployment with complete data sovereignty. Features innovative "Honey Jar" knowledge management, enterprise-grade authentication, and the Bee AI assistant. Built for developers who value privacy and control over their AI infrastructure.
+Self-hosted platform for secure, private LLM deployment with complete data sovereignty. Features innovative "Honey Jar" knowledge management, enterprise-grade authentication, and the Bee AI assistant. Built for organizations that value privacy and control over their AI infrastructure.
 
 ## ✨ Features
 
@@ -51,26 +51,39 @@ Self-hosted platform for secure, private LLM deployment with complete data sover
 
 ### Prerequisites
 
-- **OS**: Ubuntu 20.04+, Debian 11+, or similar Linux distribution
+- **OS**: Ubuntu 20.04+, Debian 11+, macOS, or WSL2
 - **RAM**: 8GB minimum (16GB recommended)
 - **CPU**: 4 cores minimum
 - **Disk**: 50GB free space
 - **Docker**: Installed automatically if not present
 
-### Installation (Guided Setup)
+### Installation (One-Line Install)
 
-The easiest way to install STING-CE is with the web-based setup wizard:
+The fastest way to get started is with our bootstrap installer:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE-Public/main/bootstrap.sh)"
+```
+
+This single command will:
+- Detect your platform (macOS, WSL, Debian/Ubuntu)
+- Clone the repository
+- Launch the web-based setup wizard
+
+### Installation (Manual)
+
+Prefer to clone manually? No problem:
 
 ```bash
 # Clone the repository
 git clone https://github.com/AlphaBytez/STING-CE-Public.git
-cd STING-CE-Public/STING
+cd STING-CE-Public
 
 # Run the installer (includes web wizard)
 ./install_sting.sh
 ```
 
-The installer will:
+**The installer will:**
 1. ✅ Check system requirements
 2. ✅ Install Docker (if needed)
 3. ✅ Launch the web setup wizard at `http://localhost:8335`
@@ -89,7 +102,7 @@ The installer will:
 If you already have STING-CE installed and want to upgrade or reinstall:
 
 ```bash
-cd STING-CE-Public/STING
+cd STING-CE-Public
 
 # Reinstall (preserves your data and configuration)
 ./manage_sting.sh reinstall
@@ -107,13 +120,13 @@ For headless servers or automated deployments:
 ```bash
 # Clone the repository
 git clone https://github.com/AlphaBytez/STING-CE-Public.git
-cd STING-CE-Public/STING
+cd STING-CE-Public
 
 # Create configuration from template
-cp conf/config.yml.default conf/config.yml
+cp STING/conf/config.yml.default STING/conf/config.yml
 
 # Edit configuration (set domain, email settings, etc.)
-nano conf/config.yml
+nano STING/conf/config.yml
 
 # Run installer in non-interactive mode
 ./install_sting.sh --non-interactive
@@ -136,8 +149,6 @@ Comprehensive documentation is available in the `STING/docs/` directory:
 ### Service Management
 
 ```bash
-cd STING
-
 # Start all services
 ./manage_sting.sh start
 
@@ -174,8 +185,7 @@ STING-CE uses a microservices architecture:
 
 **Email Delivery Not Working**
 ```bash
-cd STING
-python3 scripts/health/validate_mailpit.py
+python3 STING/scripts/health/validate_mailpit.py
 ```
 
 **Docker Permission Denied**
@@ -194,10 +204,8 @@ sudo lsof -i :8443
 
 **Services Not Starting**
 ```bash
-cd STING
-
 # Check logs
-docker compose logs
+./manage_sting.sh logs
 
 # Check system resources
 free -h
@@ -279,6 +287,9 @@ Made with ❤️ by **[AlphaBytez](https://github.com/alphabytez)** and the STIN
 
 *Bee Smart. Bee Secure.*
 
-**Get Started**: `cd STING && ./install_sting.sh` 🚀
+**Quick Install**:
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE-Public/main/bootstrap.sh)"
+```
 
 </div>
