@@ -15,6 +15,8 @@ This documentation directory contains comprehensive guides for installing, confi
 
 **For the main project overview, see the [project README](../../README.md).**
 
+> **Note:** STING-CE is under active development. Not all features are fully implemented or production-ready. We welcome [bug reports](https://github.com/AlphaBytez/STING-CE-Public/issues), [feature requests](https://github.com/AlphaBytez/STING-CE-Public/issues/new), and [contributions](../../CONTRIBUTING.md) from the community!
+
 ## 🚀 Quick Start
 
 If you're new to STING-CE, start here:

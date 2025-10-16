@@ -59,6 +59,19 @@ Self-hosted platform for secure, private LLM deployment with complete data sover
 - **Automatic Validation** - Built-in health checks for all services
 - **Hot Reload** - Development mode with live updates
 
+## 🚧 Development Status
+
+**STING-CE is under active development!** While the core platform is functional and deployable, not all features listed above are fully enabled or production-ready. Some features may require additional configuration, bug fixes, or implementation work.
+
+**We need your help!** 🤝
+
+- 🐛 **Found a bug?** Please [open an issue](https://github.com/AlphaBytez/STING-CE-Public/issues)
+- 💡 **Have an idea?** We'd love to hear it - [create a feature request](https://github.com/AlphaBytez/STING-CE-Public/issues/new)
+- 🔧 **Want to contribute?** Pull requests are always welcome! See [CONTRIBUTING.md](CONTRIBUTING.md)
+- 📖 **Improving docs?** Documentation PRs are especially appreciated
+
+Every contribution matters - from reporting issues to improving documentation to submitting code. This is a community project, and we welcome developers of all skill levels!
+
 ## 🚀 Quick Start
 
 ### Prerequisites
