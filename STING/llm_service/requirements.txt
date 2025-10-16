@@ -1,0 +1,18 @@
+# Core dependencies
+requests>=2.28.0
+huggingface_hub>=0.16.0
+tqdm>=4.64.0
+
+# Model handling
+transformers>=4.30.0
+torch>=2.0.0
+accelerate>=0.20.0
+
+# API and service components
+fastapi>=0.95.0
+uvicorn>=0.22.0
+pydantic>=1.10.0
+
+# Utilities
+numpy>=1.23.0
+scipy>=1.10.0

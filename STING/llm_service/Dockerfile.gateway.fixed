@@ -1,0 +1,44 @@
+FROM python:3.10.16-slim
+
+WORKDIR /app
+ 
+# Install curl for healthchecks
+RUN apt-get update && \
+    apt-get install -y curl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install dependencies
+COPY requirements.gateway.txt .
+COPY requirements.common.txt .
+
+# Install dependencies with specific version constraints for critical packages
+RUN pip install --no-cache-dir -r requirements.gateway.txt && \
+    pip install --no-cache-dir --upgrade accelerate>=0.23.0 && \
+    pip install --no-cache-dir --upgrade bitsandbytes>=0.41.1
+
+# Create necessary directories
+RUN mkdir -p /app/data/filters
+
+# Copy application code
+COPY gateway/ ./gateway/
+COPY filtering/ ./filtering/
+COPY utils/ ./utils/
+COPY gateway_server.py .
+COPY entrypoint-gateway.sh /app/entrypoint.sh
+
+# Make entrypoint executable
+RUN chmod +x entrypoint.sh
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV PORT=8080
+ENV LOG_LEVEL=INFO
+
+
+# Expose the service port
+EXPOSE 8080
+
+# Use entrypoint script for initialization
+# Disable output buffering for Python to see logs immediately
+ENV PYTHONUNBUFFERED=1
+ENTRYPOINT ["/bin/bash", "/app/entrypoint.sh"]

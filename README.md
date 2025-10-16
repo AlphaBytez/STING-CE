@@ -1,219 +1,277 @@
-# STING CE Developer Preview
+# STING-CE (Community Edition)
 
-This is a clean, focused developer preview of the STING Community Edition platform with all production code and the original installer/management scripts.
+> **Secure Trusted Intelligence and Networking Guardian**
+>
+> Developed by [AlphaBytez](https://github.com/alphabytez)
+>
+> *Bee Smart. Bee Secure.*
 
-## Overview
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
+[![AlphaBytez](https://img.shields.io/badge/by-AlphaBytez-blue.svg)](https://github.com/alphabytez)
 
-STING (Secure Technological Intelligence and Networking Guardian Assistant) is a comprehensive enterprise AI platform that provides secure, private access to large language models with advanced knowledge management, vector search, and AI-as-a-Service capabilities.
+A comprehensive security and authentication platform with AI-powered assistance. Built for developers who need enterprise-grade authentication without the enterprise complexity.
 
-This developer preview provides the complete STING platform with:
-- ✅ **Full production code** - All services included
-- ✅ **Original installer** - Same proven installation process
-- ✅ **Complete documentation** - Comprehensive guides and API docs
-- ✅ **Clean structure** - Well-organized for development
+## ✨ Features
 
-## Core Features
+### 🔐 Modern Authentication
+- **Passwordless Authentication** - Magic links and WebAuthn/Passkeys
+- **Multi-Factor Authentication** - TOTP, SMS, and biometric options
+- **Email Verification** - Built-in with automatic validation
+- **Session Management** - AAL2 (Two-factor) session controls
+- **OAuth2/OIDC** - Standard protocol support via Ory Kratos
 
-- 🔒 **Fully Passwordless Authentication** with WebAuthn/FIDO2 passkeys and magic links
-- 🤖 **Advanced AI Integration** with Ollama support, Microsoft Phi-3, DeepSeek R1, and Apple Silicon optimization
-- 🧠 **Knowledge Management** with vector search, semantic retrieval, and Honey Jar document stores
-- 🍯 **Honey Reserve** - Encrypted storage system with 1GB quota per user and lifecycle management
-- 🔑 **Nectar Bots** - AI-as-a-Service with API key management and usage analytics
-- 🛡️ **PII Compliance** with HIPAA, GDPR, CCPA pattern detection and content filtering
-- 📊 **Beeacon Observability** - Complete monitoring with Grafana, Loki, and Promtail
+### 🤖 AI-Powered Security Assistant (B.E.E.)
+- **Intelligent Chat Interface** - Natural language security queries
+- **Knowledge Base Integration** - ChromaDB-powered context retrieval
+- **Multi-LLM Support** - Works with Ollama, OpenAI, LM Studio, vLLM
+- **Security Analysis** - Automated threat detection and recommendations
 
-## Architecture
+### 🔒 Security & Privacy
+- **Vault Integration** - HashiCorp Vault for secrets management
+- **PII Protection** - Automatic serialization for sensitive data
+- **Audit Logging** - Comprehensive security event tracking
+- **Zero-Trust Architecture** - All services isolated and authenticated
 
-### Services
-- **Frontend** (React 18 + Material-UI + Tailwind) - Modern responsive interface
-- **Backend API** (Flask/Python) - Core business logic and API orchestration
-- **Authentication** (Ory Kratos) - Passwordless identity and session management
-- **Knowledge Service** (Python + Chroma) - Vector search and document processing
-- **Chatbot Service** (Python) - "Bee" AI assistant with context awareness
-- **External AI Service** (Python) - Ollama integration and model management
-- **Messaging Service** (Python) - Encrypted messaging with Redis queuing
+### 🐳 Easy Deployment
+- **Docker-Based** - One-command deployment
+- **Web Setup Wizard** - Interactive first-run configuration
+- **Automatic Validation** - Built-in health checks for all services
+- **Hot Reload** - Development mode with live updates
 
-### Infrastructure & Data
-- **PostgreSQL** - Three separated databases (kratos, sting_app, sting_messaging)
-- **Redis** - Session management and caching
-- **Chroma Vector Database** - Semantic search and embeddings
-- **HashiCorp Vault** - Secrets and encryption key management
-- **Observability Stack** - Grafana, Loki, Promtail for monitoring and logging
-
-## Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
-- Docker and Docker Compose
-- Python 3.9+
-- Node.js 16+
-- 16+ GB RAM (32+ GB recommended for optimal AI performance)
 
-### Installation
+- **OS**: Ubuntu 20.04+, Debian 11+, or similar Linux distribution
+- **RAM**: 8GB minimum (16GB recommended)
+- **CPU**: 4 cores minimum
+- **Disk**: 50GB free space
+- **Docker**: Installed automatically if not present
+
+### Installation (Guided Setup)
+
+The easiest way to install STING-CE is with the web-based setup wizard:
 
 ```bash
-# Install STING
-./install_sting.sh install
+# Clone the repository
+git clone https://github.com/AlphaBytez/STING-CE-Public.git
+cd STING-CE-Public/STING
 
-# Or with debug mode
-./install_sting.sh install --debug
+# Run the installer (includes web wizard)
+./install_sting.sh
 ```
+
+The installer will:
+1. ✅ Check system requirements
+2. ✅ Install Docker (if needed)
+3. ✅ Launch the web setup wizard at `http://localhost:8335`
+4. ✅ Guide you through configuration (domain, email, LLM settings)
+5. ✅ Install and start all services
+6. ✅ Validate email delivery
+7. ✅ Create your admin account
+
+**After installation:**
+- **Frontend**: https://localhost:8443
+- **API**: https://localhost:5050
+- **Mailpit** (dev mode): http://localhost:8025
+
+### Upgrading/Reinstalling
+
+If you already have STING-CE installed and want to upgrade or reinstall:
+
+```bash
+cd STING-CE-Public/STING
+
+# Reinstall (preserves your data and configuration)
+./manage_sting.sh reinstall
+
+# Fresh install (removes everything - use with caution!)
+./manage_sting.sh reinstall --fresh
+```
+
+**Note:** Running `./install_sting.sh` on an existing installation will detect this and direct you to use the reinstall command instead.
+
+### Installation (Command Line)
+
+For headless servers or automated deployments:
+
+```bash
+# Clone the repository
+git clone https://github.com/AlphaBytez/STING-CE-Public.git
+cd STING-CE-Public/STING
+
+# Create configuration from template
+cp conf/config.yml.default conf/config.yml
+
+# Edit configuration (set domain, email settings, etc.)
+nano conf/config.yml
+
+# Run installer in non-interactive mode
+./install_sting.sh --non-interactive
+
+# Start services
+./manage_sting.sh start
+```
+
+## 📖 Documentation
+
+Comprehensive documentation is available in the `STING/docs/` directory:
+
+- **Installation**: [STING/docs/INSTALL.md](STING/docs/INSTALL.md)
+- **Configuration**: [STING/docs/operations/](STING/docs/operations/)
+- **API Reference**: [STING/docs/api/](STING/docs/api/)
+- **Security**: [SECURITY.md](SECURITY.md)
+
+## 🛠️ Management
 
 ### Service Management
 
 ```bash
+cd STING
+
 # Start all services
 ./manage_sting.sh start
 
-# Stop services
+# Stop all services
 ./manage_sting.sh stop
 
-# Restart specific service
-./manage_sting.sh restart <service>
+# Restart a specific service
+./manage_sting.sh restart [service]
 
 # View logs
-./manage_sting.sh logs <service>
+./manage_sting.sh logs [service]
 
-# Update service
-./manage_sting.sh update <service>
-
-# Check status
+# Check service status
 ./manage_sting.sh status
 ```
 
-## Quick Start
+## 🏗️ Architecture
 
-1. **Install STING:**
-   ```bash
-   ./install_sting.sh install
-   ```
+STING-CE uses a microservices architecture:
 
-2. **Access the platform:**
-   - Frontend: https://localhost:8443
-   - Backend API: https://localhost:5050
+- **Frontend**: React-based UI with Vite
+- **API**: Flask REST API with PII protection
+- **Kratos**: Ory Kratos for authentication flows
+- **Vault**: HashiCorp Vault for secrets
+- **BEE**: AI assistant (chatbot service)
+- **Knowledge**: ChromaDB vector database
+- **Database**: PostgreSQL for application data
+- **Redis**: Caching and session storage
+- **Mailpit**: Development email catcher
 
-3. **Create your first account** using passwordless authentication
+## 🐛 Troubleshooting
 
-4. **Explore the features:**
-   - Upload documents to Honey Jars
-   - Chat with Bee AI assistant
-   - Create Nectar Bot API keys
-   - Store encrypted files in Honey Reserve
+### Common Issues
 
-## Documentation
-
-Comprehensive documentation is available in the `docs/` directory:
-
-- **[Documentation Index](docs/INDEX.md)** - Complete guide to all documentation
-- **[Quick Start Guide](QUICK_START.md)** - Get running in 5 minutes
-- **[Developer Preview Guide](docs/guides/DEVELOPER_PREVIEW_GUIDE.md)** - Development workflow
-- **[API Overview](docs/api/API_OVERVIEW.md)** - Complete API reference
-- **[Features Guide](docs/features/FEATURES.md)** - Detailed feature descriptions
-
-### Key Documentation
-
-#### Getting Started
-- [Quick Start](QUICK_START.md)
-- [Installation Guide](docs/guides/DEVELOPER_PREVIEW_GUIDE.md)
-- [Passkey Setup](docs/guides/PASSKEY_QUICKSTART.md)
-- [Ollama Configuration](docs/guides/OLLAMA_SETUP_GUIDE.md)
-
-#### User Guides
-- [Honey Jar Knowledge Bases](docs/guides/HONEY_JAR_USER_GUIDE.md)
-- [Bee AI Assistant](docs/guides/bee-support-guide.md)
-- [Honey Reserve Storage](docs/guides/honey-reserve-management.md)
-
-#### API Documentation
-- [API Overview](docs/api/API_OVERVIEW.md)
-- [Honey Jar Bulk API](docs/api/HONEY_JAR_BULK_API.md)
-- [PII Detection API](docs/api/PII_DETECTION_API.md)
-
-#### Technical Documentation
-- [Passwordless Authentication](docs/features/PASSWORDLESS_AUTHENTICATION.md)
-- [PII Detection System](docs/features/PII_DETECTION_SYSTEM.md)
-- [Vector Search](docs/features/CHROMADB_VECTOR_SEARCH_ENHANCEMENT.md)
-- [Observability](docs/features/BEEACON_LOG_MONITORING.md)
-
-## Development Guidelines
-
-This developer preview maintains the production codebase with:
-1. Clear separation of concerns
-2. Well-documented API endpoints
-3. Secure authentication patterns
-4. Scalable microservices architecture
-5. Comprehensive observability
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development standards and practices.
-
-## Project Structure
-
-```
-sting-ce-dev-preview/
-├── app/                      # Backend API (Flask)
-├── frontend/                 # React frontend
-├── knowledge_service/        # Vector search & documents
-├── chatbot/                  # Bee AI assistant
-├── external_ai_service/      # Ollama integration
-├── messaging_service/        # Encrypted messaging
-├── kratos/                   # Authentication config
-├── vault/                    # Secrets management
-├── observability/            # Grafana, Loki, Promtail
-├── conf/                     # Configuration files
-├── lib/                      # Management library
-├── scripts/                  # Utility scripts
-├── docs/                     # Documentation
-├── docker-compose.yml        # Service orchestration
-├── manage_sting.sh          # Management CLI
-├── install_sting.sh         # Installer
-└── README.md                # This file
+**Email Delivery Not Working**
+```bash
+cd STING
+python3 scripts/health/validate_mailpit.py
 ```
 
-## Key Services
+**Docker Permission Denied**
+```bash
+sudo usermod -aG docker $USER
+# Logout and login again
+```
 
-- **Frontend**: React app on port 8443
-- **Backend API**: Flask on port 5050
-- **Kratos**: Authentication on ports 4433/4434
-- **Knowledge**: Vector search on port 8090
-- **Chatbot**: Bee assistant on port 8888
-- **External AI**: Ollama interface on port 8091
-- **Messaging**: Messaging service on port 8889
-- **PostgreSQL**: Database on port 5433
-- **Redis**: Cache on port 6379
-- **Chroma**: Vector DB on port 8000
+**Port Already in Use**
+```bash
+# Find what's using the port
+sudo lsof -i :8443
 
-## Contributing
+# Change port in config.yml or kill the process
+```
 
-We welcome contributions! Please follow our development workflow:
+**Services Not Starting**
+```bash
+cd STING
 
-1. **Fork** the repository and create a feature branch
-2. **Read** the documentation in docs/ directory
-3. **Follow** code conventions and security best practices
-4. **Test** your changes with the provided test suite
-5. **Submit** a pull request with detailed description
+# Check logs
+docker compose logs
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+# Check system resources
+free -h
+df -h
 
-## License
+# Restart with cleanup
+./manage_sting.sh restart
+```
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+## 🤝 Contributing
 
-## What's Different in This Preview?
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-This developer preview provides:
+## 🔒 Security
 
-✅ **Complete Codebase** - All production services included
-✅ **Original Installer** - Same proven installation process
-✅ **Comprehensive Docs** - 18+ documentation files
-✅ **Clean Organization** - Clear directory structure
-✅ **Development Ready** - Easy to modify and extend
+Security is our top priority. Please see [SECURITY.md](SECURITY.md) for:
+- Reporting vulnerabilities
+- Security best practices
+- Supported versions
+- Disclosure policy
 
-**Not a Simplified Version** - This is the full STING platform, ready for development and deployment.
+**DO NOT** create public issues for security vulnerabilities.
 
-## Support
+## 📜 License
 
-- **Documentation**: Check the `docs/` directory
-- **Issues**: Open an issue on GitHub
-- **Community**: Join our Discord/Slack
+STING-CE is released under the [Apache License 2.0](LICENSE).
+
+```
+Copyright 2024 AlphaBytez and the STING-CE Community
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
+
+## 🏢 About AlphaBytez
+
+STING-CE is developed and maintained by **AlphaBytez**, a software development company focused on security, authentication, and AI-powered solutions.
+
+> *Bee Smart. Bee Secure.*
+
+- **Contact**: [olliec@alphabytez.dev](mailto:olliec@alphabytez.dev)
+- **Security**: [security@alphabytez.dev](mailto:security@alphabytez.dev)
+- **GitHub**: [@AlphaBytez](https://github.com/AlphaBytez)
+
+## 🙏 Acknowledgments
+
+STING-CE is built on the shoulders of giants:
+
+- **Ory Kratos** - Modern authentication flows
+- **HashiCorp Vault** - Secrets management
+- **ChromaDB** - Vector database for AI
+- **Ollama** - Local LLM deployment
+- **Docker** - Containerization
+
+See [CREDITS.md](CREDITS.md) for complete list of third-party libraries.
+
+## 📊 Project Status
+
+- **Version**: 1.0.0-ce
+- **Status**: Active Development
+- **Platform**: Linux (Ubuntu/Debian)
+- **License**: Apache 2.0
+- **Language**: Python 3.11+, JavaScript (React)
 
 ---
 
-Built with ❤️ for secure, private AI applications
+<div align="center">
+
+Made with ❤️ by **[AlphaBytez](https://github.com/alphabytez)** and the STING-CE Community
+
+*Bee Smart. Bee Secure.*
+
+**Get Started**: `cd STING && ./install_sting.sh` 🚀
+
+</div>

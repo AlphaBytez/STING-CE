@@ -1,0 +1,18 @@
+
+<header>
+    <div class="container">
+        <nav class="glass-subtle" style="padding: var(--spacing-sm) var(--spacing-md); border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div class="nav-brand">
+                <a href="/" style="display: flex; align-items: center; gap: 12px;">
+                    <img src="{{ "images/sting-logo.webp" | relURL }}" alt="STING Logo" style="width: 32px; height: 32px; object-fit: contain;">
+                    <span style="font-size: 20px; font-weight: 600; color: var(--text-primary);">{{ .Site.Title }}</span>
+                </a>
+            </div>
+            <nav class="nav-links" style="display: flex; gap: var(--spacing-md); align-items: center;">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/contact/" class="nav-link">Contact</a>
+                <a href="{{ .Site.Params.cta_link }}" class="cta-button" style="padding: 8px 20px; font-size: 14px;">Get Started</a>
+            </nav>
+        </nav>
+    </div>
+</header>

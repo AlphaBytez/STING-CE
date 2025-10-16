@@ -1,214 +1,85 @@
-llm_models/
-llm_service_models/
-*.gguf
-*.bin
-*.safetensors
-
-# Test cookie files
-cookies*.txt
-*_cookies.txt
-kratos_cookies*.txt
-
-# Test flow files
-flow.json
-flow_updated.json
-
-# Test screenshots
-tests/screenshots/
-*.png
-
-blobs/
-manifests/
-venv/
-.venv/
-# Virtual environment directories
-/env/
-
-# Environment variable files
+# Security - Never commit
+*.key
+*.pem
+*.crt
 *.env
-# Generated environment files in conf/ directory
-conf/*.env
+.env.*
+secrets/
+credentials/
 
-# Python egg and installer metadata
-*.egg-info/
-sting_installer.egg-info/
-
-# Build and distribution directories
-/build/
-/dist/
-
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# macOS filesystem files
-.DS_Store
-
-# Ignore auto-generated Kratos configs
-/conf/kratos/kratos.yml
-# Ignore standalone Kratos test config
-kratos/test-kratos.yml
-
-# Ignore local configuration - use config.yml.default as template
-/conf/config.yml
-
-# Runtime state files
-config_state
-*.state
-state/
-.state/
-
-# === STING-CE Public Release Exclusions ===
-
-# Logs
-*.log
-*.log.*
-logs/
-
-# Environment files
-.env
-.env.*
-.pgpass
-
-# Build artifacts
+*.so
+.Python
 build/
 dist/
 *.egg-info/
+venv/
 .venv/
-env/
+
+# Node
 node_modules/
+npm-debug.log*
+yarn-error.log*
 
-# System files
-.DS_Store
-Thumbs.db
-
-# Backup files
-*.bak
-*.bak.*
-*output.txt
-
-# Development files
-old_versions/
-backups/
-refactor_*.json
-refactor_*.md
-test_*.json
-
-# Temporary files
-*.tmp
-*.temp
-
-# Archives (for development reference)
-archives/
-archive/
-# Generated Kratos config - do not commit
-kratos/main.kratos.yml
-
-# === Test Data Generation Exclusions ===
-# Generated test datasets (potentially large)
-test_data_output/
-sting_test_data/
-demo_data/
-*_test_results/
-
-# Synthea generated files
-synthea/output/
-*/synthea/output/
-**/synthea/output/
-
-# Docker test data generator output
-docker/test-data-generator/output/
-
-# PII detection test results
-pii_results/
-enterprise_pii_results/
-*_pii_analysis.json
-
-# Large CSV/dataset files
-*.csv
-!**/sample.csv
-!**/example.csv
-lending_club_data/
-cuad_dataset/
-financial_records/
-
-# Synthetic data archives
-synthetic_*.zip
-test_dataset_*.tar.gz
-demo_*.zip
-
-# Generation summaries (optional - could be useful to commit small ones)
-generation_summary_large.json
-dataset_summary_*.json
-
-# Redis dump files from enterprise processing
-dump.rdb
-
-# === Additional exclusions for developer preview ===
-
-# Frontend build artifacts
-frontend/build/
-frontend/dist/
-frontend/node_modules/
-frontend/.next/
-frontend/out/
-frontend/package-lock.json
-frontend/yarn.lock
-
-# Python cache and compiled files
-**/__pycache__/
-**/*.pyc
-**/*.pyo
-**/*.pyd
-.Python
-
-# IDE and editor files
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
-.project
-.settings/
 
-# Docker volumes and data
-*.db
-*.sqlite
-*.sqlite3
-postgres_data/
-redis_data/
-chroma_data/
-vault_data/
-
-# Installation artifacts
-.sting-ce/
-/opt/sting-ce/
-
-# Generated documentation
-docs/generated/
-
-# Test coverage
-.coverage
-htmlcov/
-.pytest_cache/
-.tox/
-
-# macOS
+# OS
 .DS_Store
-.AppleDouble
-.LSOverride
-
-# Windows
 Thumbs.db
-ehthumbs.db
-Desktop.ini
 
-# Linux
-*~
+# Docker
+docker-compose.override.yml
 
-# Temporary files
+# Logs
+logs/
+*.log
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Local config
+*.local
+config.local.yml
+
+# Models
+*.gguf
+*.bin
+*.safetensors
+models/
+
+# Temp
+tmp/
+temp/
 *.tmp
-*.temp
-*.swp
-*.swo
+*.bak
+*.backup
+
+# Internal Documentation (not for public repo)
+PUBLIC_FORK_STRATEGY.md
+QUICK_FORK_GUIDE.md
+CONFIG_COMMENTS_ADDED.md
+DEPLOYMENT_SUMMARY.md
+VM_TEST_PLAN.md
+PII_SERIALIZATION_IMPLEMENTATION_GUIDE.md
+REORGANIZATION_GUIDE.md
+
+# Build artifacts
+.hugo_build.lock
+
+# Debug/investigation files
+*-investigation-report.json
+kratos-investigation-report.json
+
+# One-time reorganization scripts
+create_sting_subdirectory.sh
+reorganize_public_repo.sh
+verify_reorganization.sh

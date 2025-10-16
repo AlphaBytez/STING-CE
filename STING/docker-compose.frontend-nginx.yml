@@ -1,0 +1,35 @@
+
+services:
+  # Nginx-based frontend service that works reliably on all platforms
+  frontend:
+    container_name: sting-ce-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.react-nginx
+    env_file:
+      - ${INSTALL_DIR}/env/frontend.env
+    environment:
+      REACT_APP_API_URL: "https://localhost:5050"
+      REACT_APP_KRATOS_PUBLIC_URL: "https://localhost:4433"
+      PUBLIC_URL: "/"
+      # Pass environment variables for runtime substitution
+      NODE_ENV: "production"
+    volumes:
+      - sting_certs:/etc/nginx/certs:ro
+    networks:
+      - sting_local
+    ports:
+      - ${REACT_PORT:-8443}:80
+    depends_on:
+      app:
+        condition: service_healthy
+      kratos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-check-certificate -q -O- https://localhost:80/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Override the command from main docker-compose.yml
+    command: ["nginx", "-g", "daemon off;"]

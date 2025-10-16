@@ -1,282 +1,224 @@
-# Contributing to STING CE
+# Contributing to STING-CE
 
-Thank you for your interest in contributing to STING CE! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to STING-CE! This project is developed by **AlphaBytez** and maintained by the community.
 
-## Code of Conduct
+## 🤝 Ways to Contribute
 
-By participating in this project, you agree to maintain a respectful and inclusive environment for all contributors.
+We welcome contributions in many forms:
 
-## How to Contribute
+- **Bug Reports**: Found a bug? Let us know!
+- **Feature Requests**: Have an idea? We'd love to hear it!
+- **Code Contributions**: Want to fix a bug or add a feature? Awesome!
+- **Documentation**: Help improve our docs
+- **Testing**: Test new releases and report issues
+- **Community Support**: Help others in discussions
 
-### Reporting Bugs
+## 🚀 Getting Started
 
-1. Check if the bug has already been reported in [Issues](https://github.com/your-org/sting-ce-dev-preview/issues)
-2. If not, create a new issue with:
-   - Clear title and description
-   - Steps to reproduce
-   - Expected vs actual behavior
-   - Environment details (OS, Docker version, etc.)
-   - Relevant logs or screenshots
-
-### Suggesting Features
-
-1. Check [Issues](https://github.com/your-org/sting-ce-dev-preview/issues) for existing feature requests
-2. Create a new issue with:
-   - Clear use case description
-   - Proposed solution
-   - Alternative solutions considered
-   - Impact on existing features
-
-### Pull Requests
-
-1. **Fork the repository** and create a feature branch
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-2. **Make your changes** following our coding standards:
-   - Write clean, readable code
-   - Add comments for complex logic
-   - Follow existing code style
-   - Keep commits atomic and well-described
-
-3. **Test your changes**
-   ```bash
-   # Run tests
-   ./manage_sting_dev.sh test
-
-   # Test manually
-   ./manage_sting_dev.sh update <service>
-   ```
-
-4. **Document your changes**
-   - Update relevant documentation
-   - Add docstrings to new functions
-   - Update API documentation if needed
-
-5. **Submit your PR** with:
-   - Clear title and description
-   - Reference to related issues
-   - Screenshots/logs if applicable
-   - Checklist of completed items
-
-## Development Setup
-
-### Prerequisites
-
-- Docker and Docker Compose
-- Python 3.9+
-- Node.js 16+ (for frontend)
-- Git
-
-### Local Setup
+### 1. Fork and Clone
 
 ```bash
-# Clone your fork
-git clone https://github.com/your-username/sting-ce-dev-preview.git
-cd sting-ce-dev-preview
+# Fork the repository on GitHub
+# Then clone your fork
+git clone https://github.com/YOUR_USERNAME/sting-ce.git
+cd sting-ce
 
 # Add upstream remote
-git remote add upstream https://github.com/your-org/sting-ce-dev-preview.git
-
-# Start development environment
-./manage_sting_dev.sh start
-
-# Check status
-./manage_sting_dev.sh status
+git remote add upstream https://github.com/alphabytez/sting-ce.git
 ```
 
-### Development Workflow
+### 2. Set Up Development Environment
 
-1. **Keep your fork updated**
+```bash
+# Install STING-CE
+./install_sting.sh
+
+# Verify installation
+docker ps
+```
+
+### 3. Create a Branch
+
+```bash
+# Create a feature branch
+git checkout -b feature/amazing-feature
+
+# Or a bug fix branch
+git checkout -b fix/bug-description
+```
+
+## 💻 Development Guidelines
+
+### Code Style
+
+**Python (Backend)**
+- Follow [PEP 8](https://pep8.org/) style guide
+- Use type hints where appropriate
+- Document functions with docstrings
+- Maximum line length: 100 characters
+
+**JavaScript/React (Frontend)**
+- Follow ESLint configuration
+- Use functional components with hooks
+- PropTypes for component props
+- Meaningful component and variable names
+
+**Docker**
+- Use multi-stage builds when possible
+- Minimize layers
+- Use specific version tags, not `latest`
+- Document all environment variables
+
+### Testing
+
+Before submitting, ensure all tests pass:
+
+```bash
+# Run all tests
+./scripts/run_tests.sh
+
+# Test specific component
+python3 -m pytest tests/test_auth.py
+
+# Test email delivery
+python3 scripts/health/validate_mailpit.py
+```
+
+### Documentation
+
+- Update README.md for user-facing changes
+- Update API docs for API changes
+- Add inline comments for complex logic
+- Update CHANGELOG.md with your changes
+
+## 📝 Pull Request Process
+
+### Before Submitting
+
+1. **Sync with upstream**:
    ```bash
    git fetch upstream
    git rebase upstream/main
    ```
 
-2. **Create feature branch**
+2. **Run tests**: Ensure all tests pass
+
+3. **Update docs**: Document your changes
+
+4. **Clean commits**: Use meaningful commit messages
    ```bash
-   git checkout -b feature/my-feature
+   # Good
+   git commit -m "feat: Add passwordless login for mobile devices"
+   git commit -m "fix: Resolve mailpit port mapping issue"
+
+   # Not so good
+   git commit -m "update stuff"
+   git commit -m "fix"
    ```
 
-3. **Make changes and commit**
+### Submitting
+
+1. **Push your branch**:
    ```bash
-   git add .
-   git commit -m "feat: add new feature"
+   git push origin feature/amazing-feature
    ```
 
-4. **Push to your fork**
-   ```bash
-   git push origin feature/my-feature
-   ```
+2. **Open Pull Request** on GitHub
 
-5. **Create Pull Request** on GitHub
+3. **Fill out PR template** with:
+   - Description of changes
+   - Issue number (if applicable)
+   - Testing performed
+   - Screenshots (if UI changes)
 
-## Coding Standards
+### After Submitting
 
-### Python
+- Respond to review feedback
+- Keep your PR up to date with main branch
+- Be patient - reviews may take a few days
 
-- Follow [PEP 8](https://pep8.org/) style guide
-- Use type hints where applicable
-- Maximum line length: 100 characters
-- Use meaningful variable names
-- Write docstrings for functions and classes
+## 🐛 Reporting Bugs
 
-Example:
-```python
-def process_document(content: str, metadata: dict) -> dict:
-    """
-    Process a document and extract relevant information.
+When reporting bugs, please include:
 
-    Args:
-        content: The document content as string
-        metadata: Dictionary containing document metadata
+- **Description**: Clear description of the issue
+- **Steps to Reproduce**: How to trigger the bug
+- **Expected Behavior**: What should happen
+- **Actual Behavior**: What actually happens
+- **Environment**:
+  - OS version
+  - Docker version
+  - STING-CE version
+- **Logs**: Relevant error messages or logs
+  ```bash
+  docker compose logs [service]
+  ```
 
-    Returns:
-        Dictionary with processed document data
+## 💡 Feature Requests
 
-    Raises:
-        ValueError: If content is empty
-    """
-    if not content:
-        raise ValueError("Content cannot be empty")
+When requesting features:
 
-    # Process document
-    return {"status": "processed", "data": content}
+- **Use Case**: Describe the problem you're trying to solve
+- **Proposed Solution**: Your idea for solving it
+- **Alternatives**: Other solutions you've considered
+- **Additional Context**: Any other relevant information
+
+## 🔒 Security Issues
+
+**DO NOT** create public issues for security vulnerabilities.
+
+Instead, email security concerns to: **security@alphabytez.dev**
+
+See [SECURITY.md](SECURITY.md) for our security policy.
+
+## 📜 License
+
+By contributing, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE).
+
+All contributions must include:
+```
+Copyright 2024 AlphaBytez and the STING-CE Community
+
+Licensed under the Apache License, Version 2.0
 ```
 
-### JavaScript/TypeScript
+## 🎯 Development Priorities
 
-- Use ESLint configuration
-- Prefer functional components
-- Use TypeScript for type safety
-- Follow React best practices
+Current focus areas:
 
-### Docker
+### High Priority
+- Authentication improvements
+- Email delivery reliability
+- Documentation enhancements
+- Bug fixes
 
-- Multi-stage builds where appropriate
-- Minimize layer count
-- Use specific version tags
-- Document build arguments
+### Medium Priority
+- Additional LLM provider support
+- Performance optimizations
+- Testing improvements
 
-## Testing
+### Future
+- Kubernetes deployment
+- Multi-tenancy support
+- Mobile app integration
 
-### Unit Tests
+## 🤔 Questions?
 
-```bash
-# Python
-cd app
-python -m pytest tests/
+- **General Questions**: [GitHub Discussions](https://github.com/alphabytez/sting-ce/discussions)
+- **Bug Reports**: [GitHub Issues](https://github.com/alphabytez/sting-ce/issues)
+- **Contact**: olliec@alphabytez.dev
 
-# JavaScript
-cd frontend
-npm test
-```
+## 👥 Community
 
-### Integration Tests
+Join our growing community:
 
-```bash
-# Test service interactions
-./scripts/test_integration.sh
-```
+- **GitHub**: Star and watch the repository
+- **Discussions**: Share ideas and get help
+- **Issues**: Report bugs and request features
+- **Pull Requests**: Contribute code
 
-### Manual Testing
+---
 
-```bash
-# Update and restart service
-./manage_sting_dev.sh update <service>
+**Thank you for contributing to STING-CE!**
 
-# View logs
-./manage_sting_dev.sh logs <service>
-```
-
-## Documentation
-
-### Code Documentation
-
-- Add docstrings to all public functions
-- Document complex algorithms
-- Include usage examples
-
-### API Documentation
-
-- Update `docs/api/` for API changes
-- Include request/response examples
-- Document error codes
-
-### User Documentation
-
-- Update `docs/guides/` for feature changes
-- Add tutorials for new features
-- Keep README.md current
-
-## Commit Messages
-
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-<type>(<scope>): <subject>
-
-<body>
-
-<footer>
-```
-
-Types:
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting)
-- `refactor`: Code refactoring
-- `test`: Test changes
-- `chore`: Build/tooling changes
-
-Examples:
-```
-feat(knowledge): add semantic search functionality
-
-Implement vector-based semantic search using Chroma.
-Includes document embedding and similarity scoring.
-
-Closes #123
-```
-
-```
-fix(auth): resolve session expiration issue
-
-Sessions were expiring too quickly due to incorrect
-TTL configuration in Kratos.
-
-Fixes #456
-```
-
-## Review Process
-
-1. **Automated Checks**: CI/CD pipeline runs tests and linting
-2. **Code Review**: At least one maintainer reviews the code
-3. **Testing**: Reviewer tests the changes locally
-4. **Approval**: PR is approved and merged
-
-## Release Process
-
-1. Version bump in relevant files
-2. Update CHANGELOG.md
-3. Create release tag
-4. Build and publish containers
-5. Update documentation
-
-## Getting Help
-
-- **Documentation**: Check `docs/` directory
-- **Discussions**: Use GitHub Discussions
-- **Issues**: Open an issue for bugs or questions
-- **Chat**: Join our Discord/Slack community
-
-## Recognition
-
-Contributors will be recognized in:
-- CONTRIBUTORS.md file
-- Release notes
-- Project README
-
-Thank you for contributing to STING CE!
+Developed by [AlphaBytez](https://github.com/alphabytez)

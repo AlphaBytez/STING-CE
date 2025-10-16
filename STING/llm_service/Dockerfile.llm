@@ -1,0 +1,10 @@
+FROM sting/llm-base:latest
+
+ARG MODEL_NAME=llama3
+
+# Set model-specific environment variables
+ENV MODEL_NAME=${MODEL_NAME}
+ENV MODEL_PATH=/app/models/${MODEL_NAME}
+
+# No need to duplicate dependencies or scripts from the base image
+# The entrypoint and CMD are inherited from the base image

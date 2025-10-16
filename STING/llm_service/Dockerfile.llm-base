@@ -1,0 +1,63 @@
+FROM python:3.10.16-slim
+
+WORKDIR /app
+
+# Fix potential GPG issues
+RUN rm -rf /var/lib/apt/lists/* && \
+    apt-get clean && \
+    apt-get update --allow-releaseinfo-change || true && \
+    apt-get update --allow-insecure-repositories || true && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        wget \
+        git \
+        curl \
+        ca-certificates || \
+    (echo "APT failed, trying with --force-yes" && \
+     apt-get install -y --force-yes \
+        build-essential \
+        wget \
+        git \
+        curl \
+        ca-certificates) && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy and install Python requirements
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt || \
+    pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
+
+# Copy utilities
+COPY utils/ /app/utils
+
+# Install PyTorch separately to handle large downloads
+RUN pip install --no-cache-dir torch torchvision || \
+    pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org torch torchvision
+
+# Install other ML dependencies
+RUN pip install --no-cache-dir \
+    transformers \
+    accelerate \
+    sentencepiece \
+    fastapi \
+    uvicorn || \
+    pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org \
+    transformers \
+    accelerate \
+    sentencepiece \
+    fastapi \
+    uvicorn
+
+# Create necessary directories
+RUN mkdir -p /app/models /app/cache /app/models/llama-3-8b /app/models/phi-3 /app/models/zephyr-7b
+
+# Copy scripts
+COPY ./detect_platform.sh .
+COPY ./utils/ ./utils/
+COPY ./server.py .
+
+# Make scripts executable
+RUN chmod +x detect_platform.sh
+
+# Set as base image
+CMD ["/bin/true"]

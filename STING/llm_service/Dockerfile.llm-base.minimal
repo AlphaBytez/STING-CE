@@ -1,0 +1,35 @@
+FROM python:3.10.16-slim
+
+WORKDIR /app
+
+# Copy requirements first
+COPY requirements.txt .
+
+# Install Python dependencies only - skip system packages
+RUN pip install --no-cache-dir -r requirements.txt || \
+    pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
+
+# Copy utilities
+COPY utils/ /app/utils
+
+# Install PyTorch and ML libraries
+RUN pip install --no-cache-dir torch torchvision transformers accelerate sentencepiece fastapi uvicorn || \
+    pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org \
+    torch torchvision transformers accelerate sentencepiece fastapi uvicorn
+
+# Create necessary directories
+RUN mkdir -p /app/models /app/cache
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV TRANSFORMERS_CACHE=/app/cache
+ENV HF_HOME=/app/cache
+
+# Copy scripts
+COPY ./detect_platform.sh ./server.py ./
+
+# Make scripts executable using Python instead of chmod
+RUN python -c "import os; os.chmod('detect_platform.sh', 0o755)"
+
+# This is just a base image
+CMD ["/bin/true"]

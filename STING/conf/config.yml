@@ -1,0 +1,1306 @@
+# STING Platform Configuration Template
+# Copy this file to config.yml and customize for your environment
+# Sensitive values should be set via environment variables or Vault
+
+# LICENSING & Support level
+licensing:
+  type: "community"  # Options: community, enterprise, custom
+  support_level: "community"  # Options: community, standard, premium
+  license_key: "${INSTALL_DIR}/license.key"  # Replace with path and or name of license key file
+
+# System Configuration
+system:
+  domain: localhost  # Change to custom domain like queen.hive
+  protocol: https
+  ports:
+    frontend: 8443
+    api: 5050
+    kratos: 4433
+
+# Edition Configuration (CE vs Enterprise)
+edition:
+  type: ce  # Options: 'ce' (Community Edition) or 'enterprise'
+  hide_enterprise_ui: true  # Hide enterprise features in UI
+  enterprise_endpoints_enabled: false  # Disable enterprise API endpoints
+  enterprise_features:
+    marketplace: false
+    teams: false
+    swarm_orchestration: false
+    advanced_pii_compliance: false
+    nectar_bot_manager: false
+  placeholder_text: "This feature is available in STING Enterprise Edition"
+  placeholder_link: "https://github.com/sting-ce/enterprise"
+
+# Core Application Settings
+application:
+  env: development
+  debug: true
+  host: localhost
+  port: 5050
+  install_dir: "${INSTALL_DIR}"  # Set via environment
+  # Directory to store LLM models. Leave blank to use ${INSTALL_DIR}/models
+  models_dir: "${INSTALL_DIR}/models"
+  ssl:
+    enabled: true
+    cert_dir: "${INSTALL_DIR}/certs"
+    domain: "${DOMAIN_NAME:-localhost}"
+    email: "${CERTBOT_EMAIL:-your-email@example.com}"
+
+# Database Configuration
+database:
+  host: db
+  port: 5432
+  name: sting_app
+  user: postgres
+  # Password handled by secrets management
+  connection_timeout: 30
+  max_connections: 100
+
+# Security Settings
+security:
+  # Authentication session configuration
+  authentication:
+    # AAL2 (Two-Factor Authentication) session timeout
+    # Controls how long users can access sensitive operations after 2FA
+    # Industry standards: 15m (banking), 1h (healthcare), 4h (enterprise), 8h (workday)
+    # Can be overridden via AAL2_SESSION_TIMEOUT environment variable
+    aal2_session_timeout: "8h"
+
+  # Message-level PII Protection
+  # Protects sensitive data in chat messages sent to external AI services by serializing
+  # PII into tokens (e.g., $Person1_email_a3f5) before transmission, then deserializing responses.
+  #
+  # NOTE: This is separate from Honey Jar document PII (which uses database storage).
+  #       This cache is for ephemeral chat message protection only.
+  message_pii_protection:
+    enabled: true
+
+    # Serialization settings
+    serialization:
+      enabled: true
+      redis_db: 3  # Dedicated Redis DB for PII cache (separate from sessions/queues)
+      token_format: "${EntityType}{Instance}_{PIIType}_hash"
+
+      # Cache TTL management
+      # These settings control how long PII mappings are cached in Redis
+      cache_ttl:
+        # Default TTL for successful chat completions (no errors)
+        # Recommendation: Keep short (3-5 min) to minimize memory usage
+        # Shorter = more aggressive cleanup, lower memory
+        # Longer = better for slow LLM responses, uses more memory
+        default: 300  # 5 minutes
+
+        # Extended TTL when errors occur (for debugging/retry)
+        # Allows users to retry failed requests without cache miss
+        # Recommendation: 1-2 hours for troubleshooting
+        on_error: 3600  # 1 hour
+
+        # Maximum conversations cached per user (prevents runaway growth)
+        # ADJUST FOR BUSY ENVIRONMENTS:
+        # - Light load (<100 users): 50 is plenty
+        # - Medium load (100-1000 users): Increase to 100
+        # - Heavy load (1000+ users): Increase to 200+
+        max_per_user: 50
+
+        # Global memory limit for all cached PII mappings (in megabytes)
+        # CAPACITY GUIDE:
+        #   50MB  = ~1,000-10,000 conversations (depending on Honey Jar context)
+        #   100MB = ~2,000-20,000 conversations (recommended for busy environments)
+        #   200MB = ~4,000-40,000 conversations (enterprise/high-traffic)
+        #
+        # WHEN TO INCREASE:
+        #   - Seeing "PII_CACHE_MISS" errors frequently
+        #   - High concurrent chat volume (100+ simultaneous conversations)
+        #   - Long-running conversations with Honey Jar context
+        #   - Extended TTLs (>10 minutes)
+        #
+        # MEMORY IMPACT:
+        #   - 50MB  = 0.08% of 64GB RAM (negligible)
+        #   - 100MB = 0.15% of 64GB RAM (still negligible)
+        #   - 200MB = 0.3%  of 64GB RAM (acceptable)
+        #
+        # NOTE: This is ONLY for ephemeral chat serialization, NOT Honey Jar PII
+        #       (which uses database storage separately)
+        max_total_size_mb: 50
+
+      # Cleanup strategy
+      cleanup:
+        strategy: "lru"  # Least Recently Used - evicts oldest non-error caches first
+        run_interval: 300  # Check every 5 minutes for cleanup opportunities
+        force_cleanup_threshold: 0.9  # Trigger cleanup at 90% of max_total_size_mb (45MB)
+
+    # Mode-specific settings
+    # Different protection levels for local vs external AI processing
+    modes:
+      # Local Ollama - minimal/relaxed protection
+      # Use this mode when AI processing stays on your appliance (no data leaves network)
+      local:
+        applies_to:
+          - "ollama_local"  # Local Ollama instance
+        protection_level: "minimal"
+        enabled: false  # Disabled by default (data doesn't leave appliance)
+
+        # Only protect high-risk PII types in local mode
+        # Enable this mode if you want extra paranoia even for local processing
+        pii_types:
+          - "ssn"
+          - "credit_card"
+          - "bank_account"
+
+      # External AI - strict protection (RECOMMENDED FOR PRODUCTION)
+      # Use this mode when sending data to external AI services (OpenAI, Anthropic, etc.)
+      # Protects ALL PII by serializing before transmission
+      external:
+        applies_to:
+          - "openai"           # OpenAI GPT-4, etc.
+          - "anthropic"        # Claude
+          - "external_ollama"  # Ollama running outside your network
+        protection_level: "strict"
+        enabled: true  # Enabled by default - STRONGLY RECOMMENDED
+
+        # All PII types detected and serialized in external mode
+        # Remove items from this list to reduce protection (not recommended)
+        # Add custom PII types as needed for your organization
+        pii_types:
+          - "person_name"      # Names of individuals
+          - "email"            # Email addresses
+          - "phone"            # Phone numbers
+          - "ssn"              # Social Security Numbers
+          - "credit_card"      # Credit card numbers
+          - "bank_account"     # Bank account numbers
+          - "address"          # Physical addresses
+          - "ip_address"       # IP addresses
+          - "medical_record"   # Medical record numbers (HIPAA)
+          - "account_number"   # Account identifiers
+          - "date_of_birth"    # Birth dates
+
+    # Audit and compliance logging
+    # All PII events are logged for compliance and troubleshooting (without exposing actual PII)
+    audit:
+      # Log when PII is serialized (message sent to external AI)
+      # Logs: conversation_id, pii_count, mode, ttl (NO actual PII values)
+      log_serialization_events: true
+
+      # Log when responses are deserialized (PII restored for user)
+      # Logs: conversation_id, token_count (NO actual PII values)
+      log_deserialization_events: true
+
+      # Log every cache operation (get, set, delete)
+      # WARNING: Very verbose - only enable for debugging
+      log_cache_operations: false
+
+      # Include token->value mappings in logs
+      # SECURITY RISK: Exposes actual PII in logs - NEVER enable in production
+      include_token_mappings: false
+
+      # How long to retain audit logs (days)
+      # Recommendation: 90 days for compliance, 365 for regulated industries
+      retention_days: 90
+
+    # Performance tuning
+    # Advanced settings for optimizing PII middleware performance
+    performance:
+      # Serialize PII asynchronously (don't block chat request)
+      # Keep enabled unless debugging serialization issues
+      async_serialization: true
+
+      # Deserialize multiple tokens in batch (faster than one-by-one)
+      # Keep enabled for better performance
+      batch_deserialize: true
+
+      # Pre-warm cache with common PII patterns (experimental)
+      # Disable for now - may be useful in future for frequently used patterns
+      cache_warming: false
+
+          access_token_validity: 3600      # 1 hour
+      # Vault-related settings
+      vault_path: "sting/supertokens"
+      webauthn:
+        enabled: true
+        rp_id: "${HOSTNAME:-localhost}"
+        rp_name: "STING"
+        rp_origins:
+          - "https://localhost:8443"
+          - "https://${HOSTNAME:-your-production-domain.com}"
+
+# Frontend Configuration
+frontend:
+  react:
+    port: 8443
+    api_url: "http://localhost:5050"
+  
+  # Theme Configuration
+  theme:
+    # Default theme for all users (can be overridden by user preference)
+    # Options: modern-lite, minimal-performance, retro, retro-performance
+    default: "modern-lite"
+    # Allow users to change their theme
+    user_selectable: true
+    # Force all users to use the default theme (ignores user preferences)
+    force_default: false
+  
+  # Development-specific settings
+  development:
+    hot_reload: true
+    debug_tools: true
+
+# Email Configuration
+email_service:
+  # Email mode: development or production
+  mode: "${EMAIL_MODE:-development}"
+  
+  # Development settings (uses mailpit email catcher)
+  development:
+    provider: "mailpit"
+    host: "mailpit"
+    port: 1025
+    tls_enabled: false
+    # Mailpit catches all emails - no auth needed
+    
+  # Production settings (external SMTP/email service)
+  production:
+    provider: "${EMAIL_PROVIDER:-smtp}"  # smtp, sendgrid, ses, etc.
+    smtp:
+      host: "${SMTP_HOST}"
+      port: "${SMTP_PORT:-587}"
+      username: "${SMTP_USERNAME}"
+      password: "${SMTP_PASSWORD}"
+      from_address: "${SMTP_FROM:-noreply@yourdomain.com}"
+      from_name: "${SMTP_FROM_NAME:-STING Platform}"
+      # TLS/SSL settings
+      tls_enabled: "${SMTP_TLS_ENABLED:-true}"
+      starttls_enabled: "${SMTP_STARTTLS_ENABLED:-true}"
+      # Additional settings for specific providers
+      # For Gmail: Use app-specific password
+      # For SendGrid: Use API key as password
+      # For AWS SES: Configure IAM credentials
+
+# Profile Service Configuration
+profile_service:
+  enabled: true
+  port: 8092
+  max_file_size: 52428800  # 50MB in bytes
+  allowed_image_types:
+    - "image/jpeg"
+    - "image/png"
+    - "image/webp"
+  image_processing:
+    max_width: 1024
+    max_height: 1024
+    quality: 85
+  features:
+    profile_pictures: true
+    profile_extensions: true
+    activity_logging: true
+    search: true
+  privacy:
+    default_visibility: "private"
+    allow_public_profiles: true
+
+# Docker Configuration
+docker:
+  network: sting_local
+  registry:
+    host: ""  # Leave empty for automatic detection
+    port: "5000"
+
+# Backup Configuration
+backup:
+  enabled: true
+  default_directory: /opt/sting-backups
+  compression_level: 5
+  retention_count: 5
+  exclude_patterns:
+    - "*.tmp"
+    - "*.log"
+    - "node_modules"
+    - "venv"
+    - ".git"
+
+# Storage Configuration
+storage:
+  volumes:
+    - name: postgres_data
+      mount: /var/lib/postgres/data
+    - name: sting_supertokens_data
+      mount: /data
+    - name: vault_data
+      mount: /vault/file
+  init_scripts:
+    - source: ./conf/init_db.sql
+      target: /docker-entrypoint-initdb.d/init.sql
+
+# Monitoring and Health Checks
+monitoring:
+  health_checks:
+    enabled: true
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 40s
+  logging:
+    level: INFO
+    max_size: 100M
+    max_files: 5
+  
+  # Observability Stack - Enterprise Log Management and Monitoring
+  observability:
+    enabled: false  # Set to true to enable Grafana/Loki/Promtail stack
+    
+    # Grafana Dashboard Configuration
+    grafana:
+      enabled: false
+      port: 3000
+      admin_user: "${GRAFANA_ADMIN_USER:-admin}"
+      admin_password: "${GRAFANA_ADMIN_PASSWORD}"  # Generated and stored in Vault
+      secret_key: "${GRAFANA_SECRET_KEY}"          # Generated and stored in Vault
+      
+      # Security settings for enterprise deployment
+      security:
+        allow_embedding: false
+        cookie_secure: true
+        cookie_samesite: strict
+        strict_transport_security: true
+        
+      # Data source configuration  
+      datasources:
+        loki:
+          url: "http://loki:3100"
+          timeout: 60s
+          max_lines: 1000
+          
+      # Dashboard provisioning
+      dashboards:
+        sting_system_overview: true
+        sting_authentication_audit: true
+        sting_knowledge_service_metrics: true
+        sting_pii_compliance_dashboard: true
+        
+    # Loki Log Aggregation
+    loki:
+      enabled: false
+      port: 3100
+      
+      # Storage configuration
+      storage:
+        type: filesystem  # Options: filesystem, s3, gcs
+        retention_period: 168h  # 7 days default
+        compaction_interval: 10m
+        
+      # Performance settings
+      limits:
+        max_line_size: 256KB
+        max_streams_per_user: 5000
+        ingestion_rate_mb: 4
+        ingestion_burst_size_mb: 6
+        
+      # Security and privacy
+      auth_enabled: false  # Set to true for multi-tenant
+      sanitization:
+        enabled: true
+        vault_references: true  # Replace secrets with Vault refs
+        
+    # Promtail Log Collection
+    promtail:
+      enabled: false
+      port: 9080
+      
+      # Log collection targets
+      targets:
+        sting_app: true
+        kratos_auth: true
+        knowledge_service: true
+        chatbot_bee: true
+        database_logs: true
+        container_logs: true
+        
+      # Vault-aware sanitization pipeline
+      sanitization:
+        enabled: true
+        
+        # PII protection patterns
+        pii_patterns:
+          email_addresses: true
+          phone_numbers: true
+          ssn_patterns: true
+          credit_cards: true
+          
+        # Authentication data protection
+        auth_patterns:
+          passwords: true
+          session_tokens: true
+          csrf_tokens: true
+          bearer_tokens: true
+          api_keys: true
+          
+        # Database query sanitization
+        database_patterns:
+          query_values: true
+          connection_strings: true
+          parameter_values: true
+          
+        # Vault reference replacement
+        vault_integration:
+          enabled: true
+          reference_format: "<VAULT_REF:sting/data/{category}/{field}>"
+          categories:
+            - secrets
+            - auth
+            - pii
+            - db
+            - conversations
+            
+    # Log forwarding configuration for external systems
+    log_forwarding:
+      enabled: false
+      
+      # External SIEM/log management systems
+      targets:
+        - name: "enterprise_siem"
+          enabled: false
+          type: "syslog"  # Options: syslog, kafka, http, s3
+          endpoint: "${LOG_FORWARD_SIEM_ENDPOINT}"
+          format: "json"
+          filters:
+            - service: "app"
+              level: "ERROR"
+            - service: "kratos"
+              level: "WARN"
+              
+        - name: "compliance_archive"
+          enabled: false
+          type: "s3"
+          endpoint: "${LOG_FORWARD_S3_BUCKET}"
+          retention: "2555d"  # 7 years for compliance
+          encryption: true
+          filters:
+            - pattern: "PII_DETECTED"
+            - pattern: "AUTH_FAILURE"
+            - pattern: "PRIVILEGE_ESCALATION"
+            
+    # Alerting configuration
+    alerting:
+      enabled: false
+      
+      # Alert channels
+      channels:
+        - name: "security_team"
+          type: "webhook"
+          url: "${SECURITY_ALERT_WEBHOOK}"
+          
+        - name: "ops_team"  
+          type: "email"
+          recipients:
+            - "${OPS_TEAM_EMAIL}"
+            
+      # Alert rules
+      rules:
+        - name: "authentication_failures"
+          query: 'rate(kratos_login_failed[5m]) > 10'
+          severity: "warning"
+          channels: ["security_team"]
+          
+        - name: "pii_detection_spike"
+          query: 'increase(pii_detected_total[1h]) > 100'
+          severity: "critical"
+          channels: ["security_team", "ops_team"]
+          
+        - name: "service_down"
+          query: 'up{job=~"sting-.*"} == 0'
+          severity: "critical"
+          channels: ["ops_team"]
+
+# PII Detection and Retention Configuration
+pii_detection:
+  enabled: true
+  
+  # Core detection settings
+  detection:
+    default_mode: "general"  # Options: general, medical, legal, financial
+    confidence_threshold: 0.85  # Minimum confidence for PII detection (0.0-1.0)
+    auto_detect_context: true   # Automatically determine document type
+    include_context: true       # Include surrounding text in results
+    max_context_length: 200     # Characters of context to include
+  
+  # PII audit logging and serialization
+  audit_logging:
+    enabled: true
+    log_level: "INFO"          # DEBUG, INFO, WARN, ERROR
+    include_original_values: false  # For debugging only - security risk if true
+    retention_days: 2555       # How long to keep audit logs (7 years default)
+    
+  # PII data serialization and storage
+  serialization:
+    enabled: true
+    storage_backend: "database"  # Options: database, vault, file
+    encryption_enabled: true
+    compression_enabled: true
+    batch_size: 1000           # Records to process in batch
+    
+  # Compliance framework retention periods (in days)
+  retention:
+    # Default retention if no specific framework applies
+    default_retention_days: 1095  # 3 years
+    
+    # Enable automatic deletion when retention expires
+    auto_deletion_enabled: true
+    
+    # Grace period before deletion (for business continuity)
+    deletion_grace_period_days: 30
+    
+    # Compliance framework specific settings
+    frameworks:
+      hipaa:
+        enabled: true
+        default_retention_days: 2555  # 7 years
+        immediate_deletion_on_request: false
+        pii_specific_retention:
+          medical_record_number: 2555
+          patient_id: 2555
+          prescription_info: 1825     # 5 years (DEA requirement)
+          lab_result: 1825           
+          dea_number: 1825
+          npi_number: 2555
+          medicare_id: 2555
+          
+      gdpr:
+        enabled: true
+        default_retention_days: 1095  # 3 years
+        immediate_deletion_on_request: true  # Right to erasure
+        deletion_response_days: 30    # Max response time for deletion requests
+        pii_specific_retention:
+          person_name: 2190           # 6 years (employment context)
+          email_address: 1095
+          phone_number: 1095
+          physical_address: 1095
+          social_security_number: 2190
+          
+      pci_dss:
+        enabled: true
+        default_retention_days: 365   # 1 year
+        immediate_deletion_preferred: true
+        pii_specific_retention:
+          credit_card: 0              # Immediate deletion after auth
+          bank_account: 365           # 1 year for audit logs
+          routing_number: 365
+          
+      attorney_client:
+        enabled: true
+        default_retention_days: 3650  # 10 years
+        legal_hold_prevention: true   # Prevent deletion during legal hold
+        pii_specific_retention:
+          case_number: 3650
+          settlement_amount: 3650
+          contract_id: 3650
+          trust_account: 2555         # 7 years
+          bar_number: 3650
+          court_docket: 3650
+          
+      ccpa:
+        enabled: true
+        default_retention_days: 730   # 2 years
+        consumer_request_retention: 730  # Keep deletion requests for 2 years
+        immediate_deletion_on_request: true
+        
+      ferpa:
+        enabled: false  # Enable for educational institutions
+        default_retention_days: 1825  # 5 years
+        pii_specific_retention:
+          student_id: 1825
+          educational_record: 1825
+          
+  # Risk-based processing
+  risk_management:
+    # High risk PII gets shortest applicable retention
+    high_risk_types:
+      - "social_security_number"
+      - "credit_card"
+      - "bank_account"
+      - "medical_record_number"
+      - "settlement_amount"
+    
+    # Immediate notification for high risk detections
+    high_risk_notifications:
+      enabled: true
+      notification_methods: ["webhook", "email"]
+      
+  # Performance and scaling
+  processing:
+    # Queue-based processing for large datasets
+    queue_enabled: true
+    redis_url: "redis://redis:6379/2"  # Dedicated DB for PII processing
+    worker_count: 3
+    batch_processing_enabled: true
+    max_batch_size: 5000
+    
+  # Integration settings
+  integration:
+    # Automatically scan honey jar uploads
+    honey_jar_integration: true
+    
+    # Send PII detection results to Bee for context awareness
+    bee_integration: true
+    
+    # Webhook endpoints for PII detection events
+    webhooks:
+      enabled: false
+      endpoints:
+        - url: ""  # Set your webhook URL
+          events: ["high_risk_detected", "retention_expired"]
+          secret: ""  # Webhook secret for verification
+
+# Kratos Authentication Configuration
+kratos:
+  public_url: "https://localhost:4433"
+  admin_url: "https://localhost:4434"
+  cookie_domain: "localhost"
+  # Session secret will be generated via vault or env
+  # SESSION_SECRET can be set in your environment
+  
+  # Self-service flow settings
+  selfservice:
+    default_return_url: "https://localhost:8443"
+    login:
+      ui_url: "https://localhost:8443/login"
+      lifespan: "1h"
+    registration:
+      ui_url: "https://localhost:8443/register"
+      lifespan: "1h"
+  
+  # Authentication methods
+  methods:
+    password:
+      enabled: true
+    webauthn:
+      enabled: true
+      rp_id: "localhost"
+      display_name: "STING Authentication"
+      origin: "https://localhost:8443"
+    oidc:
+      enabled: false
+      providers:
+        - id: "google"
+          provider: "google"
+          client_id: ""
+          client_secret: ""
+          scopes:
+            - "openid"
+            - "profile"
+            - "email"
+        - id: "github"
+          provider: "github"
+          client_id: ""
+          client_secret: ""
+          scopes:
+            - "openid"
+            - "profile"
+            - "email"
+  
+  # Email configuration
+  courier:
+    smtp:
+      connection_uri: "smtp://test:test@mailslurper:1025/?skip_ssl_verify=true"
+
+# LLM Service Configuration
+llm_service:
+  enabled: true
+  # Modern Ollama-based configuration (recommended)
+  ollama:
+    enabled: true
+    endpoint: "http://100.103.191.31:11434/"  # External LM Studio on tailnet (OpenAI-compatible API)
+    default_model: "microsoft/phi-4-mini-reasoning"  # Default model
+    models_to_install:
+      - "phi3:mini"           # Compact and fast model
+      - "deepseek-r1:latest"  # Reasoning model for complex tasks
+    auto_install: true         # Install models during setup
+  # Legacy gateway configuration (for backward compatibility)
+  gateway:
+    port: 8080
+    log_level: INFO
+    timeout: 30
+    max_retries: 3
+  # External AI service for frontend integration
+  external_ai:
+    enabled: true
+    port: 8091
+    ollama_endpoint: "http://100.103.191.31:11434/"
+  default_model: ollama  # Use Ollama for local AI models
+  
+  # Hardware acceleration settings (cross-platform)
+  hardware:
+    device: "auto"  # Auto-detect: MPS > CUDA > CPU
+    precision: "fp16"  # Half precision for faster inference
+    max_memory: "auto"  # Let PyTorch manage memory automatically
+  
+  # Performance profiles for different deployment scenarios
+  performance:
+    # Default profile - auto-detects best settings
+    profile: "auto"  # Options: auto, vm_optimized, gpu_accelerated, cloud, speed_optimized
+    
+    # Speed optimized settings - prioritize fast responses over quality
+    speed_optimized:
+      quantization: "int8"  # Aggressive quantization for speed
+      cpu_threads: "auto"  # Use all available CPU cores
+      batch_size: 1  # Single request optimization
+      max_tokens: 800  # Shorter responses for speed
+      cache_models: true  # Keep models in memory
+      parallel_inference: true  # Enable parallel processing
+      torch_compile: true  # Enable PyTorch 2.0 compilation
+      
+    # VM/Virtual Appliance optimized settings
+    vm_optimized:
+      quantization: "int8"  # Reduce model size by ~75%
+      cpu_threads: "auto"  # Use all available CPU cores
+      batch_size: 1  # Optimize for single requests
+      max_tokens: 512  # Limit response length for speed
+      
+    # GPU accelerated settings  
+    gpu_accelerated:
+      quantization: "none"  # Full precision for best quality
+      batch_size: 4  # Process multiple requests
+      max_tokens: 2048  # Allow longer responses
+      
+    # Cloud deployment settings
+    cloud:
+      quantization: "none"
+      batch_size: 8
+      max_tokens: 4096
+
+  
+  filtering:
+    toxicity:
+      enabled: true
+      threshold: 0.7
+      model: "detoxify"
+    data_leakage:
+      enabled: true
+      sensitive_patterns:
+        - "api_key"
+        - "password"
+        - "secret"
+        - "token"
+        - "internal"
+    content_policy:
+      block_categories:
+        - "hate"
+        - "harassment"
+        - "self-harm"
+        - "sexual"
+        - "violence"
+  
+  routing:
+    default_threshold: 0.6
+    default_model: "phi3"
+  
+  # Model lifecycle management
+  model_lifecycle:
+    # Dynamic loading - models are loaded on-demand, not at startup
+    lazy_loading: true
+    
+    # Idle timeout - unload models after inactivity (in minutes)
+    # Set to 0 to disable auto-unloading (useful for development)
+    # For speed optimization, increase timeout to keep models in memory
+    idle_timeout: 60  # Default: 1 hour (increase for speed, decrease for memory)
+    
+    # Maximum models to keep loaded simultaneously
+    # Increase for speed (if you have enough RAM), decrease for memory efficiency
+    max_loaded_models: 2  # Default: 2 models
+    
+    # Preload models during startup/installation
+    # Enable for faster first responses, disable to save startup time
+    preload_on_startup: false  # Set to true for speed optimization
+    
+    # Development mode - keeps all models loaded
+    development_mode: false  # Set to true for maximum speed in development
+    
+    # Model priority for eviction (lower = higher priority to keep)
+    model_priorities:
+      tinyllama: 1    # Keep small models loaded
+      phi3: 2         # Enterprise chat model - high priority
+      phi2: 3
+      deepseek-1.5b: 4
+      zephyr: 5
+      llama3: 6       # Evict large models first
+  
+  # Task-based model routing
+  task_routing:
+    enabled: true
+    
+    # Define task types and their preferred models
+    task_models:
+      # General conversation - use small efficient model
+      chat:
+        primary: "phi3"
+        fallback: "phi2"
+        
+      # Agent/tool use - use more capable models
+      agent:
+        primary: "deepseek-1.5b"  # DeepSeek is good at reasoning
+        fallback: "llama3"
+        
+      # Analysis tasks - use larger, more capable models
+      analysis:
+        primary: "llama3"
+        fallback: "zephyr"
+        
+      # Code generation - use specialized models
+      coding:
+        primary: "deepseek-1.5b"  # DeepSeek excels at code
+        fallback: "llama3"
+        
+      # Summarization - use efficient models
+      summarization:
+        primary: "phi2"
+        fallback: "tinyllama"
+    
+    # Task detection keywords/patterns
+    task_detection:
+      agent:
+        keywords: ["search", "find", "analyze", "calculate", "compute", "tool", "function"]
+        patterns: ["can you.*for me", "please.*and.*then", "first.*then.*finally"]
+        
+      analysis:
+        keywords: ["analyze", "compare", "evaluate", "assess", "review", "investigate"]
+        patterns: ["what.*think about", "how.*compare", "pros and cons"]
+        
+      coding:
+        keywords: ["code", "program", "script", "function", "class", "debug", "implement"]
+        patterns: ["write.*code", "create.*function", "fix.*bug", "implement.*algorithm"]
+        
+      summarization:
+        keywords: ["summarize", "summary", "brief", "overview", "tldr", "main points"]
+        patterns: ["sum.*up", "give.*overview", "main.*points"]
+
+  huggingface:
+    token: "${HF_TOKEN}"  # Set via environment variable
+    fallback_strategy: "open_models"
+    open_models:
+      default: "zephyr"
+
+# Chatbot Configuration
+chatbot:
+  enabled: true
+  name: "Bee"
+  model: "phi3"  # Default model to use - enterprise-grade with better reasoning
+  context_window: 10  # Number of messages to retain in context
+  default_system_prompt: "You are Bee, a helpful and friendly assistant for the STING platform. Answer user questions clearly and accurately. If you don't know the answer, be honest about it."
+  
+  # Performance settings for chatbot specifically
+  performance:
+    # Enable aggressive caching for faster responses
+    enable_response_cache: true
+    cache_ttl: 300  # Cache responses for 5 minutes
+    
+    # Concurrent request handling
+    max_concurrent_requests: 5
+    request_timeout: 60  # seconds
+    
+    # Response streaming for better perceived performance
+    enable_streaming: true
+    stream_chunk_size: 64
+  
+  # System Intelligence and Context Awareness  
+  intelligence:
+    # Enable enhanced system context awareness
+    enabled: true
+    
+    # Timezone configuration
+    timezone: "${TZ:-UTC}"  # Set TZ environment variable for VM deployments
+    
+    # Context injection settings
+    context_injection:
+      include_datetime: true       # Include current date/time in responses
+      include_timezone: true       # Include timezone information
+      include_environment: true    # Include deployment environment (Docker, VM, etc.)
+      include_services_health: true # Include STING services health status
+      include_aal2_status: false   # Include AAL2 security status (for admin-aware responses)
+      include_performance: true    # Include basic system performance metrics
+    
+    # DateTime formatting
+    datetime_format: "human_friendly"  # Options: ISO8601, human_friendly, unix_timestamp
+    
+    # System awareness features
+    environment_detection: true     # Detect and report system environment
+    platform_awareness: true       # Include platform information (OS, Python version)
+    redis_monitoring: true          # Monitor Redis status (used by AAL2)
+    
+    # Performance and caching
+    context_cache_seconds: 60      # Cache system context for performance
+    enable_context_logging: true   # Log system context gathering for debugging
+    
+    # Context freshness
+    context_refresh_threshold: 30  # Seconds before refreshing cached context
+    
+    # Fallback behavior
+    graceful_degradation: true     # Continue without system context if unavailable
+    minimal_context_on_error: true # Provide basic datetime even if other context fails
+  
+  tools:
+    enabled: true
+    allow_custom: true
+    allowed_tools:
+      - search
+      - summarize
+      - analyze
+  
+  security:
+    require_authentication: true
+    log_conversations: true
+    content_filter_level: "strict"  # strict, moderate, minimal
+  
+  # Conversation management settings
+  conversation:
+    # Token management
+    max_tokens: 4096              # Maximum tokens per conversation context
+    max_messages: 50              # Maximum messages to keep in memory
+    token_buffer_percent: 20      # Reserve 20% of max_tokens for response generation
+    
+    # Persistence
+    persistence_enabled: true     # Enable database persistence for conversations
+    session_timeout_hours: 24     # Hours before a session expires
+    archive_after_days: 30        # Days before conversations are archived
+    cleanup_interval_hours: 1     # How often to run cleanup tasks
+    
+    # Summarization
+    summarization_enabled: true   # Enable automatic summarization of old messages
+    summarize_after_messages: 20  # Summarize after this many messages
+    summary_max_tokens: 200       # Maximum tokens for summary
+    summary_model: "llama3.2:latest"  # Model to use for summarization
+    
+    # Pruning strategy
+    pruning_strategy: "sliding_window"  # Options: sliding_window, importance_based
+    keep_system_messages: true    # Always keep system messages
+    keep_recent_messages: 10      # Always keep this many recent messages
+
+# Nectar Worker - Lightweight AI service for Nectar Bots
+nectar_worker:
+  enabled: true
+
+  # Ollama Configuration
+  ollama:
+    url: "http://100.103.191.31:11434"  # External LM Studio on tailnet (OpenAI-compatible API)
+    default_model: "microsoft/phi-4-mini-reasoning"  # Lightweight reasoning model for Nectar Bots
+    keep_alive: "30m"  # Keep model in memory for 30 minutes
+
+  # Nectar Bot Limits (prevent abuse)
+  limits:
+    max_honey_jars_per_bot: 3      # Maximum Honey Jars per bot
+    max_context_tokens: 2000        # Maximum context tokens from Honey Jars
+    max_concurrent_requests: 10     # Max concurrent chat requests
+    request_timeout: 60             # Request timeout in seconds
+
+  # Performance & Caching
+  performance:
+    honey_jar_cache_size: 100       # Number of Honey Jar searches to cache
+    honey_jar_cache_ttl: 300        # Cache TTL in seconds (5 minutes)
+    bot_config_cache_ttl: 300       # Bot config cache TTL in seconds
+
+  # Security
+  security:
+    require_api_key: true           # Require API key for internal calls
+    validate_bot_access: true       # Validate bot access permissions
+
+  # Logging
+  logging:
+    level: "INFO"
+    log_conversations: true         # Log conversations for analytics
+
+# Knowledge Service Configuration
+knowledge_service:
+  enabled: true
+  port: 8090
+  host: "0.0.0.0"
+  
+  # ChromaDB vector database settings
+  chroma:
+    url: "http://chroma:8000"
+    enabled: true  # Set to false to run in fallback mode
+  
+  # Authentication settings
+  authentication:
+    # Development mode - bypasses authentication checks
+    # WARNING: Only use this for development/testing!
+    development_mode: false
+    
+    # Mock user for development mode
+    development_user:
+      id: "dev-user"
+      email: "dev@sting.local"
+      role: "admin"
+      name:
+        first: "Dev"
+        last: "User"
+    
+    # Kratos integration URLs
+    kratos_public_url: "https://kratos:4433"
+    kratos_admin_url: "https://kratos:4434"
+  
+  # Access control settings
+  access_control:
+    # Default permissions for new honey jars
+    default_permissions:
+      public:
+        read: true
+        write: false
+      private:
+        read: false
+        write: false
+    
+    # Roles that can create honey jars
+    creation_roles:
+      - "admin"
+      - "support"
+      - "moderator"
+      - "editor"
+    
+    # Enable team-based access control
+    team_based_access: true
+    
+    # Enable passkey requirement for sensitive jars
+    passkey_protection:
+      enabled: false  # Set to true when implementing passkey auth
+      sensitivity_levels:
+        - "confidential"
+        - "restricted"
+        - "secret"
+  
+  # Honey jar settings
+  honey_jars:
+    # Maximum number of honey jars per user (0 = unlimited)
+    max_per_user: 0
+    
+    # Maximum document size (in bytes)
+    max_document_size: 52428800  # 50MB
+    
+    # Supported document types
+    allowed_document_types:
+      - "text/plain"
+      - "text/markdown"
+      - "text/html"
+      - "application/pdf"
+      - "application/json"
+      - "application/xml"
+      - "text/csv"
+    
+    # Document processing settings
+    processing:
+      chunk_size: 1000
+      chunk_overlap: 200
+      chunking_strategy: "sentence"  # Options: sentence, paragraph, fixed
+  
+  # Search settings
+  search:
+    # Maximum results per search
+    max_results: 20
+    
+    # Minimum relevance score (0-1)
+    min_relevance_score: 0.3
+    
+    # Enable semantic search (requires ChromaDB)
+    semantic_search: true
+    
+    # Fallback to keyword search if semantic fails
+    keyword_fallback: true
+  
+  # Bee integration settings
+  bee_integration:
+    # Enable honey jar context for Bee chat
+    enabled: true
+    
+    # Maximum context items to include
+    max_context_items: 5
+    
+    # Context relevance threshold
+    context_threshold: 0.5
+  
+  # Audit logging
+  audit:
+    # Enable access logging
+    enabled: true
+    
+    # Log retention days (0 = keep forever)
+    retention_days: 90
+    
+    # Actions to log
+    log_actions:
+      - "create"
+      - "read"
+      - "update"
+      - "delete"
+      - "export"
+      - "search"
+      - "upload"
+
+# Speed Optimization Presets
+# Uncomment and customize these sections for different speed/quality tradeoffs
+
+# For maximum speed (lower quality):
+# speed_preset: "maximum_speed"
+# maximum_speed:
+#   llm_service:
+#     performance:
+#       profile: "speed_optimized"
+#     model_lifecycle:
+#       preload_on_startup: true
+#       development_mode: true
+#       max_loaded_models: 1
+#       idle_timeout: 0  # Never unload
+#   chatbot:
+#     model: "tinyllama"  # Use smallest, fastest model
+#     performance:
+#       enable_response_cache: true
+#       cache_ttl: 600  # Cache for 10 minutes
+
+# For balanced speed/quality (recommended):
+# speed_preset: "balanced"
+# balanced:
+#   llm_service:
+#     performance:
+#       profile: "vm_optimized"
+#     model_lifecycle:
+#       preload_on_startup: true
+#       max_loaded_models: 2
+#       idle_timeout: 120  # 2 hours
+#   chatbot:
+#     model: "phi3"
+#     performance:
+#       enable_response_cache: true
+#       cache_ttl: 300  # Cache for 5 minutes
+
+# For maximum quality (slower):
+# speed_preset: "maximum_quality"
+# maximum_quality:
+#   llm_service:
+#     performance:
+#       profile: "gpu_accelerated"
+#     model_lifecycle:
+#       lazy_loading: false
+#       max_loaded_models: 4
+#   chatbot:
+#     model: "llama3"
+#     performance:
+#       enable_response_cache: false  # Always generate fresh responses
+
+# Honey Reserve Configuration (User Storage Management)
+honey_reserve:
+  enabled: true
+  default_quota: 1073741824  # 1GB per user in bytes
+  
+  # Storage paths
+  storage_paths:
+    primary: "${INSTALL_DIR}/honey-reserve"
+    temp_uploads: "${INSTALL_DIR}/temp-uploads"
+    archives: "${INSTALL_DIR}/archives"
+  
+  # File upload settings
+  file_upload:
+    max_file_size: 104857600  # 100MB
+    allowed_extensions: ["pdf", "docx", "doc", "txt", "md", "json", "csv", "html", "htm", "png", "jpg", "jpeg"]
+    temp_retention_hours: 48
+    rate_limit_per_minute: 10
+    rate_limit_per_hour: 100
+  
+  # Storage lifecycle
+  lifecycle:
+    # Temporary files auto-cleanup
+    temp_cleanup_enabled: true
+    temp_cleanup_schedule: "0 */2 * * *"  # Every 2 hours
+    
+    # Transition timings (in days)
+    active_to_standard_days: 2
+    standard_to_archive_days: 30
+    archive_to_deletion_days: 365
+    
+    # Auto-archival settings
+    auto_archive_enabled: true
+    archive_files_larger_than: 52428800  # 50MB
+  
+  # Quotas and limits
+  quotas:
+    warning_threshold_percent: 90
+    critical_threshold_percent: 95
+    auto_cleanup_at_percent: 100
+    
+    # User-specific quotas (override default)
+    custom_quotas:
+      # admin@sting.local: 5368709120  # 5GB for admin
+  
+  # Maintenance settings
+  maintenance:
+    # Daily maintenance window
+    window_start: "02:00"
+    window_duration_hours: 2
+    
+    # Integrity checks
+    verify_checksums: true
+    check_orphaned_files: true
+    optimize_storage: true
+  
+  # Backup integration
+  backup:
+    include_in_backups: true
+    backup_priority: "high"
+    compress_before_backup: true
+    encryption_enabled: true
+  
+  # Security
+  security:
+    encrypt_at_rest: true
+    encryption_algorithm: "AES-256-GCM"
+    key_derivation: "HKDF-SHA256"
+    audit_all_access: true
+
+# Headscale Support Tunnels - Self-hosted secure access for support
+headscale:
+  enabled: true  # Enable Headscale support tunnels
+  
+  # Server configuration
+  server:
+    port: 8070  # Avoiding 8080 conflict
+    metrics_port: 9090
+    base_domain: "support.sting.local"
+    listen_addr: "0.0.0.0:8070"
+    
+  # Database configuration
+  database:
+    type: "sqlite"
+    path: "/var/lib/headscale/db.sqlite"
+    
+  # Security settings
+  security:
+    ephemeral_node_timeout: "30m"  # Support sessions auto-expire
+    randomize_client_port: true
+    enable_routing: false  # Don't route customer networks
+    
+  # Support session configuration
+  support_sessions:
+    default_duration: "30m"  # Community support duration
+    max_duration: "4h"       # Enterprise support duration  
+    max_concurrent: 5        # Max simultaneous support sessions
+    
+  # DNS and networking
+  dns:
+    magic_dns: true
+    base_domain: "support.sting.local"
+    nameservers:
+      - "1.1.1.1"
+      - "1.0.0.1"
+      
+  # IP ranges for support network
+  ip_ranges:
+    ipv4: "100.64.0.0/10"
+    ipv6: "fd7a:115c:a1e0::/48"
+    
+  # DERP relay configuration
+  derp:
+    enabled: false  # Use public Tailscale DERP servers
+    auto_update: true
+    update_frequency: "24h"
+    
+  # Logging and monitoring
+  logging:
+    level: "info"
+    file: "/var/log/headscale/headscale.log"
+    
+  # Policy file location
+  policy_file: "/etc/headscale/policy.hujson"
