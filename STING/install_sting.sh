@@ -67,8 +67,12 @@ fi
 
 # Source services.sh at global scope (required for service health checks)
 # CRITICAL: Must be sourced here, NOT inside functions, so all functions can access it
+# IMPORTANT: Save SCRIPT_DIR first, as services.sh will overwrite it with lib directory
+STING_ROOT_DIR="$SCRIPT_DIR"
 if [ -f "$LIB_DIR/services.sh" ]; then
   source "$LIB_DIR/services.sh"
+  # Restore SCRIPT_DIR to point to STING root, not lib directory
+  SCRIPT_DIR="$STING_ROOT_DIR"
 else
   log_message "ERROR: services.sh not found - service health checks will fail" "ERROR"
   exit 1
