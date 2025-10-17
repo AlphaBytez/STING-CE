@@ -14,6 +14,31 @@
 
 set -e  # Exit on error
 
+# Detect if running with sudo - bootstrap should NOT run as root
+if [ "$EUID" -eq 0 ] || [ -n "$SUDO_USER" ]; then
+    echo ""
+    echo "⚠️  WARNING: This script should NOT be run with sudo!"
+    echo ""
+    echo "The bootstrap installer will request sudo only when needed"
+    echo "(e.g., to create /opt directory on Linux)."
+    echo ""
+    echo "Running the entire script as root causes file ownership issues."
+    echo ""
+
+    # If we have SUDO_USER, offer to re-run as that user
+    if [ -n "$SUDO_USER" ]; then
+        echo "Detected original user: $SUDO_USER"
+        echo "Re-running installer as $SUDO_USER..."
+        echo ""
+        # Re-execute as the original user
+        exec sudo -u "$SUDO_USER" bash "$0" "$@"
+    else
+        echo "ERROR: Running as root without SUDO_USER set."
+        echo "Please run this script as a regular user without sudo."
+        exit 1
+    fi
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -164,8 +189,10 @@ if [ ! -f "./install_sting.sh" ]; then
     exit 1
 fi
 
-# Make sure installer is executable
+# Make sure installers are executable
 chmod +x ./install_sting.sh
+chmod +x ./STING/install_sting.sh 2>/dev/null || true
+chmod +x ./STING/manage_sting.sh 2>/dev/null || true
 
 # Launch installer
 echo ""

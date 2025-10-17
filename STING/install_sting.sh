@@ -30,8 +30,11 @@ fi
 if [ -f "$LIB_DIR/bootstrap.sh" ]; then
   # Set up minimal environment for bootstrap
   export INSTALL_DIR="${INSTALL_DIR:-$DEFAULT_INSTALL_DIR}"
-  export LOG_DIR="$INSTALL_DIR/logs"
-  mkdir -p "$LOG_DIR"
+
+  # Use temp directory for initial logs to avoid permission issues
+  # The installation.sh will create proper directory with correct permissions
+  export LOG_DIR="/tmp/sting-install-logs-$$"
+  mkdir -p "$LOG_DIR" 2>/dev/null || LOG_DIR="/tmp"
 
   source "$LIB_DIR/bootstrap.sh"
 else
