@@ -371,6 +371,15 @@ if [ "$USE_CLI" = false ]; then
   # Get local IP for display
   LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
 
+  # Detect installation scenario
+  IS_REMOTE=false
+  if [[ "$LOCAL_IP" != "127.0.0.1" ]] && [[ "$LOCAL_IP" != "localhost" ]] && [[ -n "$LOCAL_IP" ]]; then
+    # Check if we're on a VM/remote server (has non-loopback IP)
+    if [[ ! "$LOCAL_IP" =~ ^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.) ]] || command -v systemd-detect-virt &>/dev/null; then
+      IS_REMOTE=true
+    fi
+  fi
+
   log_message ""
   log_message "╔════════════════════════════════════════════════════════════╗"
   log_message "║                                                            ║"
@@ -381,9 +390,22 @@ if [ "$USE_CLI" = false ]; then
   log_message "┌────────────────────────────────────────────────────────────┐"
   log_message "│  📱 OPEN YOUR BROWSER AND NAVIGATE TO:                    │"
   log_message "│                                                            │"
-  log_message "│     🌐  http://$LOCAL_IP:$WIZARD_PORT                       "
-  log_message "│                                                            │"
-  log_message "│     🌐  http://localhost:$WIZARD_PORT                       "
+
+  # Show primary URL based on scenario
+  if [[ "$IS_REMOTE" == "true" ]] || [[ "$LOCAL_IP" =~ ^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.) ]]; then
+    # Remote VM or network installation - show IP as primary
+    log_message "│     🌐  http://$LOCAL_IP:$WIZARD_PORT                       "
+    log_message "│                                                            │"
+    log_message "│     ℹ️  Access from your browser (not from SSH session)   │"
+  else
+    # Local installation - show localhost
+    log_message "│     🌐  http://localhost:$WIZARD_PORT                       "
+    if [[ "$LOCAL_IP" != "localhost" ]] && [[ -n "$LOCAL_IP" ]]; then
+      log_message "│                                                            │"
+      log_message "│     🌐  http://$LOCAL_IP:$WIZARD_PORT (network access)     "
+    fi
+  fi
+
   log_message "│                                                            │"
   log_message "└────────────────────────────────────────────────────────────┘"
   log_message ""

@@ -2951,15 +2951,32 @@ except Exception:
     esac
 }
 
+# Get the appropriate STING URL based on installation environment
+get_sting_url() {
+    local host_ip="${STING_HOST_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
+
+    # Check if it's a network IP (VM/remote server)
+    if [[ "$host_ip" =~ ^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.) ]]; then
+        echo "https://${host_ip}:8443"
+    elif [[ -n "$host_ip" ]] && [[ "$host_ip" != "127.0.0.1" ]] && [[ "$host_ip" != "localhost" ]]; then
+        # Has an IP but not private network - show both
+        echo "https://${host_ip}:8443 or https://localhost:8443"
+    else
+        # Localhost installation
+        echo "https://localhost:8443"
+    fi
+}
+
 # Show notice for existing admin during fresh install
 show_existing_admin_notice() {
+    local sting_url=$(get_sting_url)
     echo ""
     echo "🐝 STING installation completed successfully!"
     echo ""
     echo "✅ Admin user already configured"
     echo ""
     echo "Your existing admin user has been preserved."
-    echo "🔗 Access STING at: https://localhost:8443"
+    echo "🔗 Access STING at: $sting_url"
     echo ""
     echo "🚀 PASSWORDLESS LOGIN: Enter your admin email to receive a login code"
     echo ""
@@ -2970,13 +2987,14 @@ show_existing_admin_notice() {
 
 # Show notice for reinstall with existing admin
 show_reinstall_admin_notice() {
+    local sting_url=$(get_sting_url)
     echo ""
     echo -e "🐝 STING reinstallation completed successfully!"
     echo ""
     echo -e "✅ Your existing admin user has been preserved"
     echo ""
     echo "All your admin settings and credentials remain intact."
-    echo "🔗 Access STING at: https://localhost:8443"
+    echo "🔗 Access STING at: $sting_url"
     echo ""
     echo "🚀 PASSWORDLESS LOGIN: Enter your admin email to receive a login code"
     echo ""
@@ -2987,13 +3005,14 @@ show_reinstall_admin_notice() {
 
 # Show notice for upgrade scenario
 show_upgrade_admin_notice() {
+    local sting_url=$(get_sting_url)
     echo ""
     echo -e "\033[1;33m🐝 STING upgrade completed successfully! \033[0m"
     echo ""
     echo -e "\033[1;32m✅ Your admin user has been preserved during upgrade\033[0m"
     echo ""
     echo "You can continue using your existing credentials."
-    echo "Login at: \033[1;97mhttps://localhost:8443/login\033[0m"
+    echo "Login at: \033[1;97m${sting_url}/login\033[0m"
     echo ""
 }
 
@@ -3083,13 +3102,14 @@ except Exception as e:
     log_message "Creating fresh admin user..."
     create_admin_user_with_verification "admin@sting.local"
     
+    local sting_url=$(get_sting_url)
     echo ""
     echo "🐝 STING installation completed successfully!"
     echo ""
     echo "✅ Admin user recreated successfully"
     echo ""
     echo "Your broken admin user has been replaced with a fresh one."
-    echo "You can log in at: https://localhost:8443/login"
+    echo "You can log in at: ${sting_url}/login"
     echo ""
     echo "The UI will display your admin credentials on first visit."
     echo ""
@@ -3274,7 +3294,8 @@ except Exception as e:
     
     if [[ "$result" == SUCCESS:* ]]; then
         IFS=':' read -r status email identity_id auth_type <<< "$result"
-        
+        local sting_url=$(get_sting_url)
+
         echo ""
         echo -e "\033[1;37m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
         echo -e "\033[1;32m                            🐝 ADMIN USER CREATED                             \033[0m"
@@ -3282,10 +3303,10 @@ except Exception as e:
         echo ""
         echo -e "\033[1;36m📧 Email:      \033[1;97m$email\033[0m"
         echo -e "\033[1;36m🚀 Auth Type:  \033[1;97mPasswordless (Email Code)\033[0m"
-        echo -e "\033[1;36m🔗 Login URL:  \033[1;97mhttps://localhost:8443\033[0m"
+        echo -e "\033[1;36m🔗 Login URL:  \033[1;97m$sting_url\033[0m"
         echo ""
         echo -e "\033[1;33m🔧 NEXT STEPS:\033[0m"
-        echo -e "\033[1;97m   1. Visit https://localhost:8443\033[0m"
+        echo -e "\033[1;97m   1. Visit $sting_url\033[0m"
         echo -e "\033[1;97m   2. Enter your email: $email\033[0m"
         echo -e "\033[1;97m   3. Check your email for the verification link/code\033[0m"
         echo -e "\033[1;97m   4. Complete passwordless login\033[0m"
@@ -3441,7 +3462,8 @@ except Exception as e:
         local email=$(echo "$result" | cut -d: -f2)
         local password=$(echo "$result" | cut -d: -f3)
         local password_file=$(echo "$result" | cut -d: -f4)
-        
+        local sting_url=$(get_sting_url)
+
         echo ""
         echo -e "\033[1;32m✅ Admin user created successfully!\033[0m"
         echo ""
@@ -3449,7 +3471,7 @@ except Exception as e:
         echo -e "\033[1;37m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
         echo -e "\033[1;36m📧 Email:    \033[1;97m$email\033[0m"
         echo -e "\033[1;36m🔑 Password: \033[1;97m$password\033[0m"
-        echo -e "\033[1;36m🔗 Login:    \033[1;97mhttps://localhost:8443/login\033[0m"
+        echo -e "\033[1;36m🔗 Login:    \033[1;97m${sting_url}/login\033[0m"
         echo -e "\033[1;37m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
         echo ""
         log_message "Admin user created: $email" "SUCCESS"
