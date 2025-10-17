@@ -1,7 +1,13 @@
 FROM python:3.10.16-slim
 
 WORKDIR /app
- 
+
+# ========================================
+# NOTE: This is a lightweight gateway/proxy service
+# It routes requests to Ollama/external-ai services
+# No local ML inference - no PyTorch needed
+# ========================================
+
 # Install curl for healthchecks
 RUN apt-get update && \
     apt-get install -y curl ca-certificates && \
@@ -9,12 +15,16 @@ RUN apt-get update && \
 
 # Install dependencies
 COPY requirements.gateway.txt .
-COPY requirements.common.txt .
 
-# Install dependencies with specific version constraints for critical packages
-RUN pip install --no-cache-dir -r requirements.gateway.txt && \
-    pip install --no-cache-dir --upgrade accelerate>=0.23.0 && \
-    pip install --no-cache-dir --upgrade bitsandbytes>=0.41.1
+# Install lightweight dependencies only
+RUN pip install --no-cache-dir -r requirements.gateway.txt
+
+# ========================================
+# REMOVED: ML acceleration libraries (not needed for gateway)
+# These were pulling in CUDA dependencies unnecessarily
+# ========================================
+# RUN pip install --no-cache-dir --upgrade accelerate>=0.23.0
+# RUN pip install --no-cache-dir --upgrade bitsandbytes>=0.41.1
 
 # Create necessary directories
 RUN mkdir -p /app/data/filters

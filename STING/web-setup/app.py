@@ -308,7 +308,18 @@ def format_and_mount_disk(device, mount_point='/data'):
 def index():
     """Main wizard page"""
     state = load_setup_state()
-    return render_template('wizard.html', state=state)
+
+    # Read version from VERSION file
+    version = 'unknown'
+    version_file = os.path.join(STING_SOURCE, 'VERSION')
+    if os.path.exists(version_file):
+        try:
+            with open(version_file, 'r') as f:
+                version = f.read().strip()
+        except Exception:
+            pass
+
+    return render_template('wizard.html', state=state, version=version)
 
 @app.route('/api/state', methods=['GET'])
 def get_state():
@@ -480,7 +491,18 @@ def run_installation_background(install_id, config_data, admin_email):
         with open(STAGED_CONFIG_PATH, 'w') as f:
             yaml.dump(transformed_config, f, default_flow_style=False, sort_keys=False)
 
-        installations[install_id]['log'] = f"✅ Configuration transformed and saved to: {STAGED_CONFIG_PATH}\n"
+        # Read version from VERSION file
+        version = 'unknown'
+        version_file = os.path.join(STING_SOURCE, 'VERSION')
+        if os.path.exists(version_file):
+            try:
+                with open(version_file, 'r') as f:
+                    version = f.read().strip()
+            except Exception:
+                pass
+
+        installations[install_id]['log'] = f"🐝 Installing STING-CE v{version}\n\n"
+        installations[install_id]['log'] += f"✅ Configuration transformed and saved to: {STAGED_CONFIG_PATH}\n"
         installations[install_id]['log'] += f"🤖 LLM endpoint: {config_data.get('llm', {}).get('endpoint', 'N/A')}\n"
         installations[install_id]['log'] += f"🤖 LLM model: {config_data.get('llm', {}).get('model', 'N/A')}\n\n"
 

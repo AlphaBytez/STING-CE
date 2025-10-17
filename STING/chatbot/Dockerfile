@@ -10,12 +10,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY ./llm_service/requirements.common.txt /app/requirements.common.txt
+# NOTE: We no longer install llm_service/requirements.common.txt
+# That file has 10GB+ of PyTorch/CUDA dependencies we don't need
+# The chatbot is just a lightweight proxy to external-ai service
 COPY ./chatbot/requirements.txt /app/requirements.txt
 
-# Install dependencies with error output
-RUN pip install --no-cache-dir -r /app/requirements.common.txt && \
-    pip install --no-cache-dir -r /app/requirements.txt
+# Install lightweight dependencies only
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy application code
 COPY ./chatbot /app/chatbot

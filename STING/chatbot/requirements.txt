@@ -1,30 +1,37 @@
-# Bee Chatbot service requirements
+# Bee Chatbot service requirements - Lightweight proxy to external AI
+# This service does NOT run models locally - it proxies to external-ai service
+
+# Core API framework
 fastapi>=0.95.0
 uvicorn[standard]>=0.22.0
 pydantic>=2.0.0
+
+# HTTP client for external-ai calls
 httpx>=0.24.0
+requests>=2.28.0
+
+# Utilities
 python-dotenv>=1.0.0
 pyyaml>=6.0
-cryptography>=41.0.0
 python-multipart>=0.0.6
 nanoid>=2.0.0
 typing-extensions>=4.8.0
+
+# Database
 asyncpg>=0.29.0
 
-# For LLM integration (existing)
-llama-index>=0.10.0
-llama-index-core>=0.10.0
-# Removed llama-index-llms-llama-cpp due to build issues
-langchain>=0.1.0
-langchain-core>=0.1.0
-
-# Token counting
-tiktoken>=0.5.2
-
-# Redis for adaptive context caching
+# Redis for caching
 redis>=4.5.0
 
-# For future ML/NLP features
+# ========================================
+# REMOVED: Heavy ML dependencies (no longer needed)
+# These were pulling in 10GB+ of CUDA/PyTorch dependencies
+# All LLM inference now happens via external-ai service
+# ========================================
+# llama-index>=0.10.0
+# llama-index-core>=0.10.0
+# langchain>=0.1.0
+# langchain-core>=0.1.0
+# tiktoken>=0.5.2
 # transformers>=4.35.0
 # torch>=2.1.0
-# nltk>=3.8.0

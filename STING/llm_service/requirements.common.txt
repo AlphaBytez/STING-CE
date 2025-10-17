@@ -1,10 +1,19 @@
-# Core ML libraries
-torch>=2.0.0
-transformers>=4.30.0
-accelerate>=0.20.0
-bitsandbytes>=0.41.1
-sentencepiece>=0.1.97
-protobuf>=3.20.0
+# ========================================
+# ARCHIVED: LLM Service Local Inference Requirements
+# ========================================
+# This file is ARCHIVED and not used in production builds
+# STING now uses external-ai service for all LLM inference
+# These dependencies are kept for reference/testing only
+# ========================================
+
+# Core ML libraries - CPU ONLY (no CUDA to avoid 10GB+ downloads)
+# To use GPU version, install manually: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# torch>=2.0.0 --index-url https://download.pytorch.org/whl/cpu
+# transformers>=4.30.0
+# accelerate>=0.20.0
+# bitsandbytes>=0.41.1  # Not available for CPU-only builds
+# sentencepiece>=0.1.97
+# protobuf>=3.20.0
 
 # Server and API
 fastapi>=0.95.0
@@ -16,7 +25,7 @@ tqdm>=4.65.0
 requests>=2.28.0
 python-dotenv>=1.0.0
 
-# Chatbot integration
-llama-index>=0.10.0
-langchain>=0.1.0
+# Chatbot integration (ARCHIVED - now using direct HTTP calls)
+# llama-index>=0.10.0
+# langchain>=0.1.0
 httpx>=0.24.0
