@@ -788,28 +788,64 @@ check_and_install_dependencies() {
     log_message "DEBUG: Skipping Python dependency checks (using containerized approach)"
 
     # Check for python3 (CRITICAL - required for setup wizard)
+    # On macOS, Python should be installed via Homebrew
+    # On Linux, we can install via apt-get/yum
     if ! command -v python3 >/dev/null 2>&1; then
-        critical_deps+=("python3")
-        log_message "python3 not found - CRITICAL for setup wizard" "WARNING"
+        if [[ "$(uname)" == "Darwin" ]]; then
+            log_message "python3 not found on macOS" "ERROR"
+            log_message "Please install Python via Homebrew: brew install python3" "ERROR"
+            return 1
+        else
+            # Linux - can auto-install
+            critical_deps+=("python3")
+            log_message "python3 not found - CRITICAL for setup wizard" "WARNING"
+        fi
     fi
 
     # Check for python3-venv (CRITICAL - required for setup wizard)
     # On Ubuntu 24.10+, need version-specific package (e.g., python3.12-venv)
-    if ! python3 -m venv --help >/dev/null 2>&1; then
-        # Get Python version (e.g., 3.12)
-        local py_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "3")
+    # On macOS, venv is included with Homebrew Python
+    # Note: Test actual venv creation, not just --help
+    local test_venv_dir="/tmp/sting-venv-test-$$"
+    if ! python3 -m venv "$test_venv_dir" >/dev/null 2>&1; then
+        # Clean up failed test venv
+        rm -rf "$test_venv_dir" 2>/dev/null || true
 
-        # Try version-specific package first (for Ubuntu 24.10+)
-        critical_deps+=("python${py_version}-venv")
-        # Also add generic as fallback
-        critical_deps+=("python3-venv")
-        log_message "python3-venv not found - CRITICAL for setup wizard" "WARNING"
+        if [[ "$(uname)" == "Darwin" ]]; then
+            # macOS - venv should be included with Homebrew Python
+            log_message "python3 venv not working on macOS" "ERROR"
+            log_message "Please reinstall Python via Homebrew: brew reinstall python3" "ERROR"
+            return 1
+        else
+            # Linux - need to install venv package
+            # Get Python version (e.g., 3.12)
+            local py_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "3")
+
+            # Note: We add both version-specific and generic packages
+            # On Ubuntu 24.10+: python3.12-venv exists, python3-venv may not
+            # On Ubuntu 20.04/22.04: python3-venv exists, python3.X-venv may not
+            # We'll try version-specific first, then fall back to generic
+            critical_deps+=("python${py_version}-venv")
+            critical_deps+=("python3-venv")
+            log_message "python3-venv not working - CRITICAL for setup wizard" "WARNING"
+            log_message "Will try python${py_version}-venv, then fallback to python3-venv" "INFO"
+        fi
+    else
+        # Clean up successful test venv
+        rm -rf "$test_venv_dir" 2>/dev/null || true
+        log_message "python3-venv is working" "INFO"
     fi
 
     # Check for python3-pip (CRITICAL - required for setup wizard)
     if ! command -v pip3 >/dev/null 2>&1 && ! python3 -m pip --version >/dev/null 2>&1; then
-        critical_deps+=("python3-pip")
-        log_message "python3-pip not found - CRITICAL for setup wizard" "WARNING"
+        if [[ "$(uname)" == "Darwin" ]]; then
+            log_message "pip not found on macOS" "ERROR"
+            log_message "Please reinstall Python via Homebrew: brew reinstall python3" "ERROR"
+            return 1
+        else
+            critical_deps+=("python3-pip")
+            log_message "python3-pip not found - CRITICAL for setup wizard" "WARNING"
+        fi
     fi
 
     # Check for jq (helpful for status checks and JSON parsing, but not critical)
@@ -876,12 +912,50 @@ check_and_install_dependencies() {
                 return 1
             fi
 
-            # Install critical deps - MUST succeed
-            if ! sudo apt-get install -y "${critical_deps[@]}" 2>&1 | tee /tmp/apt-install-critical.log; then
-                log_message "Failed to install CRITICAL dependencies: ${critical_deps[*]}" "ERROR"
-                log_message "Installation cannot continue without these packages" "ERROR"
-                log_message "Check /tmp/apt-install-critical.log for details" "ERROR"
-                return 1
+            # Separate python-venv packages for special handling (they have fallbacks)
+            local venv_deps=()
+            local other_deps=()
+            for dep in "${critical_deps[@]}"; do
+                if [[ "$dep" =~ venv ]]; then
+                    venv_deps+=("$dep")
+                else
+                    other_deps+=("$dep")
+                fi
+            done
+
+            # Install non-venv critical deps first
+            if [ ${#other_deps[@]} -gt 0 ]; then
+                log_message "Installing critical dependencies: ${other_deps[*]}"
+                if ! sudo apt-get install -y "${other_deps[@]}" 2>&1 | tee /tmp/apt-install-critical.log; then
+                    log_message "Failed to install CRITICAL dependencies: ${other_deps[*]}" "ERROR"
+                    log_message "Installation cannot continue without these packages" "ERROR"
+                    log_message "Check /tmp/apt-install-critical.log for details" "ERROR"
+                    return 1
+                fi
+            fi
+
+            # Install venv packages with fallback logic
+            if [ ${#venv_deps[@]} -gt 0 ]; then
+                log_message "Installing Python venv packages with fallback..."
+                local venv_installed=false
+
+                # Try each venv package until one succeeds
+                for venv_pkg in "${venv_deps[@]}"; do
+                    log_message "Trying to install $venv_pkg..."
+                    if sudo apt-get install -y "$venv_pkg" 2>&1 | tee -a /tmp/apt-install-critical.log; then
+                        log_message "$venv_pkg installed successfully" "SUCCESS"
+                        venv_installed=true
+                        break
+                    else
+                        log_message "$venv_pkg not available, trying next option..." "WARNING"
+                    fi
+                done
+
+                if [ "$venv_installed" = false ]; then
+                    log_message "Failed to install any Python venv package" "ERROR"
+                    log_message "Tried: ${venv_deps[*]}" "ERROR"
+                    return 1
+                fi
             fi
 
             # Verify Python is now available if it was in critical deps
