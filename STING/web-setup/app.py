@@ -378,18 +378,42 @@ def run_installation_background(install_id, config_data, admin_email):
                 f"Current STING_SOURCE: {STING_SOURCE}"
             )
 
-        # Set environment variable so installer knows where to find staged config
-        env = os.environ.copy()
-        env['WIZARD_CONFIG_PATH'] = STAGED_CONFIG_PATH
-
-        with open(install_log_file, 'w') as log_file:
-            process = subprocess.Popen(
-                [INSTALLER_SCRIPT, 'install'],
-                stdout=log_file,
-                stderr=subprocess.STDOUT,
-                text=True,
-                env=env
+        # Pre-acquire sudo privileges before installation
+        # This prevents sudo password prompts during installation
+        # (web UI can't handle interactive sudo prompts)
+        try:
+            installations[install_id]['status'] = 'Acquiring sudo privileges...'
+            subprocess.run(['sudo', '-v'], check=True, capture_output=True)
+            installations[install_id]['log'] += "✅ Sudo privileges acquired\n"
+        except subprocess.CalledProcessError:
+            raise RuntimeError(
+                "Failed to acquire sudo privileges.\n"
+                "The STING installer requires sudo access.\n"
+                "Please run the wizard with: sudo python3 app.py\n"
+                "Or use CLI installation instead: ./install_sting.sh --cli"
             )
+
+        # Start sudo keepalive process in background
+        # This refreshes sudo session every 50 seconds during installation
+        sudo_keepalive = subprocess.Popen(
+            ['bash', '-c', 'while true; do sudo -v; sleep 50; done'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+
+        try:
+            # Set environment variable so installer knows where to find staged config
+            env = os.environ.copy()
+            env['WIZARD_CONFIG_PATH'] = STAGED_CONFIG_PATH
+
+            with open(install_log_file, 'w') as log_file:
+                process = subprocess.Popen(
+                    [INSTALLER_SCRIPT, 'install'],
+                    stdout=log_file,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    env=env
+                )
 
             # Monitor installation progress
             while process.poll() is None:
@@ -415,68 +439,76 @@ def run_installation_background(install_id, config_data, admin_email):
 
             returncode = process.wait()
 
-        # Read final log
-        with open(install_log_file, 'r') as f:
-            final_log = f.read()
-            installations[install_id]['log'] = final_log
+            # Read final log
+            with open(install_log_file, 'r') as f:
+                final_log = f.read()
+                installations[install_id]['log'] = final_log
 
-        # Check if installation actually succeeded despite non-zero exit
-        # (e.g., permission warnings that are non-fatal)
-        installation_succeeded = 'STING installation completed successfully' in final_log
+            # Check if installation actually succeeded despite non-zero exit
+            # (e.g., permission warnings that are non-fatal)
+            installation_succeeded = 'STING installation completed successfully' in final_log
 
-        if returncode != 0 and not installation_succeeded:
-            installations[install_id]['completed'] = True
-            installations[install_id]['success'] = False
-            installations[install_id]['error'] = 'Installation script failed'
-            return
-        elif returncode != 0 and installation_succeeded:
-            # Installation succeeded but with warnings
-            installations[install_id]['log'] += '\n\n⚠️  Installation completed with warnings (non-fatal)\n'
+            if returncode != 0 and not installation_succeeded:
+                installations[install_id]['completed'] = True
+                installations[install_id]['success'] = False
+                installations[install_id]['error'] = 'Installation script failed'
+                return
+            elif returncode != 0 and installation_succeeded:
+                # Installation succeeded but with warnings
+                installations[install_id]['log'] += '\n\n⚠️  Installation completed with warnings (non-fatal)\n'
 
-        installations[install_id]['status'] = 'Creating admin account...'
-        installations[install_id]['progress'] = 90
+            installations[install_id]['status'] = 'Creating admin account...'
+            installations[install_id]['progress'] = 90
 
-        # 3. Wait for services to be ready (up to 60 seconds)
-        time.sleep(10)  # Give services time to start
+            # 3. Wait for services to be ready (up to 60 seconds)
+            time.sleep(10)  # Give services time to start
 
-        # 4. Create admin account using create-new-admin.py
-        admin_script = os.path.join(STING_SOURCE, 'scripts/admin/create-new-admin.py')
-        if os.path.exists(admin_script) and admin_email:
-            try:
-                admin_result = subprocess.run(
-                    ['python3', admin_script, '--email', admin_email, '--passwordless'],
-                    capture_output=True,
-                    text=True,
-                    timeout=30
-                )
-                installations[install_id]['log'] += f"\n\n{'='*50}\n"
-                installations[install_id]['log'] += "Creating Admin Account\n"
-                installations[install_id]['log'] += f"{'='*50}\n\n"
-                installations[install_id]['log'] += admin_result.stdout
+            # 4. Create admin account using create-new-admin.py
+            admin_script = os.path.join(STING_SOURCE, 'scripts/admin/create-new-admin.py')
+            if os.path.exists(admin_script) and admin_email:
+                try:
+                    admin_result = subprocess.run(
+                        ['python3', admin_script, '--email', admin_email, '--passwordless'],
+                        capture_output=True,
+                        text=True,
+                        timeout=30
+                    )
+                    installations[install_id]['log'] += f"\n\n{'='*50}\n"
+                    installations[install_id]['log'] += "Creating Admin Account\n"
+                    installations[install_id]['log'] += f"{'='*50}\n\n"
+                    installations[install_id]['log'] += admin_result.stdout
 
-                if admin_result.returncode != 0:
-                    installations[install_id]['log'] += f"\n\nWarning: Admin creation failed: {admin_result.stderr}"
+                    if admin_result.returncode != 0:
+                        installations[install_id]['log'] += f"\n\nWarning: Admin creation failed: {admin_result.stderr}"
+                        installations[install_id]['log'] += f"\nYou can create admin manually: ./manage_sting.sh create admin {admin_email}"
+                except Exception as e:
+                    installations[install_id]['log'] += f"\n\nWarning: Could not create admin: {str(e)}"
                     installations[install_id]['log'] += f"\nYou can create admin manually: ./manage_sting.sh create admin {admin_email}"
-            except Exception as e:
-                installations[install_id]['log'] += f"\n\nWarning: Could not create admin: {str(e)}"
-                installations[install_id]['log'] += f"\nYou can create admin manually: ./manage_sting.sh create admin {admin_email}"
 
-        # 5. Mark setup as complete
-        state = load_setup_state()
-        state['setup_complete'] = True
-        state['setup_date'] = datetime.now().isoformat()
-        save_setup_state(state)
+            # 5. Mark setup as complete
+            state = load_setup_state()
+            state['setup_complete'] = True
+            state['setup_date'] = datetime.now().isoformat()
+            save_setup_state(state)
 
-        # 6. Disable this setup wizard service (production only)
-        if not DEV_MODE:
-            subprocess.run(['systemctl', 'disable', 'sting-setup-wizard'], check=False)
+            # 6. Disable this setup wizard service (production only)
+            if not DEV_MODE:
+                subprocess.run(['systemctl', 'disable', 'sting-setup-wizard'], check=False)
 
-        installations[install_id]['completed'] = True
-        installations[install_id]['success'] = True
-        installations[install_id]['progress'] = 100
-        installations[install_id]['status'] = 'Installation complete!'
-        installations[install_id]['redirect_url'] = 'https://localhost:8443'
-        installations[install_id]['admin_email'] = admin_email
+            installations[install_id]['completed'] = True
+            installations[install_id]['success'] = True
+            installations[install_id]['progress'] = 100
+            installations[install_id]['status'] = 'Installation complete!'
+            installations[install_id]['redirect_url'] = 'https://localhost:8443'
+            installations[install_id]['admin_email'] = admin_email
+
+        finally:
+            # Cleanup: Kill sudo keepalive process
+            try:
+                sudo_keepalive.terminate()
+                sudo_keepalive.wait(timeout=5)
+            except:
+                sudo_keepalive.kill()
 
     except Exception as e:
         installations[install_id]['completed'] = True
