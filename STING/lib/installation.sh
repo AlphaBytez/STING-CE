@@ -2120,13 +2120,8 @@ initialize_sting() {
         source "$script_lib_dir/configuration.sh"
     fi
 
-    if [ -f "$script_lib_dir/services.sh" ]; then
-        source "$script_lib_dir/services.sh"
-    else
-        log_message "ERROR: services.sh not found in $script_lib_dir" "ERROR"
-        log_message "This is required for service health checks" "ERROR"
-        return 1
-    fi
+    # Note: services.sh is sourced globally in install_sting.sh, not here
+    # This ensures all functions (including build_and_start_services) can access wait_for_service
 
     # 1. Create basic directory structure and Docker resources
     if ! prepare_basic_structure; then

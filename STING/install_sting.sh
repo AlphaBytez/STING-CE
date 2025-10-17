@@ -53,16 +53,25 @@ log_message "=========================================="
 if [ -f "$LIB_DIR/installation.sh" ]; then
   log_message "Checking system dependencies..."
   source "$LIB_DIR/installation.sh"
-  
+
   # Check and install system dependencies before proceeding
   if ! check_and_install_dependencies; then
     log_message "Error: Failed to install required system dependencies" "ERROR"
     exit 1
   fi
-  
+
   log_message "System dependencies check completed successfully"
 else
   log_message "Warning: Could not find installation.sh - skipping dependency checks" "WARNING"
+fi
+
+# Source services.sh at global scope (required for service health checks)
+# CRITICAL: Must be sourced here, NOT inside functions, so all functions can access it
+if [ -f "$LIB_DIR/services.sh" ]; then
+  source "$LIB_DIR/services.sh"
+else
+  log_message "ERROR: services.sh not found - service health checks will fail" "ERROR"
+  exit 1
 fi
 
 # Check for CLI install flag
