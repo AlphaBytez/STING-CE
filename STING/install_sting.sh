@@ -248,9 +248,9 @@ if [ "$USE_CLI" = false ]; then
   # Check for existing installation BEFORE starting wizard/keepalive
   log_message "Checking for existing STING installation..." "INFO"
 
-  local has_install_dir=false
-  local has_containers=false
-  local has_volumes=false
+  has_install_dir=false
+  has_containers=false
+  has_volumes=false
 
   if [ -d "/opt/sting-ce" ] && [ -f "/opt/sting-ce/docker-compose.yml" ]; then
     has_install_dir=true
@@ -274,11 +274,11 @@ if [ "$USE_CLI" = false ]; then
       log_message "  • Installation directory exists: /opt/sting-ce" "WARNING"
     fi
     if [ "$has_containers" = true ]; then
-      local container_count=$(docker ps -a --filter "name=sting-ce" --format '{{.Names}}' 2>/dev/null | wc -l)
+      container_count=$(docker ps -a --filter "name=sting-ce" --format '{{.Names}}' 2>/dev/null | wc -l)
       log_message "  • Found $container_count STING container(s)" "WARNING"
     fi
     if [ "$has_volumes" = true ]; then
-      local volume_count=$(docker volume ls --filter "name=sting" --format '{{.Name}}' 2>/dev/null | wc -l)
+      volume_count=$(docker volume ls --filter "name=sting" --format '{{.Name}}' 2>/dev/null | wc -l)
       log_message "  • Found $volume_count STING volume(s)" "WARNING"
     fi
 
@@ -408,9 +408,9 @@ else
   # Check for existing installation BEFORE starting keepalive
   log_message "Checking for existing STING installation..." "INFO"
 
-  local has_install_dir=false
-  local has_containers=false
-  local has_volumes=false
+  has_install_dir=false
+  has_containers=false
+  has_volumes=false
 
   if [ -d "/opt/sting-ce" ] && [ -f "/opt/sting-ce/docker-compose.yml" ]; then
     has_install_dir=true
@@ -434,11 +434,11 @@ else
       log_message "  • Installation directory exists: /opt/sting-ce" "WARNING"
     fi
     if [ "$has_containers" = true ]; then
-      local container_count=$(docker ps -a --filter "name=sting-ce" --format '{{.Names}}' 2>/dev/null | wc -l)
+      container_count=$(docker ps -a --filter "name=sting-ce" --format '{{.Names}}' 2>/dev/null | wc -l)
       log_message "  • Found $container_count STING container(s)" "WARNING"
     fi
     if [ "$has_volumes" = true ]; then
-      local volume_count=$(docker volume ls --filter "name=sting" --format '{{.Name}}' 2>/dev/null | wc -l)
+      volume_count=$(docker volume ls --filter "name=sting" --format '{{.Name}}' 2>/dev/null | wc -l)
       log_message "  • Found $volume_count STING volume(s)" "WARNING"
     fi
 
