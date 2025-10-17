@@ -561,11 +561,12 @@ class ConfigurationManager:
                 ).get("data", {}).get("data", {}).get(key)
                 
                 logger.info(f"Secret read status for {path}: {'[EXISTS]' if secret else '[NOT_FOUND]'}")
-                
+
+                if secret:
                     if all(c in string.ascii_letters + string.digits + "=-" for c in secret):
                         return secret
-                elif secret:
-                    return secret
+                    else:
+                        return secret
                     
             except Exception as e:
                 logger.debug(f"Failed to retrieve secret from Vault: {e}")
@@ -863,9 +864,7 @@ class ConfigurationManager:
             'HEALTH_CHECK_INTERVAL': self.raw_config.get('monitoring', {}).get('health_checks', {}).get('interval', '30s'),
             'HEALTH_CHECK_TIMEOUT': self.raw_config.get('monitoring', {}).get('health_checks', {}).get('timeout', '10s'),
             'HEALTH_CHECK_RETRIES': str(self.raw_config.get('monitoring', {}).get('health_checks', {}).get('retries', 3)),
-            'HEALTH_CHECK_START_PERIOD': self.raw_config.get('monitoring', {}).get('health_checks', {}).get('start_period', '40s'),
-                self.processed_config.get('APP_HOST','your-production-domain.com') + 
-                '}"]'
+            'HEALTH_CHECK_START_PERIOD': self.raw_config.get('monitoring', {}).get('health_checks', {}).get('start_period', '40s')
         })
 
         # Add LLM service specific ENV vars
@@ -1383,17 +1382,7 @@ class ConfigurationManager:
             obs_enabled = str(observability_config.get('enabled', False)).lower()
             
             logger.info(f"Generating observability.env with enabled={obs_enabled}")
-            
-            
-            
-            try:
-                # If the password has problematic characters, regenerate
-            except:
-            
-            try:
-            except:
-            
-            
+
             retention_period = storage_config.get('retention_period', '168h')
             compaction_interval = storage_config.get('compaction_interval', '10m')
             
@@ -1617,12 +1606,14 @@ class ConfigurationManager:
                 try:
                     os.remove(st_file)
                 except Exception as e:
-                    
+                    pass
+
         try:
             with open(no_st_file, 'w') as f:
                 f.write(f"# Created: {datetime.datetime.now().isoformat()}\n")
         except Exception as e:
-            
+            pass
+
         # Debug logging before processing
         logger.info("===== BEFORE ENV GENERATION =====")
         for key in ['POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB', 'HF_TOKEN']:
@@ -1788,8 +1779,6 @@ class ConfigurationManager:
                     os.path.join(self.env_dir, filename)
                 ]
                 for service_env_path in paths:
-                        continue
-                        
                     logger.info(f"Generating {filename} at {service_env_path}")
                     # Ensure directory exists
                     os.makedirs(os.path.dirname(service_env_path), exist_ok=True)
@@ -1951,12 +1940,6 @@ class ConfigurationManager:
             self.process_config()
         
         return {
-                'environment': {
-                    'POSTGRESQL_CONNECTION_URI': self.processed_config['DATABASE_URL'],
-                    'API_KEY': self.processed_config['ST_API_KEY'],
-                    'DASHBOARD_API_KEY': self.processed_config.get('ST_DASHBOARD_API_KEY', ''),
-                }
-            },
             'app': {
                 'environment': {
                     'APP_ENV': self.processed_config['APP_ENV'],
