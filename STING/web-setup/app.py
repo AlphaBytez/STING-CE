@@ -174,12 +174,93 @@ def detect_disks():
         print(f"Error detecting disks: {e}")
         return []
 
+def is_safe_to_format(device):
+    """
+    Check if device is safe to format (not system/boot/mounted disk)
+    Returns: (safe: bool, reason: str)
+    """
+    import re
+
+    # Validate device path format
+    if not re.match(r'^/dev/[a-z]+[0-9]+$', device):
+        return False, "Invalid device path format"
+
+    # Check if device exists
+    if not os.path.exists(device):
+        return False, f"Device {device} does not exist"
+
+    # Get list of safe unmounted disks
+    safe_disks = detect_disks()
+    safe_devices = [d['device'] for d in safe_disks]
+
+    if device not in safe_devices:
+        return False, f"Device {device} is not in the list of safe unmounted disks"
+
+    # Check if currently mounted (race condition protection)
+    try:
+        mount_check = subprocess.run(
+            ['findmnt', '-n', '-o', 'TARGET', device],
+            capture_output=True,
+            text=True
+        )
+        if mount_check.returncode == 0 and mount_check.stdout.strip():
+            return False, f"Device {device} is currently mounted at {mount_check.stdout.strip()}"
+    except:
+        pass
+
+    # Check if it's a system partition (root, boot, swap)
+    try:
+        # Get all critical mount points
+        lsblk_result = subprocess.run(
+            ['lsblk', '-n', '-o', 'NAME,MOUNTPOINT', device],
+            capture_output=True,
+            text=True
+        )
+
+        if lsblk_result.returncode == 0:
+            output = lsblk_result.stdout
+            critical_mounts = ['/', '/boot', '/boot/efi', '[SWAP]', '/home', '/usr', '/var']
+
+            for mount in critical_mounts:
+                if mount in output:
+                    return False, f"Device {device} contains critical mount point: {mount}"
+    except:
+        pass
+
+    # Check if device is part of root disk
+    try:
+        # Get the root device
+        root_result = subprocess.run(
+            ['findmnt', '-n', '-o', 'SOURCE', '/'],
+            capture_output=True,
+            text=True
+        )
+
+        if root_result.returncode == 0:
+            root_device = root_result.stdout.strip()
+            # Extract base device (e.g., /dev/sda1 -> /dev/sda)
+            device_base = re.sub(r'[0-9]+$', '', device)
+            root_base = re.sub(r'[0-9]+$', '', root_device)
+
+            if device_base == root_base:
+                return False, f"Device {device} is on the same disk as root filesystem ({root_device})"
+    except:
+        pass
+
+    return True, "Device is safe to format"
+
+
 def format_and_mount_disk(device, mount_point='/data'):
     """
-    Format disk as ext4 and mount it
+    Format disk as ext4 and mount it (WITH SAFETY CHECKS)
     Returns: (success: bool, message: str)
     """
     try:
+        # CRITICAL: Validate device is safe to format
+        is_safe, reason = is_safe_to_format(device)
+        if not is_safe:
+            return False, f"⛔ SAFETY CHECK FAILED: {reason}"
+
         # Format as ext4
         result = subprocess.run(
             ['mkfs.ext4', '-F', device],
@@ -212,7 +293,7 @@ def format_and_mount_disk(device, mount_point='/data'):
             with open('/etc/fstab', 'a') as f:
                 f.write(f"UUID={uuid} {mount_point} ext4 defaults 0 2\n")
 
-        return True, f"Disk {device} formatted and mounted at {mount_point}"
+        return True, f"✓ Disk {device} formatted and mounted at {mount_point}"
     except Exception as e:
         return False, f"Error: {str(e)}"
 

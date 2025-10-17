@@ -137,8 +137,8 @@
 
             <!-- Step 2: Data Disk -->
             <div class="step-content" data-step="2">
-                <h2 class="text-2xl font-bold text-amber-400 mb-4">💾 Data Disk Configuration</h2>
-                <p class="text-slate-300 mb-6">Attach and configure a separate disk for data storage (where the honey is stored).</p>
+                <h2 class="text-2xl font-bold text-amber-400 mb-4">💾 Data Disk Configuration <span class="text-sm text-slate-400 font-normal">(Optional)</span></h2>
+                <p class="text-slate-300 mb-6">Attach and configure a separate disk for data storage (where the honey is stored). You can skip this step and use the system disk.</p>
 
                 <button onclick="detectDisks()" class="mb-4 bg-amber-400 text-slate-900 font-medium px-4 py-2 rounded-lg hover:bg-amber-500">
                     Detect Disks
@@ -148,10 +148,34 @@
                     <p class="text-slate-300">Click "Detect Disks" to find available disks</p>
                 </div>
 
-                <div class="mt-6 bg-amber-900/20 border border-amber-700 rounded-lg p-4">
-                    <p class="text-sm text-amber-300">
-                        <strong>Warning:</strong> Formatting will erase all data on the selected disk!
-                    </p>
+                <!-- Enhanced Safety Warning -->
+                <div class="mt-6 bg-red-900/30 border-2 border-red-600 rounded-lg p-5">
+                    <div class="flex items-start gap-3">
+                        <div class="text-3xl">⚠️</div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold text-red-400 mb-2">DANGER ZONE - Disk Formatting</h3>
+                            <p class="text-red-300 mb-3">
+                                <strong>Formatting will PERMANENTLY ERASE all data on the selected disk.</strong><br>
+                                This action cannot be undone!
+                            </p>
+
+                            <div class="bg-slate-800/50 rounded p-3 mt-3">
+                                <p class="text-sm font-semibold text-green-400 mb-2">✓ Safety Checks Enabled:</p>
+                                <ul class="text-xs text-slate-300 space-y-1 ml-4">
+                                    <li>✓ System disks (/, /boot, /home) are protected</li>
+                                    <li>✓ Root filesystem disk is blocked</li>
+                                    <li>✓ Currently mounted partitions are blocked</li>
+                                    <li>✓ Swap partitions are protected</li>
+                                    <li>✓ Only unmounted, non-system disks are shown</li>
+                                    <li>✓ Device path validation prevents injection attacks</li>
+                                </ul>
+                            </div>
+
+                            <p class="text-xs text-amber-300 mt-3">
+                                <strong>💡 Tip:</strong> If you're unsure, skip this step. STING will work fine using your system disk for data storage.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
