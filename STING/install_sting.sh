@@ -237,13 +237,13 @@ if [ "$USE_CLI" = false ]; then
   # The wizard will need sudo to install STING when user clicks "Install"
   log_message ""
   log_message "The STING installer requires elevated privileges."
-  log_message "Please enter your sudo password to continue:"
+  log_message "Checking sudo access (you may be prompted for password)..."
   if ! sudo -v; then
     log_message "Error: Unable to obtain sudo privileges" "ERROR"
     log_message "The wizard cannot install STING without sudo access" "ERROR"
     exit 1
   fi
-  log_message "✅ Sudo privileges acquired" "SUCCESS"
+  log_message "✅ Sudo privileges verified" "SUCCESS"
 
   # Kill any existing sudo keepalive processes from previous failed installations
   log_message "Cleaning up any stale sudo keepalive processes..." "INFO"
@@ -319,13 +319,13 @@ else
 
   # Pre-acquire sudo privileges before installation starts
   log_message "Installation requires elevated privileges for system setup..."
-  log_message "Please enter your sudo password to continue:"
+  log_message "Checking sudo access (you may be prompted for password)..."
   if ! sudo -v; then
     log_message "Error: Unable to obtain sudo privileges" "ERROR"
     log_message "Installation cannot proceed without sudo access" "ERROR"
     exit 1
   fi
-  log_message "Sudo privileges acquired successfully" "SUCCESS"
+  log_message "✅ Sudo privileges verified" "SUCCESS"
 
   # Kill any existing sudo keepalive processes from previous failed installations
   log_message "Cleaning up any stale sudo keepalive processes..." "INFO"

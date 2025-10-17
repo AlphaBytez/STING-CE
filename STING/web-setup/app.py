@@ -537,6 +537,50 @@ def run_installation_background(install_id, config_data, admin_email):
                 "Or use CLI installation instead: ./install_sting.sh --cli"
             )
 
+        # Check for existing/partial installation and clean up automatically
+        installations[install_id]['status'] = 'Checking for existing installation...'
+        has_install_dir = os.path.exists(os.path.join(STING_SOURCE, 'docker-compose.yml'))
+
+        container_check = subprocess.run(
+            ['docker', 'ps', '-a', '--filter', 'name=sting-ce', '--format', '{{.Names}}'],
+            capture_output=True, text=True
+        )
+        has_containers = 'sting-ce' in container_check.stdout
+
+        volume_check = subprocess.run(
+            ['docker', 'volume', 'ls', '--filter', 'name=sting', '--format', '{{.Name}}'],
+            capture_output=True, text=True
+        )
+        has_volumes = 'sting' in volume_check.stdout
+
+        if has_install_dir or has_containers or has_volumes:
+            installations[install_id]['log'] += "\n⚠️ EXISTING INSTALLATION DETECTED\n"
+            if has_install_dir:
+                installations[install_id]['log'] += f"  • Installation directory exists\n"
+            if has_containers:
+                container_count = len(container_check.stdout.strip().split('\n'))
+                installations[install_id]['log'] += f"  • Found {container_count} STING container(s)\n"
+            if has_volumes:
+                volume_count = len(volume_check.stdout.strip().split('\n'))
+                installations[install_id]['log'] += f"  • Found {volume_count} STING volume(s)\n"
+
+            installations[install_id]['log'] += "\nAutomatically cleaning up existing installation...\n"
+
+            # Run uninstall --purge
+            uninstall_result = subprocess.run(
+                [os.path.join(STING_SOURCE, 'manage_sting.sh'), 'uninstall', '--purge'],
+                capture_output=True, text=True
+            )
+
+            if uninstall_result.returncode == 0:
+                installations[install_id]['log'] += "✅ Cleanup successful! Continuing with fresh installation...\n\n"
+            else:
+                raise RuntimeError(
+                    f"Failed to clean up existing installation.\n"
+                    f"Error: {uninstall_result.stderr}\n"
+                    f"Please manually run: ./manage_sting.sh uninstall --purge"
+                )
+
         # Kill any stale installation processes and sudo keepalives before starting new one
         try:
             # Kill stale installation processes

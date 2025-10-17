@@ -36,12 +36,85 @@ install_msting() {
     done
     
     log_message "Starting STING installation..."
-    
-    # Check if already installed
+
+    # Check for existing installation (directory, containers, or volumes)
+    local has_install_dir=false
+    local has_containers=false
+    local has_volumes=false
+
     if [ -d "${INSTALL_DIR}" ] && [ -f "${INSTALL_DIR}/docker-compose.yml" ]; then
-        log_message "STING is already installed at ${INSTALL_DIR}"
-        log_message "Use './manage_sting.sh reinstall' to reinstall"
-        return 1
+        has_install_dir=true
+    fi
+
+    if docker ps -a --filter "name=sting-ce" --format '{{.Names}}' 2>/dev/null | grep -q "sting-ce"; then
+        has_containers=true
+    fi
+
+    if docker volume ls --filter "name=sting" --format '{{.Name}}' 2>/dev/null | grep -q "sting"; then
+        has_volumes=true
+    fi
+
+    # If any existing installation artifacts found
+    if [ "$has_install_dir" = true ] || [ "$has_containers" = true ] || [ "$has_volumes" = true ]; then
+        log_message "" "WARNING"
+        log_message "⚠️  EXISTING INSTALLATION DETECTED" "WARNING"
+        log_message "" "WARNING"
+
+        if [ "$has_install_dir" = true ]; then
+            log_message "  • Installation directory exists: ${INSTALL_DIR}" "WARNING"
+        fi
+        if [ "$has_containers" = true ]; then
+            local container_count=$(docker ps -a --filter "name=sting-ce" --format '{{.Names}}' 2>/dev/null | wc -l)
+            log_message "  • Found $container_count STING container(s)" "WARNING"
+        fi
+        if [ "$has_volumes" = true ]; then
+            local volume_count=$(docker volume ls --filter "name=sting" --format '{{.Name}}' 2>/dev/null | wc -l)
+            log_message "  • Found $volume_count STING volume(s)" "WARNING"
+        fi
+
+        log_message "" "WARNING"
+        log_message "An existing or partial installation will prevent the installer from working correctly." "WARNING"
+        log_message "" "WARNING"
+
+        # In non-interactive mode, just fail
+        if [ "${interactive_prompt:-true}" = false ]; then
+            log_message "Use './manage_sting.sh uninstall --purge' to remove the existing installation first" "ERROR"
+            return 1
+        fi
+
+        # Interactive prompt to clean up
+        echo ""
+        echo "Would you like to automatically clean up the existing installation?"
+        echo ""
+        echo "  [1] Yes - Remove everything and start fresh (recommended)"
+        echo "  [2] No  - Exit and let me clean up manually"
+        echo ""
+        read -p "Enter your choice [1-2]: " cleanup_choice
+
+        case "$cleanup_choice" in
+            1|yes|y|Y)
+                log_message "Running automatic cleanup..." "INFO"
+                log_message "Executing: ./manage_sting.sh uninstall --purge" "INFO"
+
+                if "${SCRIPT_DIR}/manage_sting.sh" uninstall --purge; then
+                    log_message "✅ Cleanup successful! Continuing with installation..." "SUCCESS"
+                    sleep 2
+                else
+                    log_message "Cleanup failed. Please manually run: ./manage_sting.sh uninstall --purge" "ERROR"
+                    return 1
+                fi
+                ;;
+            2|no|n|N)
+                log_message "Installation cancelled." "INFO"
+                log_message "To clean up manually, run: ./manage_sting.sh uninstall --purge" "INFO"
+                return 1
+                ;;
+            *)
+                log_message "Invalid choice. Installation cancelled." "ERROR"
+                log_message "To clean up manually, run: ./manage_sting.sh uninstall --purge" "INFO"
+                return 1
+                ;;
+        esac
     fi
     
     # Set fresh install flag for extended timeouts
