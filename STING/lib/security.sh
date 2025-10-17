@@ -411,29 +411,65 @@ wait_for_vault() {
     local delay=5
     
     log_message "Waiting for Vault to initialize..."
-    
-    # First try direct HTTP health check
-    if curl -s "$vault_addr/v1/sys/health" | jq -e '.initialized == true and .sealed == false' > /dev/null 2>&1; then
-        log_message "Vault API is responsive and ready (HTTP check)"
-        
+
+    # First try docker exec vault status (most reliable method)
+    if docker ps | grep -q "sting.*vault" && \
+       docker exec sting-ce-vault vault status 2>/dev/null | grep -q "Initialized.*true"; then
+        log_message "Vault is initialized (verified via docker exec)"
+
         # Set environment variables for Vault
         export VAULT_TOKEN="root"
         export VAULT_ADDR="$vault_addr"
-        
+
+        # Try to apply configuration
+        if docker compose exec -T vault vault secrets list 2>/dev/null | grep -q "^sting/"; then
+            log_message "Vault is already configured with sting/ secrets engine"
+            return 0
+        fi
+
+        log_message "Configuring Vault..."
+        # Enable KV secrets engine
+        docker compose exec -T vault vault secrets enable -path=sting kv-v2 || true
+
+        # Create policy with UI access
+        docker compose exec -T vault vault policy write sting-policy - <<EOF
+path "sting/*" {
+    capabilities = ["create", "read", "update", "delete", "list"]
+}
+path "sys/internal/ui/*" {
+    capabilities = ["read", "list"]
+}
+path "sys/mounts/*" {
+    capabilities = ["read", "list"]
+}
+EOF
+
+        log_message "Vault is fully initialized and configured"
+        return 0
+    fi
+
+    # Fallback: Try HTTP health check
+    if curl -s "$vault_addr/v1/sys/health" | jq -e '.initialized == true and .sealed == false' > /dev/null 2>&1; then
+        log_message "Vault API is responsive and ready (HTTP check)"
+
+        # Set environment variables for Vault
+        export VAULT_TOKEN="root"
+        export VAULT_ADDR="$vault_addr"
+
         # Check if vault container is running
         if docker ps | grep -q vault; then
             log_message "Vault container is running"
-            
+
             # Try to apply configuration
             if docker compose exec -T vault vault secrets list 2>/dev/null | grep -q "^sting/"; then
                 log_message "Vault is already configured with sting/ secrets engine"
                 return 0
             fi
-            
+
             log_message "Configuring Vault..."
             # Enable KV secrets engine
             docker compose exec -T vault vault secrets enable -path=sting kv-v2 || true
-            
+
             # Create policy with UI access
             docker compose exec -T vault vault policy write sting-policy - <<EOF
 path "sting/*" {
@@ -446,7 +482,7 @@ path "sys/mounts/*" {
     capabilities = ["read", "list"]
 }
 EOF
-            
+
             log_message "Vault is fully initialized and configured"
             return 0
         fi
@@ -457,18 +493,18 @@ EOF
         # First check: Vault container status
         if docker ps | grep -q "sting.*vault.*healthy"; then
             log_message "Vault container is healthy according to Docker"
-            
-            # Try direct HTTP health check again
-            if curl -s --max-time 2 "$vault_addr/v1/sys/health" | jq -e '.initialized == true' > /dev/null 2>&1; then
-                log_message "Vault API is responsive - API health check passed"
-                
+
+            # Try docker exec vault status (more reliable than HTTP API)
+            if docker exec sting-ce-vault vault status 2>/dev/null | grep -q "Initialized.*true"; then
+                log_message "Vault is initialized (verified via docker exec)"
+
                 # Set environment variables for Vault
                 export VAULT_TOKEN="root"
                 export VAULT_ADDR="$vault_addr"
-                
+
                 # Configure Vault
                 docker compose exec -T vault vault secrets enable -path=sting kv-v2 2>/dev/null || true
-                
+
                 # Create policy
                 docker compose exec -T vault vault policy write sting-policy - <<EOF
 path "sting/*" {
@@ -481,12 +517,40 @@ path "sys/mounts/*" {
     capabilities = ["read", "list"]
 }
 EOF
-                
+
+                log_message "Vault is fully initialized and configured"
+                return 0
+            fi
+
+            # Fallback: Try HTTP health check
+            if curl -s --max-time 2 "$vault_addr/v1/sys/health" | jq -e '.initialized == true' > /dev/null 2>&1; then
+                log_message "Vault API is responsive - API health check passed"
+
+                # Set environment variables for Vault
+                export VAULT_TOKEN="root"
+                export VAULT_ADDR="$vault_addr"
+
+                # Configure Vault
+                docker compose exec -T vault vault secrets enable -path=sting kv-v2 2>/dev/null || true
+
+                # Create policy
+                docker compose exec -T vault vault policy write sting-policy - <<EOF
+path "sting/*" {
+    capabilities = ["create", "read", "update", "delete", "list"]
+}
+path "sys/internal/ui/*" {
+    capabilities = ["read", "list"]
+}
+path "sys/mounts/*" {
+    capabilities = ["read", "list"]
+}
+EOF
+
                 log_message "Vault is fully initialized and configured"
                 return 0
             fi
         fi
-        
+
         log_message "Waiting for Vault... attempt $attempt/$max_attempts"
         sleep $delay
         attempt=$((attempt + 1))
