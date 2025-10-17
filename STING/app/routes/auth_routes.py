@@ -297,18 +297,46 @@ def get_current_user():
 
 @auth_bp.route('/has-users', methods=['GET'])
 def check_has_users():
-    """Check if any users exist in the system (used for first-time setup)"""
+    """Check if any users exist in the system via Kratos (used for first-time setup)"""
     try:
-        user_count = User.query.count()
-        return jsonify({
-            'has_users': user_count > 0,
-            'user_count': user_count
-        })
+        # Query Kratos Admin API for identities count
+        kratos_admin_url = os.environ.get('KRATOS_ADMIN_URL', 'https://kratos:4434')
+
+        response = requests.get(
+            f"{kratos_admin_url}/admin/identities",
+            params={'page_size': 1},  # We only need to know if at least 1 exists
+            verify=False,  # For self-signed certs in dev
+            timeout=5
+        )
+
+        if response.status_code == 200:
+            identities = response.json()
+            user_count = len(identities)
+            has_users = user_count > 0
+
+            logger.info(f"Kratos identity check: {user_count} identities found")
+
+            return jsonify({
+                'has_users': has_users,
+                'user_count': user_count,
+                'source': 'kratos'
+            })
+        else:
+            logger.warning(f"Failed to query Kratos identities: {response.status_code}")
+            # Fail safe - assume users exist if we can't check
+            return jsonify({
+                'has_users': True,
+                'error': f'Kratos query failed with status {response.status_code}',
+                'source': 'kratos_error'
+            })
+
     except Exception as e:
-        logger.error(f"Error checking user count: {str(e)}")
+        logger.error(f"Error checking Kratos user count: {str(e)}")
+        # Fail safe - assume users exist to prevent blocking legitimate users
         return jsonify({
-            'has_users': True,  # Fail safe - assume users exist
-            'error': 'Failed to check user count'
+            'has_users': True,
+            'error': f'Failed to check user count: {str(e)}',
+            'source': 'exception'
         }), 500
 
 

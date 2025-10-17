@@ -112,21 +112,29 @@ copy_files_to_install_dir() {
     # Return to previous directory
     popd >/dev/null 2>&1 || true
     
-    # Set correct permissions for the destination directory
-    if ! sudo chown -R "$SUDO_USER:$SUDO_USER" "$dest_dir"; then
-        log_message "ERROR: Failed to set permissions on destination directory."
-        return 1
+    # Set correct ownership for the destination directory
+    # Determine the target user (current user if not using sudo, or SUDO_USER if using sudo)
+    local target_user="${SUDO_USER:-$USER}"
+    local target_group=$(id -gn "$target_user" 2>/dev/null || echo "$target_user")
+
+    log_message "Setting ownership to $target_user:$target_group..."
+    if ! sudo chown -R "$target_user:$target_group" "$dest_dir" 2>/dev/null; then
+        log_message "WARNING: Failed to set ownership on destination directory (non-critical)"
     fi
-    
-    # Ensure all shell scripts have execute permissions
+
+    # CRITICAL: Ensure all shell scripts have execute permissions
+    # This must happen AFTER chown to avoid permission stripping
     log_message "Setting execute permissions on shell scripts..."
-    find "$dest_dir" -name "*.sh" -type f -exec sudo chmod +x {} \; || {
-        log_message "WARNING: Some shell scripts may not have execute permissions"
-    }
-    
-    # Specifically ensure manage_sting.sh is executable
+    if ! find "$dest_dir" -name "*.sh" -type f -exec chmod +x {} \; 2>/dev/null; then
+        # Retry with sudo if needed
+        sudo find "$dest_dir" -name "*.sh" -type f -exec chmod +x {} \; || {
+            log_message "WARNING: Some shell scripts may not have execute permissions"
+        }
+    fi
+
+    # Specifically ensure manage_sting.sh is executable (double-check)
     if [ -f "$dest_dir/manage_sting.sh" ]; then
-        sudo chmod +x "$dest_dir/manage_sting.sh" || {
+        chmod +x "$dest_dir/manage_sting.sh" 2>/dev/null || sudo chmod +x "$dest_dir/manage_sting.sh" || {
             log_message "ERROR: Failed to set execute permissions on manage_sting.sh"
             return 1
         }

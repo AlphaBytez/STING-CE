@@ -1506,8 +1506,8 @@ else
     INSTALL_DIR=\"\${INSTALL_DIR:-/opt/sting-ce}\"
 fi
 
-# Call the actual script
-exec \"\$INSTALL_DIR/manage_sting.sh\" \"\$@\"
+# Call the actual script using bash explicitly (doesn't require execute perms)
+exec bash \"\$INSTALL_DIR/manage_sting.sh\" \"\$@\"
 "
     
     # Ensure /usr/local/bin exists

@@ -106,14 +106,32 @@ const EmailFirstLogin = () => {
 
   const checkHasUsers = useCallback(async () => {
     try {
-      const response = await axios.get('/api/auth/has-users');
+      console.log('🔐 Checking if any users exist in the system...');
+      const response = await axios.get('/api/auth/has-users', {
+        headers: { 'Accept': 'application/json' },
+        withCredentials: true,
+        timeout: 5000
+      });
+
       if (response.data) {
-        setHasUsers(response.data.has_users);
-        console.log('🔐 User check:', response.data);
+        const hasUsers = response.data.has_users;
+        setHasUsers(hasUsers);
+
+        console.log('🔐 User check complete:', {
+          has_users: hasUsers,
+          user_count: response.data.user_count,
+          source: response.data.source
+        });
+
+        if (!hasUsers) {
+          console.warn('⚠️ NO USERS FOUND - This appears to be a fresh STING installation!');
+          console.warn('⚠️ Please create an admin user with: sudo msting create admin admin@sting.local');
+        }
       }
     } catch (error) {
-      console.log('🔐 Failed to check user count, assuming users exist');
-      setHasUsers(true);  // Fail-safe: assume users exist
+      console.error('🔐 Failed to check user count:', error.message);
+      console.log('🔐 Assuming users exist to avoid blocking legitimate access');
+      setHasUsers(true);  // Fail-safe: assume users exist to prevent blocking real users
     }
   }, []);
 
