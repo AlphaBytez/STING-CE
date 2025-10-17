@@ -40,7 +40,8 @@ app.secret_key = secrets.token_hex(32)
 
 # Setup paths - use local directory for development
 DEV_MODE = os.environ.get('DEV_MODE', 'true').lower() == 'true'
-SETUP_DIR = './sting-setup-state' if DEV_MODE else '/var/lib/sting-setup'
+# Use /tmp for production to avoid permission issues (wizard runs as regular user)
+SETUP_DIR = './sting-setup-state' if DEV_MODE else '/tmp/sting-setup-state'
 SETUP_STATE_FILE = os.path.join(SETUP_DIR, 'setup-state.json')
 CONFIG_DRAFT_FILE = os.path.join(SETUP_DIR, 'config-draft.yml')
 
