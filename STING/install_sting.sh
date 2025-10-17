@@ -188,11 +188,27 @@ if [ "$USE_CLI" = false ]; then
   log_message "Checking wizard dependencies..."
   if [ ! -d "$WIZARD_DIR/venv" ]; then
     log_message "Creating virtual environment..."
-    python3 -m venv "$WIZARD_DIR/venv"
+    if ! python3 -m venv "$WIZARD_DIR/venv" 2>&1 | tee /tmp/venv-creation.log; then
+      log_message "Error: Failed to create virtual environment" "ERROR"
+      log_message "This usually means python3-venv is not installed" "ERROR"
+      log_message "Install it with: sudo apt-get install python3-venv" "ERROR"
+      exit 1
+    fi
   fi
 
-  log_message "Installing dependencies..."
-  "$WIZARD_DIR/venv/bin/pip" install -q -r "$WIZARD_DIR/requirements.txt"
+  # Verify venv was created successfully
+  if [ ! -f "$WIZARD_DIR/venv/bin/pip" ]; then
+    log_message "Error: Virtual environment creation failed - pip not found" "ERROR"
+    log_message "Check /tmp/venv-creation.log for details" "ERROR"
+    exit 1
+  fi
+
+  log_message "Installing wizard dependencies..."
+  if ! "$WIZARD_DIR/venv/bin/pip" install -q -r "$WIZARD_DIR/requirements.txt" 2>&1 | tee /tmp/pip-install.log; then
+    log_message "Error: Failed to install wizard dependencies" "ERROR"
+    log_message "Check /tmp/pip-install.log for details" "ERROR"
+    exit 1
+  fi
 
   # Get local IP for display
   LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")

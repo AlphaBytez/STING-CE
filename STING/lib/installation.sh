@@ -786,6 +786,24 @@ check_and_install_dependencies() {
     # Note: Python dependencies removed - using utils container for all Python operations
     log_message "DEBUG: Skipping Python dependency checks (using containerized approach)"
 
+    # Check for python3 (required for setup wizard)
+    if ! command -v python3 >/dev/null 2>&1; then
+        missing_deps+=("python3")
+        log_message "python3 not found - required for setup wizard" "INFO"
+    fi
+
+    # Check for python3-venv (required for setup wizard)
+    if ! python3 -m venv --help >/dev/null 2>&1; then
+        missing_deps+=("python3-venv")
+        log_message "python3-venv not found - required for setup wizard" "INFO"
+    fi
+
+    # Check for python3-pip (required for setup wizard)
+    if ! command -v pip3 >/dev/null 2>&1 && ! python3 -m pip --version >/dev/null 2>&1; then
+        missing_deps+=("python3-pip")
+        log_message "python3-pip not found - required for setup wizard" "INFO"
+    fi
+
     # Check for jq (helpful for status checks and JSON parsing, but not critical)
     if ! command -v jq >/dev/null 2>&1; then
         missing_deps+=("jq")
