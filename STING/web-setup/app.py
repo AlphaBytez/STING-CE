@@ -843,6 +843,30 @@ def get_install_log(install_id):
         'admin_email': install_data.get('admin_email')
     })
 
+@app.route('/api/shutdown', methods=['POST'])
+def shutdown_wizard():
+    """Shutdown wizard server gracefully after installation completes"""
+    try:
+        # Shutdown Flask server
+        def shutdown_server():
+            import time
+            time.sleep(1)  # Give response time to be sent
+            os._exit(0)  # Force exit the process
+
+        # Run shutdown in background thread
+        import threading
+        threading.Thread(target=shutdown_server, daemon=True).start()
+
+        return jsonify({
+            'success': True,
+            'message': 'Wizard server shutting down...'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/health')
 def health():
     """Health check endpoint"""

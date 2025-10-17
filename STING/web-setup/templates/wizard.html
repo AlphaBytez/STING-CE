@@ -765,20 +765,49 @@
 
         function showInstallComplete(redirectUrl, adminEmail) {
             const logDiv = document.getElementById('install-log');
+            const logContent = logDiv.textContent || logDiv.innerText;
+
+            // Check for admin creation failures
+            const adminFailed = logContent.includes('Admin creation failed') ||
+                               logContent.includes('Could not create admin');
+
             logDiv.innerHTML += '\n\n' +
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
                 '✅ Installation Complete!\n' +
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
 
             if (redirectUrl) {
-                logDiv.innerHTML +=
-                    '🐝 Admin account created: ' + adminEmail + '\n' +
-                    '🔐 Check your email for the magic link to verify and set up security.\n\n' +
-                    'Redirecting to STING in 5 seconds...\n';
+                if (adminFailed) {
+                    logDiv.innerHTML +=
+                        '⚠️  Admin account creation failed (see logs above).\n' +
+                        '🔧 Create admin manually after launching STING:\n' +
+                        '   sudo msting create admin ' + adminEmail + '\n\n';
+                } else {
+                    logDiv.innerHTML +=
+                        '🐝 Admin account created: ' + adminEmail + '\n' +
+                        '🔐 Check your email for the magic link to verify and set up security.\n\n';
+                }
 
-                setTimeout(() => {
-                    window.location.href = redirectUrl;
-                }, 5000);
+                // Add Launch button to navigation area
+                const nextBtn = document.getElementById('next-btn');
+                nextBtn.textContent = '🚀 Launch STING';
+                nextBtn.style.display = 'block';
+                nextBtn.classList.remove('bg-amber-400', 'hover:bg-amber-500');
+                nextBtn.classList.add('bg-lime-500', 'hover:bg-lime-600', 'font-bold', 'text-lg', 'px-8', 'py-3');
+                nextBtn.onclick = async () => {
+                    // Shutdown wizard server gracefully
+                    nextBtn.disabled = true;
+                    nextBtn.textContent = '🚀 Launching...';
+                    try {
+                        await fetch('/api/shutdown', { method: 'POST' });
+                    } catch (e) {
+                        // Expected - server is shutting down
+                    }
+                    // Wait a moment for server to shutdown, then redirect
+                    setTimeout(() => {
+                        window.location.href = redirectUrl;
+                    }, 1500);
+                };
             } else {
                 logDiv.innerHTML +=
                     '💡 This was a dev mode test - configuration saved but not installed.\n' +

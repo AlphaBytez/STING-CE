@@ -830,6 +830,7 @@ prepull_docker_images() {
         "postgres:16||PostgreSQL"
         "redis:7-alpine||Redis"
         "axllent/mailpit:latest|ghcr.io/axllent/mailpit:latest|Mailpit"
+        "chromadb/chroma:0.5.20||Chroma"
     )
 
     local pull_failed=0
@@ -2215,6 +2216,37 @@ install_ollama_if_enabled() {
     return 0
 }
 
+# Generate env.js files from templates with actual host IP
+generate_env_js_files() {
+    log_message "Generating environment configuration files for frontend..."
+
+    # Get host IP (prioritize STING_HOST_IP, fallback to detected IP)
+    local host_ip="${STING_HOST_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
+
+    # Fallback to localhost if no IP detected
+    if [ -z "$host_ip" ] || [ "$host_ip" = "127.0.0.1" ]; then
+        host_ip="localhost"
+    fi
+
+    log_message "Using host IP for frontend: $host_ip"
+
+    # Generate env.js for frontend build (used during build time)
+    if [ -f "${INSTALL_DIR}/frontend/public/env.js.template" ]; then
+        sed "s/__HOST_IP__/$host_ip/g" "${INSTALL_DIR}/frontend/public/env.js.template" > "${INSTALL_DIR}/frontend/public/env.js"
+        log_message "✅ Generated frontend/public/env.js"
+    else
+        log_message "⚠️ frontend/public/env.js.template not found, skipping" "WARNING"
+    fi
+
+    # Generate env.js for app static files (served by Flask)
+    if [ -f "${INSTALL_DIR}/app/static/env.js.template" ]; then
+        sed "s/__HOST_IP__/$host_ip/g" "${INSTALL_DIR}/app/static/env.js.template" > "${INSTALL_DIR}/app/static/env.js"
+        log_message "✅ Generated app/static/env.js"
+    else
+        log_message "⚠️ app/static/env.js.template not found, skipping" "WARNING"
+    fi
+}
+
 # Master initialization function that orchestrates the entire setup process
 initialize_sting() {
     local source_dir="${SOURCE_DIR:-$(pwd)}"
@@ -2302,8 +2334,11 @@ initialize_sting() {
     
     # 6. Setup complete environment with loaded variables
     setup_environment
-    
-    # 6. Install services
+
+    # 6.5. Generate env.js files for frontend with actual host IP
+    generate_env_js_files
+
+    # 7. Install services
     if ! build_and_start_services "$cache_level"; then
         log_message "Service startup failed during installation!" "ERROR"
         
@@ -2623,14 +2658,6 @@ build_and_start_services() {
         log_message "✅ Vault is already unsealed"
     fi
 
-    # Pre-pull Chroma image BEFORE starting app services (prevents compose startup failure)
-    log_message "Pre-pulling Chroma image (prevents service startup delays)..."
-    if docker pull chromadb/chroma:0.5.20 2>&1 | grep -v "Pulling\|Waiting\|Verifying" | tee -a "$LOG_FILE"; then
-        log_message "✅ Chroma image ready"
-    else
-        log_message "⚠️ Could not pull Chroma image - continuing anyway" "WARNING"
-    fi
-
     # Start Redis before app since app depends on it for session storage
     log_message "Starting Redis..."
     docker compose up -d redis
@@ -2646,30 +2673,6 @@ build_and_start_services() {
     wait_for_service profile-sync-worker || log_message "Profile sync worker service is taking longer to start..." "WARNING"
     
     log_message "Starting knowledge system services..."
-    
-    # Pre-pull Chroma image with retry logic to handle proxy issues
-    log_message "Pulling Chroma image (this may take a moment)..."
-    local chroma_pulled=false
-    local pull_attempts=3
-    for i in $(seq 1 $pull_attempts); do
-        if docker pull chromadb/chroma:latest 2>&1 | tee -a "$LOG_FILE"; then
-            chroma_pulled=true
-            log_message "Successfully pulled Chroma image"
-            break
-        else
-            log_message "Attempt $i/$pull_attempts to pull Chroma image failed"
-            if [ $i -lt $pull_attempts ]; then
-                log_message "Waiting 10 seconds before retry..."
-                sleep 10
-            fi
-        fi
-    done
-    
-    if [ "$chroma_pulled" = false ]; then
-        log_message "WARNING: Could not pull Chroma image. Attempting to start anyway..." "WARNING"
-        # Continue anyway - Docker Compose might succeed with cached layers or different network path
-    fi
-    
     docker compose up -d chroma knowledge public-bee
     
     # Make knowledge system non-critical for installation success
@@ -2979,6 +2982,9 @@ get_sting_url() {
 # Show notice for existing admin during fresh install
 show_existing_admin_notice() {
     local sting_url=$(get_sting_url)
+    local host_ip="${STING_HOST_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
+    local mailpit_url="http://${host_ip:-localhost}:8025"
+
     echo ""
     echo "🐝 STING installation completed successfully!"
     echo ""
@@ -2988,6 +2994,7 @@ show_existing_admin_notice() {
     echo "🔗 Access STING at: $sting_url"
     echo ""
     echo "🚀 PASSWORDLESS LOGIN: Enter your admin email to receive a login code"
+    echo "📧 Check magic links at: $mailpit_url"
     echo ""
     echo "📌 IMPORTANT: If you encounter permission errors with 'msting' commands:"
     echo "   Please run: ./fix_permissions.sh"
@@ -2997,6 +3004,9 @@ show_existing_admin_notice() {
 # Show notice for reinstall with existing admin
 show_reinstall_admin_notice() {
     local sting_url=$(get_sting_url)
+    local host_ip="${STING_HOST_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
+    local mailpit_url="http://${host_ip:-localhost}:8025"
+
     echo ""
     echo -e "🐝 STING reinstallation completed successfully!"
     echo ""
@@ -3006,6 +3016,7 @@ show_reinstall_admin_notice() {
     echo "🔗 Access STING at: $sting_url"
     echo ""
     echo "🚀 PASSWORDLESS LOGIN: Enter your admin email to receive a login code"
+    echo "📧 Check magic links at: $mailpit_url"
     echo ""
     echo "📌 IMPORTANT: If you encounter permission errors with 'msting' commands:"
     echo "   Please run: ./fix_permissions.sh"
@@ -3015,6 +3026,9 @@ show_reinstall_admin_notice() {
 # Show notice for upgrade scenario
 show_upgrade_admin_notice() {
     local sting_url=$(get_sting_url)
+    local host_ip="${STING_HOST_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
+    local mailpit_url="http://${host_ip:-localhost}:8025"
+
     echo ""
     echo -e "\033[1;33m🐝 STING upgrade completed successfully! \033[0m"
     echo ""
@@ -3022,6 +3036,7 @@ show_upgrade_admin_notice() {
     echo ""
     echo "You can continue using your existing credentials."
     echo "Login at: \033[1;97m${sting_url}/login\033[0m"
+    echo "📧 Check magic links at: $mailpit_url"
     echo ""
 }
 
@@ -3110,8 +3125,11 @@ except Exception as e:
     # Now create a fresh admin user
     log_message "Creating fresh admin user..."
     create_admin_user_with_verification "admin@sting.local"
-    
+
     local sting_url=$(get_sting_url)
+    local host_ip="${STING_HOST_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
+    local mailpit_url="http://${host_ip:-localhost}:8025"
+
     echo ""
     echo "🐝 STING installation completed successfully!"
     echo ""
@@ -3119,6 +3137,7 @@ except Exception as e:
     echo ""
     echo "Your broken admin user has been replaced with a fresh one."
     echo "You can log in at: ${sting_url}/login"
+    echo "📧 Check magic links at: $mailpit_url"
     echo ""
     echo "The UI will display your admin credentials on first visit."
     echo ""
@@ -3128,8 +3147,15 @@ except Exception as e:
 }
 
 prompt_admin_setup() {
+    local sting_url=$(get_sting_url)
+    local host_ip="${STING_HOST_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
+    local mailpit_url="http://${host_ip:-localhost}:8025"
+
     echo ""
     echo -e "\033[1;33m🐝 STING installation completed successfully! \033[0m"
+    echo ""
+    echo "🔗 Access STING at: $sting_url"
+    echo "📧 Check magic links at: $mailpit_url"
     echo ""
     echo "📌 IMPORTANT: If you encounter permission errors with 'msting' commands:"
     echo "   Please run: ./fix_permissions.sh"
