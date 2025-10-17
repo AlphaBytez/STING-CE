@@ -781,40 +781,41 @@ check_and_install_dependencies() {
     log_message "Checking system dependencies..."
     
     log_message "DEBUG: Starting dependency checks..."
-    local missing_deps=()
-    
+    local critical_deps=()
+    local optional_deps=()
+
     # Note: Python dependencies removed - using utils container for all Python operations
     log_message "DEBUG: Skipping Python dependency checks (using containerized approach)"
 
-    # Check for python3 (required for setup wizard)
+    # Check for python3 (CRITICAL - required for setup wizard)
     if ! command -v python3 >/dev/null 2>&1; then
-        missing_deps+=("python3")
-        log_message "python3 not found - required for setup wizard" "INFO"
+        critical_deps+=("python3")
+        log_message "python3 not found - CRITICAL for setup wizard" "WARNING"
     fi
 
-    # Check for python3-venv (required for setup wizard)
+    # Check for python3-venv (CRITICAL - required for setup wizard)
     # On Ubuntu 24.10+, need version-specific package (e.g., python3.12-venv)
     if ! python3 -m venv --help >/dev/null 2>&1; then
         # Get Python version (e.g., 3.12)
         local py_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "3")
 
         # Try version-specific package first (for Ubuntu 24.10+)
-        missing_deps+=("python${py_version}-venv")
+        critical_deps+=("python${py_version}-venv")
         # Also add generic as fallback
-        missing_deps+=("python3-venv")
-        log_message "python3-venv not found - will try python${py_version}-venv and python3-venv" "INFO"
+        critical_deps+=("python3-venv")
+        log_message "python3-venv not found - CRITICAL for setup wizard" "WARNING"
     fi
 
-    # Check for python3-pip (required for setup wizard)
+    # Check for python3-pip (CRITICAL - required for setup wizard)
     if ! command -v pip3 >/dev/null 2>&1 && ! python3 -m pip --version >/dev/null 2>&1; then
-        missing_deps+=("python3-pip")
-        log_message "python3-pip not found - required for setup wizard" "INFO"
+        critical_deps+=("python3-pip")
+        log_message "python3-pip not found - CRITICAL for setup wizard" "WARNING"
     fi
 
     # Check for jq (helpful for status checks and JSON parsing, but not critical)
     if ! command -v jq >/dev/null 2>&1; then
-        missing_deps+=("jq")
-        log_message "jq not found - will attempt to install (optional dependency)" "INFO"
+        optional_deps+=("jq")
+        log_message "jq not found - optional dependency" "INFO"
     fi
     
     # Check Docker
@@ -847,9 +848,9 @@ check_and_install_dependencies() {
         return 1
     fi
     
-    # Install missing dependencies
-    if [ ${#missing_deps[@]} -gt 0 ]; then
-        log_message "Installing missing dependencies: ${missing_deps[*]}"
+    # Install CRITICAL dependencies first (fail hard if these don't install)
+    if [ ${#critical_deps[@]} -gt 0 ]; then
+        log_message "Installing CRITICAL dependencies: ${critical_deps[*]}"
 
         if command -v apt-get >/dev/null 2>&1; then
             # Retry apt-get update up to 3 times with backoff
@@ -869,19 +870,51 @@ check_and_install_dependencies() {
             done
 
             if [ "$update_success" = false ]; then
-                log_message "Failed to update package lists after 3 attempts" "WARNING"
-                log_message "Attempting to install dependencies anyway..." "INFO"
+                log_message "Failed to update package lists after 3 attempts" "ERROR"
+                log_message "Cannot proceed without installing critical dependencies" "ERROR"
+                log_message "Please check your network connection and /etc/apt/sources.list" "ERROR"
+                return 1
             fi
 
-            sudo apt-get install -y "${missing_deps[@]}" || {
-                log_message "Failed to install some dependencies: ${missing_deps[*]}" "WARNING"
-                log_message "This may cause issues later. Please install manually if needed." "WARNING"
+            # Install critical deps - MUST succeed
+            if ! sudo apt-get install -y "${critical_deps[@]}" 2>&1 | tee /tmp/apt-install-critical.log; then
+                log_message "Failed to install CRITICAL dependencies: ${critical_deps[*]}" "ERROR"
+                log_message "Installation cannot continue without these packages" "ERROR"
+                log_message "Check /tmp/apt-install-critical.log for details" "ERROR"
+                return 1
+            fi
+
+            # Verify Python is now available if it was in critical deps
+            if [[ " ${critical_deps[*]} " =~ " python3 " ]]; then
+                if ! command -v python3 >/dev/null 2>&1; then
+                    log_message "Python3 installation failed - command not available" "ERROR"
+                    return 1
+                fi
+            fi
+
+            log_message "Critical dependencies installed successfully" "SUCCESS"
+        elif command -v yum >/dev/null 2>&1; then
+            if ! sudo yum install -y "${critical_deps[@]}"; then
+                log_message "Failed to install critical dependencies" "ERROR"
+                return 1
+            fi
+        else
+            log_message "Unable to install dependencies automatically. Please install: ${critical_deps[*]}" "ERROR"
+            return 1
+        fi
+    fi
+
+    # Install OPTIONAL dependencies (non-fatal if these fail)
+    if [ ${#optional_deps[@]} -gt 0 ]; then
+        log_message "Installing optional dependencies: ${optional_deps[*]}"
+
+        if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get install -y "${optional_deps[@]}" 2>&1 | tee /tmp/apt-install-optional.log || {
+                log_message "Failed to install some optional dependencies: ${optional_deps[*]}" "WARNING"
+                log_message "This may limit some functionality but installation will continue" "INFO"
             }
         elif command -v yum >/dev/null 2>&1; then
-            sudo yum install -y "${missing_deps[@]}"
-        else
-            log_message "Unable to install dependencies automatically. Please install: ${missing_deps[*]}" "ERROR"
-            return 1
+            sudo yum install -y "${optional_deps[@]}" || log_message "Optional dependencies installation failed" "WARNING"
         fi
     fi
     
