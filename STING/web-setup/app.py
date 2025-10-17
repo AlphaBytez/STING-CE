@@ -718,7 +718,9 @@ def run_installation_background(install_id, config_data, admin_email):
             time.sleep(10)  # Give services time to start
 
             # 4. Create admin account using create-new-admin.py
-            admin_script = os.path.join(STING_SOURCE, 'scripts/admin/create-new-admin.py')
+            # Use INSTALL_DIR not STING_SOURCE (files are now in /opt/sting-ce after rsync)
+            install_dir = get_install_directory()
+            admin_script = os.path.join(install_dir, 'scripts/admin/create-new-admin.py')
             if os.path.exists(admin_script) and admin_email:
                 try:
                     admin_result = subprocess.run(
@@ -745,16 +747,21 @@ def run_installation_background(install_id, config_data, admin_email):
             state['setup_date'] = datetime.now().isoformat()
             save_setup_state(state)
 
-            # 6. Disable this setup wizard service (production only)
+            # 6. Disable and stop this setup wizard service (production only)
             if not DEV_MODE:
+                # Disable prevents autostart on reboot
                 subprocess.run(['sudo', 'systemctl', 'disable', 'sting-setup-wizard'], check=False)
+                # Stop kills the running service
+                subprocess.run(['sudo', 'systemctl', 'stop', 'sting-setup-wizard'], check=False)
+                installations[install_id]['log'] += "\n✓ Setup wizard service disabled and stopped\n"
 
             installations[install_id]['completed'] = True
             installations[install_id]['success'] = True
             installations[install_id]['progress'] = 100
             installations[install_id]['status'] = 'Installation complete!'
+            # Always set redirect URL even if admin creation failed
             installations[install_id]['redirect_url'] = 'https://localhost:8443'
-            installations[install_id]['admin_email'] = admin_email
+            installations[install_id]['admin_email'] = admin_email if admin_email else ''
 
         finally:
             # Cleanup: Kill installation process if still running
