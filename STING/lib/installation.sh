@@ -773,12 +773,108 @@ verify_installation_health() {
 }
 
 # Check and install system dependencies
+# Check and fix Docker IPv6 connectivity issues
+check_docker_ipv6() {
+    log_message "Checking Docker networking configuration..."
+
+    # Test if Docker can reach registry via IPv6
+    local test_result=$(docker run --rm busybox:latest wget --spider --timeout=5 https://registry-1.docker.io 2>&1)
+
+    if echo "$test_result" | grep -q "network is unreachable\|Connection refused"; then
+        log_message "⚠️  Docker IPv6 connectivity issue detected" "WARNING"
+        log_message "Configuring Docker to use IPv4..." "INFO"
+
+        # Backup existing daemon.json if it exists
+        if [ -f /etc/docker/daemon.json ]; then
+            sudo cp /etc/docker/daemon.json /etc/docker/daemon.json.backup.$(date +%s) 2>/dev/null || true
+            log_message "Existing Docker config backed up"
+        fi
+
+        # Create/update daemon.json to disable IPv6
+        sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+{
+  "ipv6": false,
+  "dns": ["8.8.8.8", "8.8.4.4", "1.1.1.1"]
+}
+EOF
+
+        log_message "Restarting Docker daemon..."
+        sudo systemctl restart docker
+        sleep 3
+
+        # Verify fix
+        if docker run --rm busybox:latest wget --spider --timeout=5 https://registry-1.docker.io >/dev/null 2>&1; then
+            log_message "✅ Docker networking fixed" "SUCCESS"
+        else
+            log_message "⚠️  Docker networking may still have issues, but continuing..." "WARNING"
+        fi
+    else
+        log_message "✅ Docker networking is working correctly" "SUCCESS"
+    fi
+}
+
+# Pre-pull all required Docker images with retry logic
+prepull_docker_images() {
+    log_message "Pre-pulling required Docker images..."
+
+    local images=(
+        "oryd/kratos:v1.3.0"
+        "hashicorp/vault:1.13"
+        "postgres:16"
+        "redis:7-alpine"
+        "axllent/mailpit:latest"
+    )
+
+    local pull_failed=0
+
+    for image in "${images[@]}"; do
+        log_message "Pulling $image..."
+
+        # Try pulling with 3 retries
+        local retries=3
+        local success=false
+
+        for ((i=1; i<=retries; i++)); do
+            if docker pull "$image" >/dev/null 2>&1; then
+                log_message "  ✓ $image" "SUCCESS"
+                success=true
+                break
+            else
+                if [ $i -lt $retries ]; then
+                    log_message "  Retry $i/$retries for $image..." "WARNING"
+                    sleep 2
+                fi
+            fi
+        done
+
+        if [ "$success" = false ]; then
+            log_message "  ✗ Failed to pull $image after $retries attempts" "ERROR"
+            pull_failed=1
+        fi
+    done
+
+    if [ $pull_failed -eq 1 ]; then
+        log_message "Some images failed to pull. Installation may fail." "WARNING"
+        log_message "Check your internet connection and Docker configuration." "WARNING"
+        return 1
+    fi
+
+    log_message "✅ All Docker images pulled successfully" "SUCCESS"
+    return 0
+}
+
 check_and_install_dependencies() {
     log_message "Checking system dependencies..."
-    
+
     log_message "DEBUG: Starting dependency checks..."
     local critical_deps=()
     local optional_deps=()
+
+    # Check and fix Docker IPv6 issues first
+    check_docker_ipv6 || log_message "Docker networking check had warnings, continuing..." "WARNING"
+
+    # Pre-pull Docker images to catch connectivity issues early
+    prepull_docker_images || log_message "Image pre-pull had warnings, continuing..." "WARNING"
 
     # Note: Python dependencies removed - using utils container for all Python operations
     log_message "DEBUG: Skipping Python dependency checks (using containerized approach)"
