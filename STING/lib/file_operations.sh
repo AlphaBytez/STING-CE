@@ -137,6 +137,26 @@ copy_files_to_install_dir() {
     fi
 
     log_message "Files copied successfully."
+
+    # Verify critical directories were copied
+    if [ -d "$source_dir/app/models" ] && [ ! -d "$dest_dir/app/models" ]; then
+        log_message "ERROR: app/models directory was not copied!" "ERROR"
+        log_message "ERROR: Source has models: $source_dir/app/models" "ERROR"
+        log_message "ERROR: Destination missing models: $dest_dir/app/models" "ERROR"
+        return 1
+    fi
+
+    # Verify models/__init__.py exists
+    if [ -f "$source_dir/app/models/__init__.py" ] && [ ! -f "$dest_dir/app/models/__init__.py" ]; then
+        log_message "ERROR: app/models/__init__.py was not copied!" "ERROR"
+        return 1
+    fi
+
+    if [ -d "$dest_dir/app/models" ]; then
+        local model_count=$(find "$dest_dir/app/models" -name "*.py" -type f 2>/dev/null | wc -l)
+        log_message "✓ Verified app/models directory copied ($model_count Python files)"
+    fi
+
     # Ensure the env directory exists (so touch/chmod on vault.env etc. cannot fail)
     mkdir -p "${dest_dir}/env"
     chmod 755 "${dest_dir}/env" || true

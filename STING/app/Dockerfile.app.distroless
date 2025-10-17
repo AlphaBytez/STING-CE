@@ -33,6 +33,23 @@ RUN pip install --upgrade pip && \
 # Copy configuration and test
 COPY conf/ /build/conf/
 
+# Copy app directory for verification
+COPY app/ /build/app/
+
+# Verify models directory exists in build context
+RUN if [ ! -d "/build/app/models" ]; then \
+        echo "ERROR: models directory not found in build context!"; \
+        echo "Contents of /build/app:"; \
+        ls -la /build/app/; \
+        exit 1; \
+    fi && \
+    if [ ! -f "/build/app/models/__init__.py" ]; then \
+        echo "ERROR: models/__init__.py not found!"; \
+        exit 1; \
+    fi && \
+    echo "✓ Verified models directory exists in build context" && \
+    ls -1 /build/app/models/*.py | wc -l
+
 # ==============================================
 # STAGE 2: Distroless Runtime (minimal production image)
 # ==============================================
@@ -41,7 +58,7 @@ FROM gcr.io/distroless/python3-debian12
 # Copy Python packages from builder
 COPY --from=builder /root/.local /root/.local
 
-# Copy STING application code
+# Copy STING application code (including verified models)
 COPY conf/ /opt/sting-ce/conf/
 COPY app/ /opt/sting-ce/app/
 

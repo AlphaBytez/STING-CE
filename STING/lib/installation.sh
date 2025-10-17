@@ -790,11 +790,16 @@ check_docker_ipv6() {
             log_message "Existing Docker config backed up"
         fi
 
-        # Create/update daemon.json to disable IPv6
+        # Create/update daemon.json to disable IPv6 and add registry mirrors
         sudo tee /etc/docker/daemon.json > /dev/null <<EOF
 {
   "ipv6": false,
-  "dns": ["8.8.8.8", "8.8.4.4", "1.1.1.1"]
+  "dns": ["8.8.8.8", "8.8.4.4", "1.1.1.1"],
+  "registry-mirrors": [
+    "https://mirror.gcr.io",
+    "https://dockerhub.azk8s.cn"
+  ],
+  "max-concurrent-downloads": 10
 }
 EOF
 
@@ -813,42 +818,57 @@ EOF
     fi
 }
 
-# Pre-pull all required Docker images with retry logic
+# Pre-pull all required Docker images with retry logic and fallback registries
 prepull_docker_images() {
     log_message "Pre-pulling required Docker images..."
 
+    # Define images with fallback registries
+    # Format: "primary_image|fallback_image|description"
     local images=(
-        "oryd/kratos:v1.3.0"
-        "hashicorp/vault:1.13"
-        "postgres:16"
-        "redis:7-alpine"
-        "axllent/mailpit:latest"
+        "oryd/kratos:v1.3.0|ghcr.io/ory/kratos:v1.3.0|Kratos"
+        "hashicorp/vault:1.13||Vault"
+        "postgres:16||PostgreSQL"
+        "redis:7-alpine||Redis"
+        "axllent/mailpit:latest|ghcr.io/axllent/mailpit:latest|Mailpit"
     )
 
     local pull_failed=0
 
-    for image in "${images[@]}"; do
-        log_message "Pulling $image..."
+    for image_spec in "${images[@]}"; do
+        IFS='|' read -r primary_image fallback_image description <<< "$image_spec"
 
-        # Try pulling with 3 retries
-        local retries=3
+        log_message "Pulling $description ($primary_image)..."
+
+        # Try pulling primary image with 2 retries
+        local retries=2
         local success=false
 
         for ((i=1; i<=retries; i++)); do
-            if docker pull "$image" >/dev/null 2>&1; then
-                log_message "  ✓ $image" "SUCCESS"
+            if docker pull "$primary_image" >/dev/null 2>&1; then
+                log_message "  ✓ $description from primary registry" "SUCCESS"
                 success=true
                 break
             else
                 if [ $i -lt $retries ]; then
-                    log_message "  Retry $i/$retries for $image..." "WARNING"
+                    log_message "  Retry $i/$retries for $primary_image..." "WARNING"
                     sleep 2
                 fi
             fi
         done
 
+        # If primary failed and fallback exists, try fallback
+        if [ "$success" = false ] && [ -n "$fallback_image" ]; then
+            log_message "  Trying fallback registry for $description..." "WARNING"
+            if docker pull "$fallback_image" >/dev/null 2>&1; then
+                # Tag fallback image as primary for docker-compose compatibility
+                docker tag "$fallback_image" "$primary_image" >/dev/null 2>&1
+                log_message "  ✓ $description from fallback registry (tagged as $primary_image)" "SUCCESS"
+                success=true
+            fi
+        fi
+
         if [ "$success" = false ]; then
-            log_message "  ✗ Failed to pull $image after $retries attempts" "ERROR"
+            log_message "  ✗ Failed to pull $description after trying all registries" "ERROR"
             pull_failed=1
         fi
     done
