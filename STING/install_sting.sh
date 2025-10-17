@@ -233,6 +233,46 @@ if [ "$USE_CLI" = false ]; then
     exit 1
   fi
 
+  # Pre-acquire sudo privileges before starting wizard
+  # The wizard will need sudo to install STING when user clicks "Install"
+  log_message ""
+  log_message "The STING installer requires elevated privileges."
+  log_message "Please enter your sudo password to continue:"
+  if ! sudo -v; then
+    log_message "Error: Unable to obtain sudo privileges" "ERROR"
+    log_message "The wizard cannot install STING without sudo access" "ERROR"
+    exit 1
+  fi
+  log_message "✅ Sudo privileges acquired" "SUCCESS"
+
+  # Start sudo keepalive in background to maintain privileges during installation
+  (while true; do sudo -v; sleep 50; done) &
+  SUDO_KEEPALIVE_PID=$!
+
+  # Update cleanup function to kill sudo keepalive
+  cleanup_wizard() {
+    log_message "Cleaning up wizard processes..." "INFO"
+
+    # Kill sudo keepalive
+    if [ -n "$SUDO_KEEPALIVE_PID" ]; then
+      kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+    fi
+
+    # Kill processes using the wizard port
+    if command -v lsof &> /dev/null; then
+      local pids=$(lsof -ti :$WIZARD_PORT 2>/dev/null || true)
+      if [ -n "$pids" ]; then
+        log_message "Killing processes on port $WIZARD_PORT: $pids" "INFO"
+        echo "$pids" | xargs -r kill -9 2>/dev/null || true
+      fi
+    fi
+
+    # Remove PID file
+    rm -f "$WIZARD_PID_FILE"
+
+    log_message "Wizard cleanup complete" "INFO"
+  }
+
   # Get local IP for display
   LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
 
