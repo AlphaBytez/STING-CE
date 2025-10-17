@@ -157,77 +157,50 @@ class OllamaClient:
         self.base_url = base_url
         
     async def check_status(self) -> Dict[str, Any]:
-        """Check if Ollama/LM Studio is running and accessible (supports both APIs)"""
+        """Check if LLM service is running (OpenAI-compatible API standard)"""
         try:
             async with aiohttp.ClientSession() as session:
-                # Try OpenAI-compatible API first (LM Studio, vLLM, etc.)
-                try:
-                    async with session.get(f"{self.base_url}/v1/models") as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            models = data.get("data", [])
-                            logger.debug(f"Connected via OpenAI-compatible API: {len(models)} models available")
-                            return {
-                                "running": True,
-                                "models": len(models),
-                                "endpoint": self.base_url,
-                                "api_type": "openai_compatible"
-                            }
-                except Exception as e:
-                    logger.debug(f"OpenAI-compatible API not available, trying Ollama native API: {e}")
-                    pass  # Fall through to Ollama API
-
-                # Fall back to Ollama native API
-                async with session.get(f"{self.base_url}/api/tags") as response:
+                # Use OpenAI-compatible API (LM Studio, vLLM, Ollama with OpenAI mode)
+                async with session.get(f"{self.base_url}/v1/models") as response:
                     if response.status == 200:
                         data = await response.json()
-                        logger.debug(f"Connected via Ollama native API: {len(data.get('models', []))} models available")
+                        models = data.get("data", [])
+                        logger.debug(f"Connected via OpenAI-compatible API: {len(models)} models available")
                         return {
                             "running": True,
-                            "models": len(data.get("models", [])),
+                            "models": len(models),
                             "endpoint": self.base_url,
-                            "api_type": "ollama"
+                            "api_type": "openai_compatible"
                         }
                     else:
-                        logger.warning(f"Unexpected endpoint or method. (GET /api/tags). Returning 200 anyway")
+                        logger.warning(f"LLM service returned status {response.status}")
                         return {"running": False, "error": f"HTTP {response.status}"}
         except Exception as e:
             logger.error(f"Failed to check LLM service status: {e}")
             return {"running": False, "error": str(e)}
     
     async def get_models(self) -> List[Dict[str, Any]]:
-        """Get available models (supports both OpenAI-compatible and Ollama native APIs)"""
+        """Get available models (OpenAI-compatible API standard)"""
         try:
             async with aiohttp.ClientSession() as session:
-                # Try OpenAI-compatible API first (LM Studio, vLLM, Ollama OpenAI mode)
-                try:
-                    async with session.get(f"{self.base_url}/v1/models") as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            # Convert OpenAI format to Ollama-like format for compatibility
-                            models = []
-                            for model in data.get("data", []):
-                                models.append({
-                                    "name": model.get("id"),
-                                    "modified_at": model.get("created", ""),
-                                    "size": 0,  # Not provided by OpenAI API
-                                    "digest": "",
-                                    "details": {"format": "openai_compatible"}
-                                })
-                            logger.debug(f"Retrieved {len(models)} models via OpenAI-compatible API")
-                            return models
-                except Exception as e:
-                    logger.debug(f"OpenAI-compatible API not available for model listing, trying Ollama: {e}")
-                    pass  # Fall through to Ollama native API
-
-                # Fall back to Ollama native API
-                async with session.get(f"{self.base_url}/api/tags") as response:
+                # Use OpenAI-compatible API (LM Studio, vLLM, Ollama with OpenAI mode)
+                async with session.get(f"{self.base_url}/v1/models") as response:
                     if response.status == 200:
                         data = await response.json()
-                        logger.debug(f"Retrieved {len(data.get('models', []))} models via Ollama native API")
-                        return data.get("models", [])
+                        # Convert OpenAI format to Ollama-like format for compatibility
+                        models = []
+                        for model in data.get("data", []):
+                            models.append({
+                                "name": model.get("id"),
+                                "modified_at": model.get("created", ""),
+                                "size": 0,  # Not provided by OpenAI API
+                                "digest": "",
+                                "details": {"format": "openai_compatible"}
+                            })
+                        logger.debug(f"Retrieved {len(models)} models via OpenAI-compatible API")
+                        return models
                     else:
-                        logger.warning(f"Unexpected endpoint or method. (GET /api/tags). Returning 200 anyway")
+                        logger.warning(f"Failed to get models: HTTP {response.status}")
                         raise HTTPException(status_code=response.status, detail="Failed to get models")
         except Exception as e:
             logger.error(f"Failed to get models: {e}")

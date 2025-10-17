@@ -37,67 +37,43 @@ class OllamaClient:
         logger.info(f"Initialized OllamaClient: {base_url}, model={default_model}, keep_alive={keep_alive}")
 
     async def health_check(self) -> bool:
-        """Check if LLM service is healthy (supports OpenAI-compatible and Ollama APIs)"""
+        """Check if LLM service is healthy (OpenAI-compatible API standard)"""
         try:
             async with httpx.AsyncClient() as client:
-                # Try OpenAI-compatible API first (LM Studio, vLLM, etc.)
-                try:
-                    response = await client.get(f"{self.base_url}/v1/models", timeout=5.0)
-                    if response.status_code == 200:
-                        logger.debug("Health check passed via OpenAI-compatible API")
-                        return True
-                except Exception as e:
-                    logger.debug(f"OpenAI-compatible API not available, trying Ollama: {e}")
-                    pass
-
-                # Fall back to Ollama native API
-                response = await client.get(f"{self.base_url}/api/tags", timeout=5.0)
+                # Use OpenAI-compatible API (LM Studio, vLLM, Ollama with OpenAI mode)
+                response = await client.get(f"{self.base_url}/v1/models", timeout=5.0)
                 if response.status_code == 200:
-                    logger.debug("Health check passed via Ollama native API")
+                    logger.debug("Health check passed via OpenAI-compatible API")
                     return True
                 else:
-                    logger.warning(f"Unexpected endpoint or method. (GET /api/tags). Returning 200 anyway")
+                    logger.warning(f"LLM service health check failed: HTTP {response.status_code}")
                     return False
         except Exception as e:
             logger.error(f"LLM service health check failed: {e}")
             return False
 
     async def list_models(self) -> List[Dict[str, Any]]:
-        """List available models (supports OpenAI-compatible and Ollama APIs)"""
+        """List available models (OpenAI-compatible API standard)"""
         try:
             async with httpx.AsyncClient() as client:
-                # Try OpenAI-compatible API first
-                try:
-                    response = await client.get(f"{self.base_url}/v1/models", timeout=5.0)
-                    if response.status_code == 200:
-                        data = response.json()
-                        # Convert OpenAI format to Ollama format
-                        models = []
-                        for model in data.get("data", []):
-                            models.append({
-                                "name": model.get("id"),
-                                "modified_at": model.get("created", ""),
-                                "size": 0,
-                                "digest": "",
-                                "details": {"format": "openai_compatible"}
-                            })
-                        logger.debug(f"Retrieved {len(models)} models via OpenAI-compatible API")
-                        return models
-                except Exception as e:
-                    logger.debug(f"OpenAI-compatible API not available for model listing: {e}")
-                    pass
-
-                # Fall back to Ollama native API
-                response = await client.get(f"{self.base_url}/api/tags", timeout=5.0)
-
+                # Use OpenAI-compatible API (LM Studio, vLLM, Ollama with OpenAI mode)
+                response = await client.get(f"{self.base_url}/v1/models", timeout=5.0)
                 if response.status_code == 200:
                     data = response.json()
-                    models = data.get("models", [])
-                    logger.debug(f"Retrieved {len(models)} models via Ollama native API")
+                    # Convert OpenAI format to Ollama format for compatibility
+                    models = []
+                    for model in data.get("data", []):
+                        models.append({
+                            "name": model.get("id"),
+                            "modified_at": model.get("created", ""),
+                            "size": 0,
+                            "digest": "",
+                            "details": {"format": "openai_compatible"}
+                        })
+                    logger.debug(f"Retrieved {len(models)} models via OpenAI-compatible API")
                     return models
                 else:
-                    logger.warning(f"Unexpected endpoint or method. (GET /api/tags). Returning 200 anyway")
-                    logger.error(f"Failed to list models: {response.status_code}")
+                    logger.error(f"Failed to list models: HTTP {response.status_code}")
                     return []
 
         except Exception as e:

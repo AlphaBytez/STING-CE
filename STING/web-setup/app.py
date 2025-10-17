@@ -95,12 +95,11 @@ def save_setup_state(state):
 
 def test_llm_endpoint(endpoint_url, model_name=None):
     """
-    Test LLM endpoint connectivity and model availability
-    Supports both Ollama and OpenAI-compatible endpoints (LM Studio, vLLM, etc.)
+    Test LLM endpoint connectivity and model availability (OpenAI-compatible API standard)
     Returns: (success: bool, message: str, models: list)
     """
     try:
-        # Try OpenAI-compatible endpoint first (LM Studio, vLLM, etc.)
+        # Use OpenAI-compatible API (LM Studio, vLLM, Ollama with OpenAI mode)
         response = requests.get(f"{endpoint_url}/v1/models", timeout=5)
         if response.status_code == 200:
             data = response.json()
@@ -110,20 +109,8 @@ def test_llm_endpoint(endpoint_url, model_name=None):
                 return False, f"Model '{model_name}' not found. Available: {', '.join(models[:5])}", models
 
             return True, f"Connected successfully (OpenAI-compatible). Found {len(models)} models.", models
-    except:
-        pass  # Try Ollama endpoint next
-
-    try:
-        # Try Ollama API tags endpoint
-        response = requests.get(f"{endpoint_url}/api/tags", timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            models = [m['name'] for m in data.get('models', [])]
-
-            if model_name and model_name not in models:
-                return False, f"Model '{model_name}' not found. Available: {', '.join(models)}", models
-
-            return True, f"Connected successfully (Ollama). Found {len(models)} models.", models
+        else:
+            return False, f"LLM service returned status {response.status_code}", []
     except requests.exceptions.Timeout:
         return False, "Connection timeout - endpoint not responding", []
     except requests.exceptions.ConnectionError:

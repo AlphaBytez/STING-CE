@@ -89,20 +89,14 @@ const BeeSettings = () => {
 
   const fetchServiceStatus = async () => {
     try {
-      // Check Ollama status
-      const ollamaResponse = await fetch('http://localhost:11434/api/tags');
+      // Check External AI service (OpenAI-compatible API standard)
       const externalAiResponse = await fetch('/api/external-ai/health');
-      
-      if (ollamaResponse.ok && externalAiResponse.ok) {
-        const ollamaData = await ollamaResponse.json();
+
+      if (externalAiResponse.ok) {
+        const data = await externalAiResponse.json();
         setServiceStatus({
           status: 'healthy',
-          message: `Ollama running (${ollamaData.models ? ollamaData.models.length : 0} models available)`
-        });
-      } else if (externalAiResponse.ok) {
-        setServiceStatus({
-          status: 'partial',
-          message: 'External AI service running (Ollama not detected)'
+          message: `External AI service running (${models.length} models available)`
         });
       } else {
         setServiceStatus({
