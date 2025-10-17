@@ -32,8 +32,6 @@ RUN pip install --upgrade pip && \
 
 # Copy configuration and test
 COPY conf/ /build/conf/
-COPY app/test_auth_setup.py /build/app/
-RUN PYTHONPATH=/build python /build/app/test_auth_setup.py
 
 # ==============================================
 # STAGE 2: Distroless Runtime (minimal production image)

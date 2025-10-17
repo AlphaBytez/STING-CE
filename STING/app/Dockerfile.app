@@ -38,9 +38,6 @@ RUN pip install --upgrade pip && \
 # Copy the conf directory (needed for vault_manager import)
 COPY conf/ /opt/sting-ce/conf/
 
-# Copy the test script and run it
-COPY app/test_auth_setup.py /opt/sting-ce/app/
-RUN python test_auth_setup.py
 
 # Copy the rest of the application
 COPY app/ .
