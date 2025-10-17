@@ -637,7 +637,7 @@ def run_installation_background(install_id, config_data, admin_email):
 
             # 6. Disable this setup wizard service (production only)
             if not DEV_MODE:
-                subprocess.run(['systemctl', 'disable', 'sting-setup-wizard'], check=False)
+                subprocess.run(['sudo', 'systemctl', 'disable', 'sting-setup-wizard'], check=False)
 
             installations[install_id]['completed'] = True
             installations[install_id]['success'] = True
