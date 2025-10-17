@@ -1160,12 +1160,12 @@ reinstall_service() {
                 return 1
             fi
             ;;
-##        supertokens)  # DEPRECATED  # DEPRECATED
-            if ! reinstall_stateless_service "$service"; then
-                log_message "Failed to reinstall ${service} service" "ERROR"
-                return 1
-            fi
-            ;;
+##        supertokens)  # DEPRECATED - SuperTokens removed in favor of Kratos
+##            if ! reinstall_stateless_service "$service"; then
+##                log_message "Failed to reinstall ${service} service" "ERROR"
+##                return 1
+##            fi
+##            ;;
         vault)
             if ! reinstall_vault_service "$service"; then
                 log_message "Failed to reinstall ${service} service" "ERROR"
