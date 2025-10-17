@@ -228,15 +228,15 @@ wait_for_service() {
                     return 0
                 fi
                 ;;
-##            "supertokens")  # DEPRECATED  # DEPRECATED
-                # Add network and credential verification
-                docker exec sting-ce-db psql -U postgres -c "ALTER USER postgres WITH PASSWORD '${POSTGRES_PASSWORD}';" >/dev/null 2>&1
-##                docker exec sting-ce-supertokens nc -z db 5432 >/dev/null 2>&1  # DEPRECATED  # DEPRECATED
-                if curl -s "http://localhost:3567/health" > /dev/null 2>&1; then
-##                    log_message "Supertokens is healthy"  # DEPRECATED  # DEPRECATED
-                    return 0
-                fi
-                ;;
+##            "supertokens")  # DEPRECATED - SuperTokens removed in favor of Kratos
+##                # Add network and credential verification
+##                docker exec sting-ce-db psql -U postgres -c "ALTER USER postgres WITH PASSWORD '${POSTGRES_PASSWORD}';" >/dev/null 2>&1
+##                docker exec sting-ce-supertokens nc -z db 5432 >/dev/null 2>&1  # DEPRECATED
+##                if curl -s "http://localhost:3567/health" > /dev/null 2>&1; then
+##                    log_message "Supertokens is healthy"  # DEPRECATED
+##                    return 0
+##                fi
+##                ;;
             "chatbot"|"sting-ce-chatbot")
                 # First check: Is the container running at all?
                 if docker ps | grep -q "sting-ce-chatbot"; then
