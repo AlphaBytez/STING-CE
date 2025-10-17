@@ -1,3 +1,5 @@
-models/
+# LLM models only, not Python code
+llm_models/
+llm-models/
 blobs/
 manifests/

@@ -50,11 +50,16 @@ htmlcov/
 *.local
 config.local.yml
 
-# Models
+# LLM Model Files (but NOT Python app/models code!)
 *.gguf
 *.bin
 *.safetensors
-models/
+# Only ignore LLM model directories, not app/models
+llm_service/models/
+llm-models/
+llm_models/
+*/llm_models/
+*/llm-models/
 
 # Temp
 tmp/
