@@ -237,15 +237,23 @@ if [ "$USE_CLI" = false ]; then
   LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
 
   log_message ""
-  log_message "=========================================="
-  log_message "  Setup Wizard Starting...              "
-  log_message "=========================================="
+  log_message "╔════════════════════════════════════════════════════════════╗"
+  log_message "║                                                            ║"
+  log_message "║           🐝 STING SETUP WIZARD IS READY! 🐝              ║"
+  log_message "║                                                            ║"
+  log_message "╚════════════════════════════════════════════════════════════╝"
   log_message ""
-  log_message "Open your browser and navigate to:"
-  log_message "  🌐 http://$LOCAL_IP:$WIZARD_PORT"
-  log_message "  🌐 http://localhost:$WIZARD_PORT"
+  log_message "┌────────────────────────────────────────────────────────────┐"
+  log_message "│  📱 OPEN YOUR BROWSER AND NAVIGATE TO:                    │"
+  log_message "│                                                            │"
+  log_message "│     🌐  http://$LOCAL_IP:$WIZARD_PORT                       "
+  log_message "│                                                            │"
+  log_message "│     🌐  http://localhost:$WIZARD_PORT                       "
+  log_message "│                                                            │"
+  log_message "└────────────────────────────────────────────────────────────┘"
   log_message ""
-  log_message "Press Ctrl+C to stop the wizard"
+  log_message "💡 The wizard will guide you through 7 easy steps"
+  log_message "⏹️  Press Ctrl+C to stop the wizard at any time"
   log_message ""
 
   # Launch wizard (don't use exec so trap cleanup works)
@@ -264,6 +272,29 @@ if [ "$USE_CLI" = false ]; then
 else
   # CLI installation (advanced)
   log_message "Using CLI installation mode..."
+
+  # Pre-acquire sudo privileges before installation starts
+  log_message "Installation requires elevated privileges for system setup..."
+  log_message "Please enter your sudo password to continue:"
+  if ! sudo -v; then
+    log_message "Error: Unable to obtain sudo privileges" "ERROR"
+    log_message "Installation cannot proceed without sudo access" "ERROR"
+    exit 1
+  fi
+  log_message "Sudo privileges acquired successfully" "SUCCESS"
+
+  # Keep sudo session alive in background during installation
+  # This prevents timeout during long operations
+  (while true; do sudo -v; sleep 50; done) &
+  SUDO_KEEPALIVE_PID=$!
+
+  # Cleanup function to kill sudo keepalive
+  cleanup_sudo() {
+    if [ -n "$SUDO_KEEPALIVE_PID" ]; then
+      kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+    fi
+  }
+  trap cleanup_sudo EXIT INT TERM
 
   # Verify manage_sting.sh exists
   MANAGE_STING="$SCRIPT_DIR/manage_sting.sh"
