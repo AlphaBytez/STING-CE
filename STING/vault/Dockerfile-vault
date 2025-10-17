@@ -1,7 +1,7 @@
 FROM hashicorp/vault:1.13
 
-# Install jq for JSON parsing in auto-init scripts
-RUN apk add --no-cache jq
+# Install jq for JSON parsing and bash for scripts
+RUN apk add --no-cache jq bash
 
 # Copy configuration files
 COPY config/vault.hcl /vault/config/

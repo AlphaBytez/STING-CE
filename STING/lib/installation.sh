@@ -2119,9 +2119,18 @@ initialize_sting() {
         return 1
     fi
     
-    # Load other modules
-    [ ! -f "$script_lib_dir/configuration.sh" ] || source "$script_lib_dir/configuration.sh"
-    [ ! -f "$script_lib_dir/services.sh" ] || source "$script_lib_dir/services.sh"
+    # Load other modules with error checking
+    if [ -f "$script_lib_dir/configuration.sh" ]; then
+        source "$script_lib_dir/configuration.sh"
+    fi
+
+    if [ -f "$script_lib_dir/services.sh" ]; then
+        source "$script_lib_dir/services.sh"
+    else
+        log_message "ERROR: services.sh not found in $script_lib_dir" "ERROR"
+        log_message "This is required for service health checks" "ERROR"
+        return 1
+    fi
 
     # 1. Create basic directory structure and Docker resources
     if ! prepare_basic_structure; then
@@ -2405,6 +2414,8 @@ build_and_start_services() {
 
     # Start utils container needed for Vault initialization
     log_message "Starting utils service for Vault initialization..."
+    # Remove existing utils container if present (handles restart scenarios)
+    docker rm -f sting-ce-utils 2>/dev/null || true
     docker compose up -d utils
     sleep 3  # Give containers a moment to start
 
