@@ -785,10 +785,11 @@ check_and_install_dependencies() {
     
     # Note: Python dependencies removed - using utils container for all Python operations
     log_message "DEBUG: Skipping Python dependency checks (using containerized approach)"
-    
-    # Check for jq (required for status checks and JSON parsing)
+
+    # Check for jq (helpful for status checks and JSON parsing, but not critical)
     if ! command -v jq >/dev/null 2>&1; then
         missing_deps+=("jq")
+        log_message "jq not found - will attempt to install (optional dependency)" "INFO"
     fi
     
     # Check Docker
@@ -824,10 +825,33 @@ check_and_install_dependencies() {
     # Install missing dependencies
     if [ ${#missing_deps[@]} -gt 0 ]; then
         log_message "Installing missing dependencies: ${missing_deps[*]}"
-        
+
         if command -v apt-get >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y "${missing_deps[@]}"
+            # Retry apt-get update up to 3 times with backoff
+            local update_success=false
+            for attempt in 1 2 3; do
+                log_message "Updating package lists (attempt $attempt/3)..."
+                if sudo apt-get update 2>&1 | tee /tmp/apt-update.log; then
+                    update_success=true
+                    break
+                else
+                    log_message "apt-get update failed (attempt $attempt/3)" "WARNING"
+                    if [ $attempt -lt 3 ]; then
+                        log_message "Retrying in 5 seconds..."
+                        sleep 5
+                    fi
+                fi
+            done
+
+            if [ "$update_success" = false ]; then
+                log_message "Failed to update package lists after 3 attempts" "WARNING"
+                log_message "Attempting to install dependencies anyway..." "INFO"
+            fi
+
+            sudo apt-get install -y "${missing_deps[@]}" || {
+                log_message "Failed to install some dependencies: ${missing_deps[*]}" "WARNING"
+                log_message "This may cause issues later. Please install manually if needed." "WARNING"
+            }
         elif command -v yum >/dev/null 2>&1; then
             sudo yum install -y "${missing_deps[@]}"
         else
@@ -891,29 +915,41 @@ check_and_install_dependencies() {
             # Debian/Ubuntu
             # Check if libmagic-dev is installed (which is what we actually need)
             if ! dpkg -l libmagic-dev 2>/dev/null | grep -q "^ii"; then
-                log_message "libmagic-dev not found in dpkg list, installing..."
-                # Update package list first
-                if ! sudo apt-get update; then
-                    log_message "Failed to update package list" "ERROR"
-                    return 1
-                fi
-                
-                # Try to install libmagic-dev (which will pull in the correct libmagic1 variant)
-                # Don't suppress output - we want to see if packages are already installed
-                if sudo apt-get install -y libmagic-dev; then
-                    log_message "libmagic-dev installation completed successfully"
-                else
-                    # Only fail if apt-get actually failed (not just "already installed")
-                    local apt_status=$?
-                    if [ $apt_status -ne 0 ]; then
-                        log_message "Failed to install libmagic packages (exit code: $apt_status)" "ERROR"
-                        log_message "You may need to install it manually with: sudo apt-get install libmagic-dev" "WARNING"
-                        # Don't fail the entire installation for this
-                        return 0
+                log_message "libmagic-dev not found, attempting installation..."
+
+                # Retry apt-get update up to 3 times
+                local update_success=false
+                for attempt in 1 2 3; do
+                    log_message "Updating package lists for libmagic (attempt $attempt/3)..."
+                    if sudo apt-get update 2>&1 | tee /tmp/apt-update-libmagic.log; then
+                        update_success=true
+                        break
+                    else
+                        log_message "apt-get update failed (attempt $attempt/3)" "WARNING"
+                        if [ $attempt -lt 3 ]; then
+                            sleep 5
+                        fi
                     fi
+                done
+
+                if [ "$update_success" = false ]; then
+                    log_message "Failed to update package lists for libmagic" "WARNING"
+                    log_message "Skipping libmagic installation - knowledge service may not work properly" "WARNING"
+                    log_message "You can install it later with: sudo apt-get install libmagic-dev" "INFO"
+                    return 0  # Non-fatal, continue installation
+                fi
+
+                # Try to install libmagic-dev
+                if sudo apt-get install -y libmagic-dev 2>&1 | tee /tmp/apt-install-libmagic.log; then
+                    log_message "libmagic-dev installation completed successfully" "SUCCESS"
+                else
+                    log_message "Failed to install libmagic-dev" "WARNING"
+                    log_message "Knowledge service may not work properly without it" "WARNING"
+                    log_message "You can install it later with: sudo apt-get install libmagic-dev" "INFO"
+                    # Non-fatal - continue installation
                 fi
             else
-                log_message "libmagic already installed"
+                log_message "libmagic already installed" "SUCCESS"
             fi
         elif command -v yum >/dev/null 2>&1; then
             # RHEL/CentOS/Fedora
@@ -1055,49 +1091,100 @@ fix_snap_docker() {
 # Install Docker
 install_docker() {
     log_message "Installing Docker Engine..."
-    
+
     # This installation is for Debian/Ubuntu systems
     if ! command -v apt-get >/dev/null 2>&1; then
         log_message "Docker installation script only supports Debian/Ubuntu systems" "ERROR"
         log_message "Please install Docker manually from https://docs.docker.com/get-docker/"
         return 1
     fi
-    
-    # Update package index
-    sudo apt-get update
-    
+
+    # Update package index with retry
+    local update_success=false
+    for attempt in 1 2 3; do
+        log_message "Updating package lists for Docker install (attempt $attempt/3)..."
+        if sudo apt-get update 2>&1 | tee /tmp/apt-update-docker.log; then
+            update_success=true
+            break
+        else
+            log_message "apt-get update failed (attempt $attempt/3)" "WARNING"
+            if [ $attempt -lt 3 ]; then
+                sleep 5
+            fi
+        fi
+    done
+
+    if [ "$update_success" = false ]; then
+        log_message "Failed to update package lists after 3 attempts" "ERROR"
+        log_message "Please check your network connection and /etc/apt/sources.list" "ERROR"
+        log_message "You can install Docker manually later with the official script:" "INFO"
+        log_message "  curl -fsSL https://get.docker.com | sh" "INFO"
+        return 1
+    fi
+
     # Install prerequisites
-    sudo apt-get install -y \
-        ca-certificates \
-        curl \
-        gnupg \
-        lsb-release
-    
+    log_message "Installing Docker prerequisites..."
+    if ! sudo apt-get install -y ca-certificates curl gnupg lsb-release 2>&1 | tee /tmp/apt-install-docker-prereqs.log; then
+        log_message "Failed to install prerequisites" "WARNING"
+        log_message "Attempting to continue anyway..." "INFO"
+    fi
+
     # Add Docker's official GPG key
+    log_message "Adding Docker GPG key..."
     sudo mkdir -p /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    
+    if ! curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg 2>/dev/null; then
+        log_message "Failed to add Docker GPG key" "WARNING"
+        log_message "Trying alternative method..." "INFO"
+        # Try without dearmor if gpg fails
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo tee /etc/apt/keyrings/docker.gpg > /dev/null || {
+            log_message "Failed to add Docker GPG key - cannot continue" "ERROR"
+            return 1
+        }
+    fi
+
     # Set up the repository
+    log_message "Setting up Docker repository..."
     echo \
         "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
         $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-    
-    # Update package index again
-    sudo apt-get update
-    
+
+    # Update package index again with retry
+    update_success=false
+    for attempt in 1 2 3; do
+        log_message "Updating package lists with Docker repo (attempt $attempt/3)..."
+        if sudo apt-get update 2>&1 | tee -a /tmp/apt-update-docker.log; then
+            update_success=true
+            break
+        else
+            if [ $attempt -lt 3 ]; then
+                sleep 5
+            fi
+        fi
+    done
+
+    if [ "$update_success" = false ]; then
+        log_message "Failed to update with Docker repository" "ERROR"
+        return 1
+    fi
+
     # Install Docker Engine and Docker Compose plugin
-    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    
+    log_message "Installing Docker packages..."
+    if ! sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin 2>&1 | tee /tmp/apt-install-docker.log; then
+        log_message "Failed to install Docker packages" "ERROR"
+        log_message "Check /tmp/apt-install-docker.log for details" "ERROR"
+        return 1
+    fi
+
     # Add current user to docker group
-    sudo usermod -aG docker "$USER"
-    
+    sudo usermod -aG docker "$USER" || log_message "Warning: Failed to add user to docker group" "WARNING"
+
     # Verify installation
     if docker --version >/dev/null 2>&1; then
         log_message "Docker installed successfully" "SUCCESS"
-        log_message "You may need to log out and back in for group changes to take effect"
+        log_message "You may need to log out and back in for group changes to take effect" "INFO"
         return 0
     else
-        log_message "Docker installation failed" "ERROR"
+        log_message "Docker installation failed - docker command not available" "ERROR"
         return 1
     fi
 }
