@@ -2623,11 +2623,20 @@ build_and_start_services() {
         log_message "✅ Vault is already unsealed"
     fi
 
+    # Pre-pull Chroma image BEFORE starting app services (prevents compose startup failure)
+    log_message "Pre-pulling Chroma image (prevents service startup delays)..."
+    if docker pull chromadb/chroma:0.5.20 2>&1 | grep -v "Pulling\|Waiting\|Verifying" | tee -a "$LOG_FILE"; then
+        log_message "✅ Chroma image ready"
+    else
+        log_message "⚠️ Could not pull Chroma image - continuing anyway" "WARNING"
+    fi
+
     # Start Redis before app since app depends on it for session storage
+    log_message "Starting Redis..."
     docker compose up -d redis
-    # Start utils service with installation profile
-    #docker compose --profile installation up -d utils
-    # Start regular services without profiles
+
+    # Start core application services
+    log_message "Starting app, frontend, and workers..."
     docker compose up -d app frontend report-worker profile-sync-worker
     # Wait for core services to become healthy
     wait_for_service utils       || return 1
