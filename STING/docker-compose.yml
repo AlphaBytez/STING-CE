@@ -1,3 +1,21 @@
+# STING-CE Docker Compose Configuration
+#
+# Version Control:
+#   STING_VERSION - Docker image version tag (default: latest)
+#   STING_IMAGE_REGISTRY - Image registry prefix (default: ghcr.io/alphabytez)
+#
+# Examples:
+#   # Use latest images from GHCR:
+#   export STING_IMAGE_REGISTRY=ghcr.io/alphabytez
+#   export STING_VERSION=latest
+#
+#   # Use specific version:
+#   export STING_VERSION=1.0.0
+#
+#   # Local development (build from source):
+#   unset STING_IMAGE_REGISTRY
+#   unset STING_VERSION
+
 x-db-environment:
   POSTGRES_HOST: ${POSTGRES_HOST:-db}
   POSTGRES_PORT: ${POSTGRES_PORT:-5432}
@@ -9,7 +27,7 @@ services:
     build:
       context: ./vault
       dockerfile: Dockerfile-vault
-    image: sting-ce-vault:latest
+    image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-vault:${STING_VERSION:-latest}
     cap_add:
     - IPC_LOCK
     env_file:
@@ -48,7 +66,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.utils
-    image: sting-ce-utils:latest
+    image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-utils:${STING_VERSION:-latest}
     env_file:
     - ${INSTALL_DIR}/env/vault.env
     environment:
@@ -179,7 +197,7 @@ services:
     build:
       context: .
       dockerfile: app/Dockerfile.app
-    image: sting-ce-app:latest
+    image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-app:${STING_VERSION:-latest}
     env_file:
     - ${INSTALL_DIR}/env/app.env
     - ${INSTALL_DIR}/env/db.env
@@ -233,7 +251,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.minimal-worker
-    image: sting-ce-minimal-report-worker:latest
+    image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-minimal-report-worker:${STING_VERSION:-latest}
     environment:
     - APP_SERVICE_URL=https://app:5050
     volumes:
@@ -265,7 +283,7 @@ services:
     build:
       context: .
       dockerfile: app/Dockerfile.app
-    image: sting-ce-app:latest
+    image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-app:${STING_VERSION:-latest}
     command:
     - python3
     - -m
@@ -316,7 +334,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.react-nginx
-    image: sting-ce-frontend:latest
+    image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-frontend:${STING_VERSION:-latest}
     env_file:
     - ${INSTALL_DIR}/env/frontend.env
     environment:
@@ -419,7 +437,7 @@ services:
     restart: unless-stopped
   knowledge:
     container_name: sting-ce-knowledge
-    image: sting-ce-knowledge:latest
+    image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-knowledge:${STING_VERSION:-latest}
     build:
       context: ./knowledge_service
       dockerfile: Dockerfile
@@ -492,7 +510,7 @@ services:
     build:
       context: .
       dockerfile: ./chatbot/Dockerfile
-    image: sting-ce-chatbot:latest
+    image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-chatbot:${STING_VERSION:-latest}
     env_file:
     - ${INSTALL_DIR}/env/chatbot.env
     environment:
@@ -539,7 +557,7 @@ services:
     build:
       context: ./messaging_service
       dockerfile: Dockerfile
-    image: sting-ce-messaging:latest
+    image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-messaging:${STING_VERSION:-latest}
     environment:
     - MESSAGING_ENCRYPTION_ENABLED=true
     - MESSAGING_QUEUE_ENABLED=true
@@ -609,7 +627,7 @@ services:
     build:
       context: .
       dockerfile: ./external_ai_service/Dockerfile
-    image: sting-ce-external-ai:latest
+    image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-external-ai:${STING_VERSION:-latest}
     env_file:
     - ${INSTALL_DIR}/env/external-ai.env
     ports:
@@ -645,7 +663,7 @@ services:
     build:
       context: ./public_bee
       dockerfile: Dockerfile
-    image: sting-ce-public-bee:latest
+    image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-public-bee:${STING_VERSION:-latest}
     environment:
     - PUBLIC_BEE_PORT=8092
     - PUBLIC_BEE_HOST=0.0.0.0

@@ -146,6 +146,14 @@ show_help() {
     echo "  reset, -rs                    Quick development reset"
     echo "  --skip-backup                 Skip backup confirmation prompts"
     echo
+    echo "Version & Upgrade:"
+    echo "  version                       Show current version"
+    echo "    [--check-updates, -c]       Check for available updates"
+    echo "  upgrade                       Upgrade STING-CE to latest version"
+    echo "    [--version=X.Y.Z]           Upgrade to specific version"
+    echo "    [--no-backup]               Skip automatic backup"
+    echo "    [--check-only]              Check upgrade without applying"
+    echo
     echo "User Management:"
     echo "  create admin --email=<EMAIL>  Create admin user account (PASSWORDLESS by default)"
   echo "  recreate admin --email=<EMAIL> Recreate admin user (delete + create)"
@@ -1199,6 +1207,199 @@ main() {
             perform_restore "$restore_file"
             return 0
             ;;
+        version)
+            # Show current version and check for updates
+            local check_updates=false
+
+            # Parse flags
+            for arg in "$@"; do
+                case "$arg" in
+                    --check-updates|-c)
+                        check_updates=true
+                        ;;
+                esac
+            done
+
+            # Get current version
+            local current_version="unknown"
+            if [[ -f "${INSTALL_DIR}/VERSION" ]]; then
+                current_version=$(cat "${INSTALL_DIR}/VERSION")
+            elif [[ -f "${SOURCE_DIR}/VERSION" ]]; then
+                current_version=$(cat "${SOURCE_DIR}/VERSION")
+            fi
+
+            echo ""
+            echo "╭──────────────────────────────────────────╮"
+            echo "│  STING-CE Version Information           │"
+            echo "╰──────────────────────────────────────────╯"
+            echo ""
+            echo "  Current Version: v${current_version}"
+            echo "  Install Path:    ${INSTALL_DIR}"
+
+            if [[ "$check_updates" == "true" ]]; then
+                echo ""
+                echo "  Checking for updates..."
+
+                # Check GitHub for latest release
+                local latest_version=$(curl -s https://api.github.com/repos/${GITHUB_REPO:-AlphaBytez/STING-CE-Public}/releases/latest 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/')
+
+                if [[ -n "$latest_version" ]]; then
+                    echo "  Latest Version:  v${latest_version}"
+                    echo ""
+
+                    # Compare versions
+                    if [[ "$current_version" != "$latest_version" ]]; then
+                        echo "  🎉 Update available!"
+                        echo "  Run 'sudo msting upgrade' to update"
+                    else
+                        echo "  ✅ You're up to date!"
+                    fi
+                else
+                    echo "  ⚠️  Could not check for updates (offline or API rate limited)"
+                fi
+            fi
+
+            echo ""
+            return 0
+            ;;
+        upgrade)
+            # Upgrade STING-CE to latest or specific version
+            local target_version="latest"
+            local skip_backup=false
+            local check_only=false
+
+            # Parse flags
+            for arg in "$@"; do
+                case "$arg" in
+                    --version=*)
+                        target_version="${arg#*=}"
+                        ;;
+                    --no-backup)
+                        skip_backup=true
+                        ;;
+                    --check-only)
+                        check_only=true
+                        ;;
+                esac
+            done
+
+            # Get current version
+            local current_version="unknown"
+            if [[ -f "${INSTALL_DIR}/VERSION" ]]; then
+                current_version=$(cat "${INSTALL_DIR}/VERSION")
+            elif [[ -f "${SOURCE_DIR}/VERSION" ]]; then
+                current_version=$(cat "${SOURCE_DIR}/VERSION")
+            fi
+
+            echo ""
+            echo "╭──────────────────────────────────────────╮"
+            echo "│  STING-CE Upgrade                       │"
+            echo "╰──────────────────────────────────────────╯"
+            echo ""
+            echo "  Current Version: v${current_version}"
+            echo "  Target Version:  ${target_version}"
+            echo ""
+
+            # Check if target version exists
+            if [[ "$target_version" != "latest" ]]; then
+                # Validate specific version exists on GitHub
+                local version_check=$(curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/${GITHUB_REPO:-AlphaBytez/STING-CE-Public}/releases/tags/v${target_version}" 2>/dev/null)
+                if [[ "$version_check" != "200" ]]; then
+                    log_message "Version v${target_version} not found" "ERROR"
+                    return 1
+                fi
+            fi
+
+            if [[ "$check_only" == "true" ]]; then
+                log_message "Check-only mode: Would upgrade to ${target_version}" "INFO"
+                return 0
+            fi
+
+            # Create backup before upgrade (unless skipped)
+            if [[ "$skip_backup" != "true" ]]; then
+                log_message "Creating backup before upgrade..." "INFO"
+
+                # Use existing backup function
+                load_required_module "backup"
+
+                local backup_file="${INSTALL_DIR}/backups/pre-upgrade-$(date +%Y%m%d-%H%M%S).tar.gz"
+                mkdir -p "${INSTALL_DIR}/backups"
+
+                # Backup critical files
+                tar -czf "$backup_file" \
+                    -C "${INSTALL_DIR}" \
+                    conf/ \
+                    env/ \
+                    VERSION \
+                    2>/dev/null || log_message "Warning: Some files could not be backed up" "WARNING"
+
+                if [[ -f "$backup_file" ]]; then
+                    log_message "✅ Backup created: $backup_file" "SUCCESS"
+                else
+                    log_message "⚠️ Backup failed, but continuing..." "WARNING"
+                fi
+            fi
+
+            # Set STING_VERSION environment variable for docker-compose
+            export STING_VERSION="${target_version}"
+
+            log_message "Pulling Docker images (version: ${target_version})..." "INFO"
+
+            # Pull images from GitHub Container Registry
+            cd "${INSTALL_DIR}" || return 1
+
+            if docker compose pull 2>&1 | grep -v "Pulling"; then
+                log_message "✅ Images pulled successfully" "SUCCESS"
+            else
+                log_message "❌ Failed to pull images" "ERROR"
+                return 1
+            fi
+
+            # Run any migration scripts if they exist
+            local migration_dir="${INSTALL_DIR}/migrations"
+            if [[ -d "$migration_dir" ]]; then
+                log_message "Checking for migrations..." "INFO"
+
+                # Run applicable migration scripts
+                for migration in "${migration_dir}"/*.sh; do
+                    if [[ -f "$migration" ]]; then
+                        local migration_name=$(basename "$migration" .sh)
+                        log_message "Running migration: $migration_name" "INFO"
+                        bash "$migration" || log_message "Migration $migration_name failed" "WARNING"
+                    fi
+                done
+            fi
+
+            # Update VERSION file
+            echo "${target_version#v}" > "${INSTALL_DIR}/VERSION"
+
+            log_message "Restarting services with new images..." "INFO"
+
+            # Restart services
+            docker compose up -d
+
+            # Health check
+            log_message "Waiting for services to be healthy..." "INFO"
+            sleep 10
+
+            # Check if main services are running
+            local app_status=$(docker inspect -f '{{.State.Status}}' sting-ce-app 2>/dev/null)
+            local frontend_status=$(docker inspect -f '{{.State.Status}}' sting-ce-frontend 2>/dev/null)
+
+            if [[ "$app_status" == "running" ]] && [[ "$frontend_status" == "running" ]]; then
+                log_message "✅ Upgrade completed successfully!" "SUCCESS"
+                log_message "STING-CE is now running version: ${target_version}" "INFO"
+
+                # Log upgrade to history
+                echo "$(date '+%Y-%m-%d %H:%M:%S') - Upgraded from v${current_version} to ${target_version}" >> "${INSTALL_DIR}/.upgrade_history"
+            else
+                log_message "⚠️ Upgrade completed but some services may not be healthy" "WARNING"
+                log_message "Run 'msting status' to check service health" "INFO"
+            fi
+
+            echo ""
+            return 0
+            ;;
         llm)
             # Pass all arguments to the LLM command handler
             handle_llm_command "$@"
@@ -1580,7 +1781,19 @@ main() {
                     fi
                     
                     log_message "🔐 Security check passed - proceeding with admin creation" "INFO"
-                    
+
+                    # Run fix_permissions first to ensure proper file ownership
+                    log_message "Fixing permissions before admin creation..." "INFO"
+                    if [[ -f "${INSTALL_DIR}/fix_permissions.sh" ]]; then
+                        sudo bash "${INSTALL_DIR}/fix_permissions.sh" > /dev/null 2>&1
+                        log_message "✅ Permissions fixed" "SUCCESS"
+                    elif [[ -f "${SOURCE_DIR}/fix_permissions.sh" ]]; then
+                        sudo bash "${SOURCE_DIR}/fix_permissions.sh" > /dev/null 2>&1
+                        log_message "✅ Permissions fixed" "SUCCESS"
+                    else
+                        log_message "⚠️ fix_permissions.sh not found, skipping..." "WARNING"
+                    fi
+
                     # Call the admin creation script (inside Docker container where dependencies exist)
                     local create_script="${SOURCE_DIR}/scripts/admin/create-new-admin.py"
                     if [[ ! -f "$create_script" ]]; then

@@ -295,6 +295,23 @@ def get_current_user():
         }), 500
 
 
+@auth_bp.route('/has-users', methods=['GET'])
+def check_has_users():
+    """Check if any users exist in the system (used for first-time setup)"""
+    try:
+        user_count = User.query.count()
+        return jsonify({
+            'has_users': user_count > 0,
+            'user_count': user_count
+        })
+    except Exception as e:
+        logger.error(f"Error checking user count: {str(e)}")
+        return jsonify({
+            'has_users': True,  # Fail safe - assume users exist
+            'error': 'Failed to check user count'
+        }), 500
+
+
 @auth_bp.route('/logout', methods=['POST'])
 def logout():
     """

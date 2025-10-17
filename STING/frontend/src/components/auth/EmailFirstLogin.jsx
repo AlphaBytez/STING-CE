@@ -27,6 +27,7 @@ const EmailFirstLogin = () => {
   const [flowData, setFlowData] = useState(null);
   const [hasPasskey, setHasPasskey] = useState(false);
   const [showPasskeyOption, setShowPasskeyOption] = useState(false);
+  const [hasUsers, setHasUsers] = useState(true);  // Assume users exist until checked
 
   // Check if this is AAL2 step-up
   const isAAL2 = searchParams.get('aal') === 'aal2';
@@ -94,7 +95,7 @@ const EmailFirstLogin = () => {
       }
     } catch (error) {
       console.log('🔐 No existing session or passkey');
-      
+
       // For AAL2 flows, check Kratos flow for webauthn availability
       if (isAAL2) {
         console.log('🔐 AAL2 flow - will check Kratos flow for passkey methods');
@@ -103,18 +104,32 @@ const EmailFirstLogin = () => {
     }
   }, [isAAL2]);
 
+  const checkHasUsers = useCallback(async () => {
+    try {
+      const response = await axios.get('/api/auth/has-users');
+      if (response.data) {
+        setHasUsers(response.data.has_users);
+        console.log('🔐 User check:', response.data);
+      }
+    } catch (error) {
+      console.log('🔐 Failed to check user count, assuming users exist');
+      setHasUsers(true);  // Fail-safe: assume users exist
+    }
+  }, []);
+
   // Check for existing passkey on mount and handle AAL2 flow
   useEffect(() => {
     console.log('🔐 EmailFirstLogin mounted:', { isAAL2, returnTo, url: window.location.href });
-    
+
     checkUserPasskey();
-    
+    checkHasUsers();
+
     // If this is AAL2 flow, we need to handle it differently
     if (isAAL2) {
       console.log('🔐 AAL2 flow detected, initializing AAL2 step-up...');
       handleAAL2Flow();
     }
-  }, [isAAL2, checkUserPasskey, handleAAL2Flow, returnTo]);
+  }, [isAAL2, checkUserPasskey, checkHasUsers, handleAAL2Flow, returnTo]);
 
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
@@ -420,6 +435,27 @@ const EmailFirstLogin = () => {
           {error && (
             <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg mb-6">
               {error}
+            </div>
+          )}
+
+          {/* No users warning - show hint to create admin */}
+          {!hasUsers && !isAAL2 && (
+            <div className="mb-6 p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
+              <div className="flex items-start gap-3">
+                <div className="text-yellow-300 text-2xl">⚠️</div>
+                <div className="flex-1">
+                  <h3 className="text-yellow-300 font-medium mb-2">No Users Found</h3>
+                  <p className="text-yellow-200 text-sm mb-3">
+                    This appears to be a fresh STING installation. You need to create an admin account first.
+                  </p>
+                  <div className="bg-black/30 rounded p-3 font-mono text-xs text-yellow-100 mb-2">
+                    sudo msting create admin admin@sting.local
+                  </div>
+                  <p className="text-yellow-200 text-xs">
+                    Run this command on your server, then return here to log in.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
