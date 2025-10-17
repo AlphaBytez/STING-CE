@@ -537,6 +537,23 @@ def run_installation_background(install_id, config_data, admin_email):
                 "Or use CLI installation instead: ./install_sting.sh --cli"
             )
 
+        # Kill any stale installation processes before starting new one
+        try:
+            stale_check = subprocess.run(
+                ['pgrep', '-f', 'install_sting.sh install'],
+                capture_output=True,
+                text=True
+            )
+            if stale_check.returncode == 0 and stale_check.stdout.strip():
+                stale_pids = stale_check.stdout.strip().split('\n')
+                installations[install_id]['log'] += f"⚠️ Found {len(stale_pids)} stale installation process(es)\n"
+                installations[install_id]['log'] += "Cleaning up stale processes...\n"
+                subprocess.run(['sudo', 'kill', '-9'] + stale_pids, check=False)
+                installations[install_id]['log'] += "✅ Stale processes cleaned up\n"
+        except Exception as e:
+            # Non-fatal - continue with installation
+            print(f"Warning: Could not check for stale processes: {e}")
+
         # Start sudo keepalive process in background
         # This refreshes sudo session every 50 seconds during installation
         sudo_keepalive = subprocess.Popen(
@@ -647,6 +664,19 @@ def run_installation_background(install_id, config_data, admin_email):
             installations[install_id]['admin_email'] = admin_email
 
         finally:
+            # Cleanup: Kill installation process if still running
+            try:
+                if process.poll() is None:  # Process still running
+                    installations[install_id]['log'] += "\n⚠️ Terminating installation process...\n"
+                    process.terminate()
+                    try:
+                        process.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
+            except Exception as e:
+                print(f"Error terminating installation process: {e}")
+
             # Cleanup: Kill sudo keepalive process
             try:
                 sudo_keepalive.terminate()
