@@ -190,9 +190,32 @@ if [ "$USE_CLI" = false ]; then
     log_message "Creating virtual environment..."
     if ! python3 -m venv "$WIZARD_DIR/venv" 2>&1 | tee /tmp/venv-creation.log; then
       log_message "Error: Failed to create virtual environment" "ERROR"
-      log_message "This usually means python3-venv is not installed" "ERROR"
-      log_message "Install it with: sudo apt-get install python3-venv" "ERROR"
-      exit 1
+
+      # Check if it's the ensurepip issue (Ubuntu 24.10+)
+      if grep -q "ensurepip is not available" /tmp/venv-creation.log 2>/dev/null; then
+        log_message "Detected Ubuntu 24.10+ - trying version-specific python-venv package..." "INFO"
+
+        # Get Python version
+        local py_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "3.12")
+
+        log_message "Installing python${py_version}-venv..." "INFO"
+        if sudo apt-get install -y "python${py_version}-venv" 2>&1 | tee -a /tmp/venv-creation.log; then
+          log_message "Retrying virtual environment creation..." "INFO"
+          if ! python3 -m venv "$WIZARD_DIR/venv" 2>&1 | tee -a /tmp/venv-creation.log; then
+            log_message "Error: Still failed to create virtual environment" "ERROR"
+            log_message "Check /tmp/venv-creation.log for details" "ERROR"
+            exit 1
+          fi
+        else
+          log_message "Failed to install python${py_version}-venv" "ERROR"
+          log_message "Try manually: sudo apt-get install python${py_version}-venv" "ERROR"
+          exit 1
+        fi
+      else
+        log_message "This usually means python3-venv is not installed" "ERROR"
+        log_message "Install it with: sudo apt-get install python3-venv" "ERROR"
+        exit 1
+      fi
     fi
   fi
 

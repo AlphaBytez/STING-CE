@@ -793,9 +793,16 @@ check_and_install_dependencies() {
     fi
 
     # Check for python3-venv (required for setup wizard)
+    # On Ubuntu 24.10+, need version-specific package (e.g., python3.12-venv)
     if ! python3 -m venv --help >/dev/null 2>&1; then
+        # Get Python version (e.g., 3.12)
+        local py_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "3")
+
+        # Try version-specific package first (for Ubuntu 24.10+)
+        missing_deps+=("python${py_version}-venv")
+        # Also add generic as fallback
         missing_deps+=("python3-venv")
-        log_message "python3-venv not found - required for setup wizard" "INFO"
+        log_message "python3-venv not found - will try python${py_version}-venv and python3-venv" "INFO"
     fi
 
     # Check for python3-pip (required for setup wizard)
