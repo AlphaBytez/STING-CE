@@ -402,6 +402,62 @@ def validate_config():
         'errors': errors
     })
 
+def transform_wizard_data_to_config(wizard_data):
+    """
+    Transform wizard data structure to config.yml format
+
+    Wizard uses flat structure: wizard_data.llm.endpoint
+    Config.yml uses nested: config.llm_service.ollama.endpoint
+
+    This ensures wizard-tested configuration is actually used!
+    """
+    # Load default config.yml as base
+    default_config_path = os.path.join(STING_SOURCE, 'conf', 'config.yml')
+
+    with open(default_config_path, 'r') as f:
+        config = yaml.safe_load(f)
+
+    # Transform LLM configuration
+    if 'llm' in wizard_data:
+        llm_data = wizard_data['llm']
+        config['llm_service']['ollama']['endpoint'] = llm_data.get('endpoint', 'http://localhost:11434')
+        config['llm_service']['ollama']['default_model'] = llm_data.get('model', 'phi3:mini')
+        config['llm_service']['ollama']['enabled'] = True
+
+        # Also update external_ai endpoint (uses same Ollama endpoint)
+        config['llm_service']['external_ai']['ollama_endpoint'] = llm_data.get('endpoint', 'http://localhost:11434')
+
+    # Transform admin configuration
+    if 'admin' in wizard_data:
+        admin_data = wizard_data['admin']
+        # Admin config is handled separately via create-new-admin.py
+        # Just store for reference
+        config.setdefault('_wizard_metadata', {})['admin_email'] = admin_data.get('email', 'admin@sting.local')
+
+    # Transform email configuration
+    if 'email' in wizard_data:
+        email_data = wizard_data['email']
+        if 'mail' not in config:
+            config['mail'] = {}
+        config['mail']['enabled'] = True
+        config['mail']['smtp_host'] = email_data.get('host', '')
+        config['mail']['smtp_port'] = int(email_data.get('port', 587))
+        config['mail']['smtp_user'] = email_data.get('username', '')
+        config['mail']['smtp_password'] = email_data.get('password', '')
+
+    # Transform SSL configuration
+    if 'ssl' in wizard_data:
+        ssl_data = wizard_data['ssl']
+        # SSL cert paths are set during installation
+        config.setdefault('_wizard_metadata', {})['ssl_enabled'] = ssl_data.get('enabled', False)
+
+    # Transform data disk configuration
+    if 'data_disk' in wizard_data:
+        disk_data = wizard_data['data_disk']
+        config.setdefault('_wizard_metadata', {})['data_disk_mount'] = disk_data.get('mount_point', '/data')
+
+    return config
+
 def run_installation_background(install_id, config_data, admin_email):
     """Run installation in background thread with logging"""
     install_log_file = os.path.join(SETUP_DIR, f'install-{install_id}.log')
@@ -410,13 +466,20 @@ def run_installation_background(install_id, config_data, admin_email):
         installations[install_id]['status'] = 'Preparing configuration...'
         installations[install_id]['progress'] = 10
 
-        # 1. Write config.yml to staging location
+        # 1. Transform wizard data to config.yml format
+        # CRITICAL: Wizard uses flat structure, config.yml uses nested structure
+        # This ensures wizard-tested configuration (like LLM endpoint) is actually used!
+        transformed_config = transform_wizard_data_to_config(config_data)
+
+        # 2. Write config.yml to staging location
         # Installer will copy this to /opt/sting-ce/conf/config.yml
         os.makedirs(SETUP_DIR, exist_ok=True)
         with open(STAGED_CONFIG_PATH, 'w') as f:
-            yaml.dump(config_data, f)
+            yaml.dump(transformed_config, f, default_flow_style=False, sort_keys=False)
 
-        installations[install_id]['log'] = f"Configuration saved to: {STAGED_CONFIG_PATH}\n"
+        installations[install_id]['log'] = f"✅ Configuration transformed and saved to: {STAGED_CONFIG_PATH}\n"
+        installations[install_id]['log'] += f"🤖 LLM endpoint: {config_data.get('llm', {}).get('endpoint', 'N/A')}\n"
+        installations[install_id]['log'] += f"🤖 LLM model: {config_data.get('llm', {}).get('model', 'N/A')}\n\n"
 
         # 2. Dev mode - simulate installation without running actual installer
         if DEV_MODE:

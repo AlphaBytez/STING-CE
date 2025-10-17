@@ -220,11 +220,36 @@
                         <input type="text" id="llm-model" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500" placeholder="phi4:mini" value="phi4:mini">
                     </div>
 
-                    <button onclick="testLLMEndpoint()" class="bg-lime-500 text-slate-900 font-medium px-4 py-2 rounded-lg hover:bg-lime-600">
-                        Test Connection
-                    </button>
+                    <div class="flex gap-3">
+                        <button onclick="testLLMEndpoint()" class="bg-lime-500 text-slate-900 font-medium px-4 py-2 rounded-lg hover:bg-lime-600">
+                            Test Connection
+                        </button>
+
+                        <button
+                            id="save-llm-config-btn"
+                            onclick="saveLLMConfig()"
+                            class="bg-green-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-green-700 hidden"
+                        >
+                            ✓ Save Tested Configuration
+                        </button>
+                    </div>
 
                     <div id="llm-test-result" class="mt-4"></div>
+
+                    <div id="llm-config-saved" class="mt-4 hidden">
+                        <div class="bg-green-900/30 border-2 border-green-600 rounded-lg p-4">
+                            <p class="text-green-400 font-semibold">
+                                ✓ Configuration Saved!
+                            </p>
+                            <p class="text-green-300 text-sm mt-2">
+                                Your tested LLM endpoint will be used during installation:
+                            </p>
+                            <ul class="text-xs text-slate-300 mt-2 ml-4">
+                                <li>Endpoint: <code id="saved-endpoint" class="text-green-400"></code></li>
+                                <li>Model: <code id="saved-model" class="text-green-400"></code></li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -535,12 +560,19 @@
                             ${data.models.length > 0 ? `<p class="text-sm text-black mt-2">Available models: ${data.models.join(', ')}</p>` : ''}
                         </div>
                     `;
+
+                    // Show save button after successful test
+                    document.getElementById('save-llm-config-btn').classList.remove('hidden');
                 } else {
                     resultDiv.innerHTML = `
                         <div class="bg-amber-400/90 border border-amber-600 rounded-lg p-4 backdrop-blur-sm">
                             <p class="text-black font-semibold"><strong>⚠ Failed:</strong> ${data.message}</p>
                         </div>
                     `;
+
+                    // Hide save button on failure
+                    document.getElementById('save-llm-config-btn').classList.add('hidden');
+                    document.getElementById('llm-config-saved').classList.add('hidden');
                 }
             } catch (error) {
                 resultDiv.innerHTML = `
@@ -549,6 +581,32 @@
                     </div>
                 `;
             }
+        }
+
+        function saveLLMConfig() {
+            const endpoint = document.getElementById('llm-endpoint').value;
+            const model = document.getElementById('llm-model').value;
+
+            // Save to config data
+            configData.llm = {
+                endpoint: endpoint,
+                model: model
+            };
+
+            // Hide save button
+            document.getElementById('save-llm-config-btn').classList.add('hidden');
+
+            // Show confirmation
+            document.getElementById('llm-config-saved').classList.remove('hidden');
+            document.getElementById('saved-endpoint').textContent = endpoint;
+            document.getElementById('saved-model').textContent = model;
+
+            // Persist to backend
+            fetch('/api/save-step', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({step: 4, data: {llm: {endpoint, model}}})
+            });
         }
 
         async function saveStepData(step) {
