@@ -212,7 +212,6 @@ security:
       # Disable for now - may be useful in future for frequently used patterns
       cache_warming: false
 
-          access_token_validity: 3600      # 1 hour
       # Vault-related settings
       vault_path: "sting/supertokens"
       webauthn:
