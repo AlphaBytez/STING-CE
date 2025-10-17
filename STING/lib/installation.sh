@@ -2425,7 +2425,13 @@ build_and_start_services() {
     
     # Load all generated environment variables, including kratos.env
     source_service_envs
-    
+
+    # Export HOSTNAME for docker-compose environment variable substitution
+    # This allows frontend to use correct IP for VMs instead of hardcoded localhost
+    export HOSTNAME="${STING_HOST_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
+    export HOSTNAME="${HOSTNAME:-localhost}"  # Final fallback
+    log_message "Using HOSTNAME for frontend: $HOSTNAME"
+
     # Change to installation directory for Docker operations
     cd "${INSTALL_DIR}" || {
         log_message "Failed to change to installation directory" "ERROR"
@@ -3652,14 +3658,16 @@ check_msting_path_conflicts() {
                 local tmp_script="/tmp/fix_permissions_$$.sh"
                 cp "$fix_script" "$tmp_script"
                 chmod +x "$tmp_script"
-                if bash "$tmp_script" 2>&1; then
+                # Run with sudo to ensure permission commands work
+                if sudo bash "$tmp_script" 2>&1; then
                     log_message "✅ Permission fixes applied successfully" "SUCCESS"
                 else
                     log_message "⚠️  WARNING: Permission fix script failed (non-fatal)" "WARNING"
                 fi
                 rm -f "$tmp_script"
             else
-                if "$fix_script" 2>&1; then
+                # Run with sudo to ensure permission commands work
+                if sudo bash "$fix_script" 2>&1; then
                     log_message "✅ Permission fixes applied successfully" "SUCCESS"
                 else
                     log_message "⚠️  WARNING: Permission fix script failed (non-fatal)" "WARNING"

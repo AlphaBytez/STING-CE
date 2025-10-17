@@ -395,6 +395,7 @@ if [ "$USE_CLI" = false ]; then
   cd "$WIZARD_DIR"
   export DEV_MODE=false
   export WIZARD_PORT="$WIZARD_PORT"
+  export STING_HOST_IP="$LOCAL_IP"  # For redirect URL after installation
 
   # Start wizard and save PID
   "$WIZARD_DIR/venv/bin/python3" app.py &

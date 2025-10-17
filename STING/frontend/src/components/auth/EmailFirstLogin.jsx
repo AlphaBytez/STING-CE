@@ -27,10 +27,14 @@ const EmailFirstLogin = () => {
   const [flowData, setFlowData] = useState(null);
   const [hasPasskey, setHasPasskey] = useState(false);
   const [showPasskeyOption, setShowPasskeyOption] = useState(false);
-  
+
   // Check if this is AAL2 step-up
   const isAAL2 = searchParams.get('aal') === 'aal2';
   const returnTo = searchParams.get('return_to') || '/dashboard';
+
+  // Dev mode detection and Mailpit URL
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const mailpitUrl = `http://${window.location.hostname}:8025`;
 
   // Define functions before useEffect to avoid hoisting issues
   const initializeKratosFlow = useCallback(async () => {
@@ -547,15 +551,29 @@ const EmailFirstLogin = () => {
             </div>
           </div>
 
-          {/* Development hint */}
-          <div className="mt-6 p-3 bg-blue-900/20 border border-blue-600/30 rounded-lg">
-            <p className="text-blue-300 text-sm">
-              💡 <strong>Development Mode:</strong> Check Mailpit at{' '}
-              <a href="http://localhost:8026" target="_blank" rel="noopener noreferrer" className="underline">
-                localhost:8026
+          {/* Development Mode - Mailpit Link */}
+          {isDevelopment && (
+            <div className="mt-6 p-4 bg-gradient-to-r from-green-900/30 to-blue-900/30 border-2 border-green-500/50 rounded-lg shadow-lg">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="text-green-300 font-semibold text-sm">
+                    🔧 Development Mode
+                  </p>
+                  <p className="text-gray-300 text-xs mt-1">
+                    Access your verification code directly
+                  </p>
+                </div>
+              </div>
+              <a
+                href={mailpitUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full mt-3 bg-green-600 hover:bg-green-500 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 text-center shadow-md hover:shadow-lg transform hover:scale-105"
+              >
+                📧 Open Mailpit ({window.location.hostname}:8025)
               </a>
-            </p>
-          </div>
+            </div>
+          )}
         </div>
       </div>
     );

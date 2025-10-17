@@ -760,7 +760,9 @@ def run_installation_background(install_id, config_data, admin_email):
             installations[install_id]['progress'] = 100
             installations[install_id]['status'] = 'Installation complete!'
             # Always set redirect URL even if admin creation failed
-            installations[install_id]['redirect_url'] = 'https://localhost:8443'
+            # Use detected host IP for VMs/remote access, fallback to localhost
+            host_ip = os.environ.get('STING_HOST_IP', 'localhost')
+            installations[install_id]['redirect_url'] = f'https://{host_ip}:8443'
             installations[install_id]['admin_email'] = admin_email if admin_email else ''
 
         finally:
