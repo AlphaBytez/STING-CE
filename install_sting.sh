@@ -15,5 +15,8 @@ cd "$WRAPPER_DIR/STING" || {
     exit 1
 }
 
+# Ensure the real installer is executable (in case git didn't preserve permissions)
+chmod +x ./install_sting.sh 2>/dev/null || true
+
 # Execute the real install script with all arguments passed through
 exec ./install_sting.sh "$@"
