@@ -537,8 +537,9 @@ def run_installation_background(install_id, config_data, admin_email):
                 "Or use CLI installation instead: ./install_sting.sh --cli"
             )
 
-        # Kill any stale installation processes before starting new one
+        # Kill any stale installation processes and sudo keepalives before starting new one
         try:
+            # Kill stale installation processes
             stale_check = subprocess.run(
                 ['pgrep', '-f', 'install_sting.sh install'],
                 capture_output=True,
@@ -550,6 +551,10 @@ def run_installation_background(install_id, config_data, admin_email):
                 installations[install_id]['log'] += "Cleaning up stale processes...\n"
                 subprocess.run(['sudo', 'kill', '-9'] + stale_pids, check=False)
                 installations[install_id]['log'] += "✅ Stale processes cleaned up\n"
+
+            # Kill any stale sudo keepalive processes from previous installations
+            installations[install_id]['log'] += "Cleaning up any stale sudo keepalive processes...\n"
+            subprocess.run(['pkill', '-f', 'while true; do sudo -v; sleep'], check=False)
         except Exception as e:
             # Non-fatal - continue with installation
             print(f"Warning: Could not check for stale processes: {e}")

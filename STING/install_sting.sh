@@ -245,6 +245,10 @@ if [ "$USE_CLI" = false ]; then
   fi
   log_message "✅ Sudo privileges acquired" "SUCCESS"
 
+  # Kill any existing sudo keepalive processes from previous failed installations
+  log_message "Cleaning up any stale sudo keepalive processes..." "INFO"
+  pkill -f "while true; do sudo -v; sleep" 2>/dev/null || true
+
   # Start sudo keepalive in background to maintain privileges during installation
   (while true; do sudo -v; sleep 50; done) &
   SUDO_KEEPALIVE_PID=$!
@@ -322,6 +326,10 @@ else
     exit 1
   fi
   log_message "Sudo privileges acquired successfully" "SUCCESS"
+
+  # Kill any existing sudo keepalive processes from previous failed installations
+  log_message "Cleaning up any stale sudo keepalive processes..." "INFO"
+  pkill -f "while true; do sudo -v; sleep" 2>/dev/null || true
 
   # Keep sudo session alive in background during installation
   # This prevents timeout during long operations
