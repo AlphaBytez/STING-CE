@@ -9,7 +9,8 @@ import os
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-KRATOS_ADMIN_URL = os.getenv("KRATOS_ADMIN_URL", "http://sting-ce-kratos:4434")
+# Default to localhost (for running from host), can be overridden with env var
+KRATOS_ADMIN_URL = os.getenv("KRATOS_ADMIN_URL", "http://localhost:4434")
 
 def generate_password():
     """Generate a secure password"""
@@ -39,9 +40,10 @@ def get_kratos_user_id(email):
 def sync_sting_database(email, kratos_id):
     """Sync user with STING database"""
     try:
-        # Use STING API to create/update user record
+        # Use STING API to create/update user record (localhost when running from host)
+        sting_api_url = os.getenv("STING_API_URL", "http://localhost:5050")
         sync_response = requests.post(
-            "http://sting-ce-app:5050/api/admin/sync-user",
+            f"{sting_api_url}/api/admin/sync-user",
             json={
                 'email': email,
                 'kratos_id': kratos_id,

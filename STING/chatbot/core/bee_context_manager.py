@@ -11,10 +11,9 @@ from datetime import datetime, timedelta
 import logging
 import os
 
-# Import token counter
+# Note: token_counter removed - using simple character-based estimation instead
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from services.token_counter import get_token_counter
 
 logger = logging.getLogger(__name__)
 
@@ -52,11 +51,38 @@ class BeeContextManager:
         # System prompt cache
         self.system_prompt: Optional[str] = None
         self.system_prompt_initialized = False
-        
-        # Initialize token counter
-        self.token_counter = get_token_counter(model)
+
         self.model = model
-        
+
+    def _estimate_tokens(self, messages: List[Dict]) -> Dict[str, int]:
+        """
+        Simple token estimation based on character count.
+        Rough approximation: 1 token ≈ 4 characters.
+        Returns dict with 'total' key for compatibility with old token_counter.
+        """
+        total_chars = sum(
+            len(msg.get('content', '')) + len(msg.get('role', ''))
+            for msg in messages
+        )
+        estimated_tokens = total_chars // 4
+        return {'total': estimated_tokens}
+
+    def _fit_messages_to_limit(self, messages: List[Dict], max_tokens: int) -> List[Dict]:
+        """
+        Fit messages within token limit by removing oldest messages.
+        Simple sliding window approach.
+        """
+        while len(messages) > 0:
+            token_info = self._estimate_tokens(messages)
+            if token_info['total'] <= max_tokens:
+                return messages
+            # Remove oldest message (but keep system message if it's first)
+            if messages[0].get('role') == 'system' and len(messages) > 1:
+                messages = [messages[0]] + messages[2:]
+            else:
+                messages = messages[1:]
+        return messages
+
     def initialize_system_prompt(self, system_prompt: str) -> None:
         """
         Initialize the system prompt that will be used for all new sessions.
@@ -207,26 +233,24 @@ class BeeContextManager:
         # Now apply token-based trimming
         # Calculate actual tokens for all messages
         messages_for_counting = [
-            {"role": msg['role'], "content": msg['content']} 
+            {"role": msg['role'], "content": msg['content']}
             for msg in session['conversation_history']
         ]
-        
-        token_info = self.token_counter.count_messages_tokens(messages_for_counting)
+
+        token_info = self._estimate_tokens(messages_for_counting)
         total_tokens = token_info['total']
-        
+
         # Apply buffer (leave space for response)
         buffer_percent = float(os.getenv('BEE_CONVERSATION_TOKEN_BUFFER_PERCENT', '20'))
         max_allowed_tokens = int(self.max_context_length * (1 - buffer_percent / 100))
-        
+
         if total_tokens > max_allowed_tokens:
             logger.info(f"Session {session['session_id']} exceeds token limit: {total_tokens} > {max_allowed_tokens}")
-            
-            # Use token counter to fit messages within limit
-            fitted_messages = self.token_counter.fit_messages_to_limit(
+
+            # Use simple fitting to fit messages within limit
+            fitted_messages = self._fit_messages_to_limit(
                 messages_for_counting,
-                max_allowed_tokens,
-                preserve_system=True,
-                preserve_recent=10
+                max_allowed_tokens
             )
             
             # Update session history with fitted messages
@@ -247,7 +271,7 @@ class BeeContextManager:
                 'original_count': len(history),
                 'pruned_count': len(session['conversation_history']),
                 'original_tokens': total_tokens,
-                'pruned_tokens': self.token_counter.count_messages_tokens(fitted_messages)['total']
+                'pruned_tokens': self._estimate_tokens(fitted_messages)['total']
             }
                 
     def update_assistant_response(self, session_id: str, response: str) -> None:
@@ -363,11 +387,11 @@ class BeeContextManager:
         
         # Calculate current token usage
         messages_for_counting = [
-            {"role": msg['role'], "content": msg['content']} 
+            {"role": msg['role'], "content": msg['content']}
             for msg in session['conversation_history']
         ]
-        
-        token_info = self.token_counter.count_messages_tokens(messages_for_counting)
+
+        token_info = self._estimate_tokens(messages_for_counting)
         
         # Add context limit information
         buffer_percent = float(os.getenv('BEE_CONVERSATION_TOKEN_BUFFER_PERCENT', '20'))

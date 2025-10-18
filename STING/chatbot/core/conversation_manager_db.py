@@ -18,7 +18,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from services.conversation_summarizer import get_conversation_summarizer
-from services.token_counter import get_token_counter
+# Note: token_counter removed - using simple character-based estimation instead
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +47,6 @@ class ConversationManagerDB:
         
         # Initialize services
         self.summarizer = get_conversation_summarizer()
-        self.token_counter = get_token_counter(
-            model=os.getenv('BEE_CONVERSATION_SUMMARY_MODEL', 'llama3.2:latest')
-        )
         
         # Configuration for conversation management
         self.max_tokens = int(os.getenv('BEE_CONVERSATION_MAX_TOKENS', '4096'))
@@ -59,7 +56,20 @@ class ConversationManagerDB:
         self.summarize_after_messages = int(os.getenv('BEE_CONVERSATION_SUMMARIZE_AFTER_MESSAGES', '20'))
         self.pruning_strategy = os.getenv('BEE_CONVERSATION_PRUNING_STRATEGY', 'sliding_window')
         self.keep_recent_messages = int(os.getenv('BEE_CONVERSATION_KEEP_RECENT_MESSAGES', '10'))
-    
+
+    def _estimate_tokens(self, messages: List[Dict[str, Any]]) -> Dict[str, int]:
+        """
+        Simple token estimation based on character count.
+        Rough approximation: 1 token ≈ 4 characters.
+        Returns dict with 'total' key for compatibility with old token_counter.
+        """
+        total_chars = sum(
+            len(msg.get('content', '')) + len(msg.get('role', ''))
+            for msg in messages
+        )
+        estimated_tokens = total_chars // 4
+        return {'total': estimated_tokens}
+
     async def initialize(self):
         """
         Initialize database connection.
@@ -358,12 +368,12 @@ class ConversationManagerDB:
         if len(messages) <= self.summarize_after_messages:
             return None  # Not enough messages to prune
         
-        # Calculate token usage
+        # Calculate token usage (using simple estimation)
         messages_for_counting = [
-            {"role": msg['role'], "content": msg['content']} 
+            {"role": msg['role'], "content": msg['content']}
             for msg in messages
         ]
-        token_info = self.token_counter.count_messages_tokens(messages_for_counting)
+        token_info = self._estimate_tokens(messages_for_counting)
         total_tokens = token_info['total']
         
         # Check if we need to prune based on tokens or message count
@@ -431,9 +441,9 @@ class ConversationManagerDB:
                     message_ids
                 )
                 
-                # Update conversation token counts
-                new_token_info = self.token_counter.count_messages_tokens([
-                    {"role": msg['role'], "content": msg['content']} 
+                # Update conversation token counts (using simple estimation)
+                new_token_info = self._estimate_tokens([
+                    {"role": msg['role'], "content": msg['content']}
                     for msg in messages_to_keep
                 ])
                 
