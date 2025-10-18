@@ -444,6 +444,23 @@ class ConfigurationManager:
                                     client.sys.submit_unseal_key(unseal_key)
                                     logger.info("Vault unsealed successfully")
 
+                    # Check for auto-init script token first (shared via config volume)
+                    if os.path.exists(auto_init_file):
+                        try:
+                            with open(auto_init_file, 'r') as f:
+                                vault_data = json.load(f)
+                                auto_token = vault_data.get('root_token')
+                                if auto_token:
+                                    logger.info("Found auto-init script token in retry loop, using it")
+                                    self.vault_token = auto_token
+                                    client = hvac.Client(url=self.vault_url, token=self.vault_token)
+                                    if client.is_authenticated():
+                                        logger.info("Vault connection established with auto-init token")
+                                        return client
+                        except Exception as e:
+                            logger.warning(f"Could not read auto-init token in retry loop: {e}")
+
+                    # Fallback to saved token file
                     if os.path.exists(token_file):
                         with open(token_file, 'r') as f:
                             self.vault_token = f.read().strip()
