@@ -22,7 +22,8 @@ setup_enhanced_logging() {
             export LOG_VERBOSE_DIR="${log_dir}/verbose"
 
             # Only log this once
-            if [ -z "$ENHANCED_LOGGING_ENABLED" ]; then
+            # Use parameter expansion with default to avoid "unbound variable" error in strict mode
+            if [ -z "${ENHANCED_LOGGING_ENABLED:-}" ]; then
                 log_message "Enhanced logging enabled: $LOG_FILE"
                 export ENHANCED_LOGGING_ENABLED=1
             fi

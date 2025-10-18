@@ -39,9 +39,10 @@ validate_critical_vars() {
     
     local critical_vars=("INSTALL_DIR" "CONFIG_DIR" "POSTGRESQL_PASSWORD")
     local missing_vars=()
-    
+
     for var in "${critical_vars[@]}"; do
-        if [ -z "${!var}" ]; then
+        # Use :- with indirect expansion to avoid "unbound variable" error in strict mode
+        if [ -z "${!var:-}" ]; then
             missing_vars+=("$var")
         fi
     done
@@ -58,15 +59,16 @@ validate_critical_vars() {
 # Validate domain and email settings
 validate_domain_settings() {
     log_message "Validating domain and email settings..."
-    
+
     # Check if domain is set and not default
-    if [ -z "$DOMAIN" ] || [ "$DOMAIN" = "localhost" ]; then
+    # Use parameter expansion with default to avoid "unbound variable" error
+    if [ -z "${DOMAIN:-}" ] || [ "${DOMAIN:-}" = "localhost" ]; then
         log_message "WARNING: Using localhost domain. This is only suitable for development"
         return 0
     fi
-    
+
     # Validate email settings if domain is not localhost
-    if [ -z "$SMTP_HOST" ] || [ -z "$SMTP_PORT" ] || [ -z "$SMTP_USER" ]; then
+    if [ -z "${SMTP_HOST:-}" ] || [ -z "${SMTP_PORT:-}" ] || [ -z "${SMTP_USER:-}" ]; then
         log_message "ERROR: SMTP settings are required when using a custom domain" "ERROR"
         return 1
     fi
