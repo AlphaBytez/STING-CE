@@ -112,8 +112,25 @@
 
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2">Hostname</label>
-                        <input type="text" id="hostname" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 focus:ring-2 focus:ring-amber-400 focus:border-transparent" placeholder="sting-ce">
+                        <label class="block text-sm font-medium text-slate-300 mb-2">
+                            🌐 STING Hostname
+                            <span class="text-xs text-amber-400">(Required for Hardware Keys/Passkeys)</span>
+                        </label>
+                        <input type="text" id="hostname" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 focus:ring-2 focus:ring-amber-400 focus:border-transparent" placeholder="sting.local">
+
+                        <div class="mt-2 bg-blue-900/30 border border-blue-500/30 rounded-lg p-3">
+                            <p class="text-xs text-blue-200">
+                                <strong class="text-blue-100">⚠️ Important:</strong> Use a hostname (e.g., <code class="bg-slate-800 px-1 rounded">sting.local</code> or <code class="bg-slate-800 px-1 rounded">sting-vm.example.com</code>), <strong>not an IP address</strong>.
+                            </p>
+                            <p class="text-xs text-blue-200 mt-2">
+                                <strong>Common options:</strong>
+                            </p>
+                            <ul class="text-xs text-blue-200 mt-1 ml-4 space-y-1">
+                                <li>• <code class="bg-slate-800 px-1 rounded">localhost</code> - Works only on this machine</li>
+                                <li>• <code class="bg-slate-800 px-1 rounded">sting.local</code> - Recommended for VMs (add to /etc/hosts on client machines)</li>
+                                <li>• Your actual domain name (e.g., <code class="bg-slate-800 px-1 rounded">mycompany.com</code>) if DNS is configured</li>
+                            </ul>
+                        </div>
                     </div>
 
                     <div>
@@ -133,6 +150,9 @@
                     <div class="glass-card-light rounded-lg p-4">
                         <p class="text-sm text-slate-200">
                             <strong class="text-slate-100">Current IP:</strong> <span id="current-ip">Loading...</span>
+                        </p>
+                        <p class="text-xs text-slate-400 mt-2">
+                            💡 For remote access with hardware keys, add "<span id="current-ip-hosts">SERVER_IP</span> <span id="hostname-display">sting.local</span>" to /etc/hosts on client machines
                         </p>
                     </div>
                 </div>
@@ -483,13 +503,32 @@
                 const response = await fetch('/api/system-info');
                 const data = await response.json();
 
-                document.getElementById('hostname').value = data.hostname;
+                // Use sting_hostname from API (with smart detection) or fall back to sting.local
+                const hostname = data.sting_hostname || 'sting.local';
+                document.getElementById('hostname').value = hostname;
                 document.getElementById('timezone').value = data.timezone;
                 document.getElementById('current-ip').textContent = data.ip_address;
+
+                // Update hostname display in the help text
+                document.getElementById('hostname-display').textContent = hostname;
+                document.getElementById('current-ip-hosts').textContent = data.ip_address;
             } catch (error) {
                 console.error('Failed to load system info:', error);
             }
         }
+
+        // Update hostname display when user types
+        document.addEventListener('DOMContentLoaded', function() {
+            const hostnameInput = document.getElementById('hostname');
+            if (hostnameInput) {
+                hostnameInput.addEventListener('input', function(e) {
+                    const hostnameDisplay = document.getElementById('hostname-display');
+                    if (hostnameDisplay) {
+                        hostnameDisplay.textContent = e.target.value || 'sting.local';
+                    }
+                });
+            }
+        });
 
         async function detectDisks() {
             try {

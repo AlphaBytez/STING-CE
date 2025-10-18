@@ -328,6 +328,36 @@ def get_state():
     state['dev_mode'] = DEV_MODE  # Add dev mode flag to state
     return jsonify(state)
 
+def detect_sting_hostname():
+    """
+    Detect appropriate STING hostname for WebAuthn/Passkey compatibility
+    Implements same logic as lib/hostname_detection.sh but in Python
+    """
+    # Try to get FQDN first
+    try:
+        hostname = subprocess.run(['hostname', '-f'], capture_output=True, text=True).stdout.strip()
+    except:
+        hostname = ''
+
+    # If FQDN failed or returned localhost, try short hostname
+    if not hostname or hostname in ['localhost', 'localhost.localdomain']:
+        try:
+            hostname = subprocess.run(['hostname', '-s'], capture_output=True, text=True).stdout.strip().lower()
+        except:
+            hostname = ''
+
+    # Return empty if still localhost
+    if hostname == 'localhost':
+        hostname = ''
+
+    # Check if it's an IP address (not valid for WebAuthn)
+    import re
+    if hostname and re.match(r'^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$', hostname):
+        hostname = ''
+
+    # If we have a valid hostname, return it; otherwise return sting.local as default
+    return hostname if hostname else 'sting.local'
+
 @app.route('/api/system-info', methods=['GET'])
 def get_system_info():
     """Get system information for pre-population"""
@@ -336,8 +366,12 @@ def get_system_info():
         timezone = subprocess.run(['timedatectl', 'show', '-p', 'Timezone', '--value'],
                                  capture_output=True, text=True).stdout.strip()
 
+        # Get STING hostname with WebAuthn-compatible detection
+        sting_hostname = detect_sting_hostname()
+
         return jsonify({
-            'hostname': hostname or 'sting-ce',
+            'hostname': hostname or 'sting-ce',  # System hostname (for reference)
+            'sting_hostname': sting_hostname,     # STING hostname for WebAuthn (the important one)
             'timezone': timezone or 'UTC',
             'ip_address': get_primary_ip()
         })
@@ -665,9 +699,20 @@ def run_installation_background(install_id, config_data, admin_email):
         )
 
         try:
-            # Set environment variable so installer knows where to find staged config
+            # Set environment variables for installer
             env = os.environ.copy()
             env['WIZARD_CONFIG_PATH'] = STAGED_CONFIG_PATH
+
+            # Pass STING hostname from wizard to installer (for WebAuthn/Passkey compatibility)
+            # This prevents interactive hostname prompt during installation
+            sting_hostname = config_data.get('system', {}).get('hostname', '').strip()
+            if sting_hostname:
+                env['STING_HOSTNAME'] = sting_hostname
+                installations[install_id]['log'] += f"🌐 Using hostname for WebAuthn: {sting_hostname}\n"
+            else:
+                # Fallback to auto-detection if not provided
+                env['STING_HOSTNAME'] = detect_sting_hostname()
+                installations[install_id]['log'] += f"🌐 Auto-detected hostname: {env['STING_HOSTNAME']}\n"
 
             with open(install_log_file, 'w') as log_file:
                 process = subprocess.Popen(

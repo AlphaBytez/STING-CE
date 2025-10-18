@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Box, Button, TextField, Paper, Typography, Chip, CircularProgress, Alert } from '@mui/material';
 import { Send as SendIcon, Psychology, Security, Analytics, Search, History, Settings } from '@mui/icons-material';
-import { MessageSquare, Bot, Zap, Cpu, Paperclip, FileText, X, Plus, Trash2, ChevronDown, Database } from 'lucide-react';
+import { MessageSquare, Bot, Zap, Cpu, Paperclip, FileText, X, Plus, Trash2, ChevronDown, Database, Shield } from 'lucide-react';
 import BeeIcon from '../icons/BeeIcon';
 import FlowerIcon from '../icons/FlowerIcon';
 import ReactMarkdown from 'react-markdown';
@@ -410,12 +410,35 @@ const BeeChat = () => {
       setSelectedTools([]);
     } catch (error) {
       console.error('Error sending message:', error);
+
+      // Try to parse error response for better messaging
+      let errorMessage = 'Failed to connect to Bee. Please check if the service is running.';
+      let helpUrl = null;
+
+      if (error.response) {
+        const errorData = error.response.data;
+
+        // Handle specific error codes from backend
+        if (errorData.code === 'MISSING_2FA' || errorData.code === 'SECURITY_SETUP_INCOMPLETE') {
+          errorMessage = errorData.message || '🔐 Please complete your security setup (TOTP or passkey) to use Bee chat.';
+          helpUrl = errorData.help_url || '/dashboard/settings/security';
+        } else if (errorData.code === 'SERVICE_UNAVAILABLE' || errorData.code === 'CHAT_SERVICE_UNAVAILABLE') {
+          errorMessage = errorData.message || '🐝 Bee is temporarily unavailable.';
+          if (errorData.help_text) {
+            errorMessage += ` ${errorData.help_text}`;
+          }
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      }
+
       setMessages(prev => [...prev, {
         id: `error_${Date.now()}`,
         sender: 'system',
-        content: 'Failed to connect to Bee. Please check if the service is running.',
+        content: errorMessage,
         timestamp: new Date().toISOString(),
-        isError: true
+        isError: true,
+        helpUrl: helpUrl
       }]);
     } finally {
       setIsLoading(false);
@@ -936,6 +959,19 @@ const BeeChat = () => {
                       >
                         {cleanMarkdownContent(message.content)}
                       </ReactMarkdown>
+                    </div>
+                  )}
+
+                  {/* Error Help Link */}
+                  {message.isError && message.helpUrl && (
+                    <div className="mt-3 pt-3 border-t border-red-600/30">
+                      <a
+                        href={message.helpUrl}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium transition-colors"
+                      >
+                        <Shield className="w-4 h-4" />
+                        Complete Security Setup
+                      </a>
                     </div>
                   )}
 

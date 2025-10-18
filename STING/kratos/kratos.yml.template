@@ -1,13 +1,12 @@
-version: v1.3.1
-
-dsn: postgresql://postgres:OU8zRwvuYg12BVoTK-5hoHFs4-I2kGoR@db:5432/sting_app?sslmode=disable
-
+version: v1.3.0
+dsn: postgresql://postgres:postgres@db:5432/sting_app?sslmode=disable
 log:
   level: debug
-
 serve:
   public:
-    base_url: https://localhost:4433
+    base_url: https://__STING_HOSTNAME__:8443
+    host: 0.0.0.0
+    port: 4433
     tls:
       cert:
         path: /etc/certs/server.crt
@@ -16,113 +15,131 @@ serve:
     cors:
       enabled: true
       allowed_origins:
-        - https://localhost:3000
-        - http://localhost:3000
-        - https://127.0.0.1:3000
-        - http://127.0.0.1:3000
-        - https://localhost:4433
-        - http://localhost:4433
+      - http://__STING_HOSTNAME__:8443
+      - https://__STING_HOSTNAME__:8443
       allowed_methods:
-        - GET
-        - POST
-        - PUT
-        - PATCH
-        - DELETE
-        - OPTIONS
+      - GET
+      - POST
+      - OPTIONS
       allowed_headers:
-        - Authorization
-        - Content-Type
-        - X-Session-Token
-        - Cookie
-        - "*"
-      exposed_headers:
-        - Content-Type
-        - Set-Cookie
+      - '*'
       allow_credentials: true
   admin:
-    base_url: https://localhost:4434
+    base_url: https://0.0.0.0:4434
+    host: 0.0.0.0
+    port: 4434
     tls:
       cert:
         path: /etc/certs/server.crt
       key:
         path: /etc/certs/server.key
-
 identity:
   default_schema_id: default
   schemas:
-    - id: default
-      url: file:///etc/config/kratos/identity.schema.json
-
+  - id: default
+    url: file:///etc/config/kratos/identity.schema.json
 selfservice:
-  default_browser_return_url: https://localhost:3000
+  default_browser_return_url: https://__STING_HOSTNAME__:8443/dashboard
+  allowed_return_urls:
+  - https://__STING_HOSTNAME__:8443
+  - https://__STING_HOSTNAME__:8443/dashboard
+  - https://__STING_HOSTNAME__:8443/dashboard/reports
+  - https://__STING_HOSTNAME__:8443/dashboard/settings
+  - https://__STING_HOSTNAME__:8443/login
+  - https://__STING_HOSTNAME__:8443/register
+  - https://__STING_HOSTNAME__:8443/post-registration
+  - http://__STING_HOSTNAME__:8443
+  - http://__STING_HOSTNAME__:8443/dashboard
+  - http://__STING_HOSTNAME__:8443/dashboard/reports
+  - http://__STING_HOSTNAME__:8443/dashboard/settings
+  - http://__STING_HOSTNAME__:8443/login
+  - http://__STING_HOSTNAME__:8443/register
+  - http://__STING_HOSTNAME__:8443/post-registration
+  - https://__STING_HOSTNAME__:8443/*
+  - http://__STING_HOSTNAME__:8443/*
   flows:
+    error:
+      ui_url: https://__STING_HOSTNAME__:8443/error
     settings:
-      ui_url: https://localhost:3000/settings
-      privileged_session_max_age: 15m
+      ui_url: https://__STING_HOSTNAME__:8443/dashboard/settings?tab=security
+      lifespan: 1h
+      privileged_session_max_age: 24h
+      required_aal: aal1  # TEMPORARY: Allow AAL1 access to existing TOTP/passkeys
     login:
-      ui_url: https://localhost:3000/login
+      # RESTORED: Custom STING UI that works for AAL1 authentication
+      ui_url: https://__STING_HOSTNAME__:8443/login
       lifespan: 1h
       after:
-        default_browser_return_url: https://localhost:3000/dashboard
+        default_browser_return_url: https://__STING_HOSTNAME__:8443/dashboard
     registration:
-      ui_url: https://localhost:3000/register
+      ui_url: https://__STING_HOSTNAME__:8443/register
       lifespan: 1h
       after:
-        default_browser_return_url: https://localhost:3000/dashboard
+        password:
+          hooks:
+          - hook: session
+        default_browser_return_url: https://__STING_HOSTNAME__:8443/post-registration
     verification:
-      enabled: true
-      ui_url: https://localhost:3000/verification
+      enabled: false
+      ui_url: https://__STING_HOSTNAME__:8443/verification
       lifespan: 1h
       after:
-        default_browser_return_url: https://localhost:3000/dashboard
+        default_browser_return_url: https://__STING_HOSTNAME__:8443/dashboard
     recovery:
       enabled: true
-      ui_url: https://localhost:3000/recovery
+      ui_url: https://__STING_HOSTNAME__:8443/recovery
       lifespan: 1h
+    logout:
+      after:
+        default_browser_return_url: https://__STING_HOSTNAME__:8443/login
   methods:
     password:
-      enabled: true
+      enabled: false
       config:
         haveibeenpwned_enabled: false
         identifier_similarity_check_enabled: false
     webauthn:
       enabled: true
       config:
-        passwordless: true
+        passwordless: false
         rp:
-          id: localhost
-          display_name: STING Authentication
-          origin: https://localhost:3000
+          id: __STING_HOSTNAME__
+          display_name: STING Platform
+          origins:
+          - https://__STING_HOSTNAME__:8443
+          - http://__STING_HOSTNAME__:8443
+    totp:
+      enabled: true
+      config:
+        issuer: STING Authentication
+    lookup_secret:
+      enabled: true
     link:
       enabled: true
       config:
         lifespan: 1h
     code:
       enabled: true
+      passwordless_enabled: true
       config:
         lifespan: 15m
-
 secrets:
   cookie:
-    - 3Xi89Ds7ut6N-rQqMG7pcOji6yrzpw-A
+  - b8b7a6a76d944a64229dc9e1c858c60a
   cipher:
-    - b752652041bc2ea0305df9f62ba29b13
-
+  - 8b530c69d41d77b45851e34a71f895c6
 session:
   cookie:
     name: ory_kratos_session
-    domain: localhost
+    domain: __STING_HOSTNAME__
     path: /
     same_site: Lax
-
   lifespan: 24h
-  earliest_possible_extend: 1h
-
-hashers:
-  algorithm: bcrypt
-  bcrypt:
-    cost: 12
-
+  whoami:
+    required_aal: aal1  # TEMPORARY: Allow AAL1 access to check existing credentials
 courier:
   smtp:
-    connection_uri: smtps://test:test@mailslurper:1025/?skip_ssl_verify=true
+    connection_uri: smtp://mailpit:1025/?skip_ssl_verify=true&disable_starttls=true
+    from_address: noreply@sting.local
+    from_name: STING Platform
+  template_override_path: /etc/config/kratos/courier-templates/

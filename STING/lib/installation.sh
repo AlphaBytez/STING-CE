@@ -2247,6 +2247,105 @@ generate_env_js_files() {
     fi
 }
 
+# Configure hostname for WebAuthn/Passkey compatibility
+configure_hostname() {
+    log_message "Configuring hostname for WebAuthn/Passkey support..."
+
+    # Source hostname detection library
+    local script_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -f "$script_lib_dir/hostname_detection.sh" ]; then
+        source "$script_lib_dir/hostname_detection.sh"
+    else
+        log_message "⚠️ hostname_detection.sh not found, using localhost as fallback" "WARNING"
+        export STING_HOSTNAME="localhost"
+        return 0
+    fi
+
+    # Get hostname (interactive mode if not already set via env var)
+    if [ -z "$STING_HOSTNAME" ]; then
+        log_message "Detecting hostname for STING configuration..."
+        STING_HOSTNAME=$(get_sting_hostname true)
+    fi
+
+    if [ -z "$STING_HOSTNAME" ]; then
+        log_message "⚠️ No hostname detected, defaulting to localhost" "WARNING"
+        STING_HOSTNAME="localhost"
+    fi
+
+    export STING_HOSTNAME
+    log_message "Using hostname: $STING_HOSTNAME"
+
+    # Generate kratos.yml from template
+    if [ -f "${INSTALL_DIR}/kratos/kratos.yml.template" ]; then
+        log_message "Generating kratos/kratos.yml from template..."
+        sed "s/__STING_HOSTNAME__/$STING_HOSTNAME/g" \
+            "${INSTALL_DIR}/kratos/kratos.yml.template" > \
+            "${INSTALL_DIR}/kratos/kratos.yml"
+        log_message "✅ Generated kratos/kratos.yml with hostname: $STING_HOSTNAME"
+    else
+        log_message "⚠️ kratos/kratos.yml.template not found, skipping Kratos config generation" "WARNING"
+    fi
+
+    # Update env.js files with hostname instead of IP for WebAuthn compatibility
+    log_message "Updating frontend configuration with hostname..."
+
+    # Detect OS for sed -i compatibility (macOS requires '', Linux doesn't)
+    local sed_inplace_arg=""
+    if [[ "$(uname)" == "Darwin" ]]; then
+        sed_inplace_arg="-i ''"
+    else
+        sed_inplace_arg="-i"
+    fi
+
+    # Update frontend/public/env.js
+    if [ -f "${INSTALL_DIR}/frontend/public/env.js" ]; then
+        # Replace any existing hostname/IP with the configured hostname
+        if [[ "$(uname)" == "Darwin" ]]; then
+            sed -i '' "s|PUBLIC_URL: '[^']*'|PUBLIC_URL: 'https://$STING_HOSTNAME:8443'|g" "${INSTALL_DIR}/frontend/public/env.js"
+            sed -i '' "s|REACT_APP_API_URL: '[^']*'|REACT_APP_API_URL: 'https://$STING_HOSTNAME:5050'|g" "${INSTALL_DIR}/frontend/public/env.js"
+            sed -i '' "s|REACT_APP_KRATOS_PUBLIC_URL: '[^']*'|REACT_APP_KRATOS_PUBLIC_URL: 'https://$STING_HOSTNAME:4433'|g" "${INSTALL_DIR}/frontend/public/env.js"
+        else
+            sed -i "s|PUBLIC_URL: '[^']*'|PUBLIC_URL: 'https://$STING_HOSTNAME:8443'|g" "${INSTALL_DIR}/frontend/public/env.js"
+            sed -i "s|REACT_APP_API_URL: '[^']*'|REACT_APP_API_URL: 'https://$STING_HOSTNAME:5050'|g" "${INSTALL_DIR}/frontend/public/env.js"
+            sed -i "s|REACT_APP_KRATOS_PUBLIC_URL: '[^']*'|REACT_APP_KRATOS_PUBLIC_URL: 'https://$STING_HOSTNAME:4433'|g" "${INSTALL_DIR}/frontend/public/env.js"
+        fi
+        log_message "✅ Updated frontend/public/env.js with hostname"
+    fi
+
+    # Update app/static/env.js
+    if [ -f "${INSTALL_DIR}/app/static/env.js" ]; then
+        if [[ "$(uname)" == "Darwin" ]]; then
+            sed -i '' "s|PUBLIC_URL: '[^']*'|PUBLIC_URL: 'https://$STING_HOSTNAME:8443'|g" "${INSTALL_DIR}/app/static/env.js"
+            sed -i '' "s|REACT_APP_API_URL: '[^']*'|REACT_APP_API_URL: 'https://$STING_HOSTNAME:5050'|g" "${INSTALL_DIR}/app/static/env.js"
+            sed -i '' "s|REACT_APP_KRATOS_PUBLIC_URL: '[^']*'|REACT_APP_KRATOS_PUBLIC_URL: 'https://$STING_HOSTNAME:4433'|g" "${INSTALL_DIR}/app/static/env.js"
+        else
+            sed -i "s|PUBLIC_URL: '[^']*'|PUBLIC_URL: 'https://$STING_HOSTNAME:8443'|g" "${INSTALL_DIR}/app/static/env.js"
+            sed -i "s|REACT_APP_API_URL: '[^']*'|REACT_APP_API_URL: 'https://$STING_HOSTNAME:5050'|g" "${INSTALL_DIR}/app/static/env.js"
+            sed -i "s|REACT_APP_KRATOS_PUBLIC_URL: '[^']*'|REACT_APP_KRATOS_PUBLIC_URL: 'https://$STING_HOSTNAME:4433'|g" "${INSTALL_DIR}/app/static/env.js"
+        fi
+        log_message "✅ Updated app/static/env.js with hostname"
+    fi
+
+    # Show setup instructions
+    log_message ""
+    log_message "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    if [ "$STING_HOSTNAME" = "localhost" ]; then
+        log_message "✅ Using localhost - WebAuthn will work on this machine only"
+        log_message "   For remote access with passkeys, run: ./update_hostname.sh"
+    else
+        log_message "✅ Hostname configured: $STING_HOSTNAME"
+        log_message ""
+        log_message "📝 For remote access, add to /etc/hosts on client machines:"
+        log_message "   <SERVER_IP>  $STING_HOSTNAME"
+        log_message ""
+        log_message "   Example: 192.168.1.100  $STING_HOSTNAME"
+    fi
+    log_message "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log_message ""
+
+    return 0
+}
+
 # Master initialization function that orchestrates the entire setup process
 initialize_sting() {
     local source_dir="${SOURCE_DIR:-$(pwd)}"
@@ -2337,6 +2436,9 @@ initialize_sting() {
 
     # 6.5. Generate env.js files for frontend with actual host IP
     generate_env_js_files
+
+    # 6.6. Configure hostname for WebAuthn/Passkey compatibility
+    configure_hostname
 
     # 7. Install services
     if ! build_and_start_services "$cache_level"; then

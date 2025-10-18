@@ -25,22 +25,22 @@ def chat_with_bee():
     Requires authentication (session or API key)
     """
     try:
-        
+
         # Get request data
         data = request.get_json()
         if not data or 'message' not in data:
             return jsonify({'error': 'Message is required'}), 400
-        
+
         message = data.get('message')
         conversation_id = data.get('conversation_id')
         context = data.get('context', {})
-        
+
         # Add user information to context (handle both session and API key auth)
         if hasattr(g, 'api_key') and g.api_key:
             # API key authentication
             logger.info(f"🔑 API Key Debug: Using API key {g.api_key.name} with user_id: {g.api_key.user_id}")
             context['user_id'] = str(g.api_key.user_id)
-            context['user_email'] = str(g.api_key.user_email) 
+            context['user_email'] = str(g.api_key.user_email)
             context['user_role'] = 'admin' if 'admin' in g.api_key.scopes else 'user'
             context['auth_type'] = 'api_key'
         elif hasattr(g, 'user') and g.user:
@@ -49,6 +49,26 @@ def chat_with_bee():
             context['user_email'] = g.user.email
             context['user_role'] = str(g.user.role)
             context['auth_type'] = 'session'
+
+            # Check if user has completed security setup (TOTP or passkey)
+            # This is not required but helps provide better error messages
+            try:
+                from app.decorators.aal2 import aal2_manager
+                enrollment_status = aal2_manager.check_passkey_enrollment(g.user.id)
+
+                if not enrollment_status['enrolled']:
+                    # User hasn't set up 2FA - provide helpful message
+                    logger.warning(f"User {g.user.email} attempting to use Bee chat without 2FA setup")
+                    return jsonify({
+                        'error': 'SECURITY_SETUP_INCOMPLETE',
+                        'message': '🔐 Please complete your security setup before using Bee chat. Set up TOTP or a passkey in your Security Settings.',
+                        'code': 'MISSING_2FA',
+                        'help_url': '/dashboard/settings/security',
+                        'details': 'For security reasons, Bee chat requires two-factor authentication (TOTP or passkey) to be configured on your account.'
+                    }), 403
+            except Exception as security_check_error:
+                # If security check fails, log but continue (don't block chat if check fails)
+                logger.warning(f"Security check failed for {g.user.email}: {security_check_error}")
         else:
             # Fallback for API-only usage
             context['user_id'] = data.get('user_id', 'api_user')
@@ -116,13 +136,37 @@ def chat_with_bee():
         except requests.exceptions.RequestException as e:
             logger.error(f"Chatbot service error: {e}")
             return jsonify({
-                'error': 'Chat service connection failed',
-                'details': str(e)
+                'error': 'CHAT_SERVICE_UNAVAILABLE',
+                'message': '🐝 Bee is temporarily unavailable. Our team has been notified.',
+                'details': 'The chat service is not responding. Please try again in a few moments.',
+                'code': 'SERVICE_UNAVAILABLE',
+                'help_text': 'If this persists, check that your LLM backend (Ollama) is running and accessible.'
             }), 503
-            
+
     except Exception as e:
-        logger.error(f"Chat endpoint error: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        logger.error(f"Chat endpoint error: {e}", exc_info=True)
+
+        # Provide more helpful error messages based on error type
+        error_message = 'An unexpected error occurred while processing your message'
+        help_text = None
+
+        if 'connection' in str(e).lower():
+            error_message = '🐝 Bee is having trouble connecting to the AI service'
+            help_text = 'Please ensure your LLM backend (Ollama) is running and accessible.'
+        elif 'timeout' in str(e).lower():
+            error_message = '🐝 Bee is taking too long to respond'
+            help_text = 'The AI service may be overloaded. Please try again in a moment.'
+        elif 'authentication' in str(e).lower() or 'auth' in str(e).lower():
+            error_message = '🔐 Authentication error'
+            help_text = 'Please ensure you have completed your security setup (TOTP or passkey).'
+
+        return jsonify({
+            'error': 'CHAT_ERROR',
+            'message': error_message,
+            'code': 'INTERNAL_ERROR',
+            'help_text': help_text,
+            'details': str(e) if os.getenv('DEBUG') else None
+        }), 500
 
 
 @chatbot_bp.route('/api/bee/conversations', methods=['GET'])
