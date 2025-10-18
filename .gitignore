@@ -89,3 +89,4 @@ create_sting_subdirectory.sh
 reorganize_public_repo.sh
 verify_reorganization.sh
 .claude/settings.local.json
+CLAUDE.md

@@ -67,8 +67,26 @@ Or use the full management script directly:
 - **OS:** Ubuntu 20.04+, macOS, or WSL2
 - **Python:** 3.8+
 - **Docker:** 20.10+
-- **RAM:** 4GB minimum (8GB recommended)
-- **Disk:** 20GB minimum
+- **RAM:**
+  - 4GB minimum (external LLM API only)
+  - 16GB minimum (local LLM with small models)
+  - 32GB+ recommended (local LLM production)
+- **Disk:** 20GB base + 10-50GB per local LLM model
+- **LLM Backend:** One of:
+  - Ollama (recommended for self-hosting)
+  - LM Studio
+  - OpenAI/Anthropic/other API keys
+
+> ⚠️ **Note for Traditional Server Deployments**
+>
+> STING's AI features require significantly more resources than typical web applications:
+> - **Local LLM**: 16-32GB RAM, 8+ CPU cores (for data sovereignty)
+> - **External API**: 4-8GB RAM, 2-4 CPU cores (but requires API access)
+>
+> For budget-constrained deployments, consider:
+> 1. Using external LLM APIs (OpenAI, etc.) to reduce hardware costs
+> 2. Starting with small models (phi3:mini, deepseek-r1) on modest hardware
+> 3. Scaling up as usage grows
 
 ---
 
@@ -90,7 +108,7 @@ Or use the full management script directly:
    - **Step 1:** System basics (hostname, timezone)
    - **Step 2:** Data disk (optional - for separate storage)
    - **Step 3:** Admin email (passwordless account)
-   - **Step 4:** LLM backend (test connectivity!)
+   - **Step 4:** LLM backend (REQUIRED - choose local or API, test connectivity!)
    - **Step 5:** Email settings (optional - for notifications)
    - **Step 6:** SSL configuration (self-signed or custom)
    - **Step 7:** Review and apply
@@ -109,35 +127,68 @@ Or use the full management script directly:
 
 ## 📝 Configuration
 
-### LLM Backend
+### 🤖 LLM Backend Requirement
+
+**STING requires an LLM backend** for AI features (Bee chat, knowledge search, semantic analysis, etc.)
+
+#### System Requirements by Deployment Type
+
+| Component | External API Only | Local LLM (Small Models) | Local LLM (Large Models) |
+|-----------|------------------|--------------------------|--------------------------|
+| **RAM** | 4-8GB | 16-24GB | 32-64GB |
+| **CPU** | 2-4 cores | 8+ cores | 12-16+ cores |
+| **Disk** | 20GB | 50-100GB | 100-250GB |
+| **GPU** | Not required | Optional (faster) | Highly recommended |
+| **Use Case** | Testing, low volume | Small teams, privacy-focused | Production, high volume |
+| **Cost** | Pay-per-use API fees | No API fees, higher hardware | No API fees, highest hardware |
+
+#### Choose Your LLM Backend
 
 STING supports multiple LLM backends:
 
-**Ollama (Recommended):**
+**Option A: Ollama (Recommended for Self-Hosting)**
+Best for: Complete data sovereignty, no API costs, privacy-sensitive data
+
 ```bash
 # Install Ollama
 curl -fsSL https://ollama.com/install.sh | sh
 
-# Pull a model
-ollama pull phi4:mini
+# Pull a small model (4GB RAM+)
+ollama pull phi3:mini
+
+# Or pull a larger model (16GB RAM+)
+ollama pull deepseek-r1
 
 # Use in wizard:
 Endpoint: http://localhost:11434
-Model: phi4:mini
+Model: phi3:mini
 ```
 
-**LM Studio:**
+**Option B: LM Studio**
+Best for: Desktop users, GUI preference, testing different models
+
 ```
 Endpoint: http://localhost:11434
 Model: Choose from loaded models
+Requirements: 16GB+ RAM for most models
 ```
 
-**OpenAI-Compatible APIs:**
+**Option C: External APIs (Minimal Hardware)**
+Best for: Testing, low volume, budget-constrained hardware
+
 ```
 Endpoint: https://api.openai.com/v1
 Model: gpt-4
 API Key: Your key (configure in Step 4)
+Requirements: Just 4-8GB RAM
 ```
+
+**Option D: Hybrid (Recommended for Production)**
+Best for: Privacy + performance balance
+
+- Use Ollama for privacy-sensitive queries
+- Use external API for complex analysis
+- Configure both in Step 4 of wizard
 
 ### Default Ports
 
@@ -220,12 +271,36 @@ python3 app.py
 
 ### LLM endpoint test fails
 
+**For Ollama:**
 ```bash
-# Verify Ollama is running
+# Check if Ollama is running
 curl http://localhost:11434/api/tags
 
-# Or check LM Studio server status
+# If not running, start it
+ollama serve &
+
+# Check available models
+ollama list
+
+# Pull a model if none available
+ollama pull phi3:mini
 ```
+
+**For LM Studio:**
+- Ensure LM Studio is running
+- Check that a model is loaded
+- Verify the local server is enabled (port 11434)
+
+**For External APIs:**
+- Verify API key is correct
+- Check network connectivity: `curl https://api.openai.com`
+- Ensure API endpoint URL is correct
+
+**Common Issues:**
+- **Port conflict**: Ollama/LM Studio both use 11434 by default
+- **Firewall**: Check firewall isn't blocking localhost:11434
+- **Model not loaded**: Ollama requires `ollama pull` first
+- **Insufficient RAM**: 4GB+ for small models, 16GB+ for larger ones
 
 ### Installation hangs
 
@@ -263,6 +338,8 @@ After installation:
 - **For development:** Use the wizard in dev mode (`DEV_MODE=true`) to test configuration without actually installing.
 - **For production:** Always use real SMTP (not Mailpit) and proper SSL certificates.
 - **For automation:** Use `--cli` flag and pre-create `conf/config.yml`.
+- **For limited resources:** Start with external LLM APIs (4-8GB RAM) then migrate to local Ollama as you scale.
+- **For data sovereignty:** Use local Ollama with small models (phi3:mini) even on modest hardware (16GB RAM).
 
 ---
 

@@ -1,0 +1,199 @@
+# Ubuntu/Linux IP-Based Access Configuration
+
+## Problem
+
+When STING is installed on Ubuntu/Linux VMs and accessed via IP address (e.g., `https://192.168.1.100:8443`), users may experience login redirect issues. This happens because the default configuration uses `localhost` for:
+
+- Kratos `allowed_return_urls`
+- Kratos CORS `allowed_origins`
+- Frontend `REACT_APP_API_URL` and `REACT_APP_KRATOS_PUBLIC_URL`
+- WebAuthn RP ID and origins
+- Session cookie domain
+
+When you access STING via IP address but the configuration expects `localhost`, the authentication flow breaks because:
+1. Browser redirects from IP → localhost → IP cause CORS errors
+2. WebAuthn passkeys are tied to the RP ID domain (localhost vs IP mismatch)
+3. Session cookies don't work across domains
+
+## Architecture
+
+STING uses a centralized configuration system that maintains Mac compatibility:
+
+1. **config.yml** (`STING/conf/config.yml`)
+   - Contains `system.domain` setting (defaults to `localhost`)
+   - Used as the source of truth for all domain-related settings
+
+2. **config_loader.py** (`STING/conf/config_loader.py`)
+   - Reads `config.yml` and generates environment files
+   - Uses domain priority: config.yml → `.sting_domain` file → `STING_DOMAIN` env var → localhost
+   - Generates: `frontend.env`, `app.env`, `kratos.env`, etc.
+
+3. **kratos.yml** (`STING/kratos/kratos.yml`)
+   - Kratos-specific configuration with allowed URLs
+   - Must be updated separately from env files
+
+## Solution
+
+### Quick Fix (Recommended)
+
+Run the all-in-one fix script:
+
+```bash
+cd /opt/sting-ce
+bash fix_ubuntu_ip_access.sh
+```
+
+This will:
+1. Auto-detect your VM's IP address
+2. Update `config.yml` with the IP
+3. Regenerate all env files using `config_loader.py`
+4. Update Kratos `kratos.yml` with IP-based URLs
+5. Restart Kratos, frontend, and app services
+
+### Manual Fix
+
+If you prefer to run each step manually:
+
+#### Step 1: Configure Domain
+
+```bash
+cd /opt/sting-ce
+bash scripts/setup/configure_domain_for_platform.sh
+```
+
+This script:
+- Detects platform (Mac, WSL2, Linux)
+- Auto-detects IP for Linux/WSL2 or uses `localhost` for Mac
+- Updates `conf/config.yml` with the domain
+- Runs `config_loader.py` to regenerate env files
+- Updates frontend `env.js` files
+- Restarts affected services
+
+#### Step 2: Fix Kratos Allowed URLs
+
+```bash
+cd /opt/sting-ce
+bash scripts/setup/fix_kratos_allowed_urls.sh
+```
+
+This script:
+- Reads domain from `config.yml`
+- Updates Kratos `allowed_return_urls` and CORS `allowed_origins`
+- Updates WebAuthn RP ID and origins
+- Updates session cookie domain
+- Restarts Kratos
+
+## Mac Compatibility
+
+These scripts maintain Mac compatibility because:
+
+1. **Platform Detection**: The `configure_domain_for_platform.sh` script detects macOS and uses `localhost` automatically
+2. **Config-Based**: All changes go through `config.yml`, which can be different per environment
+3. **No Hardcoding**: The scripts don't hardcode IP addresses - they detect them dynamically
+
+Mac users can safely run the same scripts, and they will configure for `localhost`.
+
+## Verifying the Fix
+
+After running the fix:
+
+1. **Check config.yml**:
+   ```bash
+   cat /opt/sting-ce/conf/config.yml | grep "domain:"
+   ```
+   Should show your IP address.
+
+2. **Check frontend env.js**:
+   ```bash
+   cat /opt/sting-ce/frontend/public/env.js
+   ```
+   Should have URLs with your IP.
+
+3. **Check Kratos allowed URLs**:
+   ```bash
+   grep "allowed_return_urls" -A 10 /opt/sting-ce/kratos/kratos.yml
+   ```
+   Should include your IP-based URLs.
+
+4. **Test login**:
+   - Navigate to `https://YOUR_IP:8443`
+   - Click login
+   - Should redirect to Kratos login with IP address (not localhost)
+   - After login, should redirect back to dashboard
+
+## Troubleshooting
+
+### Still seeing localhost redirects
+
+Clear your browser cache and cookies:
+```bash
+# Chrome
+Ctrl+Shift+Delete → Clear cookies and cached files
+
+# Firefox
+Ctrl+Shift+Delete → Cookies and Cache
+```
+
+### Kratos health check failing
+
+```bash
+docker logs sting-ce-kratos --tail 50
+```
+
+Look for errors related to CORS or allowed URLs.
+
+### WebAuthn/Passkeys not working
+
+If you had passkeys registered with `localhost`, they won't work with IP-based access. You'll need to:
+1. Remove old passkeys from browser
+2. Re-register passkeys after the IP configuration
+
+### Services not restarting
+
+Manually restart:
+```bash
+cd /opt/sting-ce
+docker compose restart kratos frontend app
+```
+
+## Implementation Details
+
+### Files Modified
+
+1. **config.yml** - `system.domain` updated to IP
+2. **kratos.yml** - Multiple sections updated:
+   - `serve.public.base_url`
+   - `serve.public.cors.allowed_origins`
+   - `selfservice.allowed_return_urls`
+   - `selfservice.flows.*.ui_url`
+   - `selfservice.methods.webauthn.config.rp.id`
+   - `selfservice.methods.webauthn.config.rp.origins`
+   - `session.cookie.domain`
+
+3. **Environment files** (regenerated by config_loader.py):
+   - `env/frontend.env`
+   - `env/app.env`
+   - `env/kratos.env`
+
+4. **Frontend runtime files**:
+   - `frontend/public/env.js`
+   - `app/static/env.js`
+
+### Backup Files
+
+Both scripts create backups:
+- `config.yml.backup.YYYYMMDD_HHMMSS`
+- `kratos.yml.backup.YYYYMMDD_HHMMSS`
+
+To restore:
+```bash
+cp /opt/sting-ce/conf/config.yml.backup.20250118_120000 /opt/sting-ce/conf/config.yml
+cp /opt/sting-ce/kratos/kratos.yml.backup.20250118_120000 /opt/sting-ce/kratos/kratos.yml
+bash /opt/sting-ce/scripts/setup/configure_domain_for_platform.sh
+```
+
+## See Also
+
+- [Platform Compatibility Guide](../PLATFORM_COMPATIBILITY_GUIDE.md)
+- [Custom Domain Setup](custom-domain-setup.md)
+- [WSL2 Fresh Install Checklist](WSL2_FRESH_INSTALL_CHECKLIST.md)
