@@ -499,7 +499,6 @@ uninstall_msting_with_confirmation() {
     echo "   ℹ️  User data (admin password, etc.) will be PRESERVED"
     echo "   Add --purge to remove ALL data including:"
     echo "     - User data and admin credentials"
-    echo "     - Downloaded LLM models"
     echo "     - All configuration files"
     echo ""
     read -p "Are you sure you want to uninstall STING? (yes/no): " confirm
