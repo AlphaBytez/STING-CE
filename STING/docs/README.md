@@ -233,7 +233,7 @@ Complete control over your sensitive data:
 <br/>
 
 <a href="https://github.com/alphabytez">
-  <img src="assets/alphabytez-logo.gif" alt="AlphaBytez" width="300">
+  <img src="assets/alphabytez-logo.svg" alt="AlphaBytez" width="300">
 </a>
 
 </div>

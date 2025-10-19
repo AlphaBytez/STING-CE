@@ -355,7 +355,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE-Publ
 <br/>
 
 <a href="https://github.com/alphabytez">
-  <img src="docs/assets/alphabytez-logo.gif" alt="AlphaBytez" width="300">
+  <img src="docs/assets/alphabytez-logo.svg" alt="AlphaBytez" width="300">
 </a>
 
 </div>
