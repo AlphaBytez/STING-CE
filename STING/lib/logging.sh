@@ -10,12 +10,16 @@ setup_enhanced_logging() {
     # Set up proper log directories if we have permissions
     if [ -w "$INSTALL_DIR" ] || [ -w "$(dirname "$INSTALL_DIR")" ]; then
         local log_dir="${INSTALL_DIR}/logs"
+
+        # Try to create log directories
         mkdir -p "$log_dir" 2>/dev/null || true
         mkdir -p "$log_dir/commands" 2>/dev/null || true
         mkdir -p "$log_dir/docker" 2>/dev/null || true
         mkdir -p "$log_dir/verbose" 2>/dev/null || true
 
-        if [ -w "$log_dir" ]; then
+        # ONLY update LOG_FILE if the directory actually exists and is writable
+        # This prevents stderr spam when /opt/sting-ce doesn't exist yet
+        if [ -d "$log_dir" ] && [ -w "$log_dir" ]; then
             export LOG_FILE="${log_dir}/manage_sting.log"
             export LOG_COMMANDS_DIR="${log_dir}/commands"
             export LOG_DOCKER_DIR="${log_dir}/docker"
@@ -28,6 +32,7 @@ setup_enhanced_logging() {
                 export ENHANCED_LOGGING_ENABLED=1
             fi
         fi
+        # If log directory creation failed, LOG_FILE stays as /tmp/manage_sting.log (from bootstrap.sh)
     fi
 }
 

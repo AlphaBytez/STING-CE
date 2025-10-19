@@ -343,32 +343,44 @@ def get_state():
 def detect_sting_hostname():
     """
     Detect appropriate STING hostname for WebAuthn/Passkey compatibility
-    Implements same logic as lib/hostname_detection.sh but in Python
+
+    IMPORTANT: Prefers IP address over hostname to avoid DNS/hostname mismatch issues
+    that cause login loops (e.g., user accesses via IP but gets redirected to hostname)
     """
-    # Try to get FQDN first
+    import re
+
+    # Strategy 1: Try to get primary IP address (PREFERRED for remote access)
+    # This avoids the common issue where users access via IP but Kratos redirects to hostname
+    try:
+        result = subprocess.run(['hostname', '-I'], capture_output=True, text=True)
+        ips = result.stdout.strip().split()
+        if ips:
+            primary_ip = ips[0]
+            # Validate it's a real IP (not loopback)
+            if primary_ip and not primary_ip.startswith('127.') and re.match(r'^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$', primary_ip):
+                return primary_ip
+    except:
+        pass
+
+    # Strategy 2: Try FQDN (if it's a proper domain, not localhost)
     try:
         hostname = subprocess.run(['hostname', '-f'], capture_output=True, text=True).stdout.strip()
+        if hostname and hostname not in ['localhost', 'localhost.localdomain'] and '.' in hostname:
+            # Valid FQDN (has dot and isn't localhost)
+            return hostname
     except:
-        hostname = ''
+        pass
 
-    # If FQDN failed or returned localhost, try short hostname
-    if not hostname or hostname in ['localhost', 'localhost.localdomain']:
-        try:
-            hostname = subprocess.run(['hostname', '-s'], capture_output=True, text=True).stdout.strip().lower()
-        except:
-            hostname = ''
+    # Strategy 3: Try short hostname (if it's not localhost)
+    try:
+        hostname = subprocess.run(['hostname', '-s'], capture_output=True, text=True).stdout.strip().lower()
+        if hostname and hostname != 'localhost':
+            return hostname
+    except:
+        pass
 
-    # Return empty if still localhost
-    if hostname == 'localhost':
-        hostname = ''
-
-    # Check if it's an IP address (not valid for WebAuthn)
-    import re
-    if hostname and re.match(r'^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$', hostname):
-        hostname = ''
-
-    # If we have a valid hostname, return it; otherwise return sting.local as default
-    return hostname if hostname else 'sting.local'
+    # Fallback: Use sting.local
+    return 'sting.local'
 
 @app.route('/api/system-info', methods=['GET'])
 def get_system_info():
