@@ -818,20 +818,21 @@ def run_installation_background(install_id, config_data, admin_email):
             installations[install_id]['status'] = 'Waiting for services...'
             installations[install_id]['progress'] = 85
 
-            # Get detected host IP (prefer detected hostname over localhost for WSL2/Windows compatibility)
-            host_ip = os.environ.get('STING_HOST_IP', 'localhost')
+            # Use the hostname configured by user in wizard Step 1 (ensures consistency for WebAuthn)
+            configured_hostname = config_data.get('system', {}).get('hostname', 'localhost')
+            installations[install_id]['log'] += f"Using configured hostname: {configured_hostname}\n"
 
             # 3. Wait for services to be ready
             installations[install_id]['log'] += f"\n\n{'='*50}\n"
             installations[install_id]['log'] += "Waiting for Services\n"
             installations[install_id]['log'] += f"{'='*50}\n\n"
 
-            # Wait for Kratos to be ready (use detected hostname, fallback to localhost)
+            # Wait for Kratos to be ready (using configured hostname for consistency)
             max_wait = 60
             wait_interval = 3
             elapsed = 0
             kratos_ready = False
-            kratos_url = f'https://{host_ip}:4434/admin/health/ready'
+            kratos_url = f'https://{configured_hostname}:4434/admin/health/ready'
 
             installations[install_id]['log'] += f"Checking Kratos at: {kratos_url}\n"
 
@@ -872,9 +873,9 @@ def run_installation_background(install_id, config_data, admin_email):
 
                 if os.path.exists(script_path):
                     try:
-                        # Set Kratos URL using detected hostname (not localhost for WSL2 compatibility)
+                        # Set Kratos URL using configured hostname (ensures consistency with login/WebAuthn)
                         env = os.environ.copy()
-                        env['KRATOS_ADMIN_URL'] = f'http://{host_ip}:4434'
+                        env['KRATOS_ADMIN_URL'] = f'http://{configured_hostname}:4434'
 
                         result = subprocess.run(
                             ['python3', script_path, '--email', admin_email, '--passwordless'],
@@ -892,7 +893,7 @@ def run_installation_background(install_id, config_data, admin_email):
                         if result.returncode == 0:
                             installations[install_id]['log'] += f"\n✅ Admin account created successfully!\n"
                             if admin_email == 'admin@sting.local':
-                                installations[install_id]['log'] += f"💡 Using Mailpit for testing - check http://{host_ip}:8025 for login links\n\n"
+                                installations[install_id]['log'] += f"💡 Using Mailpit for testing - check http://{configured_hostname}:8025 for login links\n\n"
                             else:
                                 installations[install_id]['log'] += f"📧 Check {admin_email} for magic link to complete setup\n\n"
                         else:
@@ -933,8 +934,8 @@ def run_installation_background(install_id, config_data, admin_email):
             installations[install_id]['success'] = True
             installations[install_id]['progress'] = 100
             installations[install_id]['status'] = 'Installation complete!'
-            # Always set redirect URL using detected host IP (already set above for WSL2 compatibility)
-            installations[install_id]['redirect_url'] = f'https://{host_ip}:8443'
+            # Use configured hostname for redirect (ensures WebAuthn consistency)
+            installations[install_id]['redirect_url'] = f'https://{configured_hostname}:8443'
             installations[install_id]['admin_email'] = admin_email if admin_email else ''
 
         finally:
