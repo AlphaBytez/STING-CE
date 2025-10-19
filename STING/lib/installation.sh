@@ -69,12 +69,16 @@ install_msting() {
         if ! mkdir -p "${INSTALL_DIR}" 2>/dev/null; then
             if command -v sudo >/dev/null 2>&1; then
                 log_message "Need elevated permissions to create ${INSTALL_DIR}"
-                sudo mkdir -p "${INSTALL_DIR}" || {
-                    log_message "Failed to create installation directory" "ERROR"
+                # Use -n flag to avoid password prompts (keepalive should handle this)
+                if ! sudo -n mkdir -p "${INSTALL_DIR}" 2>/dev/null; then
+                    log_message "Failed to create installation directory (sudo not available)" "ERROR"
+                    log_message "Ensure sudo keepalive is running or run installer with sudo" "ERROR"
                     return 1
-                }
+                fi
                 # Set ownership to current user
-                sudo chown -R "$USER:$(id -gn)" "${INSTALL_DIR}"
+                sudo -n chown -R "$USER:$(id -gn)" "${INSTALL_DIR}" 2>/dev/null || {
+                    log_message "Warning: Could not set ownership on ${INSTALL_DIR}" "WARNING"
+                }
             else
                 log_message "Cannot create ${INSTALL_DIR} - permission denied and sudo not available" "ERROR"
                 return 1
@@ -1511,13 +1515,17 @@ exec bash \"\$INSTALL_DIR/manage_sting.sh\" \"\$@\"
 "
     
     # Ensure /usr/local/bin exists
+    # Note: This should have been created during pre-installation sudo setup
+    # Use -n flag to avoid password prompts (keepalive should handle this)
     if [ ! -d "/usr/local/bin" ]; then
-        if ! sudo mkdir -p /usr/local/bin 2>/dev/null; then
-            log_message "Failed to create /usr/local/bin directory" "ERROR"
-            return 1
+        if ! sudo -n mkdir -p /usr/local/bin 2>/dev/null; then
+            log_message "Failed to create /usr/local/bin directory (sudo not available)" "WARNING"
+            log_message "The msting command may not be accessible system-wide" "WARNING"
+            # Don't fail - user can still use full path
+            return 0
         fi
     fi
-    
+
     # Try to create wrapper without sudo first (since user owns /usr/local/bin on macOS)
     if echo "$wrapper_content" > "$target_path" 2>/dev/null && chmod +x "$target_path" 2>/dev/null; then
         log_message "msting command installed successfully" "SUCCESS"
@@ -1525,12 +1533,10 @@ exec bash \"\$INSTALL_DIR/manage_sting.sh\" \"\$@\"
         sudo -n chmod +x "$target_path" 2>/dev/null
         log_message "msting command installed successfully with sudo" "SUCCESS"
     else
-        log_message "Creating msting command requires sudo access"
-        log_message "Please run the following commands:"
-        log_message "sudo tee $target_path <<'EOF'"
-        echo "$wrapper_content"
-        log_message "EOF"
-        log_message "sudo chmod +x $target_path"
+        log_message "Could not create /usr/local/bin/msting (non-interactive sudo)" "WARNING"
+        log_message "You can still use STING with the full path:" "INFO"
+        log_message "  ${INSTALL_DIR}/manage_sting.sh" "INFO"
+        # Don't fail - installation can continue
     fi
 }
 

@@ -64,7 +64,8 @@ copy_files_to_install_dir() {
     # Check if we need sudo by testing write access
     local rsync_cmd="rsync -a"
     if [ ! -w "$dest_dir" ]; then
-        rsync_cmd="sudo rsync -a"
+        # Use -n flag to avoid password prompts (sudo keepalive should handle this)
+        rsync_cmd="sudo -n rsync -a"
     fi
     
     # Add delete flag only if specified (for full reinstall)

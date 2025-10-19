@@ -258,6 +258,40 @@ if [ "$USE_CLI" = false ]; then
   fi
   log_message "✅ Sudo privileges verified" "SUCCESS"
 
+  # Pre-create system directories to avoid sudo prompts during installation
+  log_message "Preparing system directories..." "INFO"
+
+  # Create /usr/local/bin on macOS (needed for msting wrapper command)
+  if [[ "$(uname)" == "Darwin" ]] && [ ! -d "/usr/local/bin" ]; then
+    if sudo mkdir -p /usr/local/bin 2>/dev/null; then
+      log_message "✅ Created /usr/local/bin" "SUCCESS"
+    else
+      log_message "⚠️  Could not create /usr/local/bin - msting command may not be available" "WARNING"
+    fi
+  fi
+
+  # Create installation directory if it doesn't exist
+  # On macOS: $HOME/.sting-ce (user-owned, no sudo needed)
+  # On Linux: /opt/sting-ce (needs sudo)
+  if [ ! -d "$INSTALL_DIR" ]; then
+    if [[ "$(uname)" == "Darwin" ]]; then
+      # macOS - create in user home (no sudo needed)
+      mkdir -p "$INSTALL_DIR" 2>/dev/null || {
+        log_message "⚠️  Could not create $INSTALL_DIR" "WARNING"
+      }
+    else
+      # Linux - create in /opt (needs sudo)
+      log_message "Creating installation directory at $INSTALL_DIR..." "INFO"
+      if sudo mkdir -p "$INSTALL_DIR" 2>/dev/null; then
+        # Set ownership to current user
+        sudo chown -R "$USER:$(id -gn)" "$INSTALL_DIR" 2>/dev/null
+        log_message "✅ Created $INSTALL_DIR" "SUCCESS"
+      else
+        log_message "⚠️  Could not create $INSTALL_DIR" "WARNING"
+      fi
+    fi
+  fi
+
   # Check for existing installation BEFORE starting wizard/keepalive
   log_message "Checking for existing STING installation..." "INFO"
 
