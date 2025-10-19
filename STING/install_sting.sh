@@ -49,18 +49,9 @@ log_message "=========================================="
 log_message "   STING Community Edition Installer    "
 log_message "=========================================="
 
-# Source installation library for dependency checks
+# Source installation library (dependency check happens later, after sudo setup)
 if [ -f "$LIB_DIR/installation.sh" ]; then
-  log_message "Checking system dependencies..."
   source "$LIB_DIR/installation.sh"
-
-  # Check and install system dependencies before proceeding
-  if ! check_and_install_dependencies; then
-    log_message "Error: Failed to install required system dependencies" "ERROR"
-    exit 1
-  fi
-
-  log_message "System dependencies check completed successfully"
 else
   log_message "Warning: Could not find installation.sh - skipping dependency checks" "WARNING"
 fi
@@ -193,6 +184,19 @@ if [ ! -d "$INSTALL_DIR" ]; then
   fi
 fi
 
+log_message ""
+
+# ============================================================================
+# SYSTEM DEPENDENCY CHECK
+# Now that sudo is acquired and keepalive is running, check/install dependencies
+# ============================================================================
+
+log_message "Checking system dependencies..."
+if ! check_and_install_dependencies; then
+  log_message "Error: Failed to install required system dependencies" "ERROR"
+  exit 1
+fi
+log_message "✅ System dependencies check completed successfully" "SUCCESS"
 log_message ""
 
 # ============================================================================
