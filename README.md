@@ -351,4 +351,11 @@ Made with ❤️ by **[AlphaBytez](https://github.com/alphabytez)** and the STIN
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE-Public/main/bootstrap.sh)"
 ```
 
+<br/>
+<br/>
+
+<a href="https://github.com/alphabytez">
+  <img src="docs/assets/alphabytez-logo.gif" alt="AlphaBytez" width="300">
+</a>
+
 </div>

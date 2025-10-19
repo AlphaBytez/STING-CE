@@ -223,6 +223,17 @@ Complete control over your sensitive data:
 
 ---
 
+<div align="center">
+
 **Made with ❤️ by [AlphaBytez](https://github.com/alphabytez) and the STING-CE Community**
 
 *Bee Smart. Bee Secure.*
+
+<br/>
+<br/>
+
+<a href="https://github.com/alphabytez">
+  <img src="assets/alphabytez-logo.gif" alt="AlphaBytez" width="300">
+</a>
+
+</div>
