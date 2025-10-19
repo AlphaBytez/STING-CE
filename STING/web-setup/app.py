@@ -264,37 +264,49 @@ def format_and_mount_disk(device, mount_point='/data'):
         if not is_safe:
             return False, f"⛔ SAFETY CHECK FAILED: {reason}"
 
-        # Format as ext4
+        # Format as ext4 (requires sudo)
         result = subprocess.run(
-            ['mkfs.ext4', '-F', device],
+            ['sudo', '-n', 'mkfs.ext4', '-F', device],
             capture_output=True,
             text=True
         )
         if result.returncode != 0:
             return False, f"Format failed: {result.stderr}"
 
-        # Create mount point
-        os.makedirs(mount_point, exist_ok=True)
-
-        # Mount
+        # Create mount point (requires sudo)
         result = subprocess.run(
-            ['mount', device, mount_point],
+            ['sudo', '-n', 'mkdir', '-p', mount_point],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            return False, f"Failed to create mount point: {result.stderr}"
+
+        # Mount (requires sudo)
+        result = subprocess.run(
+            ['sudo', '-n', 'mount', device, mount_point],
             capture_output=True,
             text=True
         )
         if result.returncode != 0:
             return False, f"Mount failed: {result.stderr}"
 
-        # Add to /etc/fstab for persistence
+        # Add to /etc/fstab for persistence (requires sudo)
         uuid_result = subprocess.run(
-            ['blkid', '-s', 'UUID', '-o', 'value', device],
+            ['sudo', '-n', 'blkid', '-s', 'UUID', '-o', 'value', device],
             capture_output=True,
             text=True
         )
         if uuid_result.returncode == 0:
             uuid = uuid_result.stdout.strip()
-            with open('/etc/fstab', 'a') as f:
-                f.write(f"UUID={uuid} {mount_point} ext4 defaults 0 2\n")
+            # Use sudo tee to append to /etc/fstab
+            fstab_entry = f"UUID={uuid} {mount_point} ext4 defaults 0 2\n"
+            subprocess.run(
+                ['sudo', '-n', 'tee', '-a', '/etc/fstab'],
+                input=fstab_entry,
+                capture_output=True,
+                text=True
+            )
 
         return True, f"✓ Disk {device} formatted and mounted at {mount_point}"
     except Exception as e:
