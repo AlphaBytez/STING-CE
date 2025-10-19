@@ -32,9 +32,12 @@ log_message() {
     else
         echo "${timestamp} - ${message}"
     fi
-    
-    # Also write to log file if possible (silently skip on error)
-    echo "${timestamp} - [${level}] ${message}" >> "$LOG_FILE" 2>/dev/null || true
+
+    # Also write to log file if directory exists (silently skip if removed during uninstall)
+    local log_dir=$(dirname "$LOG_FILE" 2>/dev/null)
+    if [ -d "$log_dir" ] && [ -w "$log_dir" ]; then
+        echo "${timestamp} - [${level}] ${message}" >> "$LOG_FILE" 2>/dev/null || true
+    fi
 }
 
 # Export the function so it's available to all modules
