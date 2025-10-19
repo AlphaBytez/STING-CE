@@ -815,35 +815,105 @@ def run_installation_background(install_id, config_data, admin_email):
                 # Installation succeeded but with warnings
                 installations[install_id]['log'] += '\n\n⚠️  Installation completed with warnings (non-fatal)\n'
 
+            installations[install_id]['status'] = 'Waiting for services...'
+            installations[install_id]['progress'] = 85
+
+            # Get detected host IP (prefer detected hostname over localhost for WSL2/Windows compatibility)
+            host_ip = os.environ.get('STING_HOST_IP', 'localhost')
+
+            # 3. Wait for services to be ready
+            installations[install_id]['log'] += f"\n\n{'='*50}\n"
+            installations[install_id]['log'] += "Waiting for Services\n"
+            installations[install_id]['log'] += f"{'='*50}\n\n"
+
+            # Wait for Kratos to be ready (use detected hostname, fallback to localhost)
+            max_wait = 60
+            wait_interval = 3
+            elapsed = 0
+            kratos_ready = False
+            kratos_url = f'https://{host_ip}:4434/admin/health/ready'
+
+            installations[install_id]['log'] += f"Checking Kratos at: {kratos_url}\n"
+
+            while elapsed < max_wait:
+                try:
+                    response = subprocess.run(
+                        ['curl', '-s', '-k', kratos_url],
+                        capture_output=True,
+                        timeout=5
+                    )
+                    if response.returncode == 0:
+                        kratos_ready = True
+                        installations[install_id]['log'] += "✅ Kratos service is ready\n"
+                        break
+                except:
+                    pass
+
+                installations[install_id]['log'] += f"⏳ Waiting for Kratos... ({elapsed}s/{max_wait}s)\n"
+                time.sleep(wait_interval)
+                elapsed += wait_interval
+
+            if not kratos_ready:
+                installations[install_id]['log'] += "⚠️  Warning: Kratos service not ready after 60s\n"
+
+            # 4. Admin account setup - create via Kratos API
             installations[install_id]['status'] = 'Creating admin account...'
             installations[install_id]['progress'] = 90
 
-            # 3. Wait for services to be ready (up to 60 seconds)
-            time.sleep(10)  # Give services time to start
+            installations[install_id]['log'] += f"\n\n{'='*50}\n"
+            installations[install_id]['log'] += "Admin Account Setup\n"
+            installations[install_id]['log'] += f"{'='*50}\n\n"
 
-            # 4. Create admin account using create-new-admin.py
-            # Use INSTALL_DIR not STING_SOURCE (files are now in /opt/sting-ce after rsync)
-            install_dir = get_install_directory()
-            admin_script = os.path.join(install_dir, 'scripts/admin/create-new-admin.py')
-            if os.path.exists(admin_script) and admin_email:
-                try:
-                    admin_result = subprocess.run(
-                        ['python3', admin_script, '--email', admin_email, '--passwordless'],
-                        capture_output=True,
-                        text=True,
-                        timeout=30
-                    )
-                    installations[install_id]['log'] += f"\n\n{'='*50}\n"
-                    installations[install_id]['log'] += "Creating Admin Account\n"
-                    installations[install_id]['log'] += f"{'='*50}\n\n"
-                    installations[install_id]['log'] += admin_result.stdout
+            if admin_email:
+                # Call create-new-admin.py script to create the admin account
+                installations[install_id]['log'] += f"🔐 Creating admin account: {admin_email}\n"
 
-                    if admin_result.returncode != 0:
-                        installations[install_id]['log'] += f"\n\nWarning: Admin creation failed: {admin_result.stderr}"
-                        installations[install_id]['log'] += f"\nYou can create admin manually: ./manage_sting.sh create admin {admin_email}"
-                except Exception as e:
-                    installations[install_id]['log'] += f"\n\nWarning: Could not create admin: {str(e)}"
-                    installations[install_id]['log'] += f"\nYou can create admin manually: ./manage_sting.sh create admin {admin_email}"
+                script_path = os.path.join(get_install_directory(), 'scripts', 'admin', 'create-new-admin.py')
+
+                if os.path.exists(script_path):
+                    try:
+                        # Set Kratos URL using detected hostname (not localhost for WSL2 compatibility)
+                        env = os.environ.copy()
+                        env['KRATOS_ADMIN_URL'] = f'http://{host_ip}:4434'
+
+                        result = subprocess.run(
+                            ['python3', script_path, '--email', admin_email, '--passwordless'],
+                            capture_output=True,
+                            text=True,
+                            timeout=30,
+                            env=env
+                        )
+
+                        # Add script output to log
+                        installations[install_id]['log'] += result.stdout
+                        if result.stderr:
+                            installations[install_id]['log'] += result.stderr
+
+                        if result.returncode == 0:
+                            installations[install_id]['log'] += f"\n✅ Admin account created successfully!\n"
+                            if admin_email == 'admin@sting.local':
+                                installations[install_id]['log'] += f"💡 Using Mailpit for testing - check http://{host_ip}:8025 for login links\n\n"
+                            else:
+                                installations[install_id]['log'] += f"📧 Check {admin_email} for magic link to complete setup\n\n"
+                        else:
+                            installations[install_id]['log'] += f"\n⚠️  Admin creation returned code {result.returncode}\n"
+                            installations[install_id]['log'] += f"You can create an admin manually after installation:\n"
+                            installations[install_id]['log'] += f"  cd {get_install_directory()}\n"
+                            installations[install_id]['log'] += f"  ./manage_sting.sh create-admin <email>\n\n"
+                    except subprocess.TimeoutExpired:
+                        installations[install_id]['log'] += "❌ Admin creation timed out\n"
+                        installations[install_id]['log'] += f"Create manually: ./manage_sting.sh create-admin {admin_email}\n\n"
+                    except Exception as e:
+                        installations[install_id]['log'] += f"❌ Error creating admin: {e}\n"
+                        installations[install_id]['log'] += f"Create manually: ./manage_sting.sh create-admin {admin_email}\n\n"
+                else:
+                    installations[install_id]['log'] += f"⚠️  Admin creation script not found at {script_path}\n"
+                    installations[install_id]['log'] += f"Create manually: ./manage_sting.sh create-admin {admin_email}\n\n"
+            else:
+                installations[install_id]['log'] += f"ℹ️  No admin account requested\n"
+                installations[install_id]['log'] += f"\nTo create an admin account manually:\n"
+                installations[install_id]['log'] += f"  cd {get_install_directory()}\n"
+                installations[install_id]['log'] += f"  ./manage_sting.sh create-admin <email>\n\n"
 
             # 5. Mark setup as complete
             state = load_setup_state()
@@ -863,9 +933,7 @@ def run_installation_background(install_id, config_data, admin_email):
             installations[install_id]['success'] = True
             installations[install_id]['progress'] = 100
             installations[install_id]['status'] = 'Installation complete!'
-            # Always set redirect URL even if admin creation failed
-            # Use detected host IP for VMs/remote access, fallback to localhost
-            host_ip = os.environ.get('STING_HOST_IP', 'localhost')
+            # Always set redirect URL using detected host IP (already set above for WSL2 compatibility)
             installations[install_id]['redirect_url'] = f'https://{host_ip}:8443'
             installations[install_id]['admin_email'] = admin_email if admin_email else ''
 
@@ -975,47 +1043,34 @@ def get_install_log(install_id):
         'sudo_reauth_needed': sudo_reauth_needed
     })
 
-@app.route('/api/sudo-reauth', methods=['POST'])
-def sudo_reauth():
+@app.route('/api/sudo-check', methods=['GET'])
+def sudo_check():
     """
-    Prompt user to re-authenticate sudo credentials
-    This creates a sudo prompt on the server terminal
+    Check if sudo credentials are still valid
+    Returns status without attempting to prompt
     """
     try:
-        # Attempt to refresh sudo credentials interactively
-        # This will show a TouchID or password prompt on macOS
+        # Test sudo without prompting
         result = subprocess.run(
-            ['sudo', '-v'],
+            ['sudo', '-n', 'true'],
             capture_output=True,
-            text=True,
-            timeout=60  # Give user 60 seconds to authenticate
+            timeout=2
         )
 
-        if result.returncode == 0:
-            # Remove the flag file
-            flag_file = '/tmp/sting-setup-state/sudo-reauth-needed'
-            if os.path.exists(flag_file):
-                os.remove(flag_file)
+        # Remove flag if credentials are valid
+        flag_file = '/tmp/sting-setup-state/sudo-reauth-needed'
+        if result.returncode == 0 and os.path.exists(flag_file):
+            os.remove(flag_file)
 
-            return jsonify({
-                'success': True,
-                'message': 'Sudo credentials refreshed successfully'
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'error': 'Failed to refresh sudo credentials'
-            }), 400
-
-    except subprocess.TimeoutExpired:
         return jsonify({
-            'success': False,
-            'error': 'Authentication timeout - please try again'
-        }), 408
+            'valid': result.returncode == 0,
+            'message': 'Sudo credentials are valid' if result.returncode == 0 else 'Sudo credentials expired'
+        })
+
     except Exception as e:
         return jsonify({
-            'success': False,
-            'error': str(e)
+            'valid': False,
+            'message': str(e)
         }), 500
 
 @app.route('/api/shutdown', methods=['POST'])

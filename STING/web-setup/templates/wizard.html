@@ -216,13 +216,32 @@
                 </div>
 
                 <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2">Admin Email Address</label>
-                        <input type="email" id="admin-email" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500" placeholder="admin@sting.local" value="admin@sting.local">
-                        <p class="text-xs text-slate-300 mt-2">
-                            💡 Default: <code class="text-amber-400 bg-slate-800/50 px-1 rounded">admin@sting.local</code> works with Mailpit for testing.<br>
-                            ⚠️ For production, use a real email address and configure SMTP in Step 5.
+                    <div class="flex items-start gap-3">
+                        <input type="checkbox" id="create-default-admin" checked class="mt-1 w-5 h-5 bg-slate-700 border-slate-600 text-amber-500 rounded focus:ring-2 focus:ring-amber-500">
+                        <div class="flex-1">
+                            <label for="create-default-admin" class="block text-sm font-medium text-slate-300 mb-2 cursor-pointer">
+                                Create default admin account (<code class="text-amber-400 bg-slate-800/50 px-1 rounded">admin@sting.local</code>)
+                            </label>
+                            <p class="text-xs text-slate-300">
+                                💡 Recommended for testing with Mailpit. Kratos will create this account after installation completes.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div id="manual-admin-instructions" class="bg-blue-900/20 border border-blue-700 rounded-lg p-4" style="display: none;">
+                        <p class="text-sm text-blue-300 mb-2">
+                            <strong>📖 Manual Admin Creation:</strong>
                         </p>
+                        <p class="text-xs text-slate-300 mb-3">
+                            After installation, create an admin account using Kratos CLI:
+                        </p>
+                        <div class="bg-slate-900 rounded p-3 font-mono text-xs text-lime-400">
+                            docker exec -it kratos kratos identities create \<br>
+                            &nbsp;&nbsp;--config /etc/config/kratos/kratos.yml \<br>
+                            &nbsp;&nbsp;--endpoint http://localhost:4434 \<br>
+                            &nbsp;&nbsp;--schema-id user_v1 \<br>
+                            &nbsp;&nbsp;--trait email=you@example.com
+                        </div>
                     </div>
                 </div>
             </div>
@@ -281,10 +300,18 @@
                 <h2 class="text-2xl font-bold text-amber-400 mb-4">📧 Email Configuration (Optional)</h2>
                 <p class="text-slate-300 mb-6">Configure SMTP for notification delivery by carrier bees.</p>
 
+                <div class="glass-card-light rounded-lg p-4 mb-6">
+                    <p class="text-sm text-slate-200">
+                        <strong class="text-amber-400">💡 Mailpit is included by default</strong><br>
+                        STING includes Mailpit for testing - a local email catcher accessible at <code class="text-amber-400 bg-slate-800/50 px-1 rounded">http://localhost:8025</code>.
+                        All emails sent to <code class="text-amber-400 bg-slate-800/50 px-1 rounded">*@sting.local</code> will be captured there.
+                    </p>
+                </div>
+
                 <div class="mb-4">
                     <label class="inline-flex items-center">
                         <input type="checkbox" id="email-enabled" class="form-checkbox h-5 w-5 text-amber-500">
-                        <span class="ml-2 text-slate-300">Enable Email Notifications</span>
+                        <span class="ml-2 text-slate-300">Configure Production SMTP Server</span>
                     </label>
                 </div>
 
@@ -389,6 +416,28 @@
                         </div>
                     </div>
 
+                    <!-- Sudo Reauth Banner (hidden by default) -->
+                    <div id="sudo-reauth-banner" class="bg-amber-900/30 border border-amber-600 rounded-lg p-4 mb-4" style="display: none;">
+                        <div class="flex items-start gap-3">
+                            <div class="text-amber-400 text-2xl">⚠️</div>
+                            <div class="flex-1">
+                                <h4 class="text-amber-300 font-semibold mb-2">Sudo credentials expired - installation paused</h4>
+                                <p class="text-sm text-slate-300 mb-3">
+                                    The installation needs sudo access to continue. Please open a terminal and run:
+                                </p>
+                                <div class="bg-slate-900 rounded p-3 mb-3 font-mono text-sm text-lime-400">
+                                    sudo -v
+                                </div>
+                                <p class="text-xs text-slate-400 mb-3">
+                                    This will prompt for your password or TouchID. After authenticating, the installation will continue automatically.
+                                </p>
+                                <button onclick="checkSudoStatus()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 px-4 py-2 rounded text-sm font-medium transition-colors">
+                                    ✓ Check Sudo Status
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Live log output -->
                     <div class="bg-slate-900/80 rounded-lg p-4 h-96 overflow-y-auto font-mono text-xs border border-slate-700/50">
                         <div id="install-log" class="text-lime-400 whitespace-pre-wrap"></div>
@@ -432,6 +481,11 @@
             // Email toggle
             document.getElementById('email-enabled').addEventListener('change', function() {
                 document.getElementById('email-config').style.display = this.checked ? 'block' : 'none';
+            });
+
+            // Admin creation checkbox toggle
+            document.getElementById('create-default-admin').addEventListener('change', function() {
+                document.getElementById('manual-admin-instructions').style.display = this.checked ? 'none' : 'block';
             });
 
             // SSL type toggle
@@ -663,10 +717,10 @@
                     };
                     break;
                 case 3:
-                    // Default to admin@sting.local if email is empty
-                    const adminEmail = document.getElementById('admin-email').value.trim();
+                    // Use admin@sting.local if checkbox is checked, otherwise null (manual creation)
+                    const createDefaultAdmin = document.getElementById('create-default-admin').checked;
                     stepData.admin = {
-                        email: adminEmail || 'admin@sting.local'
+                        email: createDefaultAdmin ? 'admin@sting.local' : null
                     };
                     break;
                 case 4:
@@ -782,6 +836,13 @@
                         progressBar.style.width = data.progress + '%';
                     }
 
+                    // Check if sudo reauth is needed
+                    if (data.sudo_reauth_needed) {
+                        showSudoReauthBanner();
+                    } else {
+                        hideSudoReauthBanner();
+                    }
+
                     if (data.completed) {
                         if (data.success) {
                             progressBar.style.width = '100%';
@@ -868,6 +929,44 @@
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
                 'Error: ' + error + '\n\n' +
                 'Please check the logs above for more details.\n';
+        }
+
+        function showSudoReauthBanner() {
+            const banner = document.getElementById('sudo-reauth-banner');
+            if (banner) {
+                banner.style.display = 'block';
+            }
+        }
+
+        function hideSudoReauthBanner() {
+            const banner = document.getElementById('sudo-reauth-banner');
+            if (banner) {
+                banner.style.display = 'none';
+            }
+        }
+
+        async function checkSudoStatus() {
+            try {
+                const response = await fetch('/api/sudo-check');
+                const data = await response.json();
+
+                if (data.valid) {
+                    hideSudoReauthBanner();
+                    // Show success message briefly
+                    const statusSpan = document.getElementById('install-status');
+                    const oldStatus = statusSpan.textContent;
+                    statusSpan.textContent = '✓ Sudo refreshed - resuming installation...';
+                    setTimeout(() => {
+                        statusSpan.textContent = oldStatus;
+                    }, 3000);
+                } else {
+                    // Still invalid - show message
+                    alert('Sudo credentials are still expired. Please run:\n\nsudo -v\n\nin your terminal and try again.');
+                }
+            } catch (error) {
+                console.error('Error checking sudo status:', error);
+                alert('Error checking sudo status. Please try again.');
+            }
         }
     </script>
 </body>
