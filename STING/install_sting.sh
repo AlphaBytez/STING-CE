@@ -112,6 +112,93 @@ if [ $# -gt 0 ]; then
   esac
 fi
 
+# ============================================================================
+# COMMON SETUP FOR BOTH WIZARD AND CLI MODES
+# Pre-acquire sudo and create directories to avoid prompts during installation
+# ============================================================================
+
+log_message ""
+log_message "The STING installer requires elevated privileges for system setup."
+log_message "Checking sudo access (you may be prompted for password)..."
+
+# Pre-acquire sudo privileges (needed for both wizard and CLI installation)
+if ! sudo -v; then
+  log_message "Error: Unable to obtain sudo privileges" "ERROR"
+  log_message "The installer cannot proceed without sudo access" "ERROR"
+  exit 1
+fi
+log_message "✅ Sudo privileges verified" "SUCCESS"
+
+# Kill any existing sudo keepalive processes from previous failed installations
+log_message "Cleaning up any stale sudo keepalive processes..." "INFO"
+pkill -f "while true; do sudo -v; sleep" 2>/dev/null || true
+
+# Start sudo keepalive in background to maintain privileges during installation
+# This prevents password prompts during wizard installation
+# On macOS/WSL2, we use a more aggressive refresh interval (30s instead of 50s)
+log_message "Starting sudo keepalive process..." "INFO"
+
+# Create a robust keepalive that logs failures
+(
+  while true; do
+    if ! sudo -v 2>/dev/null; then
+      # If sudo -v fails, try to log it but don't exit
+      echo "[$(date)] Sudo keepalive refresh failed" >> /tmp/sudo-keepalive.log 2>&1
+    fi
+    sleep 30
+  done
+) &
+SUDO_KEEPALIVE_PID=$!
+
+# Verify the keepalive process started
+if kill -0 "$SUDO_KEEPALIVE_PID" 2>/dev/null; then
+  log_message "✅ Sudo keepalive active (PID: $SUDO_KEEPALIVE_PID)" "SUCCESS"
+else
+  log_message "⚠️  Warning: Sudo keepalive may not have started correctly" "WARNING"
+fi
+
+# Pre-create system directories to avoid sudo prompts during installation
+log_message "Preparing system directories..." "INFO"
+
+# Create /usr/local/bin on macOS (needed for msting wrapper command)
+if [[ "$(uname)" == "Darwin" ]] && [ ! -d "/usr/local/bin" ]; then
+  if sudo -n mkdir -p /usr/local/bin 2>/dev/null; then
+    log_message "✅ Created /usr/local/bin" "SUCCESS"
+  else
+    log_message "⚠️  Could not create /usr/local/bin - msting command may not be available" "WARNING"
+  fi
+fi
+
+# Create installation directory if it doesn't exist
+# On macOS: $HOME/.sting-ce (user-owned, no sudo needed)
+# On Linux: /opt/sting-ce (needs sudo)
+if [ ! -d "$INSTALL_DIR" ]; then
+  if [[ "$(uname)" == "Darwin" ]]; then
+    # macOS - create in user home (no sudo needed)
+    if mkdir -p "$INSTALL_DIR" 2>/dev/null; then
+      log_message "✅ Created $INSTALL_DIR" "SUCCESS"
+    else
+      log_message "⚠️  Could not create $INSTALL_DIR" "WARNING"
+    fi
+  else
+    # Linux - create in /opt (needs sudo)
+    log_message "Creating installation directory at $INSTALL_DIR..." "INFO"
+    if sudo -n mkdir -p "$INSTALL_DIR" 2>/dev/null; then
+      # Set ownership to current user
+      sudo -n chown -R "$USER:$(id -gn)" "$INSTALL_DIR" 2>/dev/null
+      log_message "✅ Created $INSTALL_DIR" "SUCCESS"
+    else
+      log_message "⚠️  Could not create $INSTALL_DIR" "WARNING"
+    fi
+  fi
+fi
+
+log_message ""
+
+# ============================================================================
+# WIZARD OR CLI INSTALLATION MODE
+# ============================================================================
+
 # Launch wizard by default (unless --cli specified)
 if [ "$USE_CLI" = false ]; then
   log_message "=========================================="
@@ -246,53 +333,7 @@ if [ "$USE_CLI" = false ]; then
     exit 1
   fi
 
-  # Pre-acquire sudo privileges before starting wizard
-  # The wizard will need sudo to install STING when user clicks "Install"
-  log_message ""
-  log_message "The STING installer requires elevated privileges."
-  log_message "Checking sudo access (you may be prompted for password)..."
-  if ! sudo -v; then
-    log_message "Error: Unable to obtain sudo privileges" "ERROR"
-    log_message "The wizard cannot install STING without sudo access" "ERROR"
-    exit 1
-  fi
-  log_message "✅ Sudo privileges verified" "SUCCESS"
-
-  # Pre-create system directories to avoid sudo prompts during installation
-  log_message "Preparing system directories..." "INFO"
-
-  # Create /usr/local/bin on macOS (needed for msting wrapper command)
-  if [[ "$(uname)" == "Darwin" ]] && [ ! -d "/usr/local/bin" ]; then
-    if sudo mkdir -p /usr/local/bin 2>/dev/null; then
-      log_message "✅ Created /usr/local/bin" "SUCCESS"
-    else
-      log_message "⚠️  Could not create /usr/local/bin - msting command may not be available" "WARNING"
-    fi
-  fi
-
-  # Create installation directory if it doesn't exist
-  # On macOS: $HOME/.sting-ce (user-owned, no sudo needed)
-  # On Linux: /opt/sting-ce (needs sudo)
-  if [ ! -d "$INSTALL_DIR" ]; then
-    if [[ "$(uname)" == "Darwin" ]]; then
-      # macOS - create in user home (no sudo needed)
-      mkdir -p "$INSTALL_DIR" 2>/dev/null || {
-        log_message "⚠️  Could not create $INSTALL_DIR" "WARNING"
-      }
-    else
-      # Linux - create in /opt (needs sudo)
-      log_message "Creating installation directory at $INSTALL_DIR..." "INFO"
-      if sudo mkdir -p "$INSTALL_DIR" 2>/dev/null; then
-        # Set ownership to current user
-        sudo chown -R "$USER:$(id -gn)" "$INSTALL_DIR" 2>/dev/null
-        log_message "✅ Created $INSTALL_DIR" "SUCCESS"
-      else
-        log_message "⚠️  Could not create $INSTALL_DIR" "WARNING"
-      fi
-    fi
-  fi
-
-  # Check for existing installation BEFORE starting wizard/keepalive
+  # Check for existing installation BEFORE starting wizard
   log_message "Checking for existing STING installation..." "INFO"
 
   has_install_dir=false
@@ -370,35 +411,7 @@ if [ "$USE_CLI" = false ]; then
     log_message "✅ No existing installation found" "SUCCESS"
   fi
 
-  # Kill any existing sudo keepalive processes from previous failed installations
-  log_message "Cleaning up any stale sudo keepalive processes..." "INFO"
-  pkill -f "while true; do sudo -v; sleep" 2>/dev/null || true
-
-  # Start sudo keepalive in background to maintain privileges during installation
-  # This prevents password prompts during wizard installation
-  # On macOS/WSL2, we use a more aggressive refresh interval (30s instead of 50s)
-  log_message "Starting sudo keepalive process..." "INFO"
-
-  # Create a more robust keepalive that logs failures
-  (
-    while true; do
-      if ! sudo -v 2>/dev/null; then
-        # If sudo -v fails, try to log it but don't exit
-        echo "[$(date)] Sudo keepalive refresh failed" >> /tmp/sudo-keepalive.log 2>&1
-      fi
-      sleep 30
-    done
-  ) &
-  SUDO_KEEPALIVE_PID=$!
-
-  # Verify the keepalive process started
-  if kill -0 "$SUDO_KEEPALIVE_PID" 2>/dev/null; then
-    log_message "✅ Sudo keepalive active (PID: $SUDO_KEEPALIVE_PID)" "SUCCESS"
-  else
-    log_message "⚠️  Warning: Sudo keepalive may not have started correctly" "WARNING"
-  fi
-
-  # Update cleanup function to kill sudo keepalive
+  # Update cleanup function to kill sudo keepalive (started in common setup above)
   cleanup_wizard() {
     log_message "Cleaning up wizard processes..." "INFO"
 
@@ -490,18 +503,9 @@ if [ "$USE_CLI" = false ]; then
 else
   # CLI installation (advanced)
   log_message "Using CLI installation mode..."
+  log_message ""
 
-  # Pre-acquire sudo privileges before installation starts
-  log_message "Installation requires elevated privileges for system setup..."
-  log_message "Checking sudo access (you may be prompted for password)..."
-  if ! sudo -v; then
-    log_message "Error: Unable to obtain sudo privileges" "ERROR"
-    log_message "Installation cannot proceed without sudo access" "ERROR"
-    exit 1
-  fi
-  log_message "✅ Sudo privileges verified" "SUCCESS"
-
-  # Check for existing installation BEFORE starting keepalive
+  # Check for existing installation
   log_message "Checking for existing STING installation..." "INFO"
 
   has_install_dir=false
