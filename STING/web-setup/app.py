@@ -344,25 +344,11 @@ def detect_sting_hostname():
     """
     Detect appropriate STING hostname for WebAuthn/Passkey compatibility
 
-    IMPORTANT: Prefers IP address over hostname to avoid DNS/hostname mismatch issues
-    that cause login loops (e.g., user accesses via IP but gets redirected to hostname)
+    Prefers hostnames over IPs for WebAuthn consistency. IP is only used as fallback.
     """
     import re
 
-    # Strategy 1: Try to get primary IP address (PREFERRED for remote access)
-    # This avoids the common issue where users access via IP but Kratos redirects to hostname
-    try:
-        result = subprocess.run(['hostname', '-I'], capture_output=True, text=True)
-        ips = result.stdout.strip().split()
-        if ips:
-            primary_ip = ips[0]
-            # Validate it's a real IP (not loopback)
-            if primary_ip and not primary_ip.startswith('127.') and re.match(r'^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$', primary_ip):
-                return primary_ip
-    except:
-        pass
-
-    # Strategy 2: Try FQDN (if it's a proper domain, not localhost)
+    # Strategy 1: Try FQDN (if it's a proper domain, not localhost)
     try:
         hostname = subprocess.run(['hostname', '-f'], capture_output=True, text=True).stdout.strip()
         if hostname and hostname not in ['localhost', 'localhost.localdomain'] and '.' in hostname:
@@ -371,11 +357,24 @@ def detect_sting_hostname():
     except:
         pass
 
-    # Strategy 3: Try short hostname (if it's not localhost)
+    # Strategy 2: Try short hostname with .local appended (good for VMs)
     try:
         hostname = subprocess.run(['hostname', '-s'], capture_output=True, text=True).stdout.strip().lower()
         if hostname and hostname != 'localhost':
-            return hostname
+            # Append .local for mDNS/local network resolution
+            return f"{hostname}.local"
+    except:
+        pass
+
+    # Strategy 3: Use primary IP address (fallback for when no hostname is available)
+    try:
+        result = subprocess.run(['hostname', '-I'], capture_output=True, text=True)
+        ips = result.stdout.strip().split()
+        if ips:
+            primary_ip = ips[0]
+            # Validate it's a real IP (not loopback)
+            if primary_ip and not primary_ip.startswith('127.') and re.match(r'^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$', primary_ip):
+                return primary_ip
     except:
         pass
 

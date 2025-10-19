@@ -2,9 +2,7 @@
 # Hostname Detection for STING Installation
 # Provides smart defaults for WebAuthn/Passkey compatibility
 #
-# IMPORTANT: This script PREFERS IP addresses over hostnames to avoid login loops
-# caused by DNS/hostname mismatches (e.g., user accesses via 10.0.0.158 but
-# Kratos redirects to 'captains-den', which the browser cannot resolve)
+# Prefers hostnames over IPs for WebAuthn consistency. IP is only used as fallback.
 
 # Function to check if a string is an IP address
 is_ip_address() {
@@ -17,13 +15,27 @@ is_ip_address() {
 }
 
 # Function to detect system hostname
-# IMPORTANT: Prefers IP address over hostname to avoid DNS/hostname mismatch issues
-# that cause login loops (e.g., user accesses via IP but gets redirected to hostname)
+# Prefers hostnames over IPs for WebAuthn consistency
 detect_system_hostname() {
     local hostname=""
 
-    # Strategy 1: Try to get primary IP address (PREFERRED for remote access)
-    # This avoids the common issue where users access via IP but Kratos redirects to hostname
+    # Strategy 1: Try FQDN (if it's a proper domain, not localhost)
+    hostname=$(hostname -f 2>/dev/null)
+    if [ -n "$hostname" ] && [ "$hostname" != "localhost" ] && [ "$hostname" != "localhost.localdomain" ] && [[ "$hostname" =~ \. ]]; then
+        # Valid FQDN (has dot and isn't localhost)
+        echo "$hostname"
+        return 0
+    fi
+
+    # Strategy 2: Try short hostname with .local appended (good for VMs)
+    hostname=$(hostname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')
+    if [ -n "$hostname" ] && [ "$hostname" != "localhost" ]; then
+        # Append .local for mDNS/local network resolution
+        echo "${hostname}.local"
+        return 0
+    fi
+
+    # Strategy 3: Use primary IP address (fallback for when no hostname is available)
     local primary_ip=""
 
     # Linux: hostname -I
@@ -40,23 +52,8 @@ detect_system_hostname() {
         return 0
     fi
 
-    # Strategy 2: Try FQDN (if it's a proper domain, not localhost)
-    hostname=$(hostname -f 2>/dev/null)
-    if [ -n "$hostname" ] && [ "$hostname" != "localhost" ] && [ "$hostname" != "localhost.localdomain" ] && [[ "$hostname" =~ \. ]]; then
-        # Valid FQDN (has dot and isn't localhost)
-        echo "$hostname"
-        return 0
-    fi
-
-    # Strategy 3: Try short hostname (if it's not localhost)
-    hostname=$(hostname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')
-    if [ -n "$hostname" ] && [ "$hostname" != "localhost" ]; then
-        echo "$hostname"
-        return 0
-    fi
-
-    # No valid hostname found
-    echo ""
+    # Fallback: Use sting.local
+    echo "sting.local"
 }
 
 # Main function to determine STING hostname
