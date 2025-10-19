@@ -342,6 +342,10 @@ See [CREDITS.md](CREDITS.md) for the complete list of third-party libraries and 
 
 <div align="center">
 
+<a href="https://github.com/alphabytez">
+  <img src="docs/assets/alphabytez-logo.svg" alt="AlphaBytez" width="300">
+</a>
+
 Made with ❤️ by **[AlphaBytez](https://github.com/alphabytez)** and the STING-CE Community
 
 *Bee Smart. Bee Secure.*
@@ -353,9 +357,5 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE-Publ
 
 <br/>
 <br/>
-
-<a href="https://github.com/alphabytez">
-  <img src="docs/assets/alphabytez-logo.svg" alt="AlphaBytez" width="300">
-</a>
 
 </div>
