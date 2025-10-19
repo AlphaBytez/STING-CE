@@ -730,8 +730,9 @@ def run_installation_background(install_id, config_data, admin_email):
                 installations[install_id]['log'] += "❌ WARNING: Could not refresh sudo session\n"
                 installations[install_id]['log'] += "   Installation may prompt for password\n"
 
+            # Use -n flag to prevent TouchID/password prompts on macOS
             sudo_keepalive = subprocess.Popen(
-                ['bash', '-c', 'while true; do sudo -v 2>/dev/null || echo "[$(date)] Sudo keepalive refresh failed" >> /tmp/sudo-keepalive-wizard.log; sleep 30; done'],
+                ['bash', '-c', 'while true; do sudo -n -v 2>/dev/null || echo "[$(date)] Sudo keepalive refresh failed" >> /tmp/sudo-keepalive-wizard.log; sleep 30; done'],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )

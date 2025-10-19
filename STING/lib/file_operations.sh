@@ -120,8 +120,28 @@ copy_files_to_install_dir() {
     local target_group=$(id -gn "$target_user" 2>/dev/null || echo "$target_user")
 
     log_message "Setting ownership to $target_user:$target_group..."
-    if ! sudo chown -R "$target_user:$target_group" "$dest_dir" 2>/dev/null; then
-        log_message "WARNING: Failed to set ownership on destination directory (non-critical)"
+
+    # Execute chown with retries and proper error handling
+    # On macOS, this operation can be slow and sudo cache might expire
+    local max_retries=2
+    local retry_count=0
+    local chown_success=false
+
+    while [ $retry_count -lt $max_retries ] && [ "$chown_success" = "false" ]; do
+        if sudo -n chown -R "$target_user:$target_group" "$dest_dir" 2>/dev/null; then
+            chown_success=true
+            log_message "✓ Ownership set successfully"
+        else
+            retry_count=$((retry_count + 1))
+            if [ $retry_count -lt $max_retries ]; then
+                log_message "Ownership change failed (attempt $retry_count/$max_retries), retrying..."
+                sleep 2
+            fi
+        fi
+    done
+
+    if [ "$chown_success" = "false" ]; then
+        log_message "WARNING: Failed to set ownership after $max_retries attempts (non-critical)"
     fi
 
     # CRITICAL: Ensure all shell scripts have execute permissions

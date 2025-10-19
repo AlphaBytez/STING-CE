@@ -130,13 +130,22 @@ pkill -f "while true; do sudo -v; sleep" 2>/dev/null || true
 log_message "Starting sudo keepalive process..." "INFO"
 
 # Create a robust keepalive that logs failures
+# IMPORTANT: Use -n flag on macOS to prevent TouchID/password prompts
+# More aggressive timing on macOS (20s vs 30s) to prevent credential cache expiry
+if [[ "$(uname)" == "Darwin" ]]; then
+    KEEPALIVE_INTERVAL=20
+else
+    KEEPALIVE_INTERVAL=30
+fi
+
 (
   while true; do
-    if ! sudo -v 2>/dev/null; then
+    # Use -n (non-interactive) to prevent prompts, especially on macOS with TouchID
+    if ! sudo -n -v 2>/dev/null; then
       # If sudo -v fails, try to log it but don't exit
-      echo "[$(date)] Sudo keepalive refresh failed" >> /tmp/sudo-keepalive.log 2>&1
+      echo "[$(date)] Sudo keepalive refresh failed (credential cache may have expired)" >> /tmp/sudo-keepalive.log 2>&1
     fi
-    sleep 30
+    sleep $KEEPALIVE_INTERVAL
   done
 ) &
 SUDO_KEEPALIVE_PID=$!
