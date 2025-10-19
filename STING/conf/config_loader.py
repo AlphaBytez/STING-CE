@@ -244,6 +244,7 @@ class DatabaseConfig:
             password=db_config.get('password', 'postgres')
         )
 
+# SupertokensConfig removed - deprecated in favor of Kratos authentication
 
 @dataclass
 class KratosConfig:
@@ -287,6 +288,7 @@ class ConfigurationManager:
         # Ensure environment directory exists
         os.makedirs(self.env_dir, exist_ok=True)
         self._database_config = None
+        self._supertokens_config = None
         self.raw_config = {}
         self.processed_config = {}
         self.mode = mode  # Can be 'runtime', 'build', 'reinstall', 'initialize'
@@ -444,23 +446,6 @@ class ConfigurationManager:
                                     client.sys.submit_unseal_key(unseal_key)
                                     logger.info("Vault unsealed successfully")
 
-                    # Check for auto-init script token first (shared via config volume)
-                    if os.path.exists(auto_init_file):
-                        try:
-                            with open(auto_init_file, 'r') as f:
-                                vault_data = json.load(f)
-                                auto_token = vault_data.get('root_token')
-                                if auto_token:
-                                    logger.info("Found auto-init script token in retry loop, using it")
-                                    self.vault_token = auto_token
-                                    client = hvac.Client(url=self.vault_url, token=self.vault_token)
-                                    if client.is_authenticated():
-                                        logger.info("Vault connection established with auto-init token")
-                                        return client
-                        except Exception as e:
-                            logger.warning(f"Could not read auto-init token in retry loop: {e}")
-
-                    # Fallback to saved token file
                     if os.path.exists(token_file):
                         with open(token_file, 'r') as f:
                             self.vault_token = f.read().strip()
@@ -550,10 +535,12 @@ class ConfigurationManager:
         # Default to localhost
         return 'localhost'
 
+    def _generate_secret(self, length: int = 32, supertokens_safe: bool = False) -> str:
         """Generate a secure secret using proper base64 encoding.
         
         Args:
             length: The length of the secret to generate (in bytes)
+            supertokens_safe: Legacy parameter, ignored
         """
         # Generate proper base64-encoded secrets for all uses
         key_bytes = secrets.token_bytes(length)
@@ -569,6 +556,7 @@ class ConfigurationManager:
         alphabet = string.ascii_letters + string.digits
         return ''.join(secrets.choice(alphabet) for _ in range(length))
         
+    def _get_secret(self, path: str, key: str, supertokens_safe: bool = False) -> str:
         """Retrieve a secret from Vault with fallback to generation."""
         if self.client:
             try:
@@ -578,17 +566,18 @@ class ConfigurationManager:
                 ).get("data", {}).get("data", {}).get(key)
                 
                 logger.info(f"Secret read status for {path}: {'[EXISTS]' if secret else '[NOT_FOUND]'}")
-
-                if secret:
+                
+                if secret and supertokens_safe:
                     if all(c in string.ascii_letters + string.digits + "=-" for c in secret):
                         return secret
-                    else:
-                        return secret
+                elif secret:
+                    return secret
                     
             except Exception as e:
                 logger.debug(f"Failed to retrieve secret from Vault: {e}")
 
         # Generate new secret - all secrets now use proper base64 encoding
+        new_secret = self._generate_secret(length=32, supertokens_safe=False)
         
         if self.client:
             try:
@@ -659,6 +648,7 @@ class ConfigurationManager:
             'POSTGRES_PASSWORD',
             'POSTGRES_DB',
             'ST_API_KEY',
+            'SUPERTOKENS_URL'
         ]
 
         missing_vars = [var for var in critical_vars if not self.processed_config.get(var)]
@@ -677,6 +667,7 @@ class ConfigurationManager:
             password=self.processed_config.get('POSTGRES_PASSWORD', '')
         )
 
+    # _process_supertokens_config removed - deprecated in favor of Kratos
 
     def _process_llm_service_config(self) -> LLMServiceConfig:
         """Process and return LLM service configuration."""
@@ -726,10 +717,15 @@ class ConfigurationManager:
         logger.info(f"Generated/Retrieved Flask secret key status: {'[EXISTS]' if flask_secret else '[NOT_FOUND]'}")
         
         # Generate and set database password first
+        self.db_password = self._clean_value(self._get_secret('database', 'password', supertokens_safe=True))
+        self.api_key = self._clean_value(self._get_secret('supertokens', 'api_key', supertokens_safe=True))
+        self.dashboard_api_key = self._clean_value(self._get_secret('supertokens', 'dashboard_api_key', supertokens_safe=True))
         
         # Generate Honey Reserve encryption master key
+        self.honey_reserve_master_key = self._clean_value(self._get_secret('honey_reserve', 'master_key', supertokens_safe=False))
 
         # Generate STING service API key for inter-service authentication
+        self.service_api_key = self._clean_value(self._get_secret('sting/service_auth', 'api_key', supertokens_safe=False))
         
         # Get system domain configuration
         system_config = self.raw_config.get('system', {})
@@ -799,6 +795,7 @@ class ConfigurationManager:
             'LC_ALL': 'en_US.utf8'
         }
 
+        # Clean Supertokens database variables
         st_db_vars = {
             'API_KEY': self._clean_value(self.api_key),
             'ST_API_KEY': self._clean_value(self.api_key),
@@ -810,6 +807,9 @@ class ConfigurationManager:
             'POSTGRESQL_PORT': '5432',
             'DATABASE_URL': self._clean_value(database_url),
             'POSTGRESQL_CONNECTION_URI': self._clean_value(database_url),
+            'SUPERTOKENS_API_DOMAIN': 'http://localhost:5050',
+            'SUPERTOKENS_URL': 'http://supertokens:3567',
+            'SUPERTOKENS_CORS_ORIGINS': 'http://localhost:8443'
         }
         
         self.processed_config.update({
@@ -846,6 +846,7 @@ class ConfigurationManager:
 
         # Process configurations
         db_config = self._process_database_config()
+        # st_config removed - Supertokens deprecated in favor of Kratos
         llm_config = self._process_llm_service_config()
         profile_config = self._process_profile_service_config()
 
@@ -868,11 +869,15 @@ class ConfigurationManager:
             'ST_API_KEY': self._clean_value(self.api_key),
             'API_KEY': self._clean_value(self.api_key),
             'ST_DASHBOARD_API_KEY': self._clean_value(self.dashboard_api_key),
+            'SUPERTOKENS_URL': 'http://supertokens:3567',
+            'SUPERTOKENS_CORS_ORIGINS': 'http://localhost:8443',
+            'SUPERTOKENS_API_DOMAIN': api_domain,
             'ST_ACCESS_TOKEN_VALIDITY': '3600',
             'ST_REFRESH_TOKEN_VALIDITY': '2592000',
             'REACT_PORT': self.raw_config.get('frontend', {}).get('react', {}).get('port', 8443),
             'HF_TOKEN': hf_token,
             'REACT_APP_API_URL': api_domain,
+            'REACT_APP_SUPERTOKENS_URL': 'http://localhost:3567',
             'REACT_APP_KRATOS_PUBLIC_URL': self.processed_config.get('KRATOS_PUBLIC_URL', kratos_public_url),
             'REACT_APP_KRATOS_BROWSER_URL': self.processed_config.get('KRATOS_BROWSER_URL', kratos_browser_url),
             'NODE_ENV': app_config.get('env', 'development'),
@@ -881,7 +886,13 @@ class ConfigurationManager:
             'HEALTH_CHECK_INTERVAL': self.raw_config.get('monitoring', {}).get('health_checks', {}).get('interval', '30s'),
             'HEALTH_CHECK_TIMEOUT': self.raw_config.get('monitoring', {}).get('health_checks', {}).get('timeout', '10s'),
             'HEALTH_CHECK_RETRIES': str(self.raw_config.get('monitoring', {}).get('health_checks', {}).get('retries', 3)),
-            'HEALTH_CHECK_START_PERIOD': self.raw_config.get('monitoring', {}).get('health_checks', {}).get('start_period', '40s')
+            'HEALTH_CHECK_START_PERIOD': self.raw_config.get('monitoring', {}).get('health_checks', {}).get('start_period', '40s'),
+            'SUPERTOKENS_WEBAUTHN_ENABLED': 'true',
+            'SUPERTOKENS_WEBAUTHN_RP_ID': '${HOSTNAME:-localhost}',
+            'SUPERTOKENS_WEBAUTHN_RP_NAME': 'STING',
+            'SUPERTOKENS_WEBAUTHN_RP_ORIGINS': '["http://localhost:8443", "https://${HOSTNAME:-' + 
+                self.processed_config.get('APP_HOST','your-production-domain.com') + 
+                '}"]'
         })
 
         # Add LLM service specific ENV vars
@@ -1125,6 +1136,9 @@ class ConfigurationManager:
         methods = kratos_config.get('methods', {})
         
         # WebAuthn (Passkeys)
+        # Check for WebAuthn config in deprecated supertokens section first
+        supertokens_config = self.raw_config.get('security', {}).get('supertokens', {})
+        webauthn_config = supertokens_config.get('webauthn', {})
         
         # If not found, check in methods
         if not webauthn_config:
@@ -1391,6 +1405,7 @@ class ConfigurationManager:
         return env_vars
 
     def _generate_observability_env_vars(self):
+        """Generate environment variables for Observability services (Grafana, Loki, Promtail)."""
         try:
             # Read observability config directly from root config
             observability_config = self.raw_config.get('observability', {})
@@ -1399,17 +1414,52 @@ class ConfigurationManager:
             obs_enabled = str(observability_config.get('enabled', False)).lower()
             
             logger.info(f"Generating observability.env with enabled={obs_enabled}")
-
+            
+            # Grafana configuration
+            grafana_config = observability_config.get('grafana', {})
+            grafana_enabled = str(grafana_config.get('enabled', False)).lower()
+            grafana_port = str(grafana_config.get('port', 3000))
+            
+            # Generate Grafana admin credentials and store in Vault
+            grafana_admin_user = grafana_config.get('admin_user', 'admin')
+            
+            # Use web-safe password for Grafana admin (avoid +, /, = characters)
+            try:
+                grafana_admin_password = self._get_secret('observability', 'grafana_admin_password')
+                # If the password has problematic characters, regenerate
+                if any(c in grafana_admin_password for c in ['+', '/', '=']):
+                    grafana_admin_password = self._generate_web_safe_password(16)
+            except:
+                grafana_admin_password = self._generate_web_safe_password(16)
+            
+            try:
+                grafana_secret_key = self._get_secret('observability', 'grafana_secret_key')
+            except:
+                grafana_secret_key = self._generate_web_safe_password(32)
+            
+            # Loki configuration
+            loki_config = observability_config.get('loki', {})
+            loki_enabled = str(loki_config.get('enabled', False)).lower()
+            loki_port = str(loki_config.get('port', 3100))
+            
+            # Loki storage and performance settings
+            storage_config = loki_config.get('storage', {})
             retention_period = storage_config.get('retention_period', '168h')
             compaction_interval = storage_config.get('compaction_interval', '10m')
             
+            limits_config = loki_config.get('limits', {})
             max_line_size = limits_config.get('max_line_size', '256KB')
             max_streams_per_user = str(limits_config.get('max_streams_per_user', 5000))
             ingestion_rate_mb = str(limits_config.get('ingestion_rate_mb', 4))
             ingestion_burst_size_mb = str(limits_config.get('ingestion_burst_size_mb', 6))
             
+            # Promtail configuration
+            promtail_config = observability_config.get('promtail', {})
+            promtail_enabled = str(promtail_config.get('enabled', False)).lower()
+            promtail_port = str(promtail_config.get('port', 9080))
             
             # Sanitization settings
+            sanitization_config = promtail_config.get('sanitization', {})
             sanitization_enabled = str(sanitization_config.get('enabled', True)).lower()
             
             # Vault integration settings
@@ -1430,6 +1480,15 @@ class ConfigurationManager:
                 # Global observability settings
                 'OBSERVABILITY_ENABLED': obs_enabled,
                 
+                # Grafana environment variables
+                'GRAFANA_ENABLED': grafana_enabled,
+                'GRAFANA_PORT': grafana_port,
+                'GRAFANA_ADMIN_USER': grafana_admin_user,
+                'GRAFANA_ADMIN_PASSWORD': grafana_admin_password,
+                'GRAFANA_SECRET_KEY': grafana_secret_key,
+                'GF_SECURITY_ADMIN_USER': grafana_admin_user,
+                'GF_SECURITY_ADMIN_PASSWORD': grafana_admin_password,
+                'GF_SECURITY_SECRET_KEY': grafana_secret_key,
                 'GF_SECURITY_ALLOW_EMBEDDING': 'false',
                 'GF_SECURITY_COOKIE_SECURE': 'true',
                 'GF_SECURITY_COOKIE_SAMESITE': 'strict',
@@ -1438,7 +1497,22 @@ class ConfigurationManager:
                 'GF_ANALYTICS_CHECK_FOR_UPDATES': 'false',
                 'GF_SNAPSHOTS_EXTERNAL_ENABLED': 'false',
                 
+                # Loki environment variables
+                'LOKI_ENABLED': loki_enabled,
+                'LOKI_PORT': loki_port,
+                'LOKI_RETENTION_PERIOD': retention_period,
+                'LOKI_COMPACTION_INTERVAL': compaction_interval,
+                'LOKI_MAX_LINE_SIZE': max_line_size,
+                'LOKI_MAX_STREAMS_PER_USER': max_streams_per_user,
+                'LOKI_INGESTION_RATE_MB': ingestion_rate_mb,
+                'LOKI_INGESTION_BURST_SIZE_MB': ingestion_burst_size_mb,
                 
+                # Promtail environment variables
+                'PROMTAIL_ENABLED': promtail_enabled,
+                'PROMTAIL_PORT': promtail_port,
+                'PROMTAIL_SANITIZATION_ENABLED': sanitization_enabled,
+                'PROMTAIL_VAULT_REFERENCES_ENABLED': vault_references_enabled,
+                'PROMTAIL_VAULT_REFERENCE_FORMAT': vault_reference_format,
                 
                 # Log forwarding
                 'LOG_FORWARDING_ENABLED': log_forwarding_enabled,
@@ -1447,6 +1521,9 @@ class ConfigurationManager:
                 'ALERTING_ENABLED': alerting_enabled,
                 
                 # Service URLs for inter-service communication
+                'LOKI_URL': 'http://loki:3100',
+                'GRAFANA_URL': 'http://grafana:3000',
+                'PROMTAIL_URL': 'http://promtail:9080',
                 
                 # Health check configuration
                 'HEALTH_CHECK_INTERVAL': '30s',
@@ -1485,31 +1562,80 @@ class ConfigurationManager:
             # Return minimal fallback configuration to ensure observability.env is created
             return {
                 'OBSERVABILITY_ENABLED': 'false',
+                'GRAFANA_ENABLED': 'false',
+                'GRAFANA_ADMIN_USER': 'admin',
+                'GRAFANA_ADMIN_PASSWORD': 'admin',
+                'GRAFANA_SECRET_KEY': 'changeme',
+                'LOKI_ENABLED': 'false',
+                'PROMTAIL_ENABLED': 'false',
                 'LOG_FORWARDING_ENABLED': 'false',
                 'ALERTING_ENABLED': 'false'
             }
 
+    def _generate_headscale_env_vars(self):
+        """Generate headscale environment variables from configuration"""
         try:
+            headscale_config = self.raw_config.get('headscale', {})
+            server_config = headscale_config.get('server', {})
+            database_config = headscale_config.get('database', {})
+            security_config = headscale_config.get('security', {})
+            support_config = headscale_config.get('support_sessions', {})
             community_config = support_config.get('community', {})
             professional_config = support_config.get('professional', {})
+            logging_config = headscale_config.get('logging', {})
 
+            logger.info(f"Generating headscale.env with enabled={headscale_config.get('enabled', False)}")
             
             return {
+                # Core headscale configuration
+                'HEADSCALE_DATABASE_TYPE': database_config.get('type', 'sqlite'),
+                'HEADSCALE_DATABASE_SQLITE_PATH': database_config.get('path', '/var/lib/headscale/db.sqlite'),
+                'HEADSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT': security_config.get('ephemeral_node_timeout', '30m'),
+                'HEADSCALE_BASE_DOMAIN': server_config.get('base_domain', 'support.sting.local'),
+                'HEADSCALE_LISTEN_ADDR': server_config.get('listen_addr', '0.0.0.0:8070'),
+                'HEADSCALE_METRICS_LISTEN_ADDR': f"0.0.0.0:{server_config.get('metrics_port', 9090)}",
                 
                 # Security settings
+                'HEADSCALE_RANDOMIZE_CLIENT_PORT': str(security_config.get('randomize_client_port', True)).lower(),
+                'HEADSCALE_ENABLE_ROUTING': str(security_config.get('enable_routing', False)).lower(),
                 
                 # Support session configuration
+                'HEADSCALE_COMMUNITY_BUNDLE_DURATION': community_config.get('bundle_download_duration', '48h'),
+                'HEADSCALE_COMMUNITY_SECURE_LINK': str(community_config.get('secure_link_enabled', True)).lower(),
+                'HEADSCALE_COMMUNITY_LIVE_TUNNEL': str(community_config.get('live_tunnel_enabled', False)).lower(),
+                'HEADSCALE_PROFESSIONAL_TUNNEL_DURATION': professional_config.get('tunnel_duration', '4h'),
+                'HEADSCALE_PROFESSIONAL_BUNDLE_DURATION': professional_config.get('bundle_download_duration', '7d'),
+                'HEADSCALE_PROFESSIONAL_LIVE_TUNNEL': str(professional_config.get('live_tunnel_enabled', True)).lower(),
                 
                 # Logging configuration
+                'HEADSCALE_LOG_LEVEL': logging_config.get('level', 'info'),
+                'HEADSCALE_LOG_FILE': logging_config.get('file', '/var/log/headscale/headscale.log'),
                 
                 # Policy file
+                'HEADSCALE_POLICY_PATH': headscale_config.get('policy_file', '/etc/headscale/policy.hujson'),
                 
                 # Service metadata
+                'HEADSCALE_ENABLED': str(headscale_config.get('enabled', True)).lower(),
+                'HEADSCALE_PORT': str(server_config.get('port', 8070)),
+                'HEADSCALE_METRICS_PORT': str(server_config.get('metrics_port', 9090))
             }
 
         except Exception as e:
+            logger.error(f"Failed to generate headscale environment variables: {e}")
             # Return minimal fallback configuration
             return {
+                'HEADSCALE_ENABLED': 'false',
+                'HEADSCALE_DATABASE_TYPE': 'sqlite',
+                'HEADSCALE_DATABASE_SQLITE_PATH': '/var/lib/headscale/db.sqlite',
+                'HEADSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT': '30m',
+                'HEADSCALE_BASE_DOMAIN': 'support.sting.local',
+                'HEADSCALE_LISTEN_ADDR': '0.0.0.0:8070',
+                'HEADSCALE_METRICS_LISTEN_ADDR': '0.0.0.0:9090',
+                'HEADSCALE_LOG_LEVEL': 'info',
+                'HEADSCALE_LOG_FILE': '/var/log/headscale/headscale.log',
+                'HEADSCALE_POLICY_PATH': '/etc/headscale/policy.hujson',
+                'HEADSCALE_PORT': '8070',
+                'HEADSCALE_METRICS_PORT': '9090'
             }
 
     def _generate_nectar_worker_env_vars(self):
@@ -1615,22 +1741,31 @@ class ConfigurationManager:
             
     def generate_env_file(self, env_path: Optional[str] = None, service_specific: bool = True) -> None:
         """Generate service-specific .env files with processed configuration."""
+        # ALWAYS remove any supertokens.env file if it exists (no conditions)
         st_env_files = [
+            os.path.join(self.env_dir, "supertokens.env"),
+            os.path.join(self.config_dir, "supertokens.env"),
+            os.path.join(os.path.expanduser("~/.sting-ce/env"), "supertokens.env")
         ]
         
         for st_file in st_env_files:
             if os.path.exists(st_file):
                 try:
                     os.remove(st_file)
+                    logger.info(f"Removed deprecated supertokens.env file at {st_file}")
                 except Exception as e:
-                    pass
-
+                    logger.warning(f"Failed to remove supertokens.env at {st_file}: {e}")
+                    
+        # Create .no_supertokens marker file to prevent future generation
+        no_st_file = os.path.join(self.env_dir, ".no_supertokens")
         try:
             with open(no_st_file, 'w') as f:
+                f.write("# This file prevents creation of supertokens.env\n")
                 f.write(f"# Created: {datetime.datetime.now().isoformat()}\n")
+            logger.info(f"Created .no_supertokens guard file at {no_st_file}")
         except Exception as e:
-            pass
-
+            logger.warning(f"Failed to create .no_supertokens guard file: {e}")
+            
         # Debug logging before processing
         logger.info("===== BEFORE ENV GENERATION =====")
         for key in ['POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB', 'HF_TOKEN']:
@@ -1661,6 +1796,7 @@ class ConfigurationManager:
                 'app.env': {
                     'APP_ENV', 'FLASK_DEBUG', 'DATABASE_URL', 'ST_API_KEY',
                     'SQLALCHEMY_DATABASE_URI', 'FLASK_APP', 'APP_PORT', 'API_URL',
+                    'FLASK_SECRET_KEY','SECRET_KEY', 'SUPERTOKENS_URL', 'SUPERTOKENS_API_DOMAIN',
                     'WEBAUTHN_RP_ID', 'WEBAUTHN_RP_NAME', 'WEBAUTHN_RP_ORIGIN',
                     'HONEY_RESERVE_ENABLED', 'HONEY_RESERVE_DEFAULT_QUOTA', 'HONEY_RESERVE_MAX_FILE_SIZE',
                     'HONEY_RESERVE_TEMP_RETENTION_HOURS', 'HONEY_RESERVE_WARNING_THRESHOLD', 
@@ -1678,6 +1814,7 @@ class ConfigurationManager:
                     'VAULT_TOKEN', 'VAULT_ADDR', 'VAULT_API_ADDR'
                 },
                 'frontend.env': {
+                    'REACT_APP_API_URL', 'REACT_APP_SUPERTOKENS_URL',
                     'REACT_APP_KRATOS_PUBLIC_URL', 'REACT_APP_KRATOS_BROWSER_URL',
                     'NODE_ENV', 'REACT_PORT', 'PUBLIC_URL'
                 },
@@ -1785,7 +1922,10 @@ class ConfigurationManager:
                     'LOG_LEVEL': 'INFO'
                 },
                 'observability.env': self._generate_observability_env_vars(),
+                'headscale.env': self._generate_headscale_env_vars(),
                 'nectar-worker.env': self._generate_nectar_worker_env_vars()
+                # SUPERTOKENS IS COMPLETELY REMOVED - DO NOT UNCOMMENT
+                # DO NOT ADD ANY SUPERTOKENS ENV FILES HERE
             }
             
             # Generate service-specific env files in both config and env directories
@@ -1796,6 +1936,11 @@ class ConfigurationManager:
                     os.path.join(self.env_dir, filename)
                 ]
                 for service_env_path in paths:
+                    # Skip any supertokens.env files
+                    if "supertokens.env" in service_env_path:
+                        logger.warning(f"Skipping deprecated {service_env_path}, SuperTokens is no longer used")
+                        continue
+                        
                     logger.info(f"Generating {filename} at {service_env_path}")
                     # Ensure directory exists
                     os.makedirs(os.path.dirname(service_env_path), exist_ok=True)
@@ -1835,25 +1980,51 @@ class ConfigurationManager:
         # Generate a concrete Kratos YAML configuration based on environment variables
         kratos_conf_dir = os.path.join(self.config_dir, 'kratos')
         os.makedirs(kratos_conf_dir, exist_ok=True)
-        
-        # Instead of generating a complex YAML file, let's copy our full template
-        # which includes TOTP and all authentication methods
-        # First try the full kratos.yml from conf/kratos, fallback to minimal if not found
+
+        kratos_path = os.path.join(kratos_conf_dir, 'kratos.yml')
+
+        # Check if kratos.yml already exists (generated by configure_hostname during installation)
+        # If it exists, don't overwrite it - it has the correct hostname configuration
+        if os.path.exists(kratos_path):
+            logger.info(f"Kratos config already exists at {kratos_path}, skipping generation (preserves hostname config)")
+            return True
+
+        # If kratos.yml doesn't exist, generate it from template
+        # Try kratos.yml.template first (preferred - supports hostname substitution)
+        template_kratos_path = os.path.join(self.config_dir, 'kratos', 'kratos.yml.template')
         full_kratos_path = os.path.join(self.config_dir, 'kratos', 'kratos.yml')
         minimal_kratos_path = os.path.join(os.path.dirname(self.config_dir), 'kratos', 'minimal.kratos.yml')
-        kratos_path = os.path.join(kratos_conf_dir, 'kratos.yml')
-        
-        # Use full config if it exists, otherwise fall back to minimal
-        template_path = full_kratos_path if os.path.exists(full_kratos_path) else minimal_kratos_path
-        
+
+        # Prefer template, then full config, then minimal as fallback
+        if os.path.exists(template_kratos_path):
+            template_path = template_kratos_path
+            template_type = "template"
+        elif os.path.exists(full_kratos_path):
+            template_path = full_kratos_path
+            template_type = "full"
+        else:
+            template_path = minimal_kratos_path
+            template_type = "minimal"
+
         if os.path.exists(template_path):
             try:
-                # Copy the template (either full or minimal)
-                with open(template_path, 'r') as src, open(kratos_path, 'w') as dest:
-                    dest.write(src.read())
+                # Read template content
+                with open(template_path, 'r') as src:
+                    content = src.read()
+
+                # If using template, substitute hostname
+                if template_type == "template":
+                    # Get hostname from environment or use localhost as fallback
+                    sting_hostname = os.environ.get('STING_HOSTNAME', 'localhost')
+                    content = content.replace('__STING_HOSTNAME__', sting_hostname)
+                    logger.info(f"Generated Kratos config from template with hostname: {sting_hostname}")
+
+                # Write to destination
+                with open(kratos_path, 'w') as dest:
+                    dest.write(content)
+
                 os.chmod(kratos_path, 0o600)
-                template_type = "full" if template_path == full_kratos_path else "minimal"
-                logger.info(f"Copied Kratos {template_type} template from {template_path} to {kratos_path}")
+                logger.info(f"Copied Kratos {template_type} config from {template_path} to {kratos_path}")
                 return True
             except Exception as e:
                 logger.error(f"Failed to copy Kratos template: {e}")
@@ -1957,6 +2128,13 @@ class ConfigurationManager:
             self.process_config()
         
         return {
+            'supertokens': {
+                'environment': {
+                    'POSTGRESQL_CONNECTION_URI': self.processed_config['DATABASE_URL'],
+                    'API_KEY': self.processed_config['ST_API_KEY'],
+                    'DASHBOARD_API_KEY': self.processed_config.get('ST_DASHBOARD_API_KEY', ''),
+                }
+            },
             'app': {
                 'environment': {
                     'APP_ENV': self.processed_config['APP_ENV'],
@@ -1969,6 +2147,7 @@ class ConfigurationManager:
                 'environment': {
                     'NODE_ENV': self.processed_config['APP_ENV'],
                     'REACT_APP_API_URL': self.processed_config['REACT_APP_API_URL'],
+                    'REACT_APP_SUPERTOKENS_URL': self.processed_config['REACT_APP_SUPERTOKENS_URL'],
                 }
             }
         }

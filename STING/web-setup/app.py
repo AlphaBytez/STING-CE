@@ -691,12 +691,25 @@ def run_installation_background(install_id, config_data, admin_email):
             print(f"Warning: Could not check for stale processes: {e}")
 
         # Start sudo keepalive process in background
-        # This refreshes sudo session every 50 seconds during installation
+        # This refreshes sudo session every 30 seconds during installation
+        # More aggressive interval for macOS/WSL2 compatibility
+        installations[install_id]['log'] += "Starting sudo keepalive process...\n"
         sudo_keepalive = subprocess.Popen(
-            ['bash', '-c', 'while true; do sudo -v; sleep 50; done'],
+            ['bash', '-c', 'while true; do sudo -v 2>/dev/null || echo "[$(date)] Sudo keepalive refresh failed" >> /tmp/sudo-keepalive-wizard.log; sleep 30; done'],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
+
+        # Verify keepalive started
+        try:
+            # Give it a moment to start
+            time.sleep(0.5)
+            if sudo_keepalive.poll() is None:
+                installations[install_id]['log'] += f"✅ Sudo keepalive active (PID: {sudo_keepalive.pid})\n"
+            else:
+                installations[install_id]['log'] += "⚠️  Warning: Sudo keepalive may not have started correctly\n"
+        except:
+            installations[install_id]['log'] += "⚠️  Warning: Could not verify sudo keepalive status\n"
 
         try:
             # Set environment variables for installer
@@ -835,10 +848,19 @@ def run_installation_background(install_id, config_data, admin_email):
 
             # Cleanup: Kill sudo keepalive process
             try:
+                installations[install_id]['log'] += "\nStopping sudo keepalive...\n"
                 sudo_keepalive.terminate()
                 sudo_keepalive.wait(timeout=5)
-            except:
+            except subprocess.TimeoutExpired:
                 sudo_keepalive.kill()
+            except Exception as e:
+                print(f"Error terminating sudo keepalive: {e}")
+
+            # Also kill by pattern as a fallback
+            try:
+                subprocess.run(['pkill', '-f', 'while true; do sudo -v'], check=False, timeout=5)
+            except:
+                pass
 
     except Exception as e:
         installations[install_id]['completed'] = True

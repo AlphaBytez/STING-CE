@@ -103,6 +103,7 @@ copy_files_to_install_dir() {
                     --exclude='*.egg-info' \
                     --exclude='/env/*.env' \
                     --exclude='/conf/*.env' \
+                    --exclude='/kratos/kratos.yml' \
                     "$source_dir/" "$dest_dir/"; then
         log_message "ERROR: Failed to copy files to destination directory."
         popd >/dev/null 2>&1 || true

@@ -341,17 +341,43 @@ if [ "$USE_CLI" = false ]; then
   pkill -f "while true; do sudo -v; sleep" 2>/dev/null || true
 
   # Start sudo keepalive in background to maintain privileges during installation
-  (while true; do sudo -v; sleep 50; done) &
+  # This prevents password prompts during wizard installation
+  # On macOS/WSL2, we use a more aggressive refresh interval (30s instead of 50s)
+  log_message "Starting sudo keepalive process..." "INFO"
+
+  # Create a more robust keepalive that logs failures
+  (
+    while true; do
+      if ! sudo -v 2>/dev/null; then
+        # If sudo -v fails, try to log it but don't exit
+        echo "[$(date)] Sudo keepalive refresh failed" >> /tmp/sudo-keepalive.log 2>&1
+      fi
+      sleep 30
+    done
+  ) &
   SUDO_KEEPALIVE_PID=$!
+
+  # Verify the keepalive process started
+  if kill -0 "$SUDO_KEEPALIVE_PID" 2>/dev/null; then
+    log_message "✅ Sudo keepalive active (PID: $SUDO_KEEPALIVE_PID)" "SUCCESS"
+  else
+    log_message "⚠️  Warning: Sudo keepalive may not have started correctly" "WARNING"
+  fi
 
   # Update cleanup function to kill sudo keepalive
   cleanup_wizard() {
     log_message "Cleaning up wizard processes..." "INFO"
 
-    # Kill sudo keepalive
-    if [ -n "$SUDO_KEEPALIVE_PID" ]; then
+    # Kill sudo keepalive process
+    if [ -n "${SUDO_KEEPALIVE_PID:-}" ]; then
+      log_message "Stopping sudo keepalive (PID: $SUDO_KEEPALIVE_PID)..." "INFO"
       kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+      # Also kill any child processes
+      pkill -P "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
     fi
+
+    # Also kill by pattern as a fallback
+    pkill -f "while true; do sudo -v; sleep" 2>/dev/null || true
 
     # Kill processes using the wizard port
     if command -v lsof &> /dev/null; then

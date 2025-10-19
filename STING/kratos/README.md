@@ -1,52 +1,56 @@
-# Kratos Authentication Service
+# Kratos Configuration Files
 
-This directory contains configuration files and setup for Ory Kratos, which provides authentication services including WebAuthn (passkey) support.
+## ⚠️ IMPORTANT: Use Templates, Not Static Configs
 
-## Configuration
+### Primary Configuration File
 
-Kratos is configured through the following files:
-- `identity.schema.json` - Schema defining user identity properties
-- `main.kratos.yml` - Main Kratos configuration (used in production)
-- `minimal.kratos.yml` - Minimal configuration for testing 
+**`kratos.yml.template`** - This is the ONLY file you should edit for production deployments.
 
-## Standalone Testing
+- Contains `__STING_HOSTNAME__` placeholder
+- Gets processed during installation to generate `kratos.yml`
+- Supports WebAuthn/Passkey authentication with custom hostnames
 
-A standalone test configuration is provided to validate Kratos in isolation:
+### How It Works
+
+1. **During Installation:**
+   - `kratos.yml.template` is copied to install directory
+   - `configure_hostname()` generates `kratos.yml` from template
+   - Hostname placeholder is replaced with actual hostname (e.g., `sting.local`, `mycompany.com`)
+
+2. **After Installation:**
+   - Use `./update_hostname.sh` to change hostname
+   - DO NOT manually edit `kratos.yml` - changes will be overwritten
+
+### Files in This Directory
+
+- **`kratos.yml.template`** ✅ - Production template (EDIT THIS)
+- **`kratos.yml.deprecated-use-template`** ❌ - Old static config (DO NOT USE)
+- **`minimal.kratos.yml`** - Minimal config for testing
+- **`dev.kratos.yml`** - Development-specific config
+
+### Common Tasks
+
+#### Change Hostname After Installation
 
 ```bash
-# Start the test environment
-cd kratos
-docker compose -f docker-compose.test.yml up
+cd /opt/sting-ce  # or ~/.sting-ce on macOS
+./update_hostname.sh
 ```
 
-This will start PostgreSQL and Kratos containers with a minimal configuration.
+#### Add New Kratos Feature
 
-## Health Checks
+1. Edit `kratos.yml.template`
+2. Use `__STING_HOSTNAME__` for any hostname references
+3. Reinstall or run `./update_hostname.sh` to regenerate config
 
-Kratos provides a health check endpoint at:
-- `http://localhost:4434/admin/health/ready`
+### Why Templates?
 
-Docker healthchecks use this endpoint to verify service readiness.
+WebAuthn/Passkey authentication requires:
+- Hostname (not IP address) for Relying Party ID
+- Matching origins across CORS, WebAuthn, and session cookies
+- Dynamic configuration based on deployment environment
 
-## Key Configurations
-
-- Kratos must run database migrations before starting the server
-- The DSN environment variable must point to a valid PostgreSQL instance
-- Use the `sh -c "kratos migrate sql -e --yes && kratos serve --dev --config /etc/config/kratos/kratos.yml"` command to run migrations then serve
-- Ensure admin and public interfaces are properly configured and exposed
-
-## Troubleshooting
-
-If health checks fail:
-1. Verify the PostgreSQL container is running
-2. Check that migrations ran successfully
-3. Confirm the admin endpoint is accessible
-4. Review logs with `docker compose logs kratos`
-
-## Integration with STING
-
-Kratos integrates with the main application through:
-- Frontend at port 4433 (public API)
-- Backend at port 4434 (admin API)
-- Shared PostgreSQL database
-- Environment configuration from config.yml
+Templates allow STING to work on:
+- ✅ VMs with custom hostnames (`sting.local`)
+- ✅ Production domains (`sting.company.com`)
+- ✅ Local development (`localhost`)
