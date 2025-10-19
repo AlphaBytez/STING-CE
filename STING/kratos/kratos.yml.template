@@ -131,7 +131,10 @@ secrets:
 session:
   cookie:
     name: ory_kratos_session
-    domain: __STING_HOSTNAME__
+    # IMPORTANT: Domain is intentionally left empty for IP address compatibility
+    # When accessing via IP (e.g., 10.0.0.158), setting domain breaks cookie storage
+    # Leaving it empty allows cookies to work for both IPs and hostnames
+    # domain: __STING_HOSTNAME__  # Commented out - causes login loops with IPs
     path: /
     same_site: Lax
   lifespan: 24h
