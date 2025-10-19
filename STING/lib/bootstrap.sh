@@ -33,9 +33,10 @@ log_message() {
         echo "${timestamp} - ${message}"
     fi
 
-    # Also write to log file if directory exists (silently skip if removed during uninstall)
-    local log_dir=$(dirname "$LOG_FILE" 2>/dev/null)
-    if [ -d "$log_dir" ] && [ -w "$log_dir" ]; then
+    # Also write to log file if parent directory exists
+    # Use parameter expansion ${LOG_FILE%/*} to get directory without calling dirname
+    # Silently skip if directory doesn't exist (e.g., during uninstall or before creation)
+    if [ -d "${LOG_FILE%/*}" ] 2>/dev/null; then
         echo "${timestamp} - [${level}] ${message}" >> "$LOG_FILE" 2>/dev/null || true
     fi
 }
