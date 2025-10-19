@@ -895,9 +895,9 @@ class ConfigurationManager:
             # 'SUPERTOKENS_WEBAUTHN_ENABLED': 'true',
             # 'SUPERTOKENS_WEBAUTHN_RP_ID': '${HOSTNAME:-localhost}',
             # 'SUPERTOKENS_WEBAUTHN_RP_NAME': 'STING',
-            # 'SUPERTOKENS_WEBAUTHN_RP_ORIGINS': '["http://localhost:8443", "https://${HOSTNAME:-' + 
-                self.processed_config.get('APP_HOST','your-production-domain.com') + 
-                '}"]'
+            # 'SUPERTOKENS_WEBAUTHN_RP_ORIGINS': '["http://localhost:8443", "https://${HOSTNAME:-' +
+            #     self.processed_config.get('APP_HOST','your-production-domain.com') +
+            #     '}"]'
         })
 
         # Add LLM service specific ENV vars
