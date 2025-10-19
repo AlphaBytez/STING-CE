@@ -960,6 +960,9 @@ def get_install_log(install_id):
 
     install_data = installations[install_id]
 
+    # Check if sudo re-authentication is needed
+    sudo_reauth_needed = os.path.exists('/tmp/sting-setup-state/sudo-reauth-needed')
+
     return jsonify({
         'log': install_data.get('log', ''),
         'status': install_data.get('status', 'Unknown'),
@@ -968,8 +971,52 @@ def get_install_log(install_id):
         'success': install_data.get('success', False),
         'error': install_data.get('error'),
         'redirect_url': install_data.get('redirect_url'),
-        'admin_email': install_data.get('admin_email')
+        'admin_email': install_data.get('admin_email'),
+        'sudo_reauth_needed': sudo_reauth_needed
     })
+
+@app.route('/api/sudo-reauth', methods=['POST'])
+def sudo_reauth():
+    """
+    Prompt user to re-authenticate sudo credentials
+    This creates a sudo prompt on the server terminal
+    """
+    try:
+        # Attempt to refresh sudo credentials interactively
+        # This will show a TouchID or password prompt on macOS
+        result = subprocess.run(
+            ['sudo', '-v'],
+            capture_output=True,
+            text=True,
+            timeout=60  # Give user 60 seconds to authenticate
+        )
+
+        if result.returncode == 0:
+            # Remove the flag file
+            flag_file = '/tmp/sting-setup-state/sudo-reauth-needed'
+            if os.path.exists(flag_file):
+                os.remove(flag_file)
+
+            return jsonify({
+                'success': True,
+                'message': 'Sudo credentials refreshed successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to refresh sudo credentials'
+            }), 400
+
+    except subprocess.TimeoutExpired:
+        return jsonify({
+            'success': False,
+            'error': 'Authentication timeout - please try again'
+        }), 408
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/api/shutdown', methods=['POST'])
 def shutdown_wizard():

@@ -129,21 +129,56 @@ pkill -f "while true; do sudo -v; sleep" 2>/dev/null || true
 # On macOS/WSL2, we use a more aggressive refresh interval (30s instead of 50s)
 log_message "Starting sudo keepalive process..." "INFO"
 
-# Create a robust keepalive that logs failures
-# IMPORTANT: Use -n flag on macOS to prevent TouchID/password prompts
-# More aggressive timing on macOS (20s vs 30s) to prevent credential cache expiry
+# Create a robust keepalive that logs failures and requests re-auth when needed
+# IMPORTANT: More aggressive refresh on macOS (10s) to prevent credential cache expiry
+# macOS sudo timeout is typically 5 minutes, but installation can take 15-20+ minutes
 if [[ "$(uname)" == "Darwin" ]]; then
-    KEEPALIVE_INTERVAL=20
+    KEEPALIVE_INTERVAL=10  # More aggressive on macOS
 else
-    KEEPALIVE_INTERVAL=30
+    KEEPALIVE_INTERVAL=20
 fi
 
+# Function to check if we're running under the wizard
+is_wizard_mode() {
+    [ -n "$WIZARD_CONFIG_PATH" ] || [ -f "/tmp/sting-setup-state/setup-state.json" ]
+}
+
 (
+  CONSECUTIVE_FAILURES=0
+  MAX_CONSECUTIVE_FAILURES=3
+
   while true; do
-    # Use -n (non-interactive) to prevent prompts, especially on macOS with TouchID
-    if ! sudo -n -v 2>/dev/null; then
-      # If sudo -v fails, try to log it but don't exit
-      echo "[$(date)] Sudo keepalive refresh failed (credential cache may have expired)" >> /tmp/sudo-keepalive.log 2>&1
+    # First try non-interactive refresh
+    if sudo -n -v 2>/dev/null; then
+      # Success - reset failure counter
+      CONSECUTIVE_FAILURES=0
+    else
+      # Failed - increment counter
+      CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
+      echo "[$(date)] Sudo keepalive refresh failed (attempt $CONSECUTIVE_FAILURES/$MAX_CONSECUTIVE_FAILURES)" >> /tmp/sudo-keepalive.log 2>&1
+
+      # If we've failed multiple times, try interactive refresh (will prompt user)
+      if [ $CONSECUTIVE_FAILURES -ge $MAX_CONSECUTIVE_FAILURES ]; then
+        echo "[$(date)] CRITICAL: Sudo credentials expired after $CONSECUTIVE_FAILURES attempts" >> /tmp/sudo-keepalive.log 2>&1
+
+        # If running under wizard, create a flag file that wizard can detect
+        if is_wizard_mode; then
+          echo "[$(date)] Creating sudo-reauth-needed flag for wizard" >> /tmp/sudo-keepalive.log 2>&1
+          touch /tmp/sting-setup-state/sudo-reauth-needed
+        fi
+
+        # On macOS, attempt one interactive prompt (will show TouchID or password prompt)
+        if [[ "$(uname)" == "Darwin" ]]; then
+          echo "[$(date)] Attempting interactive sudo prompt on macOS..." >> /tmp/sudo-keepalive.log 2>&1
+          if sudo -v 2>/dev/null; then
+            echo "[$(date)] Interactive sudo prompt succeeded" >> /tmp/sudo-keepalive.log 2>&1
+            CONSECUTIVE_FAILURES=0
+            rm -f /tmp/sting-setup-state/sudo-reauth-needed 2>/dev/null
+          else
+            echo "[$(date)] Interactive sudo prompt failed - installation may hang" >> /tmp/sudo-keepalive.log 2>&1
+          fi
+        fi
+      fi
     fi
     sleep $KEEPALIVE_INTERVAL
   done

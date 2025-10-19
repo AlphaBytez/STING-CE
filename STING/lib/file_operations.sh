@@ -121,27 +121,34 @@ copy_files_to_install_dir() {
 
     log_message "Setting ownership to $target_user:$target_group..."
 
-    # Execute chown with retries and proper error handling
-    # On macOS, this operation can be slow and sudo cache might expire
-    local max_retries=2
-    local retry_count=0
+    # Execute chown with platform-specific handling
+    # CRITICAL: On macOS, sudo -n can hang indefinitely even when credentials expired
+    # We need to use timeout or detect expiration before attempting
     local chown_success=false
 
-    while [ $retry_count -lt $max_retries ] && [ "$chown_success" = "false" ]; do
+    if [[ "$(uname)" == "Darwin" ]]; then
+        # macOS: Test credentials first, DON'T use -n flag (it hangs)
+        if sudo -n true 2>/dev/null; then
+            # Credentials valid, proceed with chown
+            if sudo chown -R "$target_user:$target_group" "$dest_dir" 2>/dev/null; then
+                chown_success=true
+                log_message "✓ Ownership set successfully"
+            else
+                log_message "WARNING: Ownership change failed (non-critical)"
+            fi
+        else
+            # Credentials expired - skip ownership change on macOS (user owns ~/.sting-ce anyway)
+            log_message "⚠️  Skipping ownership change (sudo expired, but $dest_dir is already user-owned)"
+            chown_success=true  # Not critical on macOS since installing to home dir
+        fi
+    else
+        # Linux: Use -n flag safely (it fails fast on Linux)
         if sudo -n chown -R "$target_user:$target_group" "$dest_dir" 2>/dev/null; then
             chown_success=true
             log_message "✓ Ownership set successfully"
         else
-            retry_count=$((retry_count + 1))
-            if [ $retry_count -lt $max_retries ]; then
-                log_message "Ownership change failed (attempt $retry_count/$max_retries), retrying..."
-                sleep 2
-            fi
+            log_message "WARNING: Failed to set ownership (non-critical)"
         fi
-    done
-
-    if [ "$chown_success" = "false" ]; then
-        log_message "WARNING: Failed to set ownership after $max_retries attempts (non-critical)"
     fi
 
     # CRITICAL: Ensure all shell scripts have execute permissions

@@ -321,8 +321,7 @@ storage:
   volumes:
     - name: postgres_data
       mount: /var/lib/postgres/data
-    - name: sting_supertokens_data
-      mount: /data
+    # Removed: sting_supertokens_data (SuperTokens deprecated)
     - name: vault_data
       mount: /vault/file
   init_scripts:

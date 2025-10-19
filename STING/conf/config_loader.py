@@ -717,9 +717,10 @@ class ConfigurationManager:
         logger.info(f"Generated/Retrieved Flask secret key status: {'[EXISTS]' if flask_secret else '[NOT_FOUND]'}")
         
         # Generate and set database password first
-        self.db_password = self._clean_value(self._get_secret('database', 'password', supertokens_safe=True))
-        self.api_key = self._clean_value(self._get_secret('supertokens', 'api_key', supertokens_safe=True))
-        self.dashboard_api_key = self._clean_value(self._get_secret('supertokens', 'dashboard_api_key', supertokens_safe=True))
+        self.db_password = self._clean_value(self._get_secret('database', 'password', supertokens_safe=False))
+        # SuperTokens secrets removed - no longer used (Kratos handles auth)
+        # self.api_key = self._clean_value(self._get_secret('supertokens', 'api_key', supertokens_safe=True))
+        # self.dashboard_api_key = self._clean_value(self._get_secret('supertokens', 'dashboard_api_key', supertokens_safe=True))
         
         # Generate Honey Reserve encryption master key
         self.honey_reserve_master_key = self._clean_value(self._get_secret('honey_reserve', 'master_key', supertokens_safe=False))
@@ -807,9 +808,10 @@ class ConfigurationManager:
             'POSTGRESQL_PORT': '5432',
             'DATABASE_URL': self._clean_value(database_url),
             'POSTGRESQL_CONNECTION_URI': self._clean_value(database_url),
-            'SUPERTOKENS_API_DOMAIN': 'http://localhost:5050',
-            'SUPERTOKENS_URL': 'http://supertokens:3567',
-            'SUPERTOKENS_CORS_ORIGINS': 'http://localhost:8443'
+            # SuperTokens removed - using Kratos for authentication
+            # 'SUPERTOKENS_API_DOMAIN': 'http://localhost:5050',
+            # 'SUPERTOKENS_URL': 'http://supertokens:3567',
+            # 'SUPERTOKENS_CORS_ORIGINS': 'http://localhost:8443'
         }
         
         self.processed_config.update({
@@ -866,18 +868,20 @@ class ConfigurationManager:
             'GUNICORN_TIMEOUT': str(app_config.get('gunicorn_timeout', 120)),
             'DATABASE_URL': self._clean_value(database_url),
             'SQLALCHEMY_DATABASE_URI': self._clean_value(database_url),
-            'ST_API_KEY': self._clean_value(self.api_key),
-            'API_KEY': self._clean_value(self.api_key),
-            'ST_DASHBOARD_API_KEY': self._clean_value(self.dashboard_api_key),
-            'SUPERTOKENS_URL': 'http://supertokens:3567',
-            'SUPERTOKENS_CORS_ORIGINS': 'http://localhost:8443',
-            'SUPERTOKENS_API_DOMAIN': api_domain,
+            # SuperTokens API keys removed - no longer used
+            # 'ST_API_KEY': self._clean_value(self.api_key),
+            # 'API_KEY': self._clean_value(self.api_key),
+            # 'ST_DASHBOARD_API_KEY': self._clean_value(self.dashboard_api_key),
+            # SuperTokens removed - using Kratos for authentication
+            # 'SUPERTOKENS_URL': 'http://supertokens:3567',
+            # 'SUPERTOKENS_CORS_ORIGINS': 'http://localhost:8443',
+            # 'SUPERTOKENS_API_DOMAIN': api_domain,
             'ST_ACCESS_TOKEN_VALIDITY': '3600',
             'ST_REFRESH_TOKEN_VALIDITY': '2592000',
             'REACT_PORT': self.raw_config.get('frontend', {}).get('react', {}).get('port', 8443),
             'HF_TOKEN': hf_token,
             'REACT_APP_API_URL': api_domain,
-            'REACT_APP_SUPERTOKENS_URL': 'http://localhost:3567',
+            # 'REACT_APP_SUPERTOKENS_URL': 'http://localhost:3567',  # Removed - using Kratos
             'REACT_APP_KRATOS_PUBLIC_URL': self.processed_config.get('KRATOS_PUBLIC_URL', kratos_public_url),
             'REACT_APP_KRATOS_BROWSER_URL': self.processed_config.get('KRATOS_BROWSER_URL', kratos_browser_url),
             'NODE_ENV': app_config.get('env', 'development'),
@@ -887,10 +891,11 @@ class ConfigurationManager:
             'HEALTH_CHECK_TIMEOUT': self.raw_config.get('monitoring', {}).get('health_checks', {}).get('timeout', '10s'),
             'HEALTH_CHECK_RETRIES': str(self.raw_config.get('monitoring', {}).get('health_checks', {}).get('retries', 3)),
             'HEALTH_CHECK_START_PERIOD': self.raw_config.get('monitoring', {}).get('health_checks', {}).get('start_period', '40s'),
-            'SUPERTOKENS_WEBAUTHN_ENABLED': 'true',
-            'SUPERTOKENS_WEBAUTHN_RP_ID': '${HOSTNAME:-localhost}',
-            'SUPERTOKENS_WEBAUTHN_RP_NAME': 'STING',
-            'SUPERTOKENS_WEBAUTHN_RP_ORIGINS': '["http://localhost:8443", "https://${HOSTNAME:-' + 
+            # SuperTokens WebAuthn removed - Kratos handles this natively
+            # 'SUPERTOKENS_WEBAUTHN_ENABLED': 'true',
+            # 'SUPERTOKENS_WEBAUTHN_RP_ID': '${HOSTNAME:-localhost}',
+            # 'SUPERTOKENS_WEBAUTHN_RP_NAME': 'STING',
+            # 'SUPERTOKENS_WEBAUTHN_RP_ORIGINS': '["http://localhost:8443", "https://${HOSTNAME:-' + 
                 self.processed_config.get('APP_HOST','your-production-domain.com') + 
                 '}"]'
         })
