@@ -581,20 +581,9 @@ def run_installation_background(install_id, config_data, admin_email):
                 f"Current STING_SOURCE: {STING_SOURCE}"
             )
 
-        # Pre-acquire sudo privileges before installation
-        # This prevents sudo password prompts during installation
-        # (web UI can't handle interactive sudo prompts)
-        try:
-            installations[install_id]['status'] = 'Acquiring sudo privileges...'
-            subprocess.run(['sudo', '-v'], check=True, capture_output=True)
-            installations[install_id]['log'] += "✅ Sudo privileges acquired\n"
-        except subprocess.CalledProcessError:
-            raise RuntimeError(
-                "Failed to acquire sudo privileges.\n"
-                "The STING installer requires sudo access.\n"
-                "Please run the wizard with: sudo python3 app.py\n"
-                "Or use CLI installation instead: ./install_sting.sh --cli"
-            )
+        # Note: Sudo privileges are already acquired by parent install_sting.sh
+        # The parent script runs a sudo keepalive process that covers all child processes
+        # We rely on that instead of calling sudo -v here (which would prompt on macOS)
 
         # Check for existing/partial installation and clean up automatically
         installations[install_id]['status'] = 'Checking for existing installation...'
