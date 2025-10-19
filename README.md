@@ -60,7 +60,7 @@ Self-hosted platform for secure, private LLM deployment with complete data sover
 - **Hot Reload** - Development mode with live updates
 
 ### 🎨 Modern UI & Theming
-- **Glass Morphism Design** - Modern STING V2 theme with floating elements
+- **Glass Morphism Design** - Modern STING theme with floating elements
 - **Responsive Interface** - Optimized for desktop, tablet, and mobile
 - **Multiple Themes** - Customizable themes including modern glass, retro terminal, and more
 - **Accessibility** - WCAG-compliant design with keyboard navigation
