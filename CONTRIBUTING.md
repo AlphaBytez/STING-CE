@@ -179,7 +179,7 @@ By contributing, you agree that your contributions will be licensed under the [A
 
 All contributions must include:
 ```
-Copyright 2024 AlphaBytez and the STING-CE Community
+Copyright 2025 AlphaBytez and the STING-CE Community
 
 Licensed under the Apache License, Version 2.0
 ```
