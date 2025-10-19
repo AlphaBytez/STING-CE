@@ -697,8 +697,10 @@ def run_installation_background(install_id, config_data, admin_email):
                 installations[install_id]['log'] += "✅ Stale processes cleaned up\n"
 
             # Kill any stale sudo keepalive processes from previous installations
+            # IMPORTANT: Only kill keepalives from failed/aborted installations, NOT the active parent keepalive
             installations[install_id]['log'] += "Cleaning up any stale sudo keepalive processes...\n"
-            subprocess.run(['pkill', '-f', 'while true; do sudo -v; sleep'], check=False)
+            # More specific pattern to avoid killing the parent installer's keepalive
+            subprocess.run(['pkill', '-f', 'sudo-keepalive-wizard.log'], check=False)
         except Exception as e:
             # Non-fatal - continue with installation
             print(f"Warning: Could not check for stale processes: {e}")
@@ -706,23 +708,44 @@ def run_installation_background(install_id, config_data, admin_email):
         # Start sudo keepalive process in background
         # This refreshes sudo session every 30 seconds during installation
         # More aggressive interval for macOS/WSL2 compatibility
-        installations[install_id]['log'] += "Starting sudo keepalive process...\n"
-        sudo_keepalive = subprocess.Popen(
-            ['bash', '-c', 'while true; do sudo -v 2>/dev/null || echo "[$(date)] Sudo keepalive refresh failed" >> /tmp/sudo-keepalive-wizard.log; sleep 30; done'],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+        # IMPORTANT: Don't start a new keepalive - the parent installer already started one!
+        # Just verify it's still running
+        installations[install_id]['log'] += "Verifying parent sudo keepalive is active...\n"
+
+        keepalive_check = subprocess.run(
+            ['pgrep', '-f', 'while true; do sudo -v.*sleep'],
+            capture_output=True
         )
 
-        # Verify keepalive started
-        try:
-            # Give it a moment to start
-            time.sleep(0.5)
-            if sudo_keepalive.poll() is None:
-                installations[install_id]['log'] += f"✅ Sudo keepalive active (PID: {sudo_keepalive.pid})\n"
-            else:
-                installations[install_id]['log'] += "⚠️  Warning: Sudo keepalive may not have started correctly\n"
-        except:
-            installations[install_id]['log'] += "⚠️  Warning: Could not verify sudo keepalive status\n"
+        if keepalive_check.returncode == 0:
+            installations[install_id]['log'] += f"✅ Parent sudo keepalive is active\n"
+            sudo_keepalive = None  # We don't need to manage it
+        else:
+            # Parent keepalive died - start our own as a backup
+            installations[install_id]['log'] += "⚠️  Parent keepalive not found, starting wizard keepalive...\n"
+
+            # First, refresh sudo to establish a session
+            refresh_result = subprocess.run(['sudo', '-v'], capture_output=True, text=True)
+            if refresh_result.returncode != 0:
+                installations[install_id]['log'] += "❌ WARNING: Could not refresh sudo session\n"
+                installations[install_id]['log'] += "   Installation may prompt for password\n"
+
+            sudo_keepalive = subprocess.Popen(
+                ['bash', '-c', 'while true; do sudo -v 2>/dev/null || echo "[$(date)] Sudo keepalive refresh failed" >> /tmp/sudo-keepalive-wizard.log; sleep 30; done'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+
+            # Verify our new keepalive started
+            try:
+                # Give it a moment to start
+                time.sleep(0.5)
+                if sudo_keepalive and sudo_keepalive.poll() is None:
+                    installations[install_id]['log'] += f"✅ Wizard sudo keepalive active (PID: {sudo_keepalive.pid})\n"
+                elif sudo_keepalive:
+                    installations[install_id]['log'] += "⚠️  Warning: Wizard sudo keepalive may not have started correctly\n"
+            except Exception as e:
+                installations[install_id]['log'] += f"⚠️  Warning: Could not verify keepalive status: {e}\n"
 
         try:
             # Set environment variables for installer
@@ -859,21 +882,23 @@ def run_installation_background(install_id, config_data, admin_email):
             except Exception as e:
                 print(f"Error terminating installation process: {e}")
 
-            # Cleanup: Kill sudo keepalive process
-            try:
-                installations[install_id]['log'] += "\nStopping sudo keepalive...\n"
-                sudo_keepalive.terminate()
-                sudo_keepalive.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                sudo_keepalive.kill()
-            except Exception as e:
-                print(f"Error terminating sudo keepalive: {e}")
+            # Cleanup: Kill sudo keepalive process (only if we started one)
+            if sudo_keepalive is not None:
+                try:
+                    installations[install_id]['log'] += "\nStopping wizard sudo keepalive...\n"
+                    sudo_keepalive.terminate()
+                    sudo_keepalive.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    sudo_keepalive.kill()
+                except Exception as e:
+                    print(f"Error terminating sudo keepalive: {e}")
 
-            # Also kill by pattern as a fallback
-            try:
-                subprocess.run(['pkill', '-f', 'while true; do sudo -v'], check=False, timeout=5)
-            except:
-                pass
+                # Also kill wizard keepalive by pattern as a fallback
+                try:
+                    subprocess.run(['pkill', '-f', 'sudo-keepalive-wizard.log'], check=False, timeout=5)
+                except:
+                    pass
+            # NOTE: We don't kill the parent installer's keepalive - it will clean itself up
 
     except Exception as e:
         installations[install_id]['completed'] = True
