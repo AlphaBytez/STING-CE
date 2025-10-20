@@ -38,7 +38,7 @@ Include in your report:
 | 1.x     | ✅ Active      | Yes              |
 | < 1.0   | ❌ EOL         | No               |
 
-We strongly recommend always running the latest version.
+We strongly recommend always running the latest version. Remember, the STING Community Edition offers no warranties or guarenteed support for ANY CE version.
 
 ## 🔐 Security Features
 
