@@ -872,9 +872,13 @@ def run_installation_background(install_id, config_data, admin_email):
 
                 if os.path.exists(script_path):
                     try:
-                        # Set Kratos URL using configured hostname (ensures consistency with login/WebAuthn)
+                        # Set Kratos admin URL using configured hostname (same as health check for consistency)
+                        # Use configured hostname instead of localhost for WSL2/Windows compatibility
                         env = os.environ.copy()
-                        env['KRATOS_ADMIN_URL'] = f'http://{configured_hostname}:4434'
+                        kratos_admin_url = f'https://{configured_hostname}:4434'
+                        env['KRATOS_ADMIN_URL'] = kratos_admin_url
+
+                        installations[install_id]['log'] += f"Using Kratos admin URL: {kratos_admin_url}\n"
 
                         result = subprocess.run(
                             ['python3', script_path, '--email', admin_email, '--passwordless'],

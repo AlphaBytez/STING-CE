@@ -10,7 +10,8 @@ import os
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Default to localhost (for running from host), can be overridden with env var
-KRATOS_ADMIN_URL = os.getenv("KRATOS_ADMIN_URL", "http://localhost:4434")
+# Note: Admin API uses HTTPS
+KRATOS_ADMIN_URL = os.getenv("KRATOS_ADMIN_URL", "https://localhost:4434")
 
 def generate_password():
     """Generate a secure password"""
