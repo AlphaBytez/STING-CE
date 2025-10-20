@@ -169,7 +169,22 @@ nano STING/conf/config.yml
 
 ## 📖 Documentation
 
-Comprehensive documentation is available in the `STING/docs/` directory:
+### 🌐 Documentation Website
+
+Visit our comprehensive documentation site for a better reading experience:
+
+**[docs.sting.alphabytez.dev](https://alphabytez.github.io/sting-docs/)** (Coming Soon)
+
+Features:
+- 🔍 Full-text search across all documentation
+- 📱 Mobile-friendly responsive design
+- 🌓 Dark/light mode support
+- 📚 Version-specific documentation
+- 💻 Code examples and API reference
+
+### 📂 Documentation in Repository
+
+Documentation is also available in the `STING/docs/` directory:
 
 - **Installation**: [STING/docs/README.md](STING/docs/README.md) or [Fresh Install Guide](STING/docs/platform/guides/fresh-install-guide.md)
 - **Configuration**: [STING/docs/operations/](STING/docs/operations/)
@@ -319,6 +334,10 @@ STING-CE is built on the shoulders of giants. We're grateful to the open-source 
 - **[Mailpit](https://github.com/axllent/mailpit)** - Email testing tool for development
 - **[Grafana](https://grafana.com/)** - Observability and monitoring dashboards
 - **[Loki](https://grafana.com/oss/loki/)** - Log aggregation system
+
+### Documentation
+- **[Hugo](https://gohugo.io/)** - Fast and flexible static site generator for building our documentation site
+- **[Docsy](https://www.docsy.dev/)** - Google's beautiful documentation theme for Hugo with search and versioning
 
 ### Community
 Special thanks to:
