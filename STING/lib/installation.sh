@@ -2252,6 +2252,227 @@ generate_env_js_files() {
     fi
 }
 
+# Validate authentication configuration consistency
+# This catches hostname/RP ID mismatches BEFORE Docker build starts
+validate_auth_config_consistency() {
+    log_message "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log_message "🔍 Validating authentication configuration consistency..."
+    log_message "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    local hostname="$STING_HOSTNAME"
+    local errors=()
+    local warnings=()
+
+    # 1. Verify Kratos config exists
+    if [ ! -f "${INSTALL_DIR}/kratos/kratos.yml" ]; then
+        errors+=("❌ Kratos config not found at ${INSTALL_DIR}/kratos/kratos.yml")
+        log_message "❌ CRITICAL: Kratos configuration validation failed!"
+        for error in "${errors[@]}"; do
+            log_message "   $error"
+        done
+        return 1
+    fi
+
+    # 2. Check for unsubstituted placeholders (critical error)
+    if grep -q "__STING_HOSTNAME__" "${INSTALL_DIR}/kratos/kratos.yml"; then
+        errors+=("❌ Kratos config still contains __STING_HOSTNAME__ placeholder!")
+        errors+=("   Template substitution may have failed")
+    fi
+
+    # 3. Verify WebAuthn RP ID matches configured hostname
+    local rp_id=$(grep -A5 "rp:" "${INSTALL_DIR}/kratos/kratos.yml" | grep "id:" | head -1 | awk '{print $2}')
+    if [ -z "$rp_id" ]; then
+        errors+=("❌ WebAuthn RP ID not found in Kratos config")
+    elif [ "$rp_id" != "$hostname" ]; then
+        errors+=("❌ WebAuthn RP ID mismatch!")
+        errors+=("   Expected: '$hostname'")
+        errors+=("   Got: '$rp_id'")
+        errors+=("   This WILL cause passkey/WebAuthn failures!")
+    else
+        log_message "   ✅ WebAuthn RP ID: $rp_id"
+    fi
+
+    # 4. Verify WebAuthn origins include the hostname
+    if ! grep -A10 "rp:" "${INSTALL_DIR}/kratos/kratos.yml" | grep "origins:" -A5 | grep -q "$hostname"; then
+        errors+=("❌ WebAuthn origins don't include hostname '$hostname'")
+    else
+        log_message "   ✅ WebAuthn origins configured correctly"
+    fi
+
+    # 5. Verify CORS allowed_origins match hostname
+    if ! grep -A5 "allowed_origins:" "${INSTALL_DIR}/kratos/kratos.yml" | grep -q "$hostname"; then
+        errors+=("❌ CORS allowed_origins doesn't include '$hostname'")
+    else
+        log_message "   ✅ CORS origins configured correctly"
+    fi
+
+    # 6. Check frontend env.js (non-critical - might not exist yet)
+    if [ -f "${INSTALL_DIR}/frontend/public/env.js" ]; then
+        if ! grep -q "$hostname" "${INSTALL_DIR}/frontend/public/env.js"; then
+            warnings+=("⚠️  Frontend env.js doesn't contain hostname '$hostname'")
+        else
+            log_message "   ✅ Frontend configuration matches hostname"
+        fi
+    fi
+
+    # 7. Check for URL consistency (all should use same hostname)
+    local unique_hosts=$(grep -E "https?://" "${INSTALL_DIR}/kratos/kratos.yml" | grep -o "https\?://[^:]*" | sort -u | wc -l)
+    if [ "$unique_hosts" -gt 2 ]; then  # Allow both http:// and https:// variants
+        warnings+=("⚠️  Multiple different hostnames found in Kratos config")
+        warnings+=("   This may cause redirect/CORS issues")
+    fi
+
+    # 8. Special check for localhost (common misconfiguration)
+    if [ "$hostname" != "localhost" ] && grep -q "localhost" "${INSTALL_DIR}/kratos/kratos.yml"; then
+        # Count localhost occurrences (excluding comments)
+        local localhost_count=$(grep -v "^#" "${INSTALL_DIR}/kratos/kratos.yml" | grep -c "localhost" || true)
+        if [ "$localhost_count" -gt 0 ]; then
+            warnings+=("⚠️  Found 'localhost' in config despite hostname being '$hostname'")
+            warnings+=("   This may cause issues with remote access")
+        fi
+    fi
+
+    # 9. DNS Resolution Check (for non-localhost/non-IP hostnames)
+    if [ "$hostname" != "localhost" ] && [[ ! "$hostname" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        log_message "   🔍 Checking DNS resolution for '$hostname'..."
+
+        # Try multiple resolution methods for best compatibility
+        local dns_resolved=false
+
+        # Method 1: getent hosts (most reliable, uses system resolver)
+        if command -v getent &>/dev/null; then
+            if getent hosts "$hostname" &>/dev/null; then
+                dns_resolved=true
+                local resolved_ip=$(getent hosts "$hostname" | head -1 | awk '{print $1}')
+                log_message "   ✅ DNS resolution successful via getent: $resolved_ip"
+            fi
+        fi
+
+        # Method 2: ping (fallback for systems without getent)
+        if [ "$dns_resolved" = false ] && command -v ping &>/dev/null; then
+            if ping -c 1 -W 2 "$hostname" &>/dev/null 2>&1; then
+                dns_resolved=true
+                log_message "   ✅ DNS resolution successful via ping"
+            fi
+        fi
+
+        # Method 3: host/nslookup (alternative DNS lookup)
+        if [ "$dns_resolved" = false ] && command -v host &>/dev/null; then
+            if host "$hostname" &>/dev/null 2>&1; then
+                dns_resolved=true
+                log_message "   ✅ DNS resolution successful via host"
+            fi
+        fi
+
+        if [ "$dns_resolved" = false ]; then
+            warnings+=("⚠️  Hostname '$hostname' does not currently resolve via DNS")
+            warnings+=("   This is OK if you plan to add it to /etc/hosts on client machines")
+
+            # Special warning for .local domains
+            if [[ "$hostname" =~ \.local$ ]]; then
+                warnings+=("   Note: .local domains require mDNS/Avahi or manual /etc/hosts entry")
+            fi
+        fi
+    fi
+
+    # 10. .local domain special checks (mDNS/Avahi requirements)
+    if [[ "$hostname" =~ \.local$ ]]; then
+        log_message "   🔍 Checking .local domain mDNS support..."
+
+        local mdns_available=false
+
+        # Check for systemd-resolved (Linux)
+        if command -v resolvectl &>/dev/null && systemctl is-active --quiet systemd-resolved 2>/dev/null; then
+            mdns_available=true
+            log_message "   ✅ systemd-resolved active (supports .local via mDNS)"
+        # Check for Avahi (Linux alternative)
+        elif command -v avahi-daemon &>/dev/null || systemctl is-active --quiet avahi-daemon 2>/dev/null; then
+            mdns_available=true
+            log_message "   ✅ Avahi daemon detected (supports .local via mDNS)"
+        # macOS always supports .local via Bonjour
+        elif [[ "$(uname)" == "Darwin" ]]; then
+            mdns_available=true
+            log_message "   ✅ macOS detected (native .local support via Bonjour)"
+        fi
+
+        if [ "$mdns_available" = false ]; then
+            warnings+=("⚠️  .local hostname used but mDNS/Avahi not detected")
+            warnings+=("   .local domains may not resolve without:")
+            warnings+=("   - systemd-resolved (usually enabled by default on Ubuntu)")
+            warnings+=("   - Avahi daemon (install: sudo apt install avahi-daemon)")
+            warnings+=("   - OR manual /etc/hosts entries on all client machines")
+        fi
+    fi
+
+    # 11. Cookie domain compatibility check
+    # Ensure session cookies will work with the configured hostname
+    local cookie_domain=$(grep -A5 "session:" "${INSTALL_DIR}/kratos/kratos.yml" | grep "domain:" | awk '{print $2}')
+    if [ -n "$cookie_domain" ] && [ "$cookie_domain" != "$hostname" ]; then
+        warnings+=("⚠️  Session cookie domain '$cookie_domain' differs from hostname '$hostname'")
+        warnings+=("   This may cause session/login issues")
+    else
+        log_message "   ✅ Session cookie configuration compatible with hostname"
+    fi
+
+    # 12. SSL/TLS hostname validation check
+    if [ "$hostname" != "localhost" ]; then
+        log_message "   ℹ️  SSL certificates will be self-signed for hostname: $hostname"
+        log_message "   ℹ️  Browsers will show security warnings until you install custom certs"
+    fi
+
+    # Report results
+    log_message ""
+    if [ ${#errors[@]} -eq 0 ]; then
+        log_message "✅ Authentication configuration validation PASSED"
+        log_message "   Configured hostname: $hostname"
+        log_message "   WebAuthn RP ID: $rp_id"
+        log_message "   All critical checks passed"
+
+        if [ ${#warnings[@]} -gt 0 ]; then
+            log_message ""
+            log_message "⚠️  Warnings (non-critical):"
+            for warning in "${warnings[@]}"; do
+                log_message "   $warning"
+            done
+        fi
+
+        log_message "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_message ""
+        return 0
+    else
+        log_message "❌ Authentication configuration validation FAILED"
+        log_message ""
+        log_message "Critical errors found:"
+        for error in "${errors[@]}"; do
+            log_message "   $error"
+        done
+
+        if [ ${#warnings[@]} -gt 0 ]; then
+            log_message ""
+            log_message "Warnings:"
+            for warning in "${warnings[@]}"; do
+                log_message "   $warning"
+            done
+        fi
+
+        log_message ""
+        log_message "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_message "⚠️  These configuration issues WILL cause authentication failures!"
+        log_message "   - Passkeys/WebAuthn will not work"
+        log_message "   - Login/registration may fail"
+        log_message "   - CORS errors may occur"
+        log_message ""
+        log_message "Recommended action: Fix configuration and retry installation"
+        log_message "You can run './update_hostname.sh' after installation to fix hostname issues"
+        log_message "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_message ""
+
+        # Don't fail installation, but warn heavily
+        # Return 1 to signal validation failure (caller can decide whether to continue)
+        return 1
+    fi
+}
+
 # Configure hostname for WebAuthn/Passkey compatibility
 configure_hostname() {
     log_message "Configuring hostname for WebAuthn/Passkey support..."
@@ -2330,6 +2551,15 @@ configure_hostname() {
         fi
         log_message "✅ Updated app/static/env.js with hostname"
     fi
+
+    # CRITICAL: Validate auth configuration consistency BEFORE Docker build
+    # This catches hostname/RP ID mismatches early, saving time
+    log_message ""
+    validate_auth_config_consistency || {
+        log_message "⚠️  Authentication validation failed, but continuing installation..."
+        log_message "   You may need to run './update_hostname.sh' after installation to fix issues"
+        log_message ""
+    }
 
     # Show setup instructions
     log_message ""
