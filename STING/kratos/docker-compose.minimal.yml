@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kratos_test
+    # No initialization scripts, no volume mounts
+    ports:
+      - '5433:5432'
+
+  kratos:
+    image: oryd/kratos:latest
+    depends_on:
+      - db
+    environment:
+      - DSN=postgresql://postgres:postgres@db:5432/kratos_test
+    volumes:
+      - ./identity.schema.json:/etc/config/kratos/identity.schema.json:ro
+      - ./minimal.kratos.yml:/etc/config/kratos/kratos.yml:ro
+    ports:
+      - '4433:4433'
+      - '4434:4434'
+    # Run migration then serve
+    entrypoint: []
+    command: sh -c "sleep 5 && kratos migrate sql -e --yes && kratos serve --dev --config /etc/config/kratos/kratos.yml"

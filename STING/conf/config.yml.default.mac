@@ -1,0 +1,516 @@
+# STING Platform Configuration Template - macOS/Apple Silicon Optimized
+# Copy this file to config.yml for optimal performance on Apple Silicon Macs
+# This configuration prioritizes speed and efficiency on macOS systems
+
+# Core Application Settings
+application:
+  env: development
+  debug: true
+  host: localhost
+  port: 5050
+  install_dir: "${INSTALL_DIR}"  # Set via environment - typically ~/.sting-ce on Mac
+  # Directory to store LLM models. Leave blank to use ${INSTALL_DIR}/models
+  models_dir: "${INSTALL_DIR}/models"
+  ssl:
+    enabled: true
+    cert_dir: "${INSTALL_DIR}/certs"
+    domain: "${DOMAIN_NAME:-localhost}"
+    email: "${CERTBOT_EMAIL:-your-email@example.com}"
+
+# Database Configuration
+database:
+  host: db
+  port: 5432
+  name: sting_app
+  user: postgres
+  # Password handled by secrets management
+  connection_timeout: 30
+  max_connections: 100
+
+# Security Settings
+security:
+  supertokens:
+      enabled: true
+      dashboard_enabled: true
+      cors_origins:
+        - "http://localhost:8443"
+        - "https://localhost:8443"
+      features:
+        passkeys: true
+        email_password: true
+        session:
+          jwt_enabled: true
+          refresh_token_validity: 2592000  # 30 days
+          access_token_validity: 3600      # 1 hour
+      # Vault-related settings
+      vault_path: "sting/supertokens"
+      webauthn:
+        enabled: true
+        rp_id: "${HOSTNAME:-localhost}"
+        rp_name: "STING"
+        rp_origins:
+          - "http://localhost:8443"
+          - "https://localhost:8443"
+          - "https://${HOSTNAME:-your-production-domain.com}"
+
+# Frontend Configuration
+frontend:
+  react:
+    port: 8443
+    api_url: "https://localhost:5050"  # Use HTTPS on Mac
+  
+  # Development-specific settings
+  development:
+    hot_reload: true
+    debug_tools: true
+
+# Email Configuration
+email_service:
+  # Email mode: development or production
+  mode: "${EMAIL_MODE:-development}"
+  
+  # Development settings (uses mailpit email catcher)
+  development:
+    provider: "mailpit"
+    host: "mailpit"
+    port: 1025
+    tls_enabled: false
+    # Mailpit catches all emails - no auth needed
+    
+  # Production settings (external SMTP/email service)
+  production:
+    provider: "${EMAIL_PROVIDER:-smtp}"  # smtp, sendgrid, ses, etc.
+    smtp:
+      host: "${SMTP_HOST}"
+      port: "${SMTP_PORT:-587}"
+      username: "${SMTP_USERNAME}"
+      password: "${SMTP_PASSWORD}"
+      from_address: "${SMTP_FROM:-noreply@yourdomain.com}"
+      from_name: "${SMTP_FROM_NAME:-STING Platform}"
+      # TLS/SSL settings
+      tls_enabled: "${SMTP_TLS_ENABLED:-true}"
+      starttls_enabled: "${SMTP_STARTTLS_ENABLED:-true}"
+      # Additional settings for specific providers
+      # For Gmail: Use app-specific password
+      # For SendGrid: Use API key as password
+      # For AWS SES: Configure IAM credentials
+
+# Docker Configuration
+docker:
+  network: sting_local
+  registry:
+    host: ""  # Leave empty for automatic detection
+    port: "5000"
+
+# Backup Configuration
+backup:
+  enabled: true
+  default_directory: "${HOME}/sting-backups"  # User home directory on Mac
+  compression_level: 5
+  retention_count: 5
+  exclude_patterns:
+    - "*.tmp"
+    - "*.log"
+    - "node_modules"
+    - "venv"
+    - ".git"
+    - ".DS_Store"  # Mac-specific
+
+# Storage Configuration
+storage:
+  volumes:
+    - name: postgres_data
+      mount: /var/lib/postgres/data
+    - name: sting_supertokens_data
+      mount: /data
+    - name: vault_data
+      mount: /vault/file
+  init_scripts:
+    - source: ./conf/init_db.sql
+      target: /docker-entrypoint-initdb.d/init.sql
+
+# Monitoring and Health Checks
+monitoring:
+  health_checks:
+    enabled: true
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 40s
+  logging:
+    level: INFO
+    max_size: 100M
+    max_files: 5
+
+# Kratos Authentication Configuration
+kratos:
+  public_url: "https://localhost:4433"
+  admin_url: "https://localhost:4434"
+  cookie_domain: "localhost"
+  # Session secret will be generated via vault or env
+  # SESSION_SECRET can be set in your environment
+  
+  # Self-service flow settings
+  selfservice:
+    default_return_url: "https://localhost:8443"
+    login:
+      ui_url: "https://localhost:8443/login"
+      lifespan: "1h"
+    registration:
+      ui_url: "https://localhost:8443/register"
+      lifespan: "1h"
+  
+  # Authentication methods
+  methods:
+    password:
+      enabled: true
+    webauthn:
+      enabled: true
+      rp_id: "localhost"
+      display_name: "STING Authentication"
+      origin: "https://localhost:8443"
+    oidc:
+      enabled: false
+      providers:
+        - id: "google"
+          provider: "google"
+          client_id: ""
+          client_secret: ""
+          scopes:
+            - "openid"
+            - "profile"
+            - "email"
+        - id: "github"
+          provider: "github"
+          client_id: ""
+          client_secret: ""
+          scopes:
+            - "openid"
+            - "profile"
+            - "email"
+  
+  # Email configuration
+  courier:
+    smtp:
+      connection_uri: "smtp://test:test@mailslurper:1025/?skip_ssl_verify=true"
+
+# LLM Service Configuration - Apple Silicon Optimized
+llm_service:
+  enabled: true
+  gateway:
+    port: 8080
+    log_level: INFO
+    timeout: 45  # Slightly longer for model loading on Mac
+    max_retries: 3
+  default_model: phi3  # Use Phi-3 for enterprise-grade responses
+  
+  # Hardware acceleration settings optimized for Apple Silicon
+  hardware:
+    device: "mps"  # Force Metal Performance Shaders for Apple Silicon
+    precision: "fp16"  # Apple Silicon excels at fp16 operations
+    max_memory: "auto"  # Let macOS manage memory efficiently
+  
+  # Performance profiles optimized for macOS
+  performance:
+    # Apple Silicon optimized profile
+    profile: "apple_silicon"
+    
+    # Apple Silicon specific settings
+    apple_silicon:
+      quantization: "none"  # Apple Silicon handles full models well
+      cpu_threads: "auto"   # Use all P-cores and E-cores
+      batch_size: 1         # Optimize for single-user scenarios
+      max_tokens: 2048      # Allow full responses
+      cache_models: true    # Keep models in unified memory
+      parallel_inference: true  # Use Neural Engine when available
+      torch_compile: false  # Disable for MPS compatibility
+      mps_fallback: true    # Enable CPU fallback if needed
+      
+    # VM/Virtual Appliance optimized settings (fallback)
+    vm_optimized:
+      quantization: "int8"  # Reduce model size if memory constrained
+      cpu_threads: "auto"
+      batch_size: 1
+      max_tokens: 1024
+      
+    # Speed optimized settings for development
+    speed_optimized:
+      quantization: "int8"  # Faster loading
+      cpu_threads: "auto"
+      batch_size: 1
+      max_tokens: 800
+      cache_models: true
+      parallel_inference: true
+      torch_compile: false  # Disable for MPS
+
+  models:
+    # Small, fast models for quick responses
+    tinyllama:
+      enabled: true
+      endpoint: "http://tinyllama-service:8000/generate"
+      path: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+      max_tokens: 512
+      temperature: 0.7
+      size: "1.1B"
+      precision: "fp16"
+      device: "mps"
+    phi2:
+      enabled: true
+      endpoint: "http://phi2-service:8000/generate" 
+      path: "microsoft/phi-2"
+      max_tokens: 1024
+      temperature: 0.7
+      size: "2.7B"
+      precision: "fp16"
+      device: "mps"
+    dialogpt:
+      enabled: false  # Disable for simplicity
+      endpoint: "http://dialogpt-service:8000/generate"
+      path: "microsoft/DialoGPT-medium"
+      max_tokens: 256
+      temperature: 0.8
+      size: "345M"
+    # Llama 3 replacement with Phi-3
+    llama3:
+      enabled: true
+      endpoint: "http://llm-service:8000/generate"
+      path: "microsoft/Phi-3-mini-4k-instruct"
+      max_tokens: 2048
+      temperature: 0.7
+      size: "3.8B"
+      precision: "fp16"
+      device: "mps"
+    # Phi-3 Medium - Primary model for Apple Silicon
+    phi3:
+      enabled: true
+      endpoint: "http://phi3-service:8000/generate"
+      path: "microsoft/Phi-3-mini-4k-instruct"
+      max_tokens: 2048
+      temperature: 0.7
+      size: "14B"  # Actually 3.8B but excellent quality
+      precision: "fp16"  # Optimal for Apple Silicon MPS
+      device: "mps"       # Force Metal Performance Shaders
+    # Keep one larger model option (disabled by default)
+    phi3_mini:
+      enabled: false
+      endpoint: "http://phi3-service:8000/generate"
+      path: "/app/models/phi-3-mini-4k"
+      max_tokens: 2048
+      temperature: 0.7
+      size: "3.8B"
+      precision: "fp16"
+      device: "mps"
+    # DeepSeek R1 - Reasoning model optimized for Apple Silicon
+    deepseek-1.5b:
+      enabled: true
+      endpoint: "http://deepseek-service:8000/generate"
+      path: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+      max_tokens: 2048
+      temperature: 0.7
+      size: "1.5B"
+      precision: "fp16"
+      device: "mps"
+      custom_features:
+        hide_internal_dialogue: true  # Filter out <think> tags
+  
+  filtering:
+    toxicity:
+      enabled: true
+      threshold: 0.7
+      model: "detoxify"
+    data_leakage:
+      enabled: true
+      sensitive_patterns:
+        - "api_key"
+        - "password"
+        - "secret"
+        - "token"
+        - "internal"
+    content_policy:
+      block_categories:
+        - "hate"
+        - "harassment"
+        - "self-harm"
+        - "sexual"
+        - "violence"
+  
+  routing:
+    default_threshold: 0.6
+    default_model: "phi3"
+  
+  # Model lifecycle management optimized for Apple Silicon
+  model_lifecycle:
+    # Load models eagerly for faster responses
+    lazy_loading: false
+    
+    # Keep models in unified memory longer (Apple Silicon advantage)
+    idle_timeout: 180  # 3 hours - longer due to unified memory efficiency
+    
+    # Keep multiple models loaded (unified memory allows this)
+    max_loaded_models: 3  # Phi3, DeepSeek, and one backup
+    
+    # Preload models during startup for immediate availability
+    preload_on_startup: true
+    
+    # Optimized mode for development on Mac
+    development_mode: false  # Set to true for maximum speed
+    
+    # Model priority for eviction (lower = higher priority to keep)
+    model_priorities:
+      phi3: 1           # Primary enterprise model
+      deepseek-1.5b: 2  # Reasoning backup
+      tinyllama: 3      # Fast fallback
+      phi2: 4
+      zephyr: 5
+      llama3: 6
+  
+  # Task-based model routing
+  task_routing:
+    enabled: true
+    
+    # Define task types and their preferred models
+    task_models:
+      # General conversation - use high-quality model
+      chat:
+        primary: "phi3"
+        fallback: "deepseek-1.5b"
+        
+      # Agent/tool use - use reasoning model
+      agent:
+        primary: "deepseek-1.5b"
+        fallback: "phi3"
+        
+      # Analysis tasks - use larger models
+      analysis:
+        primary: "phi3"
+        fallback: "llama3"
+        
+      # Code generation - use specialized models
+      coding:
+        primary: "deepseek-1.5b"
+        fallback: "phi3"
+        
+      # Summarization - use efficient models
+      summarization:
+        primary: "phi2"
+        fallback: "tinyllama"
+    
+    # Task detection keywords/patterns
+    task_detection:
+      agent:
+        keywords: ["search", "find", "analyze", "calculate", "compute", "tool", "function"]
+        patterns: ["can you.*for me", "please.*and.*then", "first.*then.*finally"]
+        
+      analysis:
+        keywords: ["analyze", "compare", "evaluate", "assess", "review", "investigate"]
+        patterns: ["what.*think about", "how.*compare", "pros and cons"]
+        
+      coding:
+        keywords: ["code", "program", "script", "function", "class", "debug", "implement"]
+        patterns: ["write.*code", "create.*function", "fix.*bug", "implement.*algorithm"]
+        
+      summarization:
+        keywords: ["summarize", "summary", "brief", "overview", "tldr", "main points"]
+        patterns: ["sum.*up", "give.*overview", "main.*points"]
+
+  huggingface:
+    token: "${HF_TOKEN}"  # Set via environment variable
+    fallback_strategy: "open_models"
+    open_models:
+      default: "phi3"  # Default to high-quality model on Mac
+
+# Chatbot Configuration - macOS Optimized
+chatbot:
+  enabled: true
+  name: "Bee"
+  model: "phi3"  # Use enterprise-grade model by default
+  context_window: 15  # Slightly larger context for Apple Silicon
+  default_system_prompt: "You are Bee, a helpful and friendly assistant for the STING platform. Answer user questions clearly and accurately. If you don't know the answer, be honest about it."
+  
+  # Performance settings optimized for Apple Silicon
+  performance:
+    # Aggressive caching for faster responses
+    enable_response_cache: true
+    cache_ttl: 600  # 10 minutes - longer cache on Mac
+    
+    # Enhanced concurrent request handling
+    max_concurrent_requests: 8  # Apple Silicon can handle more
+    request_timeout: 90  # Longer timeout for complex queries
+    
+    # Response streaming for better perceived performance
+    enable_streaming: true
+    stream_chunk_size: 128  # Larger chunks for better throughput
+    
+    # Apple Silicon specific optimizations
+    use_neural_engine: true     # Use Neural Engine when available
+    optimize_for_latency: true  # Prioritize response speed
+    batch_similar_requests: true # Group similar requests for efficiency
+  
+  tools:
+    enabled: true
+    allow_custom: true
+    allowed_tools:
+      - search
+      - summarize
+      - analyze
+      - calculate  # Apple Silicon handles math well
+  
+  security:
+    require_authentication: true
+    log_conversations: true
+    content_filter_level: "moderate"  # Slightly relaxed for better performance
+
+# macOS-Specific Speed Optimization Presets
+# Uncomment the preset that matches your performance needs
+
+# For maximum speed on Apple Silicon (recommended):
+speed_preset: "apple_silicon_balanced"
+apple_silicon_balanced:
+  llm_service:
+    performance:
+      profile: "apple_silicon"
+    model_lifecycle:
+      preload_on_startup: true
+      development_mode: false
+      max_loaded_models: 3
+      idle_timeout: 180  # 3 hours
+  chatbot:
+    model: "phi3"
+    performance:
+      enable_response_cache: true
+      cache_ttl: 600  # 10 minutes
+      max_concurrent_requests: 8
+
+# For development speed (uncomment to use):
+# speed_preset: "mac_development"
+# mac_development:
+#   llm_service:
+#     performance:
+#       profile: "speed_optimized"
+#     model_lifecycle:
+#       preload_on_startup: true
+#       development_mode: true
+#       max_loaded_models: 2
+#       idle_timeout: 0  # Never unload
+#   chatbot:
+#     model: "tinyllama"  # Use fastest model
+#     performance:
+#       enable_response_cache: true
+#       cache_ttl: 1200  # 20 minutes
+
+# For maximum quality on high-end Macs (uncomment to use):
+# speed_preset: "mac_pro_quality"
+# mac_pro_quality:
+#   llm_service:
+#     performance:
+#       profile: "apple_silicon"
+#     model_lifecycle:
+#       preload_on_startup: true
+#       development_mode: true
+#       max_loaded_models: 4
+#       idle_timeout: 0
+#   chatbot:
+#     model: "phi3"
+#     performance:
+#       enable_response_cache: false  # Always fresh responses
+#       max_concurrent_requests: 12

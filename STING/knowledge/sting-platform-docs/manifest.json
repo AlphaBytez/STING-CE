@@ -1,0 +1,134 @@
+{
+  "id": "sting-platform-docs",
+  "name": "STING Platform Knowledge",
+  "version": "1.0.0",
+  "description": "Official STING platform documentation for AI-powered knowledge retrieval",
+  "created": "2025-08-30",
+  "author": "AlphaBytez",
+  "license": "MIT",
+  "type": "documentation",
+  "tags": ["documentation", "api", "platform", "knowledge-base"],
+  
+  "honey_jar": {
+    "owner": "admin@sting.local",
+    "type": "public",
+    "status": "active",
+    "permissions": {
+      "public_read": true,
+      "public_write": false,
+      "admin_only": false
+    },
+    "config": {
+      "chunk_size": 1000,
+      "overlap": 200,
+      "embedding_model": "all-MiniLM-L6-v2"
+    }
+  },
+  
+  "documents": {
+    "core": [
+      {
+        "file": "README.md",
+        "title": "STING Platform Knowledge Base Index",
+        "description": "Main index and navigation for the knowledge base",
+        "type": "index"
+      },
+      {
+        "file": "sting-overview.md", 
+        "title": "STING Platform Overview",
+        "description": "Complete platform introduction and core features",
+        "type": "overview",
+        "references": [
+          "docs/STING_TECHNICAL_WHITEPAPER.md",
+          "docs/ARCHITECTURE.md", 
+          "docs/BUSINESS_OVERVIEW.md",
+          "docs/PRODUCT_ARCHITECTURE.md"
+        ]
+      }
+    ],
+    "guides": [
+      {
+        "file": "authentication-guide.md",
+        "title": "Authentication Guide",
+        "description": "Passwordless authentication system guide", 
+        "type": "guide",
+        "references": [
+          "docs/features/PASSWORDLESS_AUTHENTICATION.md",
+          "docs/KRATOS_INTEGRATION_GUIDE.md",
+          "docs/guides/PASSKEY_QUICKSTART.md",
+          "docs/KRATOS_PASSKEY_GUIDE.md"
+        ]
+      },
+      {
+        "file": "honey-jars-guide.md",
+        "title": "Honey Jars Guide", 
+        "description": "Knowledge management system guide",
+        "type": "guide",
+        "references": [
+          "docs/features/HONEY_JAR_USER_GUIDE.md",
+          "docs/features/HONEY_JAR_TECHNICAL_REFERENCE.md",
+          "docs/features/HONEY_JAR_EXPORT_IMPORT_SYSTEM.md",
+          "docs/features/HONEY_JAR_ACCESS_CONTROL.md"
+        ]
+      }
+    ]
+  },
+
+  "references": {
+    "source_directory": "docs/",
+    "comprehensive_docs": true,
+    "key_documents": [
+      "docs/CLAUDE.md",
+      "docs/README.md", 
+      "docs/STING_TECHNICAL_WHITEPAPER.md",
+      "docs/ARCHITECTURE.md",
+      "docs/API_REFERENCE.md",
+      "docs/ADMIN_GUIDE.md",
+      "docs/INSTALLATION.md"
+    ],
+    "feature_docs": [
+      "docs/features/HONEY_JAR_USER_GUIDE.md",
+      "docs/features/PASSWORDLESS_AUTHENTICATION.md", 
+      "docs/features/PII_DETECTION_SYSTEM.md",
+      "docs/features/BEE_CHAT_MESSAGING_ARCHITECTURE.md",
+      "docs/features/REPORT_GENERATION_EXPLAINED.md"
+    ],
+    "architecture_docs": [
+      "docs/architecture/system-architecture.md",
+      "docs/architecture/security-architecture.md",
+      "docs/architecture/data-architecture.md"
+    ]
+  },
+
+  "metadata": {
+    "document_count": 4,
+    "estimated_tokens": 15000,
+    "content_summary": "Curated STING platform documentation for AI knowledge retrieval",
+    "update_frequency": "As needed with platform changes",
+    "compatibility": {
+      "sting_version": ">=1.0.0",
+      "knowledge_service_version": ">=1.0.0",
+      "hjx_format_version": "1.0"
+    }
+  },
+
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2025-08-30",
+      "changes": [
+        "Initial versioned knowledge package",
+        "Corrected STING acronym definition", 
+        "Added references to comprehensive documentation",
+        "Structured for AI-powered knowledge retrieval"
+      ]
+    }
+  ],
+
+  "usage_notes": [
+    "This package provides summaries optimized for Bee Chat responses",
+    "For complete technical details, reference the source documentation in /docs/",
+    "Package is designed for semantic search and AI question-answering",
+    "Update version when significant documentation changes occur"
+  ]
+}

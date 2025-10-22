@@ -1,0 +1,148 @@
+version: v1.3.0
+dsn: postgresql://postgres:postgres@db:5432/sting_app?sslmode=disable
+log:
+  level: debug
+serve:
+  public:
+    base_url: https://__STING_HOSTNAME__:8443
+    host: 0.0.0.0
+    port: 4433
+    tls:
+      cert:
+        path: /etc/certs/server.crt
+      key:
+        path: /etc/certs/server.key
+    cors:
+      enabled: true
+      allowed_origins:
+      - http://__STING_HOSTNAME__:8443
+      - https://__STING_HOSTNAME__:8443
+      allowed_methods:
+      - GET
+      - POST
+      - OPTIONS
+      allowed_headers:
+      - '*'
+      allow_credentials: true
+  admin:
+    base_url: https://0.0.0.0:4434
+    host: 0.0.0.0
+    port: 4434
+    tls:
+      cert:
+        path: /etc/certs/server.crt
+      key:
+        path: /etc/certs/server.key
+identity:
+  default_schema_id: default
+  schemas:
+  - id: default
+    url: file:///etc/config/kratos/identity.schema.json
+selfservice:
+  default_browser_return_url: https://__STING_HOSTNAME__:8443/dashboard
+  allowed_return_urls:
+  - https://__STING_HOSTNAME__:8443
+  - https://__STING_HOSTNAME__:8443/dashboard
+  - https://__STING_HOSTNAME__:8443/dashboard/reports
+  - https://__STING_HOSTNAME__:8443/dashboard/settings
+  - https://__STING_HOSTNAME__:8443/login
+  - https://__STING_HOSTNAME__:8443/register
+  - https://__STING_HOSTNAME__:8443/post-registration
+  - http://__STING_HOSTNAME__:8443
+  - http://__STING_HOSTNAME__:8443/dashboard
+  - http://__STING_HOSTNAME__:8443/dashboard/reports
+  - http://__STING_HOSTNAME__:8443/dashboard/settings
+  - http://__STING_HOSTNAME__:8443/login
+  - http://__STING_HOSTNAME__:8443/register
+  - http://__STING_HOSTNAME__:8443/post-registration
+  - https://__STING_HOSTNAME__:8443/*
+  - http://__STING_HOSTNAME__:8443/*
+  flows:
+    error:
+      ui_url: https://__STING_HOSTNAME__:8443/error
+    settings:
+      ui_url: https://__STING_HOSTNAME__:8443/dashboard/settings?tab=security
+      lifespan: 1h
+      privileged_session_max_age: 24h
+      required_aal: aal1  # TEMPORARY: Allow AAL1 access to existing TOTP/passkeys
+    login:
+      # RESTORED: Custom STING UI that works for AAL1 authentication
+      ui_url: https://__STING_HOSTNAME__:8443/login
+      lifespan: 1h
+      after:
+        default_browser_return_url: https://__STING_HOSTNAME__:8443/dashboard
+    registration:
+      ui_url: https://__STING_HOSTNAME__:8443/register
+      lifespan: 1h
+      after:
+        password:
+          hooks:
+          - hook: session
+        default_browser_return_url: https://__STING_HOSTNAME__:8443/post-registration
+    verification:
+      enabled: false
+      ui_url: https://__STING_HOSTNAME__:8443/verification
+      lifespan: 1h
+      after:
+        default_browser_return_url: https://__STING_HOSTNAME__:8443/dashboard
+    recovery:
+      enabled: true
+      ui_url: https://__STING_HOSTNAME__:8443/recovery
+      lifespan: 1h
+    logout:
+      after:
+        default_browser_return_url: https://__STING_HOSTNAME__:8443/login
+  methods:
+    password:
+      enabled: false
+      config:
+        haveibeenpwned_enabled: false
+        identifier_similarity_check_enabled: false
+    webauthn:
+      enabled: true
+      config:
+        passwordless: false
+        rp:
+          id: __STING_HOSTNAME__
+          display_name: STING Platform
+          origins:
+          - https://__STING_HOSTNAME__:8443
+          - http://__STING_HOSTNAME__:8443
+    totp:
+      enabled: true
+      config:
+        issuer: STING Authentication
+    lookup_secret:
+      enabled: true
+    link:
+      enabled: true
+      config:
+        lifespan: 1h
+    code:
+      enabled: true
+      passwordless_enabled: true
+      config:
+        lifespan: 15m
+secrets:
+  cookie:
+  - b8b7a6a76d944a64229dc9e1c858c60a
+  cipher:
+  - 8b530c69d41d77b45851e34a71f895c6
+session:
+  cookie:
+    name: ory_kratos_session
+    # IMPORTANT: Domain is intentionally left empty for IP address compatibility
+    # When accessing via IP (e.g., 10.0.0.158), setting domain breaks cookie storage
+    # Leaving it empty allows cookies to work for both IPs and hostnames
+    # domain: __STING_HOSTNAME__  # Commented out - causes login loops with IPs
+    path: /
+    same_site: Lax
+  lifespan: 24h
+  whoami:
+    required_aal: aal1  # TEMPORARY: Allow AAL1 access to check existing credentials
+courier:
+  smtp:
+    connection_uri: smtp://mailpit:1025/?skip_ssl_verify=true&disable_starttls=true
+    from_address: noreply@sting.local
+    from_name: STING Platform
+  template_override_path: /etc/config/kratos/courier-templates/

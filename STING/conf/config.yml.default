@@ -1,0 +1,128 @@
+# STING-CE Configuration
+# Community Edition - Minimal Setup
+
+# System Configuration
+system:
+  domain: localhost
+  protocol: https
+  ports:
+    frontend: 8443
+    api: 5050
+    kratos: 4433
+
+# Edition
+edition:
+  type: ce  # Community Edition
+  hide_enterprise_ui: true
+
+# Core Application
+application:
+  env: production
+  debug: false
+  host: 0.0.0.0
+  port: 5050
+  install_dir: "${INSTALL_DIR}"
+  models_dir: "${MODELS_DIR:-${INSTALL_DIR}/models}"
+  ssl:
+    enabled: true
+    cert_dir: "${INSTALL_DIR}/certs"
+
+# Database
+database:
+  host: db
+  port: 5432
+  name: sting_app
+  user: postgres
+  connection_timeout: 30
+  max_connections: 100
+
+# Security
+security:
+  authentication:
+    aal2_session_timeout: "8h"
+  message_pii_protection:
+    enabled: true
+    serialization:
+      enabled: true
+      redis_db: 3
+      cache_ttl:
+        default: 300
+        on_error: 3600
+
+# Vault Configuration
+vault:
+  host: vault
+  port: 8200
+  scheme: http
+  auth_method: token
+  kv_mount: kv
+  transit_mount: transit
+
+# Authentication (Kratos)
+kratos:
+  public_url: https://localhost:4433
+  admin_url: http://kratos:4434
+  browser_url: https://localhost:8443
+
+# Redis Cache
+redis:
+  host: redis
+  port: 6379
+  databases:
+    cache: 0
+    sessions: 1
+    queue: 2
+    pii_cache: 3
+
+# Email Configuration
+email:
+  mode: "${EMAIL_MODE:-development}"
+  development:
+    provider: "mailpit"
+    host: "mailpit"
+    port: 1025
+  production:
+    provider: "${SMTP_PROVIDER:-smtp}"
+    host: "${SMTP_HOST}"
+    port: "${SMTP_PORT:-587}"
+    use_tls: true
+    username: "${SMTP_USERNAME}"
+    from_address: "${SMTP_FROM_ADDRESS}"
+
+# AI Services Configuration
+ai:
+  # Default LLM Configuration
+  llm:
+    enabled: true
+    provider: "${LLM_PROVIDER:-ollama}"
+    endpoint: "${LLM_ENDPOINT:-http://host.docker.internal:11434}"
+    model: "${LLM_MODEL:-llama3.2}"
+    timeout: 120
+
+  # Knowledge Base (ChromaDB)
+  knowledge:
+    enabled: true
+    host: chroma
+    port: 8000
+    collection: "sting_knowledge"
+
+  # BEE Assistant
+  bee:
+    enabled: true
+    name: "B.E.E."
+    description: "Bee Enhanced Entity - Your AI Security Assistant"
+    personality: "helpful"
+
+# Feature Flags
+features:
+  passwordless: true
+  webauthn: true
+  mfa: true
+  magic_links: true
+  audit_logging: true
+
+# Logging
+logging:
+  level: "${LOG_LEVEL:-INFO}"
+  format: "json"
+  output: "stdout"

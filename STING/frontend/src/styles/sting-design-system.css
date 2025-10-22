@@ -1,0 +1,590 @@
+/**
+ * STING Design System - CSS Variables
+ * Based on STING Design System Documentation
+ * 
+ * This file contains all design tokens for the STING application
+ * including colors, typography, spacing, animations, and effects.
+ */
+
+:root {
+  /* ===== PRIMARY BRAND COLORS ===== */
+  /* STING Yellow - Primary Brand Color */
+  --color-primary: #eab308;         /* Primary yellow (amber-500) */
+  --color-primary-hover: #d97706;   /* Darker yellow for hover (amber-600) */
+  --color-primary-active: #b45309;  /* Even darker for active (amber-700) */
+  --color-primary-light: #fbbf24;   /* Light yellow variant (amber-400) */
+  --color-primary-pale: #fcd34d;    /* Very light yellow (amber-300) */
+  --color-primary-ghost: #fde68a;   /* Pale yellow for accents (amber-200) */
+
+  /* ===== BACKGROUND COLORS ===== */
+  /* Dark Backgrounds */
+  --color-bg-layout: #161922;       /* Main background - SWAPPED: was header color */
+  --color-bg-container: #1a1f2e;    /* Cards & panels - slightly lighter */
+  --color-bg-elevated: #2a3142;     /* Modals & dropdowns - elevated surfaces */
+  --color-bg-input: #232834;        /* Form inputs - subtle elevation */
+  --color-bg-header: #475569;       /* App header - medium grey for better logo visibility */
+
+  /* Light Backgrounds */
+  --color-bg-spotlight: #e2e8f0;    /* Sidebar (slate-200) */
+  --color-bg-light-hover: #f8fafc;  /* Light hover state (slate-50) */
+
+  /* ===== TEXT COLORS ===== */
+  --color-text: #f1f5f9;            /* Primary text (slate-100) */
+  --color-text-secondary: #cbd5e1;   /* Muted text (slate-300) */
+  --color-text-tertiary: #94a3b8;   /* Labels & captions (slate-400) */
+  --color-text-quaternary: #64748b; /* Disabled text (slate-500) */
+  --color-text-prose: #e5e7eb;      /* Long-form text (gray-200) */
+  --color-text-inverse: #000000;    /* Black text on yellow */
+
+  /* ===== BORDER COLORS ===== */
+  --color-border: #3a4356;          /* Standard borders - adjusted for darker bg */
+  --color-border-subtle: #2a3142;   /* Subtle borders - adjusted for darker bg */
+  --color-border-glass: rgba(100, 116, 139, 0.2);  /* Glass card borders - more subtle */
+  --color-border-dark: rgba(75, 85, 99, 0.3);      /* Dark table borders - more subtle */
+
+  /* ===== SEMANTIC COLORS ===== */
+  /* Success - Warm Jade (harmonizes with yellow, less bright) */
+  --color-success: #5d9b63;         /* Warm jade - balanced warm green */
+  --color-success-hover: #4a7a4f;   /* Darker warm jade for hover */
+  --color-success-light: #7ab57f;   /* Lighter warm jade */
+  --color-success-dark: #3d6640;    /* Dark warm jade */
+  --color-success-bg: rgba(93, 155, 99, 0.1);  /* Transparent success bg */
+
+  /* Error - Warm Red */
+  --color-error: #ef4444;           /* Red-500 */
+  --color-error-hover: #dc2626;     /* Red-600 */
+  --color-error-light: #f87171;     /* Red-400 */
+  --color-error-dark: #b91c1c;      /* Red-700 */
+  --color-error-bg: rgba(239, 68, 68, 0.1);     /* Transparent error bg */
+
+  /* Warning - Amber (matches primary) */
+  --color-warning: #f59e0b;         /* Amber-500 */
+  --color-warning-hover: #d97706;   /* Amber-600 */
+  --color-warning-light: #fbbf24;   /* Amber-400 */
+  --color-warning-dark: #b45309;    /* Amber-700 */
+  --color-warning-bg: rgba(245, 158, 11, 0.1);  /* Transparent warning bg */
+
+  /* Info - Cool Cyan */
+  --color-info: #06b6d4;            /* Cyan-500 */
+  --color-info-hover: #0891b2;      /* Cyan-600 */
+  --color-info-light: #22d3ee;      /* Cyan-400 */
+  --color-info-dark: #0e7490;       /* Cyan-700 */
+  --color-info-bg: rgba(6, 182, 212, 0.1);      /* Transparent info bg */
+
+  /* ===== GLASS EFFECT COLORS ===== */
+  /* Glass Background Colors with Opacity - adjusted for darker backgrounds */
+  --color-glass-subtle: rgba(26, 31, 46, 0.25);   /* Adjusted for new dark theme */
+  --color-glass-medium: rgba(26, 31, 46, 0.35);   /* Adjusted for new dark theme */
+  --color-glass-strong: rgba(26, 31, 46, 0.45);   /* Adjusted for new dark theme */
+  --color-glass-ultra: rgba(42, 49, 66, 0.5);     /* Adjusted for new dark theme */
+  --color-glass-heavy: rgba(42, 49, 66, 0.65);    /* Adjusted for new dark theme */
+
+  /* Light Glass Variants */
+  --color-glass-light-subtle: rgba(226, 232, 240, 0.25);
+  --color-glass-light-medium: rgba(226, 232, 240, 0.35);
+
+  /* ===== SPECIAL PURPOSE COLORS ===== */
+  /* Authentication & Forms */
+  --color-auth-bg: #3498db;         /* Blue primary (Ory theme) */
+  --color-auth-hover: #2980b9;      /* Blue hover (Ory theme) */
+  --color-link: #ecc94b;            /* Yellow links (Ory theme) */
+
+  /* Shadow Tints */
+  --color-shadow-yellow: rgba(234, 179, 8, 0.2);   /* Yellow glow */
+  --color-shadow-dark: rgba(0, 0, 0, 0.4);         /* Deep shadows */
+
+  /* ===== TYPOGRAPHY ===== */
+  /* Font Families */
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  --font-mono: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+
+  /* Font Sizes */
+  --text-xs: 0.75rem;    /* 12px */
+  --text-sm: 0.875rem;   /* 14px */
+  --text-base: 1rem;     /* 16px */
+  --text-lg: 1.125rem;   /* 18px */
+  --text-xl: 1.25rem;    /* 20px */
+  --text-2xl: 1.5rem;    /* 24px */
+  --text-3xl: 1.875rem;  /* 30px */
+  --text-4xl: 2.25rem;   /* 36px */
+
+  /* Font Weights */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* Line Heights */
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.75;
+
+  /* ===== SPACING ===== */
+  --space-xs: 0.5rem;    /* 8px */
+  --space-sm: 0.75rem;   /* 12px */
+  --space-md: 1rem;      /* 16px */
+  --space-lg: 1.5rem;    /* 24px */
+  --space-xl: 2rem;      /* 32px */
+  --space-2xl: 3rem;     /* 48px */
+  --space-3xl: 4rem;     /* 64px */
+
+  /* ===== BORDER RADIUS ===== */
+  --radius-sm: 0.375rem;  /* 6px */
+  --radius-md: 0.5rem;    /* 8px */
+  --radius-lg: 0.75rem;   /* 12px */
+  --radius-xl: 1rem;      /* 16px */
+  --radius-2xl: 1.5rem;   /* 24px */
+  --radius-full: 9999px;  /* Full circle */
+
+  /* ===== SHADOWS ===== */
+  /* Elevation Levels */
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  
+  /* Special Shadows */
+  --shadow-dashboard: 
+    0 50px 100px rgba(0, 0, 0, 0.4),
+    0 25px 50px rgba(0, 0, 0, 0.3),
+    0 12px 24px rgba(0, 0, 0, 0.2),
+    0 6px 12px rgba(0, 0, 0, 0.15),
+    0 3px 6px rgba(0, 0, 0, 0.1),
+    0 1px 3px rgba(0, 0, 0, 0.05);
+
+  /* ===== Z-INDEX ===== */
+  --z-base: 0;
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-fixed: 30;
+  --z-modal-backdrop: 40;
+  --z-modal: 50;
+  --z-popover: 60;
+  --z-tooltip: 70;
+
+  /* ===== TRANSITIONS ===== */
+  --transition-fast: 0.2s ease-out;
+  --transition-base: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ===== GLASS EFFECTS ===== */
+  /* Backdrop Filters */
+  --glass-blur-sm: blur(16px);
+  --glass-blur-md: blur(24px);
+  --glass-blur-lg: blur(32px);
+  --glass-blur-xl: blur(40px);
+  --glass-blur-2xl: blur(50px);
+
+  /* Glass Presets */
+  --glass-subtle: var(--color-glass-subtle) backdrop-filter: var(--glass-blur-md) saturate(150%) brightness(103%);
+  --glass-medium: var(--color-glass-medium) backdrop-filter: var(--glass-blur-lg) saturate(170%) brightness(105%);
+  --glass-strong: var(--color-glass-strong) backdrop-filter: var(--glass-blur-xl) saturate(190%) brightness(107%);
+  --glass-ultra: var(--color-glass-ultra) backdrop-filter: var(--glass-blur-xl) saturate(220%) brightness(115%) contrast(105%);
+}
+
+/* ===== UTILITY CLASSES ===== */
+
+/* Background Colors */
+.bg-primary { background-color: var(--color-primary); }
+.bg-primary-hover { background-color: var(--color-primary-hover); }
+.bg-layout { background-color: var(--color-bg-layout); }
+.bg-container { background-color: var(--color-bg-container); }
+.bg-elevated { background-color: var(--color-bg-elevated); }
+
+/* Semantic Backgrounds */
+.bg-success { background-color: var(--color-success); }
+.bg-success-subtle { background-color: var(--color-success-bg); }
+.bg-error { background-color: var(--color-error); }
+.bg-error-subtle { background-color: var(--color-error-bg); }
+.bg-warning { background-color: var(--color-warning); }
+.bg-warning-subtle { background-color: var(--color-warning-bg); }
+.bg-info { background-color: var(--color-info); }
+.bg-info-subtle { background-color: var(--color-info-bg); }
+
+/* Text Colors */
+.text-primary { color: var(--color-primary); }
+.text-default { color: var(--color-text); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-tertiary { color: var(--color-text-tertiary); }
+.text-inverse { color: var(--color-text-inverse); }
+
+/* Semantic Text */
+.text-success { color: var(--color-success); }
+.text-error { color: var(--color-error); }
+.text-warning { color: var(--color-warning); }
+.text-info { color: var(--color-info); }
+
+/* Border Colors */
+.border-default { border-color: var(--color-border); }
+.border-subtle { border-color: var(--color-border-subtle); }
+.border-primary { border-color: var(--color-primary); }
+.border-success { border-color: var(--color-success); }
+.border-error { border-color: var(--color-error); }
+
+/* Glass Effects */
+.glass-subtle {
+  background: var(--color-glass-subtle);
+  backdrop-filter: var(--glass-blur-md) saturate(150%) brightness(103%);
+}
+
+.glass-medium {
+  background: var(--color-glass-medium);
+  backdrop-filter: var(--glass-blur-lg) saturate(170%) brightness(105%);
+}
+
+.glass-strong {
+  background: var(--color-glass-strong);
+  backdrop-filter: var(--glass-blur-xl) saturate(190%) brightness(107%);
+}
+
+.glass-ultra {
+  background: var(--color-glass-ultra);
+  backdrop-filter: var(--glass-blur-xl) saturate(220%) brightness(115%) contrast(105%);
+}
+
+/* Interactive States */
+.interactive-lift {
+  transition: var(--transition-base);
+  cursor: pointer;
+}
+
+.interactive-lift:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: var(--shadow-lg);
+}
+
+.interactive-lift:active {
+  transform: translateY(-2px) scale(0.98);
+}
+
+/* Focus States */
+.focus-primary:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.focus-primary:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Responsive Utilities */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dark Mode Override (always dark for STING) */
+@media (prefers-color-scheme: light) {
+  :root {
+    /* Force dark theme values */
+    color-scheme: dark;
+  }
+}
+
+/* ===== BEEREPORTS DARK THEME COMPONENTS ===== */
+
+/* Dark Search Input */
+.dark-search-input .ant-input {
+  background-color: rgba(55, 65, 81, 0.8) !important;
+  border-color: rgba(75, 85, 99, 0.5) !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-search-input .ant-input::placeholder {
+  color: #9ca3af !important;
+}
+
+.dark-search-input .ant-input:focus,
+.dark-search-input .ant-input:hover {
+  background-color: rgba(55, 65, 81, 0.9) !important;
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2) !important;
+}
+
+.dark-search-input .ant-input-search-button {
+  background-color: rgba(75, 85, 99, 0.8) !important;
+  border-color: rgba(75, 85, 99, 0.5) !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-search-input .ant-input-search-button:hover {
+  background-color: #f59e0b !important;
+  border-color: #f59e0b !important;
+  color: #000 !important;
+}
+
+/* Dark TextArea Support */
+.dark-search-input textarea.ant-input {
+  background-color: rgba(55, 65, 81, 0.8) !important;
+  border-color: rgba(75, 85, 99, 0.5) !important;
+  color: #e2e8f0 !important;
+  resize: vertical !important;
+}
+
+.dark-search-input textarea.ant-input::placeholder {
+  color: #9ca3af !important;
+}
+
+.dark-search-input textarea.ant-input:focus,
+.dark-search-input textarea.ant-input:hover {
+  background-color: rgba(55, 65, 81, 0.9) !important;
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2) !important;
+}
+
+/* Dark Select Components */
+.dark-select .ant-select-selector {
+  background-color: rgba(55, 65, 81, 0.8) !important;
+  border-color: rgba(75, 85, 99, 0.5) !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-select .ant-select-selection-item {
+  color: #e2e8f0 !important;
+}
+
+.dark-select .ant-select-selection-placeholder {
+  color: #9ca3af !important;
+}
+
+.dark-select:hover .ant-select-selector {
+  background-color: rgba(55, 65, 81, 0.9) !important;
+  border-color: #f59e0b !important;
+}
+
+.dark-select.ant-select-focused .ant-select-selector {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2) !important;
+}
+
+.dark-select .ant-select-arrow {
+  color: #9ca3af !important;
+}
+
+/* Dark Dropdown Popup */
+.dark-dropdown-popup,
+.dark-dropdown {
+  background-color: rgba(55, 65, 81, 0.95) !important;
+  border-color: rgba(75, 85, 99, 0.5) !important;
+}
+
+.dark-dropdown-popup .ant-select-item,
+.dark-dropdown .ant-select-item {
+  background-color: transparent !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-dropdown-popup .ant-select-item:hover,
+.dark-dropdown .ant-select-item:hover {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+  color: #fbbf24 !important;
+}
+
+.dark-dropdown-popup .ant-select-item-option-selected,
+.dark-dropdown .ant-select-item-option-selected {
+  background-color: rgba(245, 158, 11, 0.3) !important;
+  color: #fbbf24 !important;
+  font-weight: 600 !important;
+}
+
+/* Dark Table Enhancement - My Reports */
+.reports-table.ant-table-wrapper {
+  background: transparent !important;
+}
+
+.reports-table .ant-table {
+  background: transparent !important;
+  color: #e2e8f0 !important;
+}
+
+.reports-table .ant-table-container {
+  background: transparent !important;
+}
+
+.reports-table .ant-table-tbody {
+  background: transparent !important;
+}
+
+.reports-table .ant-table-tbody > tr {
+  background: transparent !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.reports-table .ant-table-tbody > tr > td {
+  background-color: transparent !important;
+  border-bottom: 1px solid rgba(75, 85, 99, 0.3) !important;
+  color: #e2e8f0 !important;
+}
+
+.reports-table .ant-table-tbody > tr:hover {
+  background-color: rgba(75, 85, 99, 0.4) !important;
+}
+
+.reports-table .ant-table-tbody > tr:hover > td {
+  background-color: rgba(75, 85, 99, 0.4) !important;
+  color: #f1f5f9 !important;
+}
+
+.reports-table .ant-table-thead {
+  background: transparent !important;
+}
+
+.reports-table .ant-table-thead > tr > th {
+  background-color: rgba(55, 65, 81, 0.8) !important;
+  color: #e2e8f0 !important;
+  border-bottom: 1px solid rgba(75, 85, 99, 0.5) !important;
+  font-weight: 600 !important;
+}
+
+.reports-table .ant-table-thead > tr > th::before {
+  display: none !important;
+}
+
+.reports-table .ant-table-cell {
+  color: #e2e8f0 !important;
+}
+
+.reports-table .ant-empty {
+  color: #9ca3af !important;
+}
+
+.reports-table .ant-empty-description {
+  color: #6b7280 !important;
+}
+
+.reports-table .ant-table-pagination {
+  margin-top: 24px !important;
+}
+
+.reports-table .ant-pagination-item {
+  background-color: rgba(55, 65, 81, 0.8) !important;
+  border-color: rgba(75, 85, 99, 0.5) !important;
+}
+
+.reports-table .ant-pagination-item a {
+  color: #e2e8f0 !important;
+}
+
+.reports-table .ant-pagination-item:hover {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+  border-color: #f59e0b !important;
+}
+
+.reports-table .ant-pagination-item-active {
+  background-color: #f59e0b !important;
+  border-color: #f59e0b !important;
+}
+
+.reports-table .ant-pagination-item-active a {
+  color: #000 !important;
+}
+
+.reports-table .ant-pagination-prev,
+.reports-table .ant-pagination-next {
+  background-color: rgba(55, 65, 81, 0.8) !important;
+  border-color: rgba(75, 85, 99, 0.5) !important;
+}
+
+.reports-table .ant-pagination-prev a,
+.reports-table .ant-pagination-next a {
+  color: #e2e8f0 !important;
+}
+
+.reports-table .ant-pagination-prev:hover,
+.reports-table .ant-pagination-next:hover {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+  border-color: #f59e0b !important;
+}
+
+/* Force dark theme for any remaining white backgrounds */
+.reports-table *[style*="background: white"],
+.reports-table *[style*="background-color: white"],
+.reports-table *[style*="background: #fff"],
+.reports-table *[style*="background-color: #fff"] {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Modern Glass Tabs Enhancement */
+.modern-glass-tabs .ant-tabs-nav {
+  margin-bottom: 0 !important;
+}
+
+.modern-glass-tabs .ant-tabs-tab {
+  color: #d1d5db !important;
+  background: rgba(55, 65, 81, 0.4) !important;
+  border: 1px solid rgba(75, 85, 99, 0.4) !important;
+  border-radius: 12px 12px 0 0 !important;
+  margin-right: 2px !important;
+  font-weight: 500 !important;
+  padding: 12px 24px !important;
+  min-width: 120px !important;
+  text-align: center !important;
+  transition: all 0.3s ease !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.modern-glass-tabs .ant-tabs-tab::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)) !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+
+.modern-glass-tabs .ant-tabs-tab .ant-tabs-tab-btn {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+.modern-glass-tabs .ant-tabs-tab:hover {
+  color: #f59e0b !important;
+  background: rgba(75, 85, 99, 0.6) !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.modern-glass-tabs .ant-tabs-tab-active {
+  color: #f59e0b !important;
+  background: rgba(75, 85, 99, 0.8) !important;
+  border-color: #f59e0b !important;
+  border-bottom-color: rgba(75, 85, 99, 0.8) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2) !important;
+}
+
+.modern-glass-tabs .ant-tabs-ink-bar {
+  display: none !important;
+}
+
+.modern-glass-tabs .ant-tabs-content-holder {
+  background: rgba(31, 41, 55, 0.4) !important;
+  border: 1px solid rgba(75, 85, 99, 0.4) !important;
+  border-top: none !important;
+  border-radius: 0 12px 12px 12px !important;
+  padding: 32px !important;
+  backdrop-filter: blur(12px) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.modern-glass-tabs .ant-tabs-content-holder::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)) !important;
+  pointer-events: none !important;
+}

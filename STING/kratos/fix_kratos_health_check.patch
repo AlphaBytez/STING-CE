@@ -1,0 +1,17 @@
+# Health Check Fix for Kratos Service
+#
+# This patch provides the fix for Kratos health checks in manage_sting.sh
+# Locate the service health check function that tests Kratos (usually contains a case statement)
+# and replace the Kratos check with this improved version:
+
+# For Kratos check, replace:
+"kratos")
+    # Check Kratos container and readiness endpoint via admin port (HTTP)
+    if docker compose ps "kratos" | grep -q "Up" && \
+       curl -s -f http://localhost:4434/admin/health/ready > /dev/null; then
+        log_message "Kratos is fully operational"
+        return 0
+    fi
+    ;;
+
+# This checks the admin health endpoint properly and will work with our configuration

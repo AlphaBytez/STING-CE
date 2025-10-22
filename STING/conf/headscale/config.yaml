@@ -1,0 +1,73 @@
+# Headscale Configuration for STING Support Tunnels
+# Self-hosted coordination server for secure support access
+
+# Server configuration
+server_url: http://localhost:8070
+listen_addr: 0.0.0.0:8070
+metrics_listen_addr: 0.0.0.0:9090
+grpc_listen_addr: 0.0.0.0:50443
+
+# Database
+database_type: sqlite
+database_sqlite:
+  path: /var/lib/headscale/db.sqlite
+
+# Disable embedded HTTP API for security
+disable_embedded_http_api: false
+
+# Privacy and security settings
+randomize_client_port: true
+enable_routing: false  # Don't route customer networks, just tunnels
+
+# Ephemeral nodes for support sessions
+ephemeral_node_inactivity_timeout: 30m
+node_update_check_interval: 10s
+
+# ACME/TLS disabled for internal use
+tls_cert_path: ""
+tls_key_path: ""
+
+# Noise protocol private key for Tailscale v2
+noise:
+  private_key_path: /var/lib/headscale/noise_private.key
+
+# OIDC disabled for simplicity
+oidc:
+  only_start_if_oidc_is_available: false
+
+# DNS configuration for support.sting.local
+dns:
+  nameservers:
+    global:
+      - 1.1.1.1
+      - 1.0.0.1
+  search_domains: []
+  magic_dns: true
+  base_domain: support.sting.local
+
+# Default user for support sessions
+default_user: sting-support
+
+# IP prefixes for support network
+prefixes:
+  v4: 100.64.0.0/10  # Tailscale default range
+  v6: fd7a:115c:a1e0::/48  # IPv6 range
+
+# Logging
+log_level: info
+log_file: /var/log/headscale/headscale.log
+
+# Regional relays (DERP) - using public Tailscale DERP for now
+derp:
+  server:
+    enabled: false  # Use public DERP servers
+  urls:
+    - https://controlplane.tailscale.com/derpmap/default
+  auto_update_enabled: true
+  update_frequency: 24h
+
+# Policy for support access control
+policy_path: /etc/headscale/policy.hujson
+
+# Metrics
+metrics_enabled: true

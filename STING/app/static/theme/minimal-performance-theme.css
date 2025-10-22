@@ -1,0 +1,631 @@
+/* 
+ * Minimal Performance Theme - STING CE
+ * Ultra-minimal design for maximum performance
+ * Zero animations, minimal colors, pure functionality
+ */
+
+:root[data-theme="minimal-performance"] {
+  /* Minimal Color Palette - Only essentials */
+  --min-primary: #fbbf24;
+  --min-bg: #000000;
+  --min-surface: #0a0a0a;
+  --min-border: #262626;
+  --min-text: #fafafa;
+  --min-text-dim: #a3a3a3;
+  --min-success: #22c55e;
+  --min-error: #ef4444;
+  --min-warning: #f59e0b;
+  
+  /* No shadows, no gradients, no effects */
+  --min-radius: 0;
+  --min-transition: none;
+  
+  /* Additional theme variables for consistency */
+  --min-primary-hover: #f59e0b;
+  --min-primary-dim: #d97706;
+  --min-bg-secondary: #1a1a1a;
+  --min-bg-tertiary: #2a2a2a;
+  --min-text-secondary: #888888;
+  --min-text-inverse: #000000;
+  --min-shadow-sm: none;
+  
+  /* Component CSS Variables for Preferences and other pages */
+  --color-primary: var(--min-primary);
+  --color-primary-hover: var(--min-primary-hover);
+  --color-text: var(--min-text);
+  --color-text-secondary: var(--min-text-secondary);
+  --color-text-inverse: var(--min-text-inverse);
+  --color-bg: var(--min-bg);
+  --color-bg-elevated: var(--min-bg-secondary);
+  --color-border: var(--min-border);
+  --radius-lg: var(--min-radius);
+}
+
+/* === Global Reset for Performance === */
+[data-theme="minimal-performance"] *,
+[data-theme="minimal-performance"] *::before,
+[data-theme="minimal-performance"] *::after {
+  /* Remove ALL visual effects */
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  
+  /* Kill all animation properties */
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+  
+  /* Optimize rendering */
+  backface-visibility: hidden;
+  -webkit-font-smoothing: subpixel-antialiased;
+  will-change: auto !important;
+}
+
+/* === Kill Specific Animation Classes === */
+[data-theme="minimal-performance"] .animate-fade-in-up,
+[data-theme="minimal-performance"] .animate-fade-in-scale,
+[data-theme="minimal-performance"] .animate-pulse,
+[data-theme="minimal-performance"] .animate-spin,
+[data-theme="minimal-performance"] .animate-bounce,
+[data-theme="minimal-performance"] .animate-ping,
+[data-theme="minimal-performance"] .transition-colors,
+[data-theme="minimal-performance"] .transition-transform,
+[data-theme="minimal-performance"] .transition-all,
+[data-theme="minimal-performance"] .duration-200,
+[data-theme="minimal-performance"] .duration-300,
+[data-theme="minimal-performance"] .hover\:scale-110 {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+}
+
+/* === FAB Container - Disable animations === */
+[data-theme="minimal-performance"] .fab-container,
+[data-theme="minimal-performance"] .fab-primary,
+[data-theme="minimal-performance"] .fab-secondary {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+}
+
+/* === Glass effects - Remove completely === */
+[data-theme="minimal-performance"] .glass-light,
+[data-theme="minimal-performance"] .glass-dark,
+[data-theme="minimal-performance"] .glass-subtle,
+[data-theme="minimal-performance"] .glass-medium,
+[data-theme="minimal-performance"] .glass-strong {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: var(--min-surface) !important;
+}
+
+/* === Hover effects - Instant only === */
+[data-theme="minimal-performance"] .hover\:scale-110:hover,
+[data-theme="minimal-performance"] .hover\:bg-gray-50:hover,
+[data-theme="minimal-performance"] .hover\:bg-slate-600:hover {
+  transform: none !important;
+  transition: none !important;
+}
+
+/* === Logo Home Button - No animation === */
+[data-theme="minimal-performance"] .floating-header img {
+  transition: none !important;
+}
+
+[data-theme="minimal-performance"] .floating-header img:hover {
+  opacity: 0.7 !important;
+  transition: none !important;
+}
+
+/* === Base Styles === */
+[data-theme="minimal-performance"] {
+  background-color: var(--min-bg);
+  color: var(--min-text);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* === Typography - Minimal === */
+[data-theme="minimal-performance"] h1,
+[data-theme="minimal-performance"] h2,
+[data-theme="minimal-performance"] h3,
+[data-theme="minimal-performance"] h4,
+[data-theme="minimal-performance"] h5,
+[data-theme="minimal-performance"] h6 {
+  font-weight: 500;
+  margin: 0 0 0.5rem 0;
+  color: var(--min-text);
+}
+
+[data-theme="minimal-performance"] p {
+  margin: 0 0 0.5rem 0;
+}
+
+/* === Cards - Just borders === */
+[data-theme="minimal-performance"] .dashboard-card,
+[data-theme="minimal-performance"] .metric-card,
+[data-theme="minimal-performance"] .stats-card,
+[data-theme="minimal-performance"] [class*="card"] {
+  background: var(--min-surface);
+  border: 1px solid var(--min-border);
+  border-radius: var(--min-radius);
+  padding: 1rem;
+}
+
+/* === Buttons - Minimal === */
+[data-theme="minimal-performance"] button,
+[data-theme="minimal-performance"] .floating-button,
+[data-theme="minimal-performance"] .ant-btn {
+  background: transparent;
+  color: var(--min-primary);
+  border: 1px solid var(--min-primary);
+  border-radius: var(--min-radius);
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+[data-theme="minimal-performance"] button:hover,
+[data-theme="minimal-performance"] .floating-button:hover {
+  background: var(--min-primary);
+  color: var(--min-bg);
+}
+
+[data-theme="minimal-performance"] button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Primary buttons */
+[data-theme="minimal-performance"] .ant-btn-primary,
+[data-theme="minimal-performance"] button[type="submit"] {
+  background: var(--min-primary);
+  color: var(--min-bg);
+  border-color: var(--min-primary);
+}
+
+[data-theme="minimal-performance"] .ant-btn-primary:hover {
+  background: var(--min-warning);
+  border-color: var(--min-warning);
+}
+
+/* === Forms - Minimal === */
+[data-theme="minimal-performance"] input,
+[data-theme="minimal-performance"] textarea,
+[data-theme="minimal-performance"] select,
+[data-theme="minimal-performance"] .ant-input,
+[data-theme="minimal-performance"] .ant-select-selector {
+  background: var(--min-bg);
+  border: 1px solid var(--min-border);
+  border-radius: var(--min-radius);
+  color: var(--min-text);
+  padding: 0.5rem;
+  font-size: 14px;
+}
+
+[data-theme="minimal-performance"] input:focus,
+[data-theme="minimal-performance"] textarea:focus,
+[data-theme="minimal-performance"] select:focus {
+  outline: 1px solid var(--min-primary);
+  outline-offset: -1px;
+}
+
+/* === REMOVED: Traditional Sidebar === */
+/* All themes now use floating navigation only */
+
+/* === Floating Navigation - Minimal Performance Style === */
+/* All themes now use floating navigation for consistency */
+[data-theme="minimal-performance"] .floating-nav {
+  display: flex !important;
+  background: var(--min-bg-secondary) !important;
+  border: 1px solid var(--min-border) !important;
+  border-radius: var(--min-radius) !important;
+  box-shadow: var(--min-shadow-sm) !important;
+  /* Ensure proper fixed positioning */
+  position: fixed !important;
+  left: 24px !important;
+  top: 50vh !important;
+  transform: translateY(-50%) !important;
+}
+
+/* === Hide Traditional Sidebar === */
+/* All themes now use floating navigation - hide traditional sidebar */
+[data-theme="minimal-performance"] .w-56 {
+  display: none !important;
+}
+
+/* === Floating Navigation Items - Minimal Style === */
+[data-theme="minimal-performance"] .floating-nav-item {
+  background: var(--min-bg-tertiary) !important;
+  border: 1px solid var(--min-border) !important;
+  border-radius: var(--min-radius) !important;
+  color: var(--min-text) !important;
+  font-weight: 500 !important;
+  transition: var(--min-transition) !important;
+}
+
+[data-theme="minimal-performance"] .floating-nav-item:hover {
+  background: rgba(251, 191, 36, 0.1) !important;
+  border-color: var(--min-primary) !important;
+  color: var(--min-primary) !important;
+  transform: none !important; /* No scaling or movement for performance */
+}
+
+[data-theme="minimal-performance"] .floating-nav-item.active {
+  background: var(--min-primary) !important;
+  border-color: var(--min-primary) !important;
+  color: var(--min-text-inverse) !important;
+}
+
+/* === Floating Navigation Divider === */
+[data-theme="minimal-performance"] .floating-nav-divider {
+  border-top: 1px solid var(--min-border) !important;
+  margin: 0.5rem 0 !important;
+}
+
+/* Main content containers */
+[data-theme="minimal-performance"] .main-content,
+[data-theme="minimal-performance"] .dashboard-container,
+[data-theme="minimal-performance"] .ant-layout {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+}
+
+/* Content wrapper - the actual content area */
+[data-theme="minimal-performance"] .animate-fade-in-up {
+  margin-left: 14rem !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+/* === REMOVED: All traditional sidebar CSS === */
+/* Using floating navigation only */
+
+/* === Tables - Minimal === */
+[data-theme="minimal-performance"] table,
+[data-theme="minimal-performance"] .ant-table {
+  width: 100%;
+  background: var(--min-surface);
+  border-collapse: collapse;
+}
+
+[data-theme="minimal-performance"] th,
+[data-theme="minimal-performance"] .ant-table-thead > tr > th {
+  background: var(--min-bg);
+  color: var(--min-text);
+  font-weight: 500;
+  text-align: left;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--min-border);
+}
+
+[data-theme="minimal-performance"] td,
+[data-theme="minimal-performance"] .ant-table-tbody > tr > td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--min-border);
+}
+
+[data-theme="minimal-performance"] tr:hover td,
+[data-theme="minimal-performance"] .ant-table-tbody > tr:hover > td {
+  background: rgba(251, 191, 36, 0.05);
+}
+
+/* === Modals - Minimal === */
+[data-theme="minimal-performance"] .ant-modal-content,
+[data-theme="minimal-performance"] .modal-content {
+  background: var(--min-surface);
+  border: 1px solid var(--min-border);
+  border-radius: var(--min-radius);
+}
+
+[data-theme="minimal-performance"] .ant-modal-header,
+[data-theme="minimal-performance"] .modal-header {
+  background: transparent;
+  border-bottom: 1px solid var(--min-border);
+}
+
+[data-theme="minimal-performance"] .ant-modal-title,
+[data-theme="minimal-performance"] .modal-title {
+  color: var(--min-text);
+  font-weight: 500;
+}
+
+/* === Status Colors - Minimal === */
+[data-theme="minimal-performance"] .text-green-400,
+[data-theme="minimal-performance"] .success {
+  color: var(--min-success) !important;
+}
+
+[data-theme="minimal-performance"] .text-red-400,
+[data-theme="minimal-performance"] .error {
+  color: var(--min-error) !important;
+}
+
+[data-theme="minimal-performance"] .text-yellow-400,
+[data-theme="minimal-performance"] .warning {
+  color: var(--min-warning) !important;
+}
+
+/* === Links === */
+[data-theme="minimal-performance"] a {
+  color: var(--min-primary);
+  text-decoration: none;
+}
+
+[data-theme="minimal-performance"] a:hover {
+  text-decoration: underline;
+}
+
+/* === Badges and Tags - Minimal === */
+[data-theme="minimal-performance"] .ant-badge-count,
+[data-theme="minimal-performance"] .badge {
+  background: var(--min-primary);
+  color: var(--min-bg);
+  padding: 0.125rem 0.375rem;
+  font-size: 12px;
+  border-radius: 2px;
+}
+
+[data-theme="minimal-performance"] .ant-tag,
+[data-theme="minimal-performance"] .tag {
+  background: transparent;
+  border: 1px solid var(--min-border);
+  color: var(--min-text-dim);
+  padding: 0.125rem 0.5rem;
+  font-size: 12px;
+}
+
+/* === Loading States - Minimal === */
+[data-theme="minimal-performance"] .ant-spin-dot,
+[data-theme="minimal-performance"] .loading {
+  display: none; /* Hide fancy spinners */
+}
+
+[data-theme="minimal-performance"] .loading::after {
+  content: 'Loading...';
+  color: var(--min-text-dim);
+  font-size: 14px;
+}
+
+/* === Scrollbars - Native === */
+[data-theme="minimal-performance"] ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+[data-theme="minimal-performance"] ::-webkit-scrollbar-track {
+  background: var(--min-bg);
+}
+
+[data-theme="minimal-performance"] ::-webkit-scrollbar-thumb {
+  background: var(--min-border);
+}
+
+[data-theme="minimal-performance"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--min-primary);
+}
+
+/* === Icons - Appropriate sizes for context === */
+/* General icons - small for performance */
+[data-theme="minimal-performance"] svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* Removed sidebar icon rules - using floating nav only */
+
+/* === Disable all blur effects === */
+[data-theme="minimal-performance"] [class*="blur"],
+[data-theme="minimal-performance"] [class*="glass"] {
+  backdrop-filter: none !important;
+  background: var(--min-surface) !important;
+}
+
+/* === Bee Chat Button Fixes === */
+[data-theme="minimal-performance"] .floating-button.bg-red-600,
+[data-theme="minimal-performance"] .floating-button[class*="bg-red"] {
+  background: transparent !important;
+  color: var(--min-text) !important;  /* White text */
+  border: 1px solid var(--min-error) !important;  /* Red border */
+  font-weight: 500 !important;
+}
+
+[data-theme="minimal-performance"] .floating-button.bg-red-600:hover,
+[data-theme="minimal-performance"] .floating-button[class*="bg-red"]:hover {
+  background: var(--min-error) !important;  /* Red background on hover */
+  color: var(--min-bg) !important;  /* Black text for contrast */
+}
+
+/* Fix send button */
+[data-theme="minimal-performance"] .floating-button.bg-yellow-500,
+[data-theme="minimal-performance"] .floating-button[class*="bg-yellow"] {
+  background: transparent !important;
+  color: var(--min-primary) !important;  /* Yellow text */
+  border: 1px solid var(--min-primary) !important;  /* Yellow border */
+  font-weight: 500 !important;
+}
+
+[data-theme="minimal-performance"] .floating-button.bg-yellow-500:hover,
+[data-theme="minimal-performance"] .floating-button[class*="bg-yellow"]:hover {
+  background: var(--min-primary) !important;  /* Yellow background on hover */
+  color: var(--min-bg) !important;  /* Black text for contrast */
+}
+
+/* === Performance Hacks === */
+[data-theme="minimal-performance"] img {
+  /* Note: loading="lazy" should be set in HTML, not CSS */
+  /* Prevent layout shift when possible */
+  object-fit: contain;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Disable hover effects on mobile for better performance */
+@media (hover: none) {
+  [data-theme="minimal-performance"] *:hover {
+    all: initial !important;
+  }
+}
+
+/* Use GPU acceleration wisely */
+[data-theme="minimal-performance"] .gpu-accelerated {
+  transform: translateZ(0);
+}
+
+/* === Tab Text Fixes - Comprehensive === */
+/* Main tab buttons */
+[data-theme="minimal-performance"] .ant-tabs-tab,
+[data-theme="minimal-performance"] .ant-tabs-tab-btn {
+  color: var(--min-text) !important;
+  font-weight: 500 !important;
+  background: transparent !important;
+}
+
+[data-theme="minimal-performance"] .ant-tabs-tab:hover,
+[data-theme="minimal-performance"] .ant-tabs-tab-btn:hover {
+  color: var(--min-text) !important;
+  background: var(--min-surface) !important;
+}
+
+[data-theme="minimal-performance"] .ant-tabs-tab-active,
+[data-theme="minimal-performance"] .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--min-primary) !important;
+  font-weight: 600 !important;
+  background: var(--min-surface) !important;
+}
+
+[data-theme="minimal-performance"] .ant-tabs-ink-bar {
+  background: var(--min-primary) !important;
+  height: 2px !important;
+}
+
+[data-theme="minimal-performance"] .ant-tabs-content-holder {
+  background: var(--min-bg) !important;
+  color: var(--min-text) !important;
+}
+
+/* Tab navigation area */
+[data-theme="minimal-performance"] .ant-tabs-nav {
+  background: transparent !important;
+}
+
+[data-theme="minimal-performance"] .ant-tabs-nav-wrap {
+  background: transparent !important;
+}
+
+/* Fix any black text on blue backgrounds */
+[data-theme="minimal-performance"] .ant-tabs-tab-btn span,
+[data-theme="minimal-performance"] .ant-tabs-tab span {
+  color: inherit !important;
+}
+
+/* Reports page specific tabs */
+[data-theme="minimal-performance"] .reports-tabs .ant-tabs-tab,
+[data-theme="minimal-performance"] .bee-reports .ant-tabs-tab {
+  color: var(--min-text) !important;
+  background: transparent !important;
+  border: 1px solid var(--min-border) !important;
+}
+
+[data-theme="minimal-performance"] .reports-tabs .ant-tabs-tab-active,
+[data-theme="minimal-performance"] .bee-reports .ant-tabs-tab-active {
+  color: var(--min-primary) !important;
+  background: var(--min-surface) !important;
+  border-color: var(--min-primary) !important;
+}
+
+/* === Text Contrast Fixes === */
+/* Ensure all text has proper contrast */
+[data-theme="minimal-performance"] .text-black,
+[data-theme="minimal-performance"] [class*="text-black"] {
+  color: var(--min-text) !important;
+}
+
+[data-theme="minimal-performance"] .text-gray-900,
+[data-theme="minimal-performance"] [class*="text-gray-9"] {
+  color: var(--min-text) !important;
+}
+
+[data-theme="minimal-performance"] .text-slate-900,
+[data-theme="minimal-performance"] [class*="text-slate-9"] {
+  color: var(--min-text) !important;
+}
+
+/* Fix dark text on colored backgrounds */
+[data-theme="minimal-performance"] .bg-blue-500 *,
+[data-theme="minimal-performance"] .bg-blue-600 *,
+[data-theme="minimal-performance"] [class*="bg-blue"] * {
+  color: var(--min-text) !important;
+}
+
+[data-theme="minimal-performance"] .bg-indigo-500 *,
+[data-theme="minimal-performance"] .bg-indigo-600 *,
+[data-theme="minimal-performance"] [class*="bg-indigo"] * {
+  color: var(--min-text) !important;
+}
+
+/* === Hide Sidebar Logo/Title - Keep in Header Instead === */
+/* Remove duplicate logo and title from sidebar for consistency */
+/* Removed duplicate logo rules and sidebar padding - using floating nav only */
+
+/* === System Health Widget Scrollable Enhancement === */
+[data-theme="minimal-performance"] .service-list {
+  scrollbar-width: thin;
+  scrollbar-color: var(--min-border) var(--min-bg);
+}
+
+[data-theme="minimal-performance"] .service-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+[data-theme="minimal-performance"] .service-list::-webkit-scrollbar-track {
+  background: var(--min-bg);
+}
+
+[data-theme="minimal-performance"] .service-list::-webkit-scrollbar-thumb {
+  background: var(--min-border);
+}
+
+[data-theme="minimal-performance"] .service-list::-webkit-scrollbar-thumb:hover {
+  background: var(--min-primary);
+}
+
+/* === Passkey Management Page - Remove Blue Styling === */
+
+/* Fix blue frames and borders in passkey manager */
+[data-theme="minimal-performance"] .border-blue-500,
+[data-theme="minimal-performance"] .border-blue-700,
+[data-theme="minimal-performance"] [class*="border-blue"] {
+  border-color: var(--min-border) !important;
+}
+
+/* Fix blue backgrounds */
+[data-theme="minimal-performance"] .bg-blue-900,
+[data-theme="minimal-performance"] [class*="bg-blue"] {
+  background: var(--min-surface) !important;
+}
+
+/* Fix blue text colors */
+[data-theme="minimal-performance"] .text-blue-300,
+[data-theme="minimal-performance"] .text-blue-400,
+[data-theme="minimal-performance"] [class*="text-blue"] {
+  color: var(--min-text) !important;
+}
+
+/* Fix blue loading spinners */
+[data-theme="minimal-performance"] .text-blue-400.animate-spin,
+[data-theme="minimal-performance"] .animate-spin[class*="text-blue"] {
+  color: var(--min-primary) !important;
+}
+
+/* === Additional Sidebar Stability Fixes === */
+
+/* Removed all remaining sidebar rules - using floating nav only */

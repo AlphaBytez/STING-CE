@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kratos WebAuthn Test</title>
+    <script src="https://localhost:4433/.well-known/ory/webauthn.js"></script>
+</head>
+<body>
+    <h1>Kratos WebAuthn Test</h1>
+    <div id="status"></div>
+    
+    <script>
+        // Check if WebAuthn script loaded
+        window.onload = function() {
+            const status = document.getElementById('status');
+            if (window.__oryWebAuthnInitialized) {
+                status.innerHTML = '<p style="color: green;">✓ Kratos WebAuthn script loaded successfully</p>';
+                
+                // Check for WebAuthn functions
+                const functions = [
+                    'oryWebAuthnLogin',
+                    'oryPasskeyLogin',
+                    'oryWebAuthnRegistration',
+                    '__oryWebAuthnInitialized'
+                ];
+                
+                functions.forEach(fn => {
+                    if (window[fn]) {
+                        status.innerHTML += `<p style="color: green;">✓ ${fn} is available</p>`;
+                    } else {
+                        status.innerHTML += `<p style="color: red;">✗ ${fn} is NOT available</p>`;
+                    }
+                });
+            } else {
+                status.innerHTML = '<p style="color: red;">✗ Kratos WebAuthn script failed to load</p>';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+version: v1.3.1
+
+dsn: postgresql://postgres:password@db:5432/sting_app?sslmode=disable
+
+serve:
+  public:
+    base_url: https://localhost:4433
+    cors:
+      enabled: true
+      allowed_origins:
+        - http://localhost:8443
+        - https://localhost:8443
+      allowed_methods:
+        - GET
+        - POST
+        - OPTIONS
+      allowed_headers:
+        - "*"
+      allow_credentials: true
+
+  admin:
+    base_url: https://localhost:4434
+
+identity:
+  default_schema_id: default
+  schemas:
+    - id: default
+      url: file:///etc/config/kratos/identity.schema.json
+
+selfservice:
+  default_browser_return_url: https://localhost:8443/dashboard
+  
+  flows:
+    login:
+      ui_url: https://localhost:8443/login
+      lifespan: 1h
+      after:
+        password:
+          hooks:
+            - hook: session
+    
+    registration:
+      ui_url: https://localhost:8443/register
+      lifespan: 1h
+      after:
+        password:
+          hooks:
+            - hook: session
+  
+  methods:
+    password:
+      enabled: true
+      config:
+        haveibeenpwned_enabled: false
+        identifier_similarity_check_enabled: false
+
+secrets:
+  cookie:
+    - 33078e5134e3f19ae0172307b414b766
+  cipher:
+    - 2d7df66210d1cb702f465220b40e4cd9
+
+session:
+  cookie:
+    name: ory_kratos_session
+    path: /
+    same_site: Lax
+  lifespan: 24h
+
+courier:
+  smtp:
+    connection_uri: smtp://mailpit:1025

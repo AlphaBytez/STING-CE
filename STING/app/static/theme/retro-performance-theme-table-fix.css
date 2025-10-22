@@ -1,0 +1,94 @@
+/* === Reports Page Table Fixes === */
+
+/* Fix all Ant Design table components */
+[data-theme="retro-performance"] .ant-table,
+[data-theme="retro-performance"] .ant-table-tbody,
+[data-theme="retro-performance"] .ant-table-thead,
+[data-theme="retro-performance"] .ant-table-content,
+[data-theme="retro-performance"] .ant-table-container,
+[data-theme="retro-performance"] .ant-table-wrapper {
+  background: var(--retro-perf-bg-primary) !important;
+  color: var(--retro-perf-text-primary) !important;
+}
+
+/* Target the dark-table class specifically */
+[data-theme="retro-performance"] .dark-table,
+[data-theme="retro-performance"] .dark-table .ant-table,
+[data-theme="retro-performance"] .dark-table .ant-table-tbody,
+[data-theme="retro-performance"] .dark-table .ant-table-thead,
+[data-theme="retro-performance"] .dark-table .ant-table-content,
+[data-theme="retro-performance"] .dark-table .ant-table-container,
+[data-theme="retro-performance"] .dark-table .ant-table-wrapper {
+  background: var(--retro-perf-bg-primary) !important;
+  color: var(--retro-perf-text-primary) !important;
+}
+
+/* Table headers */
+[data-theme="retro-performance"] .ant-table-thead > tr > th,
+[data-theme="retro-performance"] .dark-table .ant-table-thead > tr > th {
+  background: var(--retro-perf-bg-secondary) !important;
+  color: var(--retro-perf-text-bright) !important;
+  border-bottom: 2px solid var(--retro-perf-border-bright) !important;
+  font-family: var(--retro-perf-font-mono) !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  font-size: 0.75rem !important;
+}
+
+/* Table body cells */
+[data-theme="retro-performance"] .ant-table-tbody > tr > td,
+[data-theme="retro-performance"] .dark-table .ant-table-tbody > tr > td {
+  background: var(--retro-perf-bg-primary) !important;
+  color: var(--retro-perf-text-primary) !important;
+  border-bottom: 1px solid var(--retro-perf-border) !important;
+  font-family: var(--retro-perf-font-mono) !important;
+}
+
+/* Table row hover */
+[data-theme="retro-performance"] .ant-table-tbody > tr:hover > td,
+[data-theme="retro-performance"] .dark-table .ant-table-tbody > tr:hover > td {
+  background: var(--retro-perf-bg-hover) !important;
+  color: var(--retro-perf-text-bright) !important;
+}
+
+/* Fix specific table wrapper */
+[data-theme="retro-performance"] .dark-table {
+  background: var(--retro-perf-bg-primary) !important;
+  border: 1px solid var(--retro-perf-border) !important;
+  border-radius: var(--retro-perf-radius) !important;
+}
+
+/* Pagination */
+[data-theme="retro-performance"] .ant-pagination,
+[data-theme="retro-performance"] .dark-table .ant-pagination {
+  color: var(--retro-perf-text-primary) !important;
+}
+
+[data-theme="retro-performance"] .ant-pagination .ant-pagination-item,
+[data-theme="retro-performance"] .dark-table .ant-pagination .ant-pagination-item {
+  background: var(--retro-perf-bg-secondary) !important;
+  border-color: var(--retro-perf-border) !important;
+}
+
+[data-theme="retro-performance"] .ant-pagination .ant-pagination-item a,
+[data-theme="retro-performance"] .dark-table .ant-pagination .ant-pagination-item a {
+  color: var(--retro-perf-text-primary) !important;
+}
+
+[data-theme="retro-performance"] .ant-pagination .ant-pagination-item-active,
+[data-theme="retro-performance"] .dark-table .ant-pagination .ant-pagination-item-active {
+  background: var(--retro-perf-yellow-bright) !important;
+  border-color: var(--retro-perf-yellow-bright) !important;
+}
+
+[data-theme="retro-performance"] .ant-pagination .ant-pagination-item-active a,
+[data-theme="retro-performance"] .dark-table .ant-pagination .ant-pagination-item-active a {
+  color: var(--retro-perf-text-inverse) !important;
+}
+
+/* Force override any white backgrounds */
+[data-theme="retro-performance"] .ant-table *,
+[data-theme="retro-performance"] .dark-table * {
+  background-color: inherit !important;
+}

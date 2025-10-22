@@ -1,0 +1,27 @@
+services:
+  # Start a clean database with no init scripts
+  db:
+    image: postgres:16
+    command: ["postgres", "-c", "listen_addresses=*"]
+    tmpfs:
+      - /var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kratos
+    ports:
+      - 5433:5432
+
+  # Run Kratos with memory DSN for testing
+  kratos:
+    image: oryd/kratos:latest
+    environment:
+      - DSN=memory
+    volumes:
+      - ./identity.schema.json:/etc/config/kratos/identity.schema.json:ro
+      - ./minimal.kratos.yml:/etc/config/kratos/kratos.yml:ro
+    entrypoint: []
+    command: sh -c "kratos serve --dev --config /etc/config/kratos/kratos.yml"
+    ports:
+      - 4433:4433
+      - 4434:4434

@@ -1,0 +1,27 @@
+FROM postgres:16
+
+# Copy the complete schema for new installations  
+COPY complete_schema.sql /docker-entrypoint-initdb.d/01-complete-schema.sql
+
+# For optional migrations directory, we need to handle this carefully
+# Since COPY fails if source doesn't exist, we'll copy everything and handle it in RUN
+# First, let's create a script to handle optional migrations
+RUN echo '#!/bin/bash\n\
+if [ -d /tmp/migrations ]; then\n\
+    echo "Processing migration files..."\n\
+    for file in /tmp/migrations/*.sql; do\n\
+        if [ -f "$file" ]; then\n\
+            cp "$file" /docker-entrypoint-initdb.d/\n\
+            echo "Copied migration: $(basename $file)"\n\
+        fi\n\
+    done\n\
+else\n\
+    echo "No migrations directory found"\n\
+fi' > /process-migrations.sh && chmod +x /process-migrations.sh
+
+# Copy migrations directory if it exists (using wildcard trick)
+# The trailing slash on source ensures it's treated as a directory
+COPY migration[s]/ /tmp/migrations/ 
+
+# Process any migrations that were copied
+RUN /process-migrations.sh && rm /process-migrations.sh

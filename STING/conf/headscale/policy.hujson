@@ -1,0 +1,80 @@
+{
+  // Headscale Policy for STING Support Tunnels
+  // Controls access permissions for support sessions
+  
+  "groups": {
+    "group:sting-customers": [],  // Populated dynamically
+    "group:sting-support": [],    // Support team members
+    "group:community-helpers": [] // Community volunteers
+  },
+  
+  "tagOwners": {
+    "tag:customer-device": ["group:sting-customers"],
+    "tag:support-session": ["group:sting-support"],
+    "tag:community-help": ["group:community-helpers"],
+    "tag:ephemeral": ["group:sting-support", "group:community-helpers"]
+  },
+  
+  "acls": [
+    {
+      "comment": "Support team can access customer devices during active sessions",
+      "action": "accept",
+      "src": ["group:sting-support"],
+      "dst": [
+        "tag:customer-device:22",    // SSH access
+        "tag:customer-device:5050",  // STING API
+        "tag:customer-device:8888",  // Bee Chat
+        "tag:customer-device:8070"   // Headscale management
+      ]
+    },
+    
+    {
+      "comment": "Community helpers can access customer devices for community support",
+      "action": "accept", 
+      "src": ["group:community-helpers"],
+      "dst": [
+        "tag:customer-device:22",    // SSH for basic troubleshooting
+        "tag:customer-device:8888"   // Bee Chat for guided support
+      ]
+    },
+    
+    {
+      "comment": "Customer devices can access Headscale management",
+      "action": "accept",
+      "src": ["tag:customer-device"],
+      "dst": ["tag:customer-device:8070"]
+    },
+    
+    {
+      "comment": "Allow all devices to reach Headscale coordination server",
+      "action": "accept",
+      "src": ["*"],
+      "dst": ["headscale:8070", "headscale:50443"]
+    },
+    
+    {
+      "comment": "Allow access only to customer devices",
+      "action": "accept",
+      "src": ["group:sting-support", "group:community-helpers"],
+      "dst": ["tag:customer-device:*"]
+    }
+  ],
+  
+  "ssh": [
+    {
+      "comment": "Support team SSH access to customer devices",
+      "action": "accept",
+      "src": ["group:sting-support"],
+      "dst": ["tag:customer-device"], 
+      "users": ["root", "sting", "support"]
+    },
+    
+    {
+      "comment": "Community helpers limited SSH access",
+      "action": "accept",
+      "src": ["group:community-helpers"],
+      "dst": ["tag:customer-device"],
+      "users": ["support"]  // Limited user account
+    }
+  ]
+}

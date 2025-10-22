@@ -1,0 +1,72 @@
+/* Custom theme for Ory Elements */
+
+/* Override primary color (buttons, links, etc.) */
+:root {
+  --ory-primary-color: #3498db;           /* Blue primary color */
+  --ory-primary-color-hover: #2980b9;     /* Darker blue for hover states */
+  --ory-primary-color-active: #2980b9;    /* Active state for buttons */
+  
+  /* Background and text colors */
+  --ory-bg-color: #1a202c;                /* Dark background */
+  --ory-text-color: #f7fafc;              /* Light text */
+  
+  /* Form elements */
+  --ory-input-bg-color: #2d3748;          /* Dark input backgrounds */
+  --ory-input-text-color: #f7fafc;        /* Light text in inputs */
+  --ory-input-border-color: #4a5568;      /* Border color for inputs */
+  
+  /* Error states */
+  --ory-error-color: #f56565;             /* Error red color */
+  
+  /* Success states */
+  --ory-success-color: #5d9b63;           /* Success warm jade color */
+}
+
+/* Style the auth cards to match your app's look and feel */
+.ory-auth-card {
+  background-color: #2d3748 !important;   /* Dark card background */
+  color: #f7fafc !important;              /* Light text */
+  border-radius: 0.5rem !important;       /* Rounded corners */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 
+              0 4px 6px -2px rgba(0, 0, 0, 0.05) !important; /* Shadow */
+}
+
+/* Style form inputs */
+.ory-auth-card input {
+  background-color: #2d3748 !important;
+  color: #f7fafc !important;
+  border: 1px solid #4a5568 !important;
+  border-radius: 0.375rem !important;
+  padding: 0.75rem 1rem !important;
+}
+
+/* Style buttons */
+.ory-auth-card button {
+  background-color: #3498db !important;
+  color: white !important;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 0.375rem !important;
+  font-weight: 600 !important;
+  transition: background-color 0.3s ease !important;
+}
+
+.ory-auth-card button:hover {
+  background-color: #2980b9 !important;
+}
+
+/* Style labels */
+.ory-auth-card label {
+  color: #e2e8f0 !important;
+  font-weight: 500 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+/* Style links */
+.ory-auth-card a {
+  color: #ecc94b !important; /* Yellow links */
+  text-decoration: none !important;
+}
+
+.ory-auth-card a:hover {
+  text-decoration: underline !important;
+}
