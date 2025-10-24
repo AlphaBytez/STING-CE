@@ -7,6 +7,7 @@ from flask import Blueprint, request, jsonify, g
 import requests
 import logging
 import os
+from app.utils.decorators import require_auth_or_api_key
 
 external_ai_proxy_bp = Blueprint('external_ai_proxy', __name__)
 logger = logging.getLogger(__name__)
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 EXTERNAL_AI_SERVICE_URL = os.getenv('EXTERNAL_AI_SERVICE_URL', 'http://external-ai:8091')
 
 @external_ai_proxy_bp.route('/api/external-ai/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])
+@require_auth_or_api_key(['admin', 'write', 'read'])
 def proxy_external_ai(path):
     """
     Proxy all requests to the external AI service

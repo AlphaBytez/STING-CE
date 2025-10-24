@@ -449,6 +449,17 @@ def create_app(config=None):
         'http://sting.local:4433'
     ]
     
+    # Add custom hostname from config if present
+    custom_domain = os.getenv('STING_HOSTNAME') or os.getenv('HOSTNAME')
+    if custom_domain and custom_domain not in ['localhost', 'sting.local']:
+        allowed_origins.extend([
+            f'https://{custom_domain}:8443',
+            f'http://{custom_domain}:8443',
+            f'https://{custom_domain}:4433',
+            f'http://{custom_domain}:4433'
+        ])
+        logger.info(f"Added custom hostname to CORS: {custom_domain}")
+    
     # Also allow any IP address for local network access
     # This allows access like https://192.168.1.100:8443
     CORS(flask_app,
