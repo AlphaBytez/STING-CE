@@ -154,7 +154,8 @@ class OllamaClient:
     """Client for interacting with Ollama API"""
     
     def __init__(self, base_url: str = OLLAMA_BASE_URL):
-        self.base_url = base_url
+        # Remove trailing slash to prevent double slashes in URLs
+        self.base_url = base_url.rstrip('/')
         
     async def check_status(self) -> Dict[str, Any]:
         """Check if LLM service is running (OpenAI-compatible API standard)"""
@@ -181,12 +182,15 @@ class OllamaClient:
     
     async def get_models(self) -> List[Dict[str, Any]]:
         """Get available models (OpenAI-compatible API standard)"""
+        logger.info(f"🔍 Attempting to fetch models from {self.base_url}/v1/models")
         try:
             async with aiohttp.ClientSession() as session:
                 # Use OpenAI-compatible API (LM Studio, vLLM, Ollama with OpenAI mode)
                 async with session.get(f"{self.base_url}/v1/models") as response:
+                    logger.info(f"📡 Got response status: {response.status}")
                     if response.status == 200:
                         data = await response.json()
+                        logger.info(f"📦 Response data keys: {data.keys()}")
                         # Convert OpenAI format to Ollama-like format for compatibility
                         models = []
                         for model in data.get("data", []):
@@ -197,14 +201,18 @@ class OllamaClient:
                                 "digest": "",
                                 "details": {"format": "openai_compatible"}
                             })
-                        logger.debug(f"Retrieved {len(models)} models via OpenAI-compatible API")
+                        logger.info(f"✅ Retrieved {len(models)} models via OpenAI-compatible API")
                         return models
                     else:
-                        logger.warning(f"Failed to get models: HTTP {response.status}")
-                        raise HTTPException(status_code=response.status, detail="Failed to get models")
+                        logger.warning(f"❌ Failed to get models: HTTP {response.status}")
+                        return []  # Return empty list instead of raising exception
+        except HTTPException:
+            raise  # Re-raise HTTPException for API endpoints
         except Exception as e:
-            logger.error(f"Failed to get models: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            logger.error(f"❌ Exception in get_models: {type(e).__name__}: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return []  # Return empty list for startup robustness
     
     async def generate(self, model: str, prompt: str, options: Dict[str, Any] = None) -> Dict[str, Any]:
         """Generate text (supports both OpenAI-compatible and Ollama native APIs)"""

@@ -90,14 +90,19 @@ generate_initial_configuration() {
     
     # Ensure config directory exists
     mkdir -p "${CONFIG_DIR}"
-    
-    # Copy default configuration if it doesn't exist
+
+    # Copy configuration if it doesn't exist
+    # Priority: 1. Wizard config, 2. Default template
     if [ ! -f "${CONFIG_DIR}/config.yml" ]; then
-        if [ -f "${SOURCE_DIR}/conf/config.yml.default" ]; then
+        # Check for wizard-generated config first
+        if [ -f "/tmp/sting-setup-state/config.yml" ]; then
+            cp "/tmp/sting-setup-state/config.yml" "${CONFIG_DIR}/config.yml"
+            log_message "✅ Using wizard-configured config.yml"
+        elif [ -f "${SOURCE_DIR}/conf/config.yml.default" ]; then
             cp "${SOURCE_DIR}/conf/config.yml.default" "${CONFIG_DIR}/config.yml"
             log_message "Created default config.yml"
         else
-            log_message "ERROR: Default config template not found" "ERROR"
+            log_message "ERROR: No config template found" "ERROR"
             return 1
         fi
     fi

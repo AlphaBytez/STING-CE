@@ -136,31 +136,31 @@ restart_with_dependency_order() {
     log_message "🚀 Phase 2: Starting services in dependency order..."
     
     # Tier 1: Core infrastructure (no dependencies)
-    if ! start_service_tier "Infrastructure" "vault db redis"; then
+    if ! start_service_tier "Infrastructure" vault db redis; then
         log_message "Failed to start infrastructure services" "ERROR"
         return 1
     fi
-    
+
     # Tier 2: Authentication and messaging (depends on Tier 1)
-    if ! start_service_tier "Authentication" "kratos mailpit messaging"; then
+    if ! start_service_tier "Authentication" kratos mailpit messaging; then
         log_message "Failed to start authentication services" "ERROR"
         return 1
     fi
-    
+
     # Tier 3: Core application services (depends on Tier 1 & 2)
-    if ! start_service_tier "Application" "utils app knowledge external-ai chroma"; then
+    if ! start_service_tier "Application" utils app knowledge external-ai chroma; then
         log_message "Failed to start application services" "ERROR"
         return 1
     fi
-    
+
     # Tier 4: Frontend and workers (depends on Tier 3)
-    if ! start_service_tier "Frontend" "frontend report-worker profile-sync-worker"; then
+    if ! start_service_tier "Frontend" frontend report-worker profile-sync-worker; then
         log_message "Failed to start frontend services" "ERROR"
         return 1
     fi
-    
+
     # Tier 5: AI and auxiliary services (depends on previous tiers)
-    if ! start_service_tier "AI/Auxiliary" "chatbot llm-gateway-proxy"; then
+    if ! start_service_tier "AI/Auxiliary" chatbot llm-gateway-proxy; then
         log_message "Failed to start AI services" "ERROR"
         return 1
     fi
