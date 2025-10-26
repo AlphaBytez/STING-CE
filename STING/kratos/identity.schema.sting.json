@@ -1,0 +1,98 @@
+{
+  "$id": "https://schemas.ory.sh/presets/kratos/quickstart/email-password/identity.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "STING User",
+  "type": "object",
+  "properties": {
+    "traits": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "title": "E-Mail",
+          "minLength": 3,
+          "ory.sh/kratos": {
+            "credentials": {
+              "webauthn": {
+                "identifier": true
+              },
+              "passkey": {
+                "display_name": true
+              },
+              "code": {
+                "identifier": true,
+                "via": "email"
+              }
+            },
+            "verification": {
+              "via": "email"
+            },
+            "recovery": {
+              "via": "email"
+            }
+          }
+        },
+        "name": {
+          "type": "object",
+          "properties": {
+            "first": {
+              "type": "string",
+              "title": "First Name",
+              "minLength": 1
+            },
+            "last": {
+              "type": "string",
+              "title": "Last Name",
+              "minLength": 1
+            }
+          }
+        },
+        "role": {
+          "type": "string",
+          "title": "User Role",
+          "enum": ["user", "admin", "moderator"],
+          "default": "user"
+        },
+        "force_password_change": {
+          "type": "boolean",
+          "title": "Force Password Change",
+          "default": false
+        },
+        "profile_picture": {
+          "type": "string",
+          "title": "Profile Picture URL"
+        },
+        "bio": {
+          "type": "string",
+          "title": "Bio",
+          "maxLength": 500
+        },
+        "website": {
+          "type": "string",
+          "title": "Website",
+          "format": "uri"
+        },
+        "location": {
+          "type": "string",
+          "title": "Location",
+          "maxLength": 100
+        },
+        "totp_enabled": {
+          "type": "boolean",
+          "title": "TOTP 2FA Enabled",
+          "default": false
+        },
+        "passkeys_enabled": {
+          "type": "boolean",
+          "title": "Passkeys Enabled",
+          "default": false
+        }
+      },
+      "required": [
+        "email"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

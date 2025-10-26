@@ -1,0 +1,22 @@
+# BuildKit daemon configuration
+debug = false
+
+[worker.oci]
+  enabled = true
+  # Limit cache size to 5GB
+  gc = true
+  gckeepstorage = 5000000000
+
+[worker.containerd]
+  enabled = false
+
+# Garbage collection policy
+[worker.oci.gcpolicy]
+  all = true
+  keepBytes = 5000000000
+  keepDuration = 168h  # 1 week
+  filters = [ "type==source.local", "type==exec.cachemount", "type==source.git.checkout"]
+
+# Registry mirror and cache settings
+[registry."docker.io"]
+  mirrors = ["mirror.gcr.io"]

@@ -1,0 +1,51 @@
+/* Temporary color swap override to see the difference */
+
+/* Main layout background */
+.ant-layout,
+.ant-layout-content,
+#root,
+html {
+  background-color: var(--color-bg-layout) !important;
+}
+
+/* Enhanced glassmorphism for floating navigation */
+.floating-nav.glass-light {
+  /* Dark glass with beautiful transparency */
+  background: rgba(30, 41, 59, 0.4) !important;
+  backdrop-filter: blur(16px) saturate(180%) brightness(110%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%) brightness(110%);
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 80px rgba(234, 179, 8, 0.05) !important; /* Subtle yellow glow */
+}
+
+/* Ensure nav items remain visible */
+.floating-nav-item {
+  color: var(--color-text) !important;
+}
+
+.floating-nav-item:hover {
+  background: rgba(234, 179, 8, 0.15) !important;
+  backdrop-filter: blur(8px);
+}
+
+.floating-nav-item.active {
+  background: var(--color-primary) !important;
+  color: var(--color-text-inverse) !important;
+}
+
+/* Ensure cards maintain their darker color */
+.sting-glass-card,
+.ant-card {
+  background-color: var(--color-bg-container) !important;
+}
+
+/* If there's a top header bar, use medium grey */
+.ant-layout-header,
+header,
+.top-header,
+.app-header {
+  background: var(--color-bg-header) !important;
+}

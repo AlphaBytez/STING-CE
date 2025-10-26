@@ -1,0 +1,31 @@
+# Core API components
+fastapi>=0.95.0
+uvicorn>=0.22.0
+pydantic>=2.0.0
+starlette>=0.27.0
+
+# HTTP and networking
+requests>=2.28.0
+httpx>=0.24.0
+aiohttp>=3.8.4
+
+# Content filtering dependencies
+# NOTE: Moved to external-ai service or API-based filtering
+regex>=2023.3.23
+nltk>=3.8.1
+
+# ========================================
+# REMOVED: detoxify (depends on torch/transformers - 10GB+ CUDA)
+# Content filtering moved to external-ai service or API-based solutions
+# For local toxicity detection, use external service or simple regex/keyword filters
+# ========================================
+# detoxify>=0.5.1
+
+# Utilities
+python-dotenv>=1.0.0
+tqdm>=4.65.0
+pyyaml>=6.0.0
+python-multipart>=0.0.6
+
+# Monitoring and observability
+prometheus-client>=0.16.0

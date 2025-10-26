@@ -1,0 +1,12 @@
+
+<footer>
+    <div class="container">
+        <div class="glass-subtle" style="padding: var(--spacing-lg); border-radius: 16px; text-align: center;">
+            <div style="display: flex; justify-content: center; gap: var(--spacing-xs); align-items: center; margin-bottom: var(--spacing-sm);">
+                <img src="{{ "images/sting-logo.webp" | relURL }}" alt="STING Logo" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.8;">
+                <p style="margin: 0; font-size: 16px; font-weight: 500;">{{ .Site.Params.slogan }}</p>
+            </div>
+            <p style="margin: 0; color: var(--text-tertiary);">© {{ now.Format "2006" }} {{ .Site.Title }}. All rights reserved.</p>
+        </div>
+    </div>
+</footer>

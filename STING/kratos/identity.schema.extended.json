@@ -1,0 +1,119 @@
+{
+  "$id": "https://schemas.ory.sh/presets/kratos/quickstart/email-password/identity.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Person",
+  "type": "object",
+  "properties": {
+    "traits": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "title": "E-Mail",
+          "minLength": 3,
+          "ory.sh/kratos": {
+            "credentials": {
+              "password": {
+                "identifier": true
+              },
+              "webauthn": {
+                "identifier": true
+              },
+              "passkey": {
+                "display_name": true
+              },
+              "code": {
+                "identifier": true,
+                "via": "email"
+              }
+            },
+            "verification": {
+              "via": "email"
+            },
+            "recovery": {
+              "via": "email"
+            }
+          }
+        },
+        "name": {
+          "type": "object",
+          "properties": {
+            "first": {
+              "type": "string",
+              "title": "First Name",
+              "minLength": 1
+            },
+            "last": {
+              "type": "string",
+              "title": "Last Name",
+              "minLength": 1
+            }
+          }
+        },
+        "profile": {
+          "type": "object",
+          "title": "Profile Information",
+          "properties": {
+            "displayName": {
+              "type": "string",
+              "title": "Display Name",
+              "description": "How you want to be displayed in the app"
+            },
+            "bio": {
+              "type": "string",
+              "title": "Bio",
+              "description": "Tell us about yourself",
+              "maxLength": 500
+            },
+            "location": {
+              "type": "string",
+              "title": "Location",
+              "description": "City, Country"
+            },
+            "website": {
+              "type": "string",
+              "format": "uri",
+              "title": "Website",
+              "description": "Your personal or professional website"
+            },
+            "organization": {
+              "type": "string",
+              "title": "Organization",
+              "description": "Company or organization"
+            },
+            "profilePicture": {
+              "type": "string",
+              "title": "Profile Picture",
+              "description": "Base64 encoded image or URL",
+              "maxLength": 1048576
+            }
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "title": "Account Metadata",
+          "properties": {
+            "accountType": {
+              "type": "string",
+              "enum": ["standard", "premium", "enterprise"],
+              "default": "standard"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "lastLoginAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      },
+      "required": [
+        "email"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

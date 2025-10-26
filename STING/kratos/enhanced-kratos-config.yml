@@ -1,0 +1,117 @@
+version: v1.0.0
+
+dsn: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/sting_app?sslmode=disable
+
+log:
+  level: debug
+
+serve:
+  public:
+    base_url: https://localhost:4433
+    tls:
+      cert:
+        path: /etc/certs/server.crt
+      key:
+        path: /etc/certs/server.key
+    cors:
+      enabled: true
+      allowed_origins:
+        - http://localhost:8443
+        - https://localhost:8443
+      allowed_methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      allowed_headers:
+        - "*"
+      allow_credentials: true
+  admin:
+    base_url: https://localhost:4434
+    tls:
+      cert:
+        path: /etc/certs/server.crt
+      key:
+        path: /etc/certs/server.key
+
+identity:
+  default_schema_id: default
+  schemas:
+    - id: default
+      url: file:///etc/config/kratos/identity.schema.json
+
+selfservice:
+  default_browser_return_url: https://localhost:8443
+
+  # Registration configuration
+  flows:
+    registration:
+      ui_url: https://localhost:8443/register
+      lifespan: 1h
+      enabled: true
+      # Routes to which redirects should be made after successful registration
+      after:
+        password:
+          hooks:
+            - hook: session
+          # Redirect to this URL after password registration
+          ui_url: https://localhost:8443/dashboard
+    
+    # Login configuration  
+    login:
+      ui_url: https://localhost:8443/login
+      lifespan: 1h
+      # Routes to which redirects should be made after successful login
+      after:
+        password:
+          hooks:
+            - hook: session
+          # Redirect to this URL after password login
+          ui_url: https://localhost:8443/dashboard
+        webauthn:
+          hooks:
+            - hook: session
+          # Redirect to this URL after WebAuthn login
+          ui_url: https://localhost:8443/dashboard
+  
+  # Define authentication methods
+  methods:
+    password:
+      enabled: true
+      # Password policy configuration
+      config:
+        # Disable haveibeenpwned.com API
+        haveibeenpwned_enabled: false
+        # Disable checks that prevent using email as password
+        identifier_similarity_check_enabled: false
+        # Minimum password length - 8 characters is standard
+        min_password_length: 8
+        # Maximum password length
+        max_password_length: 100
+    
+    # WebAuthn (passkey) configuration
+    webauthn:
+      enabled: true
+      config:
+        rp:
+          id: localhost
+          display_name: STING Authentication
+          origin: https://localhost:8443
+
+secrets:
+  # Add a 32-character key for cookie and session encryption
+  cookie:
+    - PLEASE-CHANGE-ME-I-AM-VERY-INSECURE-KEY
+  cipher:
+    - PLEASE-CHANGE-ME-I-AM-VERY-INSECURE-KEY
+
+session:
+  cookie:
+    domain: localhost
+  lifespan: 24h
+
+courier:
+  smtp:
+    connection_uri: smtps://test:test@mailslurper:1025/?skip_ssl_verify=true

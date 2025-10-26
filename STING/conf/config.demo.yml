@@ -1,0 +1,249 @@
+# STING-CE Demo Mode Configuration
+# This configuration enables public demo access with security restrictions
+
+# Application settings for demo mode
+application:
+  env: "demo"
+  debug: false
+  mode: "demo"
+  host: "0.0.0.0"
+  port: 5050
+  
+  # Demo-specific settings
+  demo_features:
+    enabled: true
+    guest_access: true
+    auto_login: true
+    session_timeout: 1800  # 30 minutes
+    max_concurrent_sessions: 50
+    cleanup_interval: 300  # 5 minutes
+    
+  # SSL configuration for demo domains
+  ssl:
+    enabled: true
+    domain: "${DEMO_DOMAIN:-demo.sting-ce.com}"
+    email: "${DEMO_ADMIN_EMAIL:-admin@sting-ce.com}"
+    cert_dir: "${INSTALL_DIR}/certs"
+    
+  # API and frontend URLs
+  api_url: "https://${DEMO_DOMAIN:-demo.sting-ce.com}"
+  frontend_url: "https://${DEMO_DOMAIN:-demo.sting-ce.com}"
+
+# Frontend configuration
+frontend:
+  react:
+    port: 3010
+    api_url: "https://${DEMO_DOMAIN:-demo.sting-ce.com}"
+    demo_mode: true
+    features:
+      registration: false  # Disable user registration
+      password_reset: false
+      profile_editing: false
+      file_upload: false
+      
+# Authentication and security for demo
+authentication:
+  demo_mode: true
+  guest_accounts:
+    enabled: true
+    auto_create: true
+    prefix: "demo_user_"
+    session_duration: 1800  # 30 minutes
+    max_sessions_per_ip: 3
+    
+  # Rate limiting
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 10
+    requests_per_hour: 100
+    burst_limit: 15
+    
+  # Content filtering
+  content_filter:
+    level: "strict"
+    block_personal_info: true
+    block_code_execution: true
+    max_message_length: 1000
+    
+# Kratos configuration for demo
+kratos:
+  public_url: "https://${DEMO_DOMAIN:-demo.sting-ce.com}:4433"
+  admin_url: "https://${DEMO_DOMAIN:-demo.sting-ce.com}:4434"
+  cookie_domain: "${DEMO_DOMAIN:-demo.sting-ce.com}"
+  
+  selfservice:
+    default_return_url: "https://${DEMO_DOMAIN:-demo.sting-ce.com}"
+    login:
+      ui_url: "https://${DEMO_DOMAIN:-demo.sting-ce.com}/login"
+      lifespan: "30m"
+    registration:
+      ui_url: "https://${DEMO_DOMAIN:-demo.sting-ce.com}/register"
+      lifespan: "30m"
+      enabled: false  # Disable registration in demo mode
+      
+  methods:
+    password:
+      enabled: false  # Disable password auth for demo
+    webauthn:
+      enabled: false  # Disable passkeys for demo
+    demo_auth:
+      enabled: true   # Custom demo authentication
+
+# Chatbot configuration for demo
+chatbot:
+  name: "Bee"
+  model: "phi3"
+  context_window: 10
+  
+  # Demo restrictions
+  demo_restrictions:
+    max_conversation_length: 20
+    max_messages_per_session: 50
+    disable_file_upload: true
+    disable_code_execution: true
+    content_filter: "strict"
+    
+  # System prompt for demo
+  default_system_prompt: |
+    You are Bee, a helpful AI assistant demonstrating the STING-CE platform. 
+    This is a public demo environment with the following limitations:
+    - Sessions are limited to 30 minutes
+    - Conversations are limited to 20 exchanges
+    - File uploads are disabled
+    - Personal information should not be shared
+    
+    Please provide helpful, safe, and informative responses while showcasing 
+    the capabilities of the STING platform.
+
+# LLM Service configuration optimized for demo
+llm_service:
+  enabled: true
+  default_model: "phi3"
+  
+  # Performance settings for M4 Max Studio
+  performance:
+    profile: "gpu_accelerated"
+    device: "mps"  # Metal Performance Shaders
+    precision: "fp16"
+    batch_size: 4
+    
+  models:
+    phi3:
+      enabled: true
+      path: "microsoft/Phi-3-mini-4k-instruct"
+      max_tokens: 1024
+      temperature: 0.7
+      demo_optimized: true
+      
+  # Model lifecycle for demo efficiency
+  model_lifecycle:
+    lazy_loading: false  # Keep models loaded for demo responsiveness
+    idle_timeout: 300    # 5 minutes
+    max_loaded_models: 1
+    preload_on_startup: true
+    
+  # Content filtering
+  filtering:
+    toxicity:
+      enabled: true
+      threshold: 0.5  # Stricter for demo
+    data_leakage:
+      enabled: true
+      threshold: 0.7
+      
+  gateway:
+    port: 8080
+    timeout: 30
+    max_retries: 2
+
+# Monitoring and logging for demo
+monitoring:
+  enabled: true
+  demo_analytics: true
+  
+  health_checks:
+    interval: "30s"
+    timeout: "10s"
+    retries: 3
+    
+  logging:
+    level: "INFO"
+    demo_events: true
+    user_analytics: true  # Anonymous usage analytics
+    
+# Security settings for public demo
+security:
+  demo_mode: true
+  
+  # Network security
+  cors:
+    enabled: true
+    allowed_origins:
+      - "https://${DEMO_DOMAIN:-demo.sting-ce.com}"
+      - "https://${STAGING_DOMAIN:-staging.sting-ce.com}"
+    allowed_methods: ["GET", "POST", "OPTIONS"]
+    
+  # Session security
+  session:
+    secure_cookies: true
+    same_site: "strict"
+    max_age: 1800  # 30 minutes
+    
+  # Input validation
+  input_validation:
+    max_input_length: 1000
+    sanitize_html: true
+    block_scripts: true
+
+# Database configuration (minimal for demo)
+database:
+  # Use lightweight settings for demo
+  max_connections: 20
+  connection_timeout: 30
+  
+# Backup and maintenance (disabled for demo)
+backup:
+  enabled: false
+  
+maintenance:
+  auto_cleanup: true
+  cleanup_interval: "1h"
+  max_demo_sessions: 100
+
+# Performance optimizations for demo server
+performance:
+  # M4 Max Studio optimizations
+  cpu_cores: 12
+  memory_limit: "32GB"
+  
+  # Caching for demo responsiveness
+  cache:
+    enabled: true
+    ttl: 300  # 5 minutes
+    max_size: "1GB"
+    
+  # Connection pooling
+  connection_pool:
+    min_size: 5
+    max_size: 20
+    
+# Feature flags for demo
+features:
+  # Enable core demo features
+  chat: true
+  knowledge_base: true
+  
+  # Disable advanced features
+  admin_panel: false
+  user_management: false
+  file_management: false
+  api_access: false
+  
+# Demo-specific environment variables
+demo_env:
+  DEMO_MODE: "true"
+  GUEST_ACCESS: "true"
+  RATE_LIMITING: "true"
+  CONTENT_FILTER: "strict"
+  SESSION_TIMEOUT: "1800"
+  MAX_CONVERSATION_LENGTH: "20"

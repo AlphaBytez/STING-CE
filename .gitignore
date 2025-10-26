@@ -1,0 +1,104 @@
+# Security - Never commit
+*.key
+*.pem
+*.crt
+*.env
+.env.*
+secrets/
+credentials/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+venv/
+.venv/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Logs
+logs/
+*.log
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Local config
+*.local
+config.local.yml
+
+# LLM Model Files (but NOT Python app/models code!)
+*.gguf
+*.bin
+*.safetensors
+# Only ignore LLM model directories, not app/models
+llm_service/models/
+llm-models/
+llm_models/
+*/llm_models/
+*/llm-models/
+
+# Temp
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Internal Documentation (not for public repo)
+PUBLIC_FORK_STRATEGY.md
+QUICK_FORK_GUIDE.md
+CONFIG_COMMENTS_ADDED.md
+DEPLOYMENT_SUMMARY.md
+VM_TEST_PLAN.md
+PII_SERIALIZATION_IMPLEMENTATION_GUIDE.md
+REORGANIZATION_GUIDE.md
+**/troubleshooting/
+*SUMMARY.md
+*TRACKER.md
+*ANALYSIS.md
+*FIX_VERIFICATION.md
+*investigation*.md
+*debug_instructions.md
+
+# Build artifacts
+.hugo_build.lock
+
+# Debug/investigation files
+*-investigation-report.json
+kratos-investigation-report.json
+
+# One-time reorganization scripts
+create_sting_subdirectory.sh
+reorganize_public_repo.sh
+verify_reorganization.sh
+
+# Claude-specific files
+.claude/settings.local.json
+CLAUDE.md
+**/CLAUDE.md
+create_claude_user.py
+**/create_claude_user.py

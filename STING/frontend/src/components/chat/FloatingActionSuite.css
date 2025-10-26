@@ -1,0 +1,63 @@
+/* FloatingActionSuite (Grains) Custom Styles */
+
+/* Scrollbar styling for grains section */
+.grains-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.grains-scrollbar::-webkit-scrollbar-track {
+  background: rgba(55, 65, 81, 0.3);
+  border-radius: 3px;
+}
+
+.grains-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.5);
+  border-radius: 3px;
+}
+
+.grains-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.7);
+}
+
+/* Smooth scrolling */
+.grains-scrollbar {
+  scroll-behavior: smooth;
+}
+
+/* Glass effect for grains sidebar */
+.grains-glass {
+  background: rgba(17, 24, 39, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(55, 65, 81, 0.5);
+}
+
+/* Ensure the sidebar doesn't exceed viewport */
+.grains-sidebar-container {
+  max-height: 100vh;
+  height: 100%;
+}
+
+/* Animation for collapsible sections */
+.grains-collapse-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hover effect for collapse toggles */
+.grains-collapse-toggle:hover {
+  background: rgba(55, 65, 81, 0.2);
+  border-radius: 4px;
+}
+
+/* Mobile slide-up animation */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}

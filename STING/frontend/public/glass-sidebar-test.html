@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STING - Glass Sidebar Options</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #161922;
+            color: #f1f5f9;
+            padding: 2rem;
+            margin: 0;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: auto;
+        }
+        
+        /* Background pattern for glass effect testing */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(234, 179, 8, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(6, 182, 212, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 40% 60%, rgba(93, 155, 99, 0.05) 0%, transparent 50%);
+            z-index: -1;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        h1 {
+            color: #eab308;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .option {
+            position: relative;
+            height: 600px;
+        }
+        
+        .sidebar {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 80px;
+            height: 400px;
+            border-radius: 20px;
+            padding: 20px 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-item {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 10px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #f1f5f9;
+            font-size: 12px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .nav-item:hover {
+            transform: scale(1.05);
+        }
+        
+        .nav-item.active {
+            background: #eab308;
+            color: #000;
+        }
+        
+        .option h3 {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            margin: 0;
+            font-size: 16px;
+            color: #cbd5e1;
+        }
+        
+        .specs {
+            position: absolute;
+            bottom: 50px;
+            left: 20px;
+            right: 20px;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+        
+        /* Glass Options */
+        .glass-1 {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(16px) saturate(180%) brightness(110%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%) brightness(110%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .glass-2 {
+            background: rgba(71, 85, 105, 0.25);
+            backdrop-filter: blur(20px) saturate(200%);
+            -webkit-backdrop-filter: blur(20px) saturate(200%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05),
+                0 0 80px rgba(234, 179, 8, 0.02);
+        }
+        
+        .glass-3 {
+            background: linear-gradient(
+                135deg,
+                rgba(30, 41, 59, 0.5) 0%,
+                rgba(51, 65, 85, 0.3) 100%
+            );
+            backdrop-filter: blur(12px) saturate(150%) contrast(1.1);
+            -webkit-backdrop-filter: blur(12px) saturate(150%) contrast(1.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.4),
+                inset 0 2px 4px rgba(255, 255, 255, 0.1);
+        }
+        
+        .glass-4 {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px) saturate(100%) brightness(95%);
+            -webkit-backdrop-filter: blur(10px) saturate(100%) brightness(95%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 8px 16px rgba(0, 0, 0, 0.4),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+        }
+        
+        .glass-5 {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(24px) saturate(180%) brightness(105%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%) brightness(105%);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .glass-6 {
+            background: radial-gradient(
+                ellipse at top,
+                rgba(71, 85, 105, 0.4) 0%,
+                rgba(30, 41, 59, 0.2) 100%
+            );
+            backdrop-filter: blur(16px) saturate(140%);
+            -webkit-backdrop-filter: blur(16px) saturate(140%);
+            border: 1px solid rgba(234, 179, 8, 0.1);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                0 0 120px rgba(234, 179, 8, 0.02),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+        
+        /* Hover effects for nav items */
+        .glass-1 .nav-item:not(.active):hover,
+        .glass-2 .nav-item:not(.active):hover,
+        .glass-3 .nav-item:not(.active):hover,
+        .glass-4 .nav-item:not(.active):hover,
+        .glass-5 .nav-item:not(.active):hover,
+        .glass-6 .nav-item:not(.active):hover {
+            background: rgba(234, 179, 8, 0.15);
+            backdrop-filter: blur(8px);
+        }
+        
+        .recommended {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #5d9b63;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Glass Sidebar Options</h1>
+        
+        <div class="options-grid">
+            <div class="option">
+                <div class="sidebar glass-1">
+                    <div class="nav-item active">Home</div>
+                    <div class="nav-item">Chat</div>
+                    <div class="nav-item">Stats</div>
+                    <div class="nav-item">Team</div>
+                    <div class="nav-item">Settings</div>
+                </div>
+                <div class="specs">Dark glass • 40% opacity • 16px blur</div>
+                <h3>Option 1: Subtle Dark Glass</h3>
+            </div>
+            
+            <div class="option">
+                <div class="sidebar glass-2">
+                    <div class="nav-item active">Home</div>
+                    <div class="nav-item">Chat</div>
+                    <div class="nav-item">Stats</div>
+                    <div class="nav-item">Team</div>
+                    <div class="nav-item">Settings</div>
+                </div>
+                <div class="specs">Lighter • 25% opacity • 20px blur • Yellow glow</div>
+                <h3>Option 2: Ultra Light Glass</h3>
+            </div>
+            
+            <div class="option">
+                <div class="sidebar glass-3">
+                    <div class="nav-item active">Home</div>
+                    <div class="nav-item">Chat</div>
+                    <div class="nav-item">Stats</div>
+                    <div class="nav-item">Team</div>
+                    <div class="nav-item">Settings</div>
+                </div>
+                <div class="specs">Gradient • Variable opacity • Contrast boost</div>
+                <h3>Option 3: Gradient Glass</h3>
+                <div class="recommended">Recommended</div>
+            </div>
+            
+            <div class="option">
+                <div class="sidebar glass-4">
+                    <div class="nav-item active">Home</div>
+                    <div class="nav-item">Chat</div>
+                    <div class="nav-item">Stats</div>
+                    <div class="nav-item">Team</div>
+                    <div class="nav-item">Settings</div>
+                </div>
+                <div class="specs">Minimal • 5% white • 10px blur</div>
+                <h3>Option 4: Frosted Glass</h3>
+            </div>
+            
+            <div class="option">
+                <div class="sidebar glass-5">
+                    <div class="nav-item active">Home</div>
+                    <div class="nav-item">Chat</div>
+                    <div class="nav-item">Stats</div>
+                    <div class="nav-item">Team</div>
+                    <div class="nav-item">Settings</div>
+                </div>
+                <div class="specs">Heavy • 60% opacity • Deep shadow</div>
+                <h3>Option 5: Heavy Glass</h3>
+            </div>
+            
+            <div class="option">
+                <div class="sidebar glass-6">
+                    <div class="nav-item active">Home</div>
+                    <div class="nav-item">Chat</div>
+                    <div class="nav-item">Stats</div>
+                    <div class="nav-item">Team</div>
+                    <div class="nav-item">Settings</div>
+                </div>
+                <div class="specs">Radial gradient • Yellow accent • Subtle glow</div>
+                <h3>Option 6: Accent Glass</h3>
+            </div>
+        </div>
+        
+        <div style="background: #1a1f2e; padding: 2rem; border-radius: 12px; margin-top: 3rem;">
+            <h2 style="color: #eab308; margin-bottom: 1rem;">Implementation Notes</h2>
+            <p>The glassmorphism effect works by combining:</p>
+            <ul>
+                <li><strong>Background opacity</strong>: Lower values (0.2-0.4) show more of the background</li>
+                <li><strong>Backdrop filter blur</strong>: Higher values (16-24px) create stronger glass effect</li>
+                <li><strong>Saturation</strong>: Boosts color vibrancy through the glass (150-200%)</li>
+                <li><strong>Borders</strong>: Subtle white borders enhance the glass edges</li>
+                <li><strong>Shadows</strong>: Multiple layers create depth and floating effect</li>
+            </ul>
+            <p style="margin-top: 1rem;">Option 3 (Gradient Glass) is recommended as it provides the best balance of transparency and readability.</p>
+        </div>
+    </div>
+</body>
+</html>

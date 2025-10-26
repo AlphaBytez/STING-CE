@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebAuthn/Passkey Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #1a202c;
+            color: #f7fafc;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #2d3748;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+        h1 {
+            color: #90cdf4;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .section {
+            margin-bottom: 24px;
+            padding: 16px;
+            background-color: #374151;
+            border-radius: 8px;
+        }
+        h2 {
+            color: #f6e05e;
+            margin-top: 0;
+        }
+        button {
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+        button:hover {
+            background-color: #3182ce;
+        }
+        button:disabled {
+            background-color: #718096;
+            cursor: not-allowed;
+        }
+        pre {
+            background-color: #1a202c;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            color: #e2e8f0;
+            margin-top: 12px;
+        }
+        .status {
+            margin-top: 12px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .status.success {
+            background-color: rgba(72, 187, 120, 0.2);
+            border: 1px solid #48bb78;
+        }
+        .status.error {
+            background-color: rgba(245, 101, 101, 0.2);
+            border: 1px solid #f56565;
+        }
+        .log-container {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 12px;
+            background-color: #1a202c;
+            padding: 12px;
+            border-radius: 4px;
+        }
+        .log-entry {
+            margin-bottom: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .success-text {
+            color: #48bb78;
+        }
+        .error-text {
+            color: #f56565;
+        }
+        .support-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 24px;
+            color: #90cdf4;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebAuthn/Passkey Test</h1>
+        
+        <div class="section">
+            <h2>WebAuthn Support Status</h2>
+            <div id="support-status">Checking...</div>
+        </div>
+        
+        <div class="section">
+            <h2>Test WebAuthn Registration</h2>
+            <button id="btn-test-registration" disabled>Test Registration</button>
+            <div id="registration-status" class="status"></div>
+            <pre id="registration-result" style="display:none;"></pre>
+        </div>
+        
+        <div class="section">
+            <h2>Test WebAuthn Authentication</h2>
+            <button id="btn-test-authentication" disabled>Test Authentication</button>
+            <div id="authentication-status" class="status"></div>
+            <pre id="authentication-result" style="display:none;"></pre>
+        </div>
+        
+        <div class="section">
+            <h2>Debug Log</h2>
+            <div id="log-container" class="log-container"></div>
+        </div>
+        
+        <a href="/" class="back-link">Return to STING</a>
+    </div>
+    
+    <script>
+        // Debug log function
+        function logDebug(message, type = 'info') {
+            const logContainer = document.getElementById('log-container');
+            const timestamp = new Date().toISOString().slice(11, 23);
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `${timestamp}: ${message}`;
+            
+            if (type === 'error') {
+                entry.classList.add('error-text');
+            } else if (type === 'success') {
+                entry.classList.add('success-text');
+            }
+            
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            console.log(message);
+        }
+        
+        // Convert ArrayBuffer to Base64 string
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return window.btoa(binary);
+        }
+        
+        // Check WebAuthn support
+        async function checkWebAuthnSupport() {
+            const supportStatusElement = document.getElementById('support-status');
+            const btnRegistration = document.getElementById('btn-test-registration');
+            const btnAuthentication = document.getElementById('btn-test-authentication');
+            
+            let supportInfo = '<div class="support-item"><span>WebAuthn API:</span>';
+            
+            logDebug('Checking WebAuthn support...');
+            
+            let webauthnSupported = false;
+            let platformAuthSupported = false;
+            
+            try {
+                if (window.PublicKeyCredential) {
+                    webauthnSupported = true;
+                    logDebug('✅ PublicKeyCredential API exists', 'success');
+                    supportInfo += '<span class="success-text">Supported ✅</span></div>';
+                    
+                    // Check platform authenticator
+                    supportInfo += '<div class="support-item"><span>Platform Authenticator:</span>';
+                    
+                    try {
+                        const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+                        platformAuthSupported = available;
+                        
+                        if (available) {
+                            logDebug('✅ Platform authenticator is available', 'success');
+                            supportInfo += '<span class="success-text">Available ✅</span></div>';
+                        } else {
+                            logDebug('❌ Platform authenticator is not available', 'error');
+                            supportInfo += '<span class="error-text">Not Available ❌</span></div>';
+                        }
+                    } catch (err) {
+                        logDebug(`❌ Error checking platform authenticator: ${err.message}`, 'error');
+                        supportInfo += '<span class="error-text">Error Checking ❌</span></div>';
+                    }
+                    
+                    // Check credentials API
+                    supportInfo += '<div class="support-item"><span>Credentials API:</span>';
+                    if (navigator.credentials) {
+                        logDebug('✅ navigator.credentials API exists', 'success');
+                        supportInfo += '<span class="success-text">Supported ✅</span></div>';
+                        
+                        // Check methods
+                        supportInfo += '<div class="support-item"><span>credentials.create:</span>';
+                        if (navigator.credentials.create) {
+                            logDebug('✅ navigator.credentials.create method exists', 'success');
+                            supportInfo += '<span class="success-text">Supported ✅</span></div>';
+                        } else {
+                            logDebug('❌ navigator.credentials.create method missing', 'error');
+                            supportInfo += '<span class="error-text">Missing ❌</span></div>';
+                        }
+                        
+                        supportInfo += '<div class="support-item"><span>credentials.get:</span>';
+                        if (navigator.credentials.get) {
+                            logDebug('✅ navigator.credentials.get method exists', 'success');
+                            supportInfo += '<span class="success-text">Supported ✅</span></div>';
+                        } else {
+                            logDebug('❌ navigator.credentials.get method missing', 'error');
+                            supportInfo += '<span class="error-text">Missing ❌</span></div>';
+                        }
+                    } else {
+                        logDebug('❌ navigator.credentials API is missing', 'error');
+                        supportInfo += '<span class="error-text">Missing ❌</span></div>';
+                    }
+                } else {
+                    logDebug('❌ WebAuthn API is not supported', 'error');
+                    supportInfo = '<div class="support-item"><span>WebAuthn API:</span><span class="error-text">Not Supported ❌</span></div>';
+                }
+                
+                // Enable/disable buttons based on support
+                btnRegistration.disabled = !webauthnSupported;
+                btnAuthentication.disabled = !webauthnSupported;
+                
+                // Update UI
+                supportStatusElement.innerHTML = supportInfo;
+                
+            } catch (err) {
+                logDebug(`❌ Error checking WebAuthn support: ${err.message}`, 'error');
+                supportStatusElement.innerHTML = '<div class="error-text">Error checking WebAuthn support.</div>';
+            }
+        }
+        
+        // Test WebAuthn registration
+        async function testRegistration() {
+            const statusElement = document.getElementById('registration-status');
+            const resultElement = document.getElementById('registration-result');
+            
+            statusElement.textContent = 'Starting registration test...';
+            statusElement.className = 'status';
+            resultElement.style.display = 'none';
+            
+            logDebug('Testing WebAuthn registration...');
+            
+            try {
+                if (!navigator.credentials || !navigator.credentials.create) {
+                    throw new Error('Credentials API not supported');
+                }
+                
+                // Generate random user ID
+                const userId = new Uint8Array(16);
+                window.crypto.getRandomValues(userId);
+                
+                // Generate challenge
+                const challenge = new Uint8Array(32);
+                window.crypto.getRandomValues(challenge);
+                
+                logDebug('Preparing WebAuthn creation options...');
+                
+                const publicKeyCredentialCreationOptions = {
+                    challenge,
+                    rp: {
+                        name: 'STING Test',
+                        id: window.location.hostname,
+                    },
+                    user: {
+                        id: userId,
+                        name: 'test@example.com',
+                        displayName: 'Test User',
+                    },
+                    pubKeyCredParams: [
+                        { type: 'public-key', alg: -7 }, // ES256
+                        { type: 'public-key', alg: -257 }, // RS256
+                    ],
+                    authenticatorSelection: {
+                        authenticatorAttachment: 'platform',
+                        userVerification: 'preferred',
+                        requireResidentKey: true,
+                    },
+                    timeout: 60000,
+                    attestation: 'none',
+                };
+                
+                logDebug('Calling navigator.credentials.create()...');
+                
+                const credential = await navigator.credentials.create({
+                    publicKey: publicKeyCredentialCreationOptions,
+                });
+                
+                logDebug('✅ Registration successful!', 'success');
+                
+                const result = {
+                    id: credential.id,
+                    type: credential.type,
+                    authenticatorAttachment: credential.authenticatorAttachment,
+                };
+                
+                // Update UI
+                statusElement.textContent = 'Registration successful! Credential created.';
+                statusElement.className = 'status success';
+                resultElement.textContent = JSON.stringify(result, null, 2);
+                resultElement.style.display = 'block';
+                
+            } catch (err) {
+                logDebug(`❌ Registration failed: ${err.message}`, 'error');
+                
+                // Update UI
+                statusElement.textContent = `Registration failed: ${err.message}`;
+                statusElement.className = 'status error';
+            }
+        }
+        
+        // Test WebAuthn authentication
+        async function testAuthentication() {
+            const statusElement = document.getElementById('authentication-status');
+            const resultElement = document.getElementById('authentication-result');
+            
+            statusElement.textContent = 'Starting authentication test...';
+            statusElement.className = 'status';
+            resultElement.style.display = 'none';
+            
+            logDebug('Testing WebAuthn authentication...');
+            
+            try {
+                if (!navigator.credentials || !navigator.credentials.get) {
+                    throw new Error('Credentials API not supported');
+                }
+                
+                // Generate challenge
+                const challenge = new Uint8Array(32);
+                window.crypto.getRandomValues(challenge);
+                
+                logDebug('Preparing WebAuthn request options...');
+                
+                const publicKeyCredentialRequestOptions = {
+                    challenge,
+                    timeout: 60000,
+                    userVerification: 'preferred',
+                    rpId: window.location.hostname,
+                };
+                
+                logDebug('Calling navigator.credentials.get()...');
+                
+                const assertion = await navigator.credentials.get({
+                    publicKey: publicKeyCredentialRequestOptions,
+                });
+                
+                logDebug('✅ Authentication successful!', 'success');
+                
+                const result = {
+                    id: assertion.id,
+                    type: assertion.type,
+                    authenticatorAttachment: assertion.authenticatorAttachment,
+                };
+                
+                // Update UI
+                statusElement.textContent = 'Authentication successful!';
+                statusElement.className = 'status success';
+                resultElement.textContent = JSON.stringify(result, null, 2);
+                resultElement.style.display = 'block';
+                
+            } catch (err) {
+                logDebug(`❌ Authentication failed: ${err.message}`, 'error');
+                
+                // Update UI
+                statusElement.textContent = `Authentication failed: ${err.message}`;
+                statusElement.className = 'status error';
+            }
+        }
+        
+        // Set up event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            checkWebAuthnSupport();
+            
+            document.getElementById('btn-test-registration').addEventListener('click', testRegistration);
+            document.getElementById('btn-test-authentication').addEventListener('click', testAuthentication);
+        });
+    </script>
+</body>
+</html>

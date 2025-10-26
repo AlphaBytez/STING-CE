@@ -1,0 +1,154 @@
+/* BeeChat Markdown Styling */
+
+/* Override Tailwind prose defaults for dark theme */
+.prose-invert {
+  color: #e5e7eb;
+}
+
+.prose-invert strong {
+  color: #fbbf24; /* Yellow for emphasis */
+}
+
+.prose-invert em {
+  color: #fde68a; /* Lighter yellow for italics */
+}
+
+/* Code block styling */
+.prose-invert pre {
+  background-color: #374151;
+  border: 1px solid #4b5563;
+  margin: 0.5rem 0;
+}
+
+.prose-invert pre code {
+  color: #e5e7eb;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Inline code styling */
+.prose-invert code {
+  background-color: #374151;
+  color: #fbbf24;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+}
+
+/* List styling */
+.prose-invert ul,
+.prose-invert ol {
+  margin: 0.5rem 0;
+}
+
+.prose-invert li {
+  margin: 0.25rem 0;
+}
+
+/* Link styling */
+.prose-invert a {
+  color: #fbbf24;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.prose-invert a:hover {
+  color: #fcd34d;
+}
+
+/* Table styling */
+.prose-invert table {
+  width: 100%;
+  margin: 0.5rem 0;
+}
+
+.prose-invert thead {
+  background-color: #374151;
+}
+
+.prose-invert th {
+  padding: 0.5rem;
+  text-align: left;
+  font-weight: 600;
+  color: #fbbf24;
+}
+
+.prose-invert td {
+  padding: 0.5rem;
+  border-top: 1px solid #4b5563;
+}
+
+.prose-invert tbody tr:hover {
+  background-color: #374151;
+}
+
+/* Blockquote styling */
+.prose-invert blockquote {
+  border-left-color: #fbbf24;
+  background-color: rgba(251, 191, 36, 0.1);
+  padding: 0.5rem 1rem;
+  margin: 0.5rem 0;
+  border-radius: 0.25rem;
+}
+
+/* Heading styling */
+.prose-invert h1,
+.prose-invert h2,
+.prose-invert h3,
+.prose-invert h4,
+.prose-invert h5,
+.prose-invert h6 {
+  color: #fbbf24;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Horizontal rule */
+.prose-invert hr {
+  border-color: #4b5563;
+  margin: 1rem 0;
+}
+
+/* Image styling */
+.prose-invert img {
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Custom scrollbar for code blocks */
+.prose-invert pre::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.prose-invert pre::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.prose-invert pre::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 3px;
+}
+
+.prose-invert pre::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Animation for message appearance */
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bee-message {
+  animation: messageSlideIn 0.3s ease-out;
+}

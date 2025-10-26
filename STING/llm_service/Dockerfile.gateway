@@ -1,0 +1,51 @@
+FROM python:3.10.16-slim
+
+WORKDIR /app
+
+# ========================================
+# NOTE: This is a lightweight gateway/proxy service
+# It routes requests to Ollama/external-ai services
+# No local ML inference - no PyTorch needed
+# ========================================
+
+# Install curl for healthchecks
+RUN apt-get update && \
+    apt-get install -y curl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install dependencies
+COPY requirements.gateway.txt .
+
+# Install lightweight dependencies only
+RUN pip install --no-cache-dir -r requirements.gateway.txt
+
+# ========================================
+# REMOVED: ML acceleration libraries (not needed for gateway)
+# These were pulling in CUDA dependencies unnecessarily
+# ========================================
+# RUN pip install --no-cache-dir --upgrade accelerate>=0.23.0
+# RUN pip install --no-cache-dir --upgrade bitsandbytes>=0.41.1
+
+# Create necessary directories
+RUN mkdir -p /app/data/filters
+
+# Copy application code
+COPY gateway/ ./gateway/
+COPY filtering/ ./filtering/
+COPY utils/ ./utils/
+COPY entrypoint.sh .
+
+# Make entrypoint executable
+RUN chmod +x entrypoint.sh
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV PORT=8080
+ENV LOG_LEVEL=INFO
+
+
+# Expose the service port
+EXPOSE 8080
+
+# Use entrypoint script for initialization
+ENTRYPOINT ["/bin/bash", "/app/entrypoint.sh"]

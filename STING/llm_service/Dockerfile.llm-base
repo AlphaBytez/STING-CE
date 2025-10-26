@@ -1,0 +1,55 @@
+FROM python:3.10.16-slim
+
+WORKDIR /app
+
+# ========================================
+# ARCHIVED: This Dockerfile is no longer used in production
+# STING now uses Ollama/external LLM services for all inference
+# This file is kept for reference only
+# ========================================
+
+# Minimal system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install lightweight Python requirements only
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt || \
+    pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
+
+# Copy utilities
+COPY utils/ /app/utils
+
+# ========================================
+# REMOVED: PyTorch and ML dependencies (10GB+ of CUDA libraries)
+# These are no longer needed as LLM inference is handled by:
+# - Ollama (local)
+# - external-ai service (container)
+# - Other external LLM providers
+# ========================================
+# RUN pip install --no-cache-dir torch torchvision
+# RUN pip install --no-cache-dir transformers accelerate sentencepiece
+
+# Install only lightweight API dependencies
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn || \
+    pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org \
+    fastapi \
+    uvicorn
+
+# Create necessary directories
+RUN mkdir -p /app/models /app/cache
+
+# Copy scripts
+COPY ./detect_platform.sh .
+COPY ./utils/ ./utils/
+COPY ./server.py .
+
+# Make scripts executable
+RUN chmod +x detect_platform.sh
+
+# Set as base image
+CMD ["/bin/true"]

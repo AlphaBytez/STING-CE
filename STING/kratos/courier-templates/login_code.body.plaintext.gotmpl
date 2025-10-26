@@ -1,0 +1,27 @@
+<!-- filepath: /Users/captain-wolf/Documents/GitHub/STING-CE/STING/kratos/courier-templates/login_code.body.plaintext.gotmpl -->
+================================================
+STING - Secure Intelligence & Analytics Platform
+================================================
+
+Hi{{if .Identity.traits.name.first}} {{.Identity.traits.name.first}}{{else if .Identity.traits.email}} {{.Identity.traits.email}}{{end}},
+
+You requested to sign in to your STING account using a one-time verification code.
+
+YOUR LOGIN CODE:
+================
+{{.LoginCode}}
+================
+
+⏰ IMPORTANT: This code will expire in 15 minutes.
+
+🔒 SECURITY NOTICE: 
+- Never share this code with anyone
+- STING staff will never ask for your verification code
+- If you didn't request this code, please ignore this email
+
+For help, contact our support team.
+
+Best regards,
+The STING Team
+
+STING - Secure Intelligence & Analytics Platform

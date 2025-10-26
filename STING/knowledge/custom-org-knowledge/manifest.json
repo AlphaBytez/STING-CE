@@ -1,0 +1,52 @@
+{
+  "id": "custom-org-knowledge",
+  "name": "Organization-Specific Knowledge",
+  "description": "Custom documentation and knowledge specific to your organization",
+  "version": "1.0.0", 
+  "category": "organizational",
+  "tags": ["custom", "organization", "policies", "procedures", "team-knowledge"],
+  "honey_jar": {
+    "type": "private",
+    "status": "active",
+    "owner": "admin@sting.local",
+    "permissions": {
+      "read": ["admin", "team_lead", "user"],
+      "write": ["admin", "team_lead"], 
+      "delete": ["admin"]
+    },
+    "config": {
+      "auto_index": true,
+      "chunk_strategy": "contextual",
+      "embedding_model": "all-MiniLM-L6-v2"
+    }
+  },
+  "documents": {
+    "policies": [
+      {
+        "file": "data-handling-policy.md",
+        "title": "Data Handling & Privacy Policy", 
+        "description": "Organization-specific data handling procedures and privacy guidelines",
+        "type": "policy-document",
+        "references": ["privacy", "data-handling", "compliance", "pii"]
+      }
+    ],
+    "procedures": [
+      {
+        "file": "incident-response.md",
+        "title": "Security Incident Response Procedures",
+        "description": "Step-by-step incident response and escalation procedures", 
+        "type": "procedure-guide",
+        "references": ["incident-response", "security", "escalation"]
+      }
+    ],
+    "team-knowledge": [
+      {
+        "file": "team-contacts.md",
+        "title": "Team Contacts & Responsibilities",
+        "description": "Key contacts and responsibility matrix for different systems",
+        "type": "reference-guide", 
+        "references": ["contacts", "responsibilities", "team"]
+      }
+    ]
+  }
+}

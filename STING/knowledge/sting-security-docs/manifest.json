@@ -1,0 +1,50 @@
+{
+  "id": "sting-security-docs",
+  "name": "STING Security Documentation",
+  "description": "Security features, compliance, and PII protection guidance",
+  "version": "1.0.0",
+  "category": "security",
+  "tags": ["security", "compliance", "pii", "encryption", "authentication"],
+  "honey_jar": {
+    "type": "internal",
+    "status": "active",
+    "owner": "admin@sting.local",
+    "permissions": {
+      "read": ["admin", "security_officer"],
+      "write": ["admin"],
+      "delete": ["admin"]
+    },
+    "config": {
+      "auto_index": true,
+      "chunk_strategy": "technical",
+      "embedding_model": "all-MiniLM-L6-v2"
+    }
+  },
+  "documents": {
+    "security": [
+      {
+        "file": "security-architecture.md",
+        "title": "STING Security Architecture",
+        "description": "Overview of security components and data flow",
+        "type": "technical-guide",
+        "references": ["authentication", "encryption", "vault"]
+      },
+      {
+        "file": "pii-compliance-guide.md", 
+        "title": "PII Compliance Framework",
+        "description": "GDPR, HIPAA, CCPA compliance implementation",
+        "type": "compliance-guide",
+        "references": ["gdpr", "hipaa", "ccpa", "pii-detection"]
+      }
+    ],
+    "authentication": [
+      {
+        "file": "webauthn-implementation.md",
+        "title": "WebAuthn & Passkey Implementation",
+        "description": "Passwordless authentication setup and troubleshooting", 
+        "type": "technical-guide",
+        "references": ["kratos", "webauthn", "passkeys"]
+      }
+    ]
+  }
+}
