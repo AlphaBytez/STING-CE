@@ -388,7 +388,7 @@ const AAL2PasskeyVerify = () => {
           throw new Error('Passkey AAL2 not available. Redirecting to TOTP verification...');
         }
 
-        throw new Error('No AAL2 methods available. This might be the Kratos WebAuthn AAL2 bug.');
+        throw new Error('No authentication methods available.');
       }
     } catch (error) {
       console.error('❌ Passkey authentication failed:', error);
