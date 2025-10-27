@@ -90,11 +90,11 @@ services:
       - CMD
       - python3
       - -c
-      - import hvac; import yaml; import requests
+      - import hvac; import yaml; import requests; print('OK')
       interval: ${HEALTH_CHECK_INTERVAL:-5s}
       timeout: ${HEALTH_CHECK_TIMEOUT:-3s}
       retries: 30
-      start_period: ${HEALTH_CHECK_START_PERIOD:-20s}
+      start_period: ${HEALTH_CHECK_START_PERIOD:-45s}
     profiles:
     - installation
     - utils-tools

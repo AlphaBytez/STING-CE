@@ -33,6 +33,24 @@ CORS(nectar_bot_bp, supports_credentials=True)
 def list_nectar_bots():
     """List all Nectar Bots for admin users"""
     try:
+        # Check if NectarBot table exists
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        if 'nectar_bot' not in inspector.get_table_names():
+            # Table doesn't exist yet - return empty list gracefully
+            logger.info("NectarBot table doesn't exist yet - returning empty list")
+            return jsonify({
+                'bots': [],
+                'pagination': {
+                    'page': 1,
+                    'pages': 0,
+                    'per_page': 20,
+                    'total': 0,
+                    'has_next': False,
+                    'has_prev': False
+                }
+            })
+
         # Get user info from various sources
         user_id = None
         user_email = None
@@ -60,11 +78,11 @@ def list_nectar_bots():
             user_id = 'demo-user'  # Fallback for demo
             user_email = 'demo@sting.local'
             is_admin = True  # Allow demo access
-        
+
         # Get pagination parameters
         page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 20, type=int), 100)
-        
+
         # Build query
         if is_admin:
             # Admins can see all bots
@@ -72,34 +90,34 @@ def list_nectar_bots():
         else:
             # Users can only see their own bots
             query = NectarBot.query.filter_by(owner_id=user_id)
-        
+
         # Apply filters
         status_filter = request.args.get('status')
         if status_filter and status_filter in [s.value for s in BotStatus]:
             query = query.filter_by(status=status_filter)
-        
+
         # Search by name
         search = request.args.get('search')
         if search:
             query = query.filter(NectarBot.name.ilike(f'%{search}%'))
-        
+
         # Order by creation date (newest first)
         query = query.order_by(desc(NectarBot.created_at))
-        
+
         # Paginate
         bots = query.paginate(
             page=page,
             per_page=per_page,
             error_out=False
         )
-        
+
         # Convert to dict and include API keys for owners/admins
         bot_list = []
         for bot in bots.items:
             include_api_key = (str(bot.owner_id) == str(user_id)) or is_admin
             bot_dict = bot.to_dict(include_api_key=include_api_key)
             bot_list.append(bot_dict)
-        
+
         return jsonify({
             'bots': bot_list,
             'pagination': {
@@ -111,10 +129,21 @@ def list_nectar_bots():
                 'has_prev': bots.has_prev
             }
         })
-        
+
     except Exception as e:
-        logger.error(f"Error listing Nectar Bots: {str(e)}")
-        return jsonify({'error': 'Failed to list Nectar Bots'}), 500
+        logger.error(f"Error listing Nectar Bots: {str(e)}", exc_info=True)
+        # Return empty list instead of 500 error
+        return jsonify({
+            'bots': [],
+            'pagination': {
+                'page': 1,
+                'pages': 0,
+                'per_page': 20,
+                'total': 0,
+                'has_next': False,
+                'has_prev': False
+            }
+        })
 
 
 @nectar_bot_bp.route('', methods=['POST'])
@@ -516,41 +545,67 @@ def resolve_handoff(handoff_id):
 def get_overview_analytics():
     """Get overview analytics for all bots"""
     try:
+        # Check if NectarBot tables exist
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        tables_exist = (
+            'nectar_bot' in inspector.get_table_names() and
+            'nectar_bot_usage' in inspector.get_table_names() and
+            'nectar_bot_handoff' in inspector.get_table_names()
+        )
+
+        if not tables_exist:
+            # Tables don't exist yet - return empty analytics gracefully
+            logger.info("Nectar Bot tables don't exist yet - returning empty analytics")
+            return jsonify({
+                'period_days': 30,
+                'overview': {
+                    'total_bots': 0,
+                    'active_bots': 0,
+                    'total_messages': 0,
+                    'unique_conversations': 0,
+                    'total_handoffs': 0,
+                    'resolved_handoffs': 0,
+                    'handoff_resolution_rate': 0,
+                    'average_resolution_time_minutes': 0
+                }
+            })
+
         days = request.args.get('days', 30, type=int)
         days = min(days, 365)
-        
+
         since = datetime.utcnow() - timedelta(days=days)
-        
+
         # Total bots
         total_bots = NectarBot.query.count()
         active_bots = NectarBot.query.filter_by(status=BotStatus.ACTIVE.value).count()
-        
+
         # Usage stats
         total_messages = NectarBotUsage.query.filter(
             NectarBotUsage.created_at >= since
         ).count()
-        
+
         unique_conversations = db.session.query(
             func.count(func.distinct(NectarBotUsage.conversation_id))
         ).filter(NectarBotUsage.created_at >= since).scalar() or 0
-        
+
         # Handoff stats
         total_handoffs = NectarBotHandoff.query.filter(
             NectarBotHandoff.created_at >= since
         ).count()
-        
+
         resolved_handoffs = NectarBotHandoff.query.filter(
             NectarBotHandoff.created_at >= since,
             NectarBotHandoff.status == HandoffStatus.RESOLVED.value
         ).count()
-        
+
         avg_resolution_time = db.session.query(
             func.avg(NectarBotHandoff.resolution_time_minutes)
         ).filter(
             NectarBotHandoff.created_at >= since,
             NectarBotHandoff.resolution_time_minutes.isnot(None)
         ).scalar() or 0
-        
+
         return jsonify({
             'period_days': days,
             'overview': {
@@ -564,10 +619,23 @@ def get_overview_analytics():
                 'average_resolution_time_minutes': float(avg_resolution_time) if avg_resolution_time else 0
             }
         })
-        
+
     except Exception as e:
-        logger.error(f"Error getting overview analytics: {str(e)}")
-        return jsonify({'error': 'Failed to get overview analytics'}), 500
+        logger.error(f"Error getting overview analytics: {str(e)}", exc_info=True)
+        # Return empty analytics instead of 500 error
+        return jsonify({
+            'period_days': 30,
+            'overview': {
+                'total_bots': 0,
+                'active_bots': 0,
+                'total_messages': 0,
+                'unique_conversations': 0,
+                'total_handoffs': 0,
+                'resolved_handoffs': 0,
+                'handoff_resolution_rate': 0,
+                'average_resolution_time_minutes': 0
+            }
+        })
 
 
 # ==================== Chat Endpoints ====================

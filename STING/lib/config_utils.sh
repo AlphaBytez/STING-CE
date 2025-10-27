@@ -5,20 +5,48 @@
 # Global function to execute commands in utils container
 exec_in_utils() {
     local cmd="$1"
-    local timeout="${2:-30}"
-    
+    local timeout_duration="${2:-30}"
+
+    # Determine timeout command based on platform
+    local use_timeout=false
+    local timeout_bin=""
+
+    if command -v timeout >/dev/null 2>&1; then
+        # GNU coreutils timeout (Linux)
+        use_timeout=true
+        timeout_bin="timeout"
+    elif command -v gtimeout >/dev/null 2>&1; then
+        # macOS with coreutils installed via brew
+        use_timeout=true
+        timeout_bin="gtimeout"
+    fi
+    # If no timeout available, proceed without it (Docker commands typically fail fast anyway)
+
     # Use direct docker exec for better reliability after container startup
-    if timeout "$timeout" docker exec sting-ce-utils bash -c "$cmd" 2>/dev/null; then
-        return 0
-    else
-        # Fallback to docker compose exec if direct exec fails
-        if timeout "$timeout" docker compose --profile installation exec utils bash -c "$cmd" 2>/dev/null; then
+    if [ "$use_timeout" = true ]; then
+        if $timeout_bin "$timeout_duration" docker exec sting-ce-utils bash -c "$cmd" 2>&1; then
             return 0
         else
-            log_message "Failed to execute in utils container: $cmd" "ERROR"
-            return 1
+            # Fallback to docker compose exec if direct exec fails
+            if $timeout_bin "$timeout_duration" docker compose --profile installation exec utils bash -c "$cmd" 2>&1; then
+                return 0
+            fi
+        fi
+    else
+        # No timeout command available - run directly (macOS default)
+        if docker exec sting-ce-utils bash -c "$cmd" 2>&1; then
+            return 0
+        else
+            # Fallback to docker compose exec if direct exec fails
+            if docker compose --profile installation exec utils bash -c "$cmd" 2>&1; then
+                return 0
+            fi
         fi
     fi
+
+    # If we get here, both attempts failed
+    log_message "Failed to execute in utils container: $cmd" "ERROR"
+    return 1
 }
 
 # Ensure utils container is running and ready
@@ -46,19 +74,64 @@ ensure_utils_container() {
             docker compose --profile installation up -d utils
         fi
     fi
-    
-    # Wait for container to be ready with dependencies
-    while [ $attempt -le $max_attempts ]; do
+
+    # Wait for Docker health check to pass first (more reliable than manual checks)
+    log_message "Waiting for utils container health check..."
+    local health_attempts=0
+    local max_health_attempts=60  # 60 * 5s = 5 minutes max wait
+
+    while [ $health_attempts -lt $max_health_attempts ]; do
+        local health_status=$(docker inspect --format='{{.State.Health.Status}}' sting-ce-utils 2>/dev/null || echo "none")
+
+        if [ "$health_status" = "healthy" ]; then
+            log_message "Utils container is healthy" "SUCCESS"
+
+            # Brief stabilization delay - allow Docker exec to fully initialize
+            log_message "Allowing container exec environment to stabilize..."
+            sleep 5
+
+            # Double-check dependencies are accessible with generous timeout
+            if exec_in_utils "python3 -c 'import hvac; import yaml; import requests; print(\"Dependencies OK\")'" 30; then
+                log_message "Utils container is ready with all dependencies" "SUCCESS"
+                return 0
+            else
+                log_message "First verification attempt failed, retrying in 5 seconds..."
+                sleep 5
+                if exec_in_utils "python3 -c 'import hvac; import yaml; import requests; print(\"Dependencies OK\")'" 30; then
+                    log_message "Utils container is ready with all dependencies" "SUCCESS"
+                    return 0
+                fi
+            fi
+        fi
+
+        if [ "$health_status" = "none" ]; then
+            # Container has no health check configured (shouldn't happen with our setup)
+            log_message "Utils container has no health check, falling back to manual checks..."
+            break
+        fi
+
+        if [ $((health_attempts % 6)) -eq 0 ]; then
+            log_message "Utils container health: $health_status (waiting...)"
+        fi
+
+        sleep 5
+        health_attempts=$((health_attempts + 1))
+    done
+
+    # Fallback: try manual dependency checks if health check approach didn't work
+    log_message "Health check wait exceeded or unavailable, trying manual verification..."
+    attempt=1
+    while [ $attempt -le 10 ]; do
         if exec_in_utils "python3 -c 'import hvac; import yaml; import requests; print(\"Dependencies OK\")'" 10; then
             log_message "Utils container is ready with all dependencies" "SUCCESS"
             return 0
         fi
-        
-        log_message "Waiting for utils container dependencies... (attempt $attempt/$max_attempts)"
-        sleep 2
+
+        log_message "Waiting for utils container dependencies... (manual attempt $attempt/10)"
+        sleep 3
         attempt=$((attempt + 1))
     done
-    
+
     log_message "Utils container did not become ready in time" "ERROR"
     return 1
 }
@@ -148,7 +221,7 @@ validate_config_generation() {
         # Core infrastructure
         "db.env"              # PostgreSQL database
         "vault.env"           # HashiCorp Vault for secrets
-        "redis.env"           # Redis for caching/sessions
+        # Note: Redis configured directly in docker-compose.yml, no env file needed
         
         # Authentication & Security
         "kratos.env"          # Ory Kratos authentication

@@ -13,4 +13,6 @@ RUN pip install --upgrade pip && \
 
 ENV INIT_MODE=development
 
-CMD ["tail", "-f", "/dev/null"]
+# Run warmup script on startup (from mounted volume), then tail to keep container alive
+# If warmup script doesn't exist (e.g., old deployment), skip it gracefully
+CMD ["sh", "-c", "if [ -f /app/utils/warmup.py ]; then python3 /app/utils/warmup.py; fi && tail -f /dev/null"]
