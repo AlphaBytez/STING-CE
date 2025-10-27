@@ -136,10 +136,61 @@ fetch_from_kms() {
 }
 
 
+# Install mkcert for locally-trusted certificates
+install_mkcert() {
+    log_message "Installing mkcert for locally-trusted certificates..."
+
+    if command -v mkcert &> /dev/null; then
+        log_message "mkcert already installed"
+        return 0
+    fi
+
+    if [[ "$(uname)" == "Darwin" ]]; then
+        # macOS installation
+        if command -v brew &> /dev/null; then
+            brew install mkcert nss
+            mkcert -install
+        else
+            log_message "ERROR: Homebrew not found. Please install mkcert manually from: https://github.com/FiloSottile/mkcert"
+            return 1
+        fi
+    else
+        # Linux installation
+        if command -v apt-get &> /dev/null; then
+            # Debian/Ubuntu
+            sudo apt-get update
+            sudo apt-get install -y wget libnss3-tools
+
+            # Download and install mkcert
+            local mkcert_version="v1.4.4"
+            wget -O /tmp/mkcert "https://github.com/FiloSottile/mkcert/releases/download/${mkcert_version}/mkcert-${mkcert_version}-linux-amd64"
+            chmod +x /tmp/mkcert
+            sudo mv /tmp/mkcert /usr/local/bin/mkcert
+            mkcert -install
+        elif command -v yum &> /dev/null; then
+            # RHEL/CentOS
+            sudo yum install -y wget nss-tools
+
+            # Download and install mkcert
+            local mkcert_version="v1.4.4"
+            wget -O /tmp/mkcert "https://github.com/FiloSottile/mkcert/releases/download/${mkcert_version}/mkcert-${mkcert_version}-linux-amd64"
+            chmod +x /tmp/mkcert
+            sudo mv /tmp/mkcert /usr/local/bin/mkcert
+            mkcert -install
+        else
+            log_message "ERROR: Package manager not found. Please install mkcert manually from: https://github.com/FiloSottile/mkcert"
+            return 1
+        fi
+    fi
+
+    log_message "mkcert installed successfully"
+    return 0
+}
+
 # Setup Let's Encrypt for production certificates
 setup_letsencrypt() {
     log_message "Setting up Let's Encrypt..."
-    
+
     # Install certbot if not present
     if ! command -v certbot &> /dev/null; then
         log_message "Installing certbot..."
@@ -177,7 +228,7 @@ setup_letsencrypt() {
             --logs-dir ${cert_base}/logs \
             && docker compose -f ${INSTALL_DIR}/docker-compose.yml restart app frontend") | crontab -
     fi
-    
+
     log_message "Let's Encrypt setup completed"
 }
 
@@ -343,60 +394,130 @@ validate_certificate() {
     fi
 }
 
+# Detect if domain is a local custom domain (not publicly routable)
+is_local_domain() {
+    local domain="$1"
+
+    # Check for common local TLDs
+    if [[ "$domain" =~ \.(local|localhost|test|internal|lan)$ ]]; then
+        return 0
+    fi
+
+    # Check if domain is in /etc/hosts (indicates local override)
+    if grep -q "^[^#]*[[:space:]]${domain}[[:space:]]*$" /etc/hosts 2>/dev/null; then
+        return 0
+    fi
+
+    # Check if it's a bare hostname without dots (local machine name)
+    if [[ ! "$domain" =~ \. ]]; then
+        return 0
+    fi
+
+    return 1
+}
+
 # Generate SSL certificates
 generate_ssl_certs() {
     local domain="${DOMAIN_NAME:-localhost}"
     local email="${CERTBOT_EMAIL:-your-email@example.com}"
     local temp_cert_dir="/tmp/sting_certs"
-    
-    log_message "Setting up SSL certificates..."
-    
+
+    log_message "Setting up SSL certificates for domain: $domain"
+
     # Create temp directory and ensure it's clean
     rm -rf "${temp_cert_dir}"
     mkdir -p "${temp_cert_dir}"
-    
+    mkdir -p "${INSTALL_DIR}/certs"
+
+    # Determine certificate generation method based on domain type
     if [ "$domain" == "localhost" ]; then
-        log_message "Generating self-signed certificates for local development..."
-        # Generate directly with proper names
+        # Standard localhost - use self-signed (browsers have exception for localhost)
+        log_message "Generating self-signed certificates for localhost..."
         openssl req -x509 -newkey rsa:4096 -nodes \
             -out "${temp_cert_dir}/server.crt" \
             -keyout "${temp_cert_dir}/server.key" \
             -days 365 \
             -subj "/C=US/ST=State/L=City/O=STING/CN=localhost"
-            
-        # Verify files exist before copying
-        if [ ! -f "${temp_cert_dir}/server.crt" ] || [ ! -f "${temp_cert_dir}/server.key" ]; then
-            log_message "ERROR: Certificate generation failed"
-            return 1
+
+    elif is_local_domain "$domain"; then
+        # Local custom domain (e.g., sting.local) - use mkcert for browser trust
+        log_message "Detected local custom domain: $domain"
+        log_message "Using mkcert to generate locally-trusted certificates..."
+
+        # Install mkcert if not present
+        if ! command -v mkcert &> /dev/null; then
+            log_message "mkcert not found, installing..."
+            install_mkcert || {
+                log_message "WARNING: mkcert installation failed, falling back to self-signed"
+                log_message "NOTE: WebAuthn/Passkeys may not work with self-signed certificates"
+                openssl req -x509 -newkey rsa:4096 -nodes \
+                    -out "${temp_cert_dir}/server.crt" \
+                    -keyout "${temp_cert_dir}/server.key" \
+                    -days 365 \
+                    -subj "/C=US/ST=State/L=City/O=STING/CN=${domain}"
+            }
         fi
-        
-        # Copy to install directory first
-        mkdir -p "${INSTALL_DIR}/certs"
-        cp "${temp_cert_dir}/server.crt" "${INSTALL_DIR}/certs/"
-        cp "${temp_cert_dir}/server.key" "${INSTALL_DIR}/certs/"
-        chmod 644 "${INSTALL_DIR}/certs/server.crt"
-        chmod 600 "${INSTALL_DIR}/certs/server.key"
-        log_message "SSL certificates copied to ${INSTALL_DIR}/certs"
-        
-        # Apply WSL2 Docker fixes if needed before pulling alpine image
-        if [ -f "${SCRIPT_DIR}/docker_wsl_fix.sh" ]; then
-            source "${SCRIPT_DIR}/docker_wsl_fix.sh"
-            fix_docker_credential_helper >/dev/null 2>&1
+
+        if command -v mkcert &> /dev/null; then
+            # Generate locally-trusted certificates with mkcert
+            cd "${temp_cert_dir}"
+            mkcert -cert-file server.crt -key-file server.key "$domain" "*.${domain}" || {
+                log_message "ERROR: mkcert certificate generation failed"
+                return 1
+            }
+            log_message "✅ Generated locally-trusted certificates with mkcert"
+            log_message "NOTE: These certificates are trusted by your system's browsers"
         fi
-        
-        # Copy files to Docker volume
-        docker run --rm -v sting_certs:/certs -v ${temp_cert_dir}:/source alpine sh -c \
-            "mkdir -p /certs && \
-             cp /source/server.crt /certs/ && \
-             cp /source/server.key /certs/ && \
-             chmod 644 /certs/server.crt && \
-             chmod 600 /certs/server.key"
-        log_message "SSL certificates copied to Docker volume"
+
+    else
+        # Public domain - use Let's Encrypt
+        log_message "Detected public domain: $domain"
+        log_message "Setting up Let's Encrypt for production certificates..."
+
+        # Note: Let's Encrypt setup requires additional configuration
+        # For now, fall back to self-signed and warn user
+        log_message "WARNING: Let's Encrypt requires additional setup (DNS, port 80 access)"
+        log_message "Generating self-signed certificates as fallback..."
+        log_message "For production, please configure Let's Encrypt manually"
+
+        openssl req -x509 -newkey rsa:4096 -nodes \
+            -out "${temp_cert_dir}/server.crt" \
+            -keyout "${temp_cert_dir}/server.key" \
+            -days 365 \
+            -subj "/C=US/ST=State/L=City/O=STING/CN=${domain}"
     fi
-    
+
+    # Verify files exist before copying
+    if [ ! -f "${temp_cert_dir}/server.crt" ] || [ ! -f "${temp_cert_dir}/server.key" ]; then
+        log_message "ERROR: Certificate generation failed"
+        return 1
+    fi
+
+    # Copy to install directory first
+    cp "${temp_cert_dir}/server.crt" "${INSTALL_DIR}/certs/"
+    cp "${temp_cert_dir}/server.key" "${INSTALL_DIR}/certs/"
+    chmod 644 "${INSTALL_DIR}/certs/server.crt"
+    chmod 600 "${INSTALL_DIR}/certs/server.key"
+    log_message "SSL certificates copied to ${INSTALL_DIR}/certs"
+
+    # Apply WSL2 Docker fixes if needed before pulling alpine image
+    if [ -f "${SCRIPT_DIR}/docker_wsl_fix.sh" ]; then
+        source "${SCRIPT_DIR}/docker_wsl_fix.sh"
+        fix_docker_credential_helper >/dev/null 2>&1
+    fi
+
+    # Copy files to Docker volume
+    docker run --rm -v sting_certs:/certs -v ${temp_cert_dir}:/source alpine sh -c \
+        "mkdir -p /certs && \
+         cp /source/server.crt /certs/ && \
+         cp /source/server.key /certs/ && \
+         chmod 644 /certs/server.crt && \
+         chmod 600 /certs/server.key"
+    log_message "SSL certificates copied to Docker volume"
+
     # Verify the copy worked
     docker run --rm -v sting_certs:/certs alpine ls -la /certs
-    
+
     # Cleanup
     rm -rf "${temp_cert_dir}"
     log_message "SSL certificates installation complete"

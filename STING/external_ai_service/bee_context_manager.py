@@ -394,8 +394,8 @@ class BeeContextManager:
     async def load_bee_system_prompt(self) -> str:
         """Load the actual Bee system prompt from the container"""
         try:
-            # In Docker container, the system prompt is copied to /app/bee_system_prompt_phi4.txt
-            container_path = Path(__file__).parent / "bee_system_prompt_phi4.txt"
+            # In Docker container, the system prompt is copied to /app/bee_system_prompt.txt
+            container_path = Path(__file__).parent / "bee_system_prompt.txt"
             if container_path.exists():
                 system_prompt = container_path.read_text(encoding='utf-8')
                 logger.info(f"Loaded Bee system prompt from {container_path}")

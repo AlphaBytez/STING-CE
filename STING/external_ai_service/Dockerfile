@@ -16,7 +16,7 @@ COPY ./external_ai_service/app.py .
 COPY ./external_ai_service/llm_queue_manager.py .
 COPY ./external_ai_service/bee_context_manager.py .
 COPY ./external_ai_service/bee_brain_v2.0.0_phi4.md .
-COPY ./external_ai_service/bee_system_prompt_phi4.txt .
+COPY ./external_ai_service/bee_system_prompt.txt .
 
 # Copy PII middleware
 COPY ./app/middleware /app/app/middleware
