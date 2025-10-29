@@ -6,27 +6,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/core.sh"
 source "${SCRIPT_DIR}/logging.sh"
 
-# Check SuperTokens health status
-check_supertokens_health() {
-    log_message "Checking Supertokens health..."
-    local max_attempts=30
-    local attempt=1
-    
-    while [ $attempt -le $max_attempts ]; do
-        if curl -s "http://localhost:3567/health" | grep -q "OK"; then
-            log_message "Supertokens is healthy"
-            return 0
-        fi
-        log_message "Waiting for Supertokens... attempt $attempt/$max_attempts"
-        sleep 1
-        attempt=$((attempt + 1))
-    done
-    
-    log_message "ERROR: Supertokens failed to become healthy"
-    return 1
-}
-
-
 # Verify database credentials are properly set
 verify_db_credentials() {
     log_message "Verifying database credentials..."

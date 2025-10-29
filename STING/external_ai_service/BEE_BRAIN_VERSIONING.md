@@ -65,7 +65,7 @@ Each bee_brain includes compatibility metadata:
 1. Try exact version match (1.0.0 → bee_brain_v1.0.0.json)
 2. Try latest compatible major version (1.x → latest 1.x bee_brain)
 3. Check compatibility matrix
-4. Fall back to legacy bee_brain_v2.0.0_phi4.md
+4. Fall back to legacy bee_brain_v2.0.0.md
 ```
 
 ## Usage
@@ -341,7 +341,7 @@ Existing systems will automatically use the new versioning system when available
 
 1. **First run**: Generates `bee_brain_v1.0.0.json` from current docs
 2. **Loads versioned brain**: BeeBrainManager takes over
-3. **Fallback**: If any issues, uses legacy `bee_brain_v2.0.0_phi4.md`
+3. **Fallback**: If any issues, uses legacy `bee_brain_v2.0.0.md`
 
 **No action required** - migration is automatic!
 

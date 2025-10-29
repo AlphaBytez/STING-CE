@@ -127,18 +127,14 @@ copy_files_to_install_dir() {
     local chown_success=false
 
     if [[ "$(uname)" == "Darwin" ]]; then
-        # macOS: Test credentials first, DON'T use -n flag (it hangs)
-        if sudo -n true 2>/dev/null; then
-            # Credentials valid, proceed with chown
-            if sudo chown -R "$target_user:$target_group" "$dest_dir" 2>/dev/null; then
-                chown_success=true
-                log_message "✓ Ownership set successfully"
-            else
-                log_message "WARNING: Ownership change failed (non-critical)"
-            fi
+        # macOS: Installing to user's home directory, no sudo needed
+        # Use regular chown without sudo (user already owns ~/.sting-ce)
+        if chown -R "$target_user:$target_group" "$dest_dir" 2>/dev/null; then
+            chown_success=true
+            log_message "✓ Ownership set successfully"
         else
-            # Credentials expired - skip ownership change on macOS (user owns ~/.sting-ce anyway)
-            log_message "⚠️  Skipping ownership change (sudo expired, but $dest_dir is already user-owned)"
+            # If regular chown fails, it's non-critical (files already owned by user)
+            log_message "⚠️  Ownership already correct (files owned by $target_user)"
             chown_success=true  # Not critical on macOS since installing to home dir
         fi
     else
@@ -902,8 +898,8 @@ exec \"\$INSTALL_DIR/manage_sting.sh\" \"\$@\"
 "
         if echo "$wrapper_content" > /tmp/msting_wrapper 2>/dev/null; then
             if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-                sudo cp /tmp/msting_wrapper /usr/local/bin/msting
-                sudo chmod +x /usr/local/bin/msting
+                sudo -n cp /tmp/msting_wrapper /usr/local/bin/msting 2>/dev/null
+                sudo -n chmod +x /usr/local/bin/msting 2>/dev/null
                 rm -f /tmp/msting_wrapper
                 log_message "  ✓ msting wrapper command"
             else

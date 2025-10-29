@@ -448,6 +448,141 @@ def update_beechat_preferences():
         logger.error(f"Error updating BeeChat preferences: {str(e)}")
         return jsonify({'error': 'Failed to update BeeChat preferences'}), 500
 
+@user_bp.route('/pii-indicator-preferences', methods=['GET'])
+def get_pii_indicator_preferences():
+    """Get user's PII visual indicator preferences"""
+    try:
+        # Get user ID from session/auth (placeholder for CE edition)
+        # In production, get from auth middleware
+        user_id = request.args.get('user_id', 'default_user')
+
+        # Get system defaults from config
+        from app import app as flask_app
+        system_config = flask_app.config.get('SECURITY_CONFIG', {})
+        visual_config = system_config.get('message_pii_protection', {}).get('visual_indicators', {})
+
+        # Get user overrides from database
+        from app.models.user_settings import UserSettings
+        user_settings = UserSettings.query.filter_by(user_id=user_id).first()
+
+        user_prefs = {}
+        if user_settings and user_settings.ui_preferences:
+            user_prefs = user_settings.ui_preferences.get('pii_visual_indicators', {})
+
+        # Merge system defaults with user overrides
+        preferences = {
+            'enabled': user_prefs.get('enabled', visual_config.get('enabled', True)),
+            'show_protection_badge': user_prefs.get('show_protection_badge',
+                                                    visual_config.get('show_protection_badge', True)),
+            'badge_position': user_prefs.get('badge_position',
+                                            visual_config.get('badge_position', 'corner')),
+            'colors': user_prefs.get('colors', visual_config.get('colors', {
+                'low_risk': '#2196F3',
+                'medium_risk': '#ff9800',
+                'high_risk': '#ef5350'
+            })),
+            'underline_style': user_prefs.get('underline_style',
+                                             visual_config.get('underline_style', 'dotted')),
+            'underline_thickness': user_prefs.get('underline_thickness',
+                                                  visual_config.get('underline_thickness', 2)),
+            'tooltips': user_prefs.get('tooltips', visual_config.get('tooltips', {
+                'enabled': True,
+                'show_pii_type': True,
+                'show_risk_level': True,
+                'show_protection_icon': True,
+                'delay_ms': 200
+            })),
+            'customizable_fields': visual_config.get('user_customizable', {
+                'can_disable': True,
+                'can_change_colors': False,
+                'can_adjust_sensitivity': False
+            }),
+            'accessibility': visual_config.get('accessibility', {
+                'high_contrast_mode': False,
+                'screen_reader_announcements': True,
+                'keyboard_navigation': True
+            })
+        }
+
+        return jsonify({
+            'success': True,
+            'preferences': preferences,
+            'source': 'user_override' if user_prefs else 'system_default'
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting PII indicator preferences: {str(e)}")
+        return jsonify({'error': 'Failed to get PII indicator preferences'}), 500
+
+@user_bp.route('/pii-indicator-preferences', methods=['POST'])
+def update_pii_indicator_preferences():
+    """Update user's PII visual indicator preferences"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id', 'default_user')
+
+        # Get system configuration to check what's customizable
+        from app import app as flask_app
+        system_config = flask_app.config.get('SECURITY_CONFIG', {})
+        visual_config = system_config.get('message_pii_protection', {}).get('visual_indicators', {})
+        customizable = visual_config.get('user_customizable', {})
+
+        # Validate what user can customize
+        allowed_updates = {}
+
+        if customizable.get('can_disable', True):
+            if 'enabled' in data:
+                allowed_updates['enabled'] = data['enabled']
+            if 'show_protection_badge' in data:
+                allowed_updates['show_protection_badge'] = data['show_protection_badge']
+            if 'badge_position' in data:
+                allowed_updates['badge_position'] = data['badge_position']
+
+        if customizable.get('can_change_colors', False):
+            if 'colors' in data:
+                allowed_updates['colors'] = data['colors']
+
+        # Always allow accessibility preferences
+        if 'accessibility' in data:
+            allowed_updates['accessibility'] = data['accessibility']
+
+        # Store in database
+        from app.models.user_settings import UserSettings
+        from app import db
+
+        user_settings = UserSettings.query.filter_by(user_id=user_id).first()
+        if not user_settings:
+            # Create new user settings
+            user_settings = UserSettings(
+                user_id=user_id,
+                email=data.get('email', 'user@sting.local'),
+                role='user'
+            )
+            db.session.add(user_settings)
+
+        # Update ui_preferences JSON field
+        current_prefs = user_settings.ui_preferences or {}
+        current_prefs['pii_visual_indicators'] = allowed_updates
+        user_settings.ui_preferences = current_prefs
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'PII visual indicator preferences updated',
+            'updated_fields': list(allowed_updates.keys()),
+            'locked_fields': [
+                field for field in ['colors', 'sensitivity']
+                if not customizable.get(f'can_change_{field}', False)
+            ]
+        })
+
+    except Exception as e:
+        logger.error(f"Error updating PII indicator preferences: {str(e)}")
+        from app import db
+        db.session.rollback()
+        return jsonify({'error': 'Failed to update PII indicator preferences'}), 500
+
 # Error handlers
 @user_bp.errorhandler(404)
 def not_found(error):

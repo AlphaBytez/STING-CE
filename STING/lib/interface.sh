@@ -31,22 +31,26 @@ check_admin_creation_privileges() {
     if [[ $EUID -eq 0 ]]; then
         return 0
     fi
-    
+
     # Check if user is in sudo group and can run sudo
     if groups "$USER" | grep -q '\bsudo\b\|wheel\b\|admin\b' 2>/dev/null; then
-        # Verify sudo access without prompting for password if possible
-        if sudo -n true 2>/dev/null; then
-            return 0
+        # Verify sudo access without prompting for password
+        if ! sudo -n true 2>/dev/null; then
+            # Prompt for sudo authentication only if sudo is required
+            log_message "🔐 Admin creation requires sudo privileges for security" "WARNING"
+            log_message "Please authenticate to continue..." "INFO"
+            if ! sudo -v; then
+                # Sudo authentication failed or was interrupted
+                log_message "❌ SECURITY: Admin creation denied - insufficient privileges" "ERROR"
+                log_message "⚠️  This operation requires root or sudo access for security reasons" "ERROR"
+                log_message "💡 Solution: Run as root or ensure your user is in the sudo group" "INFO"
+                return 1
+            fi
         fi
-        
-        # Prompt for sudo authentication
-        log_message "🔐 Admin creation requires sudo privileges for security" "WARNING"
-        log_message "Please authenticate to continue..." "INFO"
-        if sudo -v; then
-            return 0
-        fi
+        return 0 # Sudo authentication successful or not required
+
     fi
-    
+
     # Access denied
     log_message "❌ SECURITY: Admin creation denied - insufficient privileges" "ERROR"
     log_message "⚠️  This operation requires root or sudo access for security reasons" "ERROR"

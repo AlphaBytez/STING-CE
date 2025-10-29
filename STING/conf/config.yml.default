@@ -42,12 +42,159 @@ security:
     aal2_session_timeout: "8h"
   message_pii_protection:
     enabled: true
+
+    # Serialization settings
     serialization:
       enabled: true
-      redis_db: 3
+      redis_db: 3  # Dedicated Redis DB for PII cache
+      token_format: "${EntityType}{Instance}_{PIIType}_hash"
+
+      # Cache TTL management
       cache_ttl:
-        default: 300
-        on_error: 3600
+        default: 300  # 5 minutes
+        on_error: 3600  # 1 hour
+        max_per_user: 50
+        max_total_size_mb: 50
+
+      # Cleanup strategy
+      cleanup:
+        strategy: "lru"
+        run_interval: 300
+        force_cleanup_threshold: 0.9
+
+    # Mode-specific settings
+    modes:
+      # Local - minimal protection for localhost AI
+      local:
+        applies_to:
+          - "ollama_local"
+        protection_level: "minimal"
+        enabled: false
+        pii_types:
+          - "ssn"
+          - "credit_card"
+          - "bank_account"
+
+      # External - strict protection for cloud AI services
+      external:
+        applies_to:
+          - "openai"
+          - "anthropic"
+          - "external_ollama"
+        protection_level: "strict"
+        enabled: true
+        pii_types:
+          - "person_name"
+          - "email"
+          - "phone"
+          - "ssn"
+          - "credit_card"
+          - "bank_account"
+          - "address"
+          - "ip_address"
+          - "medical_record"
+          - "account_number"
+          - "date_of_birth"
+
+      # Trusted Network - relaxed protection for LAN/VPN AI
+      trusted:
+        applies_to:
+          - "lm_studio"
+          - "local_network"
+          - "tailscale"
+        protection_level: "relaxed"
+        enabled: false
+        pii_types:
+          - "ssn"
+          - "credit_card"
+          - "bank_account"
+          - "medical_record"
+          - "drivers_license"
+          - "passport"
+
+      # Report - selective protection for analytical reports
+      report:
+        applies_to:
+          - "report_generation"
+        protection_level: "selective"
+        enabled: true
+        pii_types:
+          - "ssn"
+          - "credit_card"
+          - "bank_account"
+          - "medical_record"
+          - "drivers_license"
+          - "passport"
+
+    # Network-based mode detection
+    auto_mode_detection:
+      enabled: true
+      trusted_networks:
+        - "127.0.0.0/8"
+        - "10.0.0.0/8"
+        - "172.16.0.0/12"
+        - "192.168.0.0/16"
+        - "100.64.0.0/10"  # Tailscale/CGNAT
+      trusted_domains:
+        - "localhost"
+        - "*.local"
+        - "*.lan"
+        - "*.tailscale"
+      fallback_mode: "external"
+
+    # Request-level PII overrides
+    request_overrides:
+      enabled: true
+      require_header: "X-STING-PII-Override"
+      allowed_roles:
+        - "admin"
+        - "analyst"
+        - "developer"
+      log_overrides: true
+
+    # Audit and compliance logging
+    audit:
+      log_serialization_events: true
+      log_deserialization_events: true
+      log_cache_operations: false
+      include_token_mappings: false
+      retention_days: 90
+
+    # Performance tuning
+    performance:
+      async_serialization: true
+      batch_deserialize: true
+      cache_warming: false
+
+    # Visual Indicators
+    visual_indicators:
+      enabled: true
+      show_protection_badge: true
+      badge_position: "corner"
+      colors:
+        low_risk: "#2196F3"
+        medium_risk: "#ff9800"
+        high_risk: "#ef5350"
+      underline_style: "dotted"
+      underline_thickness: 2
+      tooltips:
+        enabled: true
+        show_pii_type: true
+        show_risk_level: true
+        show_protection_icon: true
+        delay_ms: 200
+      admin_features:
+        show_token_id: false
+        show_source: false
+        show_confidence_score: false
+      user_customizable:
+        can_disable: true
+        can_change_colors: false
+        can_adjust_sensitivity: false
+      accessibility:
+        high_contrast_mode: false
+        screen_reader_announcements: true
+        keyboard_navigation: true
 
 # Vault Configuration
 vault:
@@ -83,11 +230,11 @@ email:
     port: 1025
   production:
     provider: "${SMTP_PROVIDER:-smtp}"
-    host: "${SMTP_HOST}"
-    port: "${SMTP_PORT:-587}"
+    host: "${SMTP_HOST:-mailpit}"      # Default to mailpit for development
+    port: "${SMTP_PORT:-1025}"          # Mailpit SMTP port (use 587 for real SMTP)
     use_tls: true
-    username: "${SMTP_USERNAME}"
-    from_address: "${SMTP_FROM_ADDRESS}"
+    username: "${SMTP_USERNAME:-}"      # Empty for mailpit (no auth needed)
+    from_address: "${SMTP_FROM_ADDRESS:-noreply@yourdomain.com}"
 
 # AI Services Configuration
 ai:

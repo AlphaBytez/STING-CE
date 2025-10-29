@@ -675,7 +675,7 @@ reinstall_msting() {
     echo ""
     log_message "📌 IMPORTANT: If you encounter permission errors with 'msting' commands:" "WARNING"
     log_message "   Please run the permission fix script after installation:"
-    log_message "   ./fix_permissions.sh"
+    log_message "   STING/fix_permissions.sh"
     echo ""
     
     return 0
@@ -1118,6 +1118,11 @@ check_and_install_dependencies() {
             log_message "Visit: https://brew.sh" "ERROR"
             return 1
         fi
+        
+        # Tell Homebrew to use non-interactive sudo (avoid TouchID prompts)
+        # This works because we've already authenticated sudo in install_sting.sh
+        export HOMEBREW_NO_INTERACTIVE=1
+        export HOMEBREW_NO_ENV_HINTS=1
         
         # Check and install libmagic
         if ! brew list libmagic >/dev/null 2>&1; then
@@ -2280,7 +2285,8 @@ validate_auth_config_consistency() {
     fi
 
     # 3. Verify WebAuthn RP ID matches configured hostname
-    local rp_id=$(grep -A5 "rp:" "${INSTALL_DIR}/kratos/kratos.yml" | grep "id:" | head -1 | awk '{print $2}')
+    # Use more specific pattern to match webauthn rp: section only
+    local rp_id=$(grep -A20 "webauthn:" "${INSTALL_DIR}/kratos/kratos.yml" | grep -A10 "rp:" | grep "id:" | head -1 | awk '{print $2}' | tr -d '"' | tr -d "'")
     if [ -z "$rp_id" ]; then
         errors+=("❌ WebAuthn RP ID not found in Kratos config")
     elif [ "$rp_id" != "$hostname" ]; then
@@ -2293,7 +2299,7 @@ validate_auth_config_consistency() {
     fi
 
     # 4. Verify WebAuthn origins include the hostname
-    if ! grep -A10 "rp:" "${INSTALL_DIR}/kratos/kratos.yml" | grep "origins:" -A5 | grep -q "$hostname"; then
+    if ! grep -A20 "webauthn:" "${INSTALL_DIR}/kratos/kratos.yml" | grep -A10 "rp:" | grep "origins:" -A5 | grep -q "$hostname"; then
         errors+=("❌ WebAuthn origins don't include hostname '$hostname'")
     else
         log_message "   ✅ WebAuthn origins configured correctly"
@@ -3080,17 +3086,20 @@ build_and_start_services() {
     if [ -f "${INSTALL_DIR}/env/headscale.env" ]; then
         source "${INSTALL_DIR}/env/headscale.env" 2>/dev/null || true
         if [ "${HEADSCALE_ENABLED}" = "true" ]; then
-            log_message "Starting Headscale support tunnel service..."
-            # Start headscale using support-tunnels profile
-            docker compose --profile support-tunnels up -d headscale
-            
-            # Make headscale non-critical for installation success
-            if ! wait_for_service headscale; then
-                log_message "WARNING: Headscale failed to start. Support tunnels will not be available." "WARNING"
-                log_message "You can start it later with: ./manage_sting.sh start headscale"
-                # Don't return failure - allow installation to continue
+            # Check if headscale service exists in compose file
+            if [ -f "${INSTALL_DIR}/docker-compose.full.yml" ] && \
+               docker compose -f "${INSTALL_DIR}/docker-compose.full.yml" config --services 2>/dev/null | grep -q "^headscale$"; then
+                log_message "Starting Headscale support tunnel service..."
+                docker compose -f "${INSTALL_DIR}/docker-compose.full.yml" --profile support-tunnels up -d headscale
+
+                # Make headscale non-critical for installation success
+                if ! wait_for_service headscale; then
+                    log_message "WARNING: Headscale failed to start. Support tunnels will not be available." "WARNING"
+                    log_message "You can start it later with: ./manage_sting.sh start headscale"
+                fi
             else
-                log_message "Headscale support tunnel service started successfully"
+                log_message "Headscale service not available in this edition (requires docker-compose.full.yml)" "INFO"
+                log_message "This is expected for Community Edition installs using standard compose file"
             fi
         else
             log_message "Headscale disabled in configuration, skipping support tunnel service"

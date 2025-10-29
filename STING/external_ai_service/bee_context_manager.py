@@ -29,7 +29,7 @@ class BeeContextManager:
         except Exception as e:
             logger.warning(f"Could not load BeeBrainManager, falling back to legacy: {e}")
             # Fallback to legacy brain
-            self.brain_path = Path(__file__).parent / "bee_brain_v2.0.0_phi4.md"
+            self.brain_path = Path(__file__).parent / "bee_brain_v2.0.0.md"
             self.use_versioned_brain = False
 
         # NEW: Initialize conversation cache for memory

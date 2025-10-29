@@ -33,10 +33,13 @@ import sys
 # Add middleware directory to path to avoid app.py vs app package conflict
 sys.path.insert(0, '/app/app/middleware')
 try:
-    from pii_serialization import PIIMiddleware
+    from pii_serialization import PIIMiddleware, EnhancedDeserializer, ImprovedCacheManager, ModeDetector
 except Exception as e:
     logger.warning(f"Failed to load PII middleware: {e}")
     PIIMiddleware = None
+    EnhancedDeserializer = None
+    ImprovedCacheManager = None
+    ModeDetector = None
 
 # Get CORS origins from environment or use defaults
 CORS_ORIGINS = os.getenv('CORS_ORIGINS', '').split(',') if os.getenv('CORS_ORIGINS') else [
@@ -287,17 +290,36 @@ queue_manager = LLMQueueManager()
 # Initialize Bee Context Manager
 bee_context_manager = BeeContextManager()
 
-# Initialize PII Middleware
+# Initialize PII Middleware (basic initialization, enhanced components added in startup_event)
 pii_middleware = None
+mode_detector = None
+app_config = None  # Store config for startup event
+llm_config = {}   # Store LLM configuration (max_tokens, temperature, etc.)
 if PIIMiddleware is not None:
     try:
         import yaml
         config_path = os.getenv("CONFIG_PATH", "/app/conf/config.yml")
         if os.path.exists(config_path):
             with open(config_path, 'r') as f:
-                config = yaml.safe_load(f)
-                pii_middleware = PIIMiddleware(config.get('security', {}))
-                logger.info("PII middleware initialized successfully")
+                app_config = yaml.safe_load(f)
+                security_config = app_config.get('security', {})
+                pii_middleware = PIIMiddleware(security_config)
+
+                # Load LLM configuration for Bee chat
+                conversation_config = security_config.get('conversation', {})
+                llm_config.update({
+                    'max_tokens': conversation_config.get('max_tokens', 4096),
+                    'temperature': conversation_config.get('temperature', 0.7),
+                })
+                logger.info(f"LLM config loaded: max_tokens={llm_config['max_tokens']}, temperature={llm_config['temperature']}")
+
+                # Initialize mode detector for intelligent PII protection mode selection
+                if ModeDetector is not None:
+                    pii_config = security_config.get('message_pii_protection', {})
+                    mode_detector = ModeDetector(pii_config)
+                    logger.info("PII mode detector initialized (auto-detection enabled)")
+
+                logger.info("PII middleware initialized (will upgrade to enhanced mode in startup)")
         else:
             logger.warning(f"Config file not found at {config_path}, PII middleware disabled")
     except Exception as e:
@@ -329,6 +351,121 @@ async def health_check():
         "indexing": False,
         "timestamp": datetime.now().isoformat()
     }
+
+@app.get("/api/pii/diagnostics")
+async def pii_diagnostics():
+    """
+    PII Protection System Health and Diagnostics Endpoint
+
+    Returns comprehensive diagnostics about the PII protection system including:
+    - Cache performance metrics (hit rate, misses, errors)
+    - Redis connection status
+    - System health score
+    - Operational recommendations
+
+    This endpoint is critical for enterprise audit compliance and monitoring.
+    """
+    if not pii_middleware:
+        return {
+            "status": "disabled",
+            "message": "PII protection middleware not loaded",
+            "timestamp": datetime.now().isoformat()
+        }
+
+    # Check if enhanced deserializer is available
+    if isinstance(getattr(pii_middleware, 'deserializer', None), EnhancedDeserializer):
+        # Get comprehensive diagnostics from enhanced components
+        deserializer = pii_middleware.deserializer
+        cache_manager = pii_middleware.cache_manager
+
+        # Get cache diagnostics
+        if hasattr(cache_manager, 'get_diagnostics'):
+            cache_diagnostics = cache_manager.get_diagnostics()
+            cache_stats = cache_diagnostics.get('cache_stats', {})
+
+            # Calculate health metrics
+            total_requests = cache_stats.get('hits', 0) + cache_stats.get('misses', 0)
+            if total_requests > 0:
+                hit_rate = cache_stats.get('hits', 0) / total_requests
+                health_score = "healthy" if hit_rate > 0.8 else "degraded" if hit_rate > 0.5 else "unhealthy"
+            else:
+                hit_rate = 0
+                health_score = "no_data"
+
+            # Generate recommendations
+            recommendations = []
+            if cache_stats.get('misses', 0) > cache_stats.get('hits', 0):
+                recommendations.append("High cache miss rate - consider increasing TTL in config.yml (current: 300s)")
+            if cache_stats.get('errors', 0) > 10:
+                recommendations.append("Redis connection issues detected - check Redis connectivity and logs")
+            if cache_stats.get('fallback_used', 0) > 100:
+                recommendations.append("Heavy fallback usage - Redis may be unavailable or overloaded")
+            if cache_diagnostics.get('local_cache_size', 0) > 1000:
+                recommendations.append("Large local cache - consider increasing Redis stability")
+
+            # Get mode detection info
+            mode_detection_info = None
+            if mode_detector:
+                # Detect mode for current Ollama endpoint
+                detected_mode, mode_config = mode_detector.detect_mode(
+                    endpoint_url=OLLAMA_BASE_URL,
+                    provider="ollama",
+                    context="chat"
+                )
+                mode_detection_info = {
+                    "enabled": mode_detector.auto_detection_config.get('enabled', False),
+                    "current_endpoint": OLLAMA_BASE_URL,
+                    "detected_mode": detected_mode,
+                    "protection_level": mode_config.get('protection_level', 'unknown'),
+                    "mode_enabled": mode_config.get('enabled', False),
+                    "protected_pii_types": mode_config.get('pii_types', []),
+                    "detection_method": "auto_detected" if mode_detector.auto_detection_config.get('enabled') else "manual_config",
+                    "fallback_mode": mode_detector.auto_detection_config.get('fallback_mode', 'external'),
+                    "trusted_networks": mode_detector.auto_detection_config.get('trusted_networks', []),
+                    "request_overrides_enabled": mode_detector.override_config.get('enabled', False)
+                }
+
+            return {
+                "status": health_score,
+                "hit_rate": round(hit_rate, 3),
+                "cache_diagnostics": cache_diagnostics,
+                "deserializer_diagnostics": deserializer.diagnostics,
+                "mode_detection": mode_detection_info,
+                "recommendations": recommendations,
+                "enhanced_mode": True,
+                "features": {
+                    "position_tracking": True,
+                    "visual_indicators": True,
+                    "fallback_cache": True,
+                    "diagnostics": True,
+                    "intelligent_mode_detection": mode_detector is not None
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            # Enhanced deserializer but no full diagnostics
+            return {
+                "status": "enhanced_basic",
+                "message": "Enhanced deserializer active but cache diagnostics unavailable",
+                "deserializer_diagnostics": deserializer.diagnostics,
+                "enhanced_mode": True,
+                "timestamp": datetime.now().isoformat()
+            }
+    else:
+        # Basic middleware without enhanced features
+        return {
+            "status": "basic",
+            "message": "Basic PII middleware active (no position tracking or visual indicators)",
+            "enhanced_mode": False,
+            "features": {
+                "position_tracking": False,
+                "visual_indicators": False,
+                "fallback_cache": False,
+                "diagnostics": False
+            },
+            "recommendation": "Restart service to enable enhanced PII features with visual indicators",
+            "timestamp": datetime.now().isoformat()
+        }
 
 @app.get("/providers")
 async def get_providers():
@@ -547,14 +684,26 @@ Include relevant security considerations where applicable.
 
             # PII Protection: Serialize before sending to LLM
             pii_context = {}
+            protection_mode = "external"  # Default fallback
             if pii_middleware:
                 try:
+                    # Intelligent mode detection based on endpoint and context
+                    if mode_detector:
+                        protection_mode, mode_config = mode_detector.detect_mode(
+                            endpoint_url=OLLAMA_BASE_URL,
+                            provider="ollama",
+                            context="report",  # Report context uses selective protection
+                            user_role=request.user_role or "user"
+                        )
+                        logger.info(f"PII protection mode for report: {protection_mode} (level: {mode_config.get('protection_level')})")
+
                     report_prompt, pii_context = await pii_middleware.serialize_message(
                         message=report_prompt,
                         conversation_id=request.conversation_id or f"conv_{int(datetime.now().timestamp())}",
                         user_id=request.user_id,
-                        mode="external"  # Use external mode for strict protection
+                        mode=protection_mode
                     )
+                    pii_context['protection_mode'] = protection_mode  # Add mode info to context
                 except Exception as e:
                     logger.error(f"PII serialization failed: {e}")
                     # Continue without serialization on error
@@ -574,16 +723,46 @@ Include relevant security considerations where applicable.
             clean_response = re.sub(r'\n\s*[,)}\]]\s*\n', '\n', clean_response)  # Remove punctuation on its own line
             clean_response = re.sub(r'\s+([,)}\]])\s+', r'\1 ', clean_response)  # Fix spacing around punctuation
 
-            # PII Protection: Deserialize response to restore original values
+            # PII Protection: Deserialize response with enhanced metadata for visual indicators
+            pii_protected_metadata = None
             if pii_middleware and pii_context:
                 try:
-                    clean_response = await pii_middleware.deserialize_response(
-                        response=clean_response,
-                        context=pii_context
-                    )
+                    # Try enhanced deserialization with metadata
+                    if hasattr(pii_middleware, 'deserialize_response_with_metadata'):
+                        clean_response, deser_metadata = await pii_middleware.deserialize_response_with_metadata(
+                            response=clean_response,
+                            context=pii_context,
+                            enable_diagnostics=True,
+                            track_positions=True
+                        )
+
+                        pii_protected_metadata = {
+                            'protection_active': True,
+                            'protection_mode': pii_context.get('protection_mode', 'external'),
+                            'items_protected': deser_metadata.get('tokens_replaced', 0),
+                            'protection_quality': 'complete' if deser_metadata.get('tokens_missed', 0) == 0 else 'partial',
+                            'pii_annotations': deser_metadata.get('pii_metadata', [])
+                        }
+                    else:
+                        # Fallback to basic deserialization
+                        clean_response = await pii_middleware.deserialize_response(
+                            response=clean_response,
+                            context=pii_context
+                        )
+                        pii_protected_metadata = {
+                            'protection_active': True,
+                            'protection_mode': pii_context.get('protection_mode', 'external'),
+                            'items_protected': pii_context.get('pii_count', 0),
+                            'protection_quality': 'unknown',
+                            'pii_annotations': []
+                        }
                 except Exception as e:
                     logger.error(f"PII deserialization failed: {e}")
-                    # Continue with serialized response on error
+                    pii_protected_metadata = {
+                        'protection_active': True,
+                        'protection_quality': 'failed',
+                        'error': str(e)
+                    }
 
             return {
                 "response": clean_response.strip(),
@@ -598,7 +777,8 @@ Include relevant security considerations where applicable.
                     "model": model_name,
                     "tokens_used": result.get("eval_count", 0),
                     "privacy_level": "high" if not request.encryption_required else "maximum"
-                }
+                },
+                "pii_protection": pii_protected_metadata  # NEW: PII metadata for frontend visual indicators
             }
         else:
             # Handle as regular conversation
@@ -622,19 +802,37 @@ Include relevant security considerations where applicable.
 
             # PII Protection: Serialize before sending to LLM
             pii_context = {}
+            protection_mode = "external"  # Default fallback
             if pii_middleware:
                 try:
+                    # Intelligent mode detection based on endpoint and context
+                    if mode_detector:
+                        protection_mode, mode_config = mode_detector.detect_mode(
+                            endpoint_url=OLLAMA_BASE_URL,
+                            provider="ollama",
+                            context="chat",  # Chat context
+                            user_role=request.user_role or "user"
+                        )
+                        logger.info(f"PII protection mode for chat: {protection_mode} (level: {mode_config.get('protection_level')})")
+
                     enhanced_prompt, pii_context = await pii_middleware.serialize_message(
                         message=enhanced_prompt,
                         conversation_id=request.conversation_id or f"conv_{int(datetime.now().timestamp())}",
                         user_id=request.user_id,
-                        mode="external"  # Use external mode for strict protection
+                        mode=protection_mode
                     )
+                    pii_context['protection_mode'] = protection_mode  # Add mode info to context
                 except Exception as e:
                     logger.error(f"PII serialization failed: {e}")
                     # Continue without serialization on error
 
-            result = await ollama_client.generate(model_name, enhanced_prompt)
+            # Prepare LLM options with max_tokens from config
+            llm_options = {
+                'num_predict': llm_config.get('max_tokens', 4096),
+                'temperature': llm_config.get('temperature', 0.7),
+            }
+
+            result = await ollama_client.generate(model_name, enhanced_prompt, llm_options)
 
             # Strip <think> tags and reasoning explanations from response (internal reasoning not shown to user)
             import re
@@ -654,16 +852,46 @@ Include relevant security considerations where applicable.
             clean_response = re.sub(r'\n\s*[,)}\]]\s*\n', '\n', clean_response)  # Remove punctuation on its own line
             clean_response = re.sub(r'\s+([,)}\]])\s+', r'\1 ', clean_response)  # Fix spacing around punctuation
 
-            # PII Protection: Deserialize response to restore original values
+            # PII Protection: Deserialize response with enhanced metadata for visual indicators
+            pii_protected_metadata = None
             if pii_middleware and pii_context:
                 try:
-                    clean_response = await pii_middleware.deserialize_response(
-                        response=clean_response,
-                        context=pii_context
-                    )
+                    # Try enhanced deserialization with metadata
+                    if hasattr(pii_middleware, 'deserialize_response_with_metadata'):
+                        clean_response, deser_metadata = await pii_middleware.deserialize_response_with_metadata(
+                            response=clean_response,
+                            context=pii_context,
+                            enable_diagnostics=True,
+                            track_positions=True
+                        )
+
+                        pii_protected_metadata = {
+                            'protection_active': True,
+                            'protection_mode': pii_context.get('protection_mode', 'external'),
+                            'items_protected': deser_metadata.get('tokens_replaced', 0),
+                            'protection_quality': 'complete' if deser_metadata.get('tokens_missed', 0) == 0 else 'partial',
+                            'pii_annotations': deser_metadata.get('pii_metadata', [])
+                        }
+                    else:
+                        # Fallback to basic deserialization
+                        clean_response = await pii_middleware.deserialize_response(
+                            response=clean_response,
+                            context=pii_context
+                        )
+                        pii_protected_metadata = {
+                            'protection_active': True,
+                            'protection_mode': pii_context.get('protection_mode', 'external'),
+                            'items_protected': pii_context.get('pii_count', 0),
+                            'protection_quality': 'unknown',
+                            'pii_annotations': []
+                        }
                 except Exception as e:
                     logger.error(f"PII deserialization failed: {e}")
-                    # Continue with serialized response on error
+                    pii_protected_metadata = {
+                        'protection_active': True,
+                        'protection_quality': 'failed',
+                        'error': str(e)
+                    }
 
             # Save assistant response to conversation history
             conversation_id = request.conversation_id or f"conv_{int(datetime.now().timestamp())}"
@@ -681,7 +909,8 @@ Include relevant security considerations where applicable.
                 "timestamp": datetime.now().isoformat(),
                 "tools_used": request.tools_enabled,
                 "processing_time": result.get('total_duration', 0) / 1e9,
-                "report_generated": False
+                "report_generated": False,
+                "pii_protection": pii_protected_metadata  # NEW: PII metadata for frontend visual indicators
             }
             
     except Exception as e:
@@ -1144,13 +1373,54 @@ async def index_knowledge_background(brain_knowledge: str):
     finally:
         is_indexing.clear()  # Clear indexing flag when done
 
+async def pii_cache_cleanup_task(cache_manager):
+    """
+    Background task to maintain PII cache health.
+    Runs cleanup every 5 minutes to remove expired entries.
+    """
+    logger.info("🧹 PII cache cleanup task started")
+    while True:
+        try:
+            await asyncio.sleep(300)  # Run every 5 minutes (matches config cleanup interval)
+            await cache_manager.cleanup_expired()
+            logger.debug("PII cache cleanup completed")
+        except asyncio.CancelledError:
+            logger.info("PII cache cleanup task cancelled")
+            break
+        except Exception as e:
+            logger.error(f"PII cache cleanup error: {e}")
+            await asyncio.sleep(60)  # Retry after 1 minute on error
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
-    global worker_task
+    global worker_task, pii_middleware
 
     # Initialize queue manager
     await queue_manager.initialize()
+
+    # Upgrade PII middleware to enhanced mode with async components
+    if pii_middleware and EnhancedDeserializer and ImprovedCacheManager and app_config:
+        try:
+            # Get Redis configuration from config
+            redis_db = app_config.get('security', {}).get('message_pii_protection', {}).get('serialization', {}).get('redis_db', 3)
+            redis_url = f"redis://redis:6379/{redis_db}"
+
+            # Initialize improved cache manager with async connection
+            improved_cache = ImprovedCacheManager(redis_url=redis_url)
+            await improved_cache.connect()
+
+            # Replace with enhanced deserializer
+            pii_middleware.deserializer = EnhancedDeserializer(improved_cache)
+            pii_middleware.cache_manager = improved_cache
+
+            logger.info("✨ Enhanced PII middleware activated: position tracking + visual indicators enabled")
+
+            # Start background cache cleanup task
+            asyncio.create_task(pii_cache_cleanup_task(improved_cache))
+        except Exception as enhance_error:
+            logger.warning(f"Failed to upgrade to enhanced PII components: {enhance_error}")
+            logger.info("Continuing with basic PII middleware")
 
     # Initialize Bee Context Manager and load brain knowledge
     logger.info("Loading Bee Brain knowledge into memory...")

@@ -29,14 +29,6 @@ verify_secrets() {
                     vault_path="database/credentials"
                     key="password"
                     ;;
-                "ST_API_KEY")
-                    vault_path="supertokens/credentials"
-                    key="api_key"
-                    ;;
-                "ST_DASHBOARD_API_KEY")
-                    vault_path="supertokens/credentials"
-                    key="dashboard_key"
-                    ;;
                 "VAULT_TOKEN")
                     vault_path="vault/credentials"
                     key="token"
@@ -429,6 +421,9 @@ generate_ssl_certs() {
     mkdir -p "${temp_cert_dir}"
     mkdir -p "${INSTALL_DIR}/certs"
 
+    # Set trap to cleanup temp directory on exit/error
+    trap "rm -rf '${temp_cert_dir}' 2>/dev/null || true" RETURN ERR
+
     # Determine certificate generation method based on domain type
     if [ "$domain" == "localhost" ]; then
         # Standard localhost - use self-signed (browsers have exception for localhost)
@@ -447,26 +442,43 @@ generate_ssl_certs() {
         # Install mkcert if not present
         if ! command -v mkcert &> /dev/null; then
             log_message "mkcert not found, installing..."
+            log_message "⚠️  IMPORTANT: You will be prompted for your sudo password to install mkcert"
+            log_message "    This is required to add the local Certificate Authority to your system trust store"
+            echo ""
+            echo "Press ENTER to continue with mkcert installation (you will be prompted for sudo password)..."
+            read -r
+
             install_mkcert || {
-                log_message "WARNING: mkcert installation failed, falling back to self-signed"
-                log_message "NOTE: WebAuthn/Passkeys may not work with self-signed certificates"
-                openssl req -x509 -newkey rsa:4096 -nodes \
-                    -out "${temp_cert_dir}/server.crt" \
-                    -keyout "${temp_cert_dir}/server.key" \
-                    -days 365 \
-                    -subj "/C=US/ST=State/L=City/O=STING/CN=${domain}"
+                log_message "ERROR: mkcert installation failed" "ERROR"
+                log_message "WebAuthn/Passkeys REQUIRE trusted certificates for local domains like '$domain'" "ERROR"
+                log_message "" "ERROR"
+                log_message "Installation cannot continue. Please either:" "ERROR"
+                log_message "  1. Install mkcert manually: brew install mkcert && mkcert -install" "ERROR"
+                log_message "  2. Use 'localhost' instead of '$domain' (self-signed certs work for localhost)" "ERROR"
+                return 1
             }
         fi
 
+        # Verify mkcert is properly installed and CA is trusted
         if command -v mkcert &> /dev/null; then
+            # Check if mkcert CA is installed
+            if ! mkcert -CAROOT &> /dev/null; then
+                log_message "ERROR: mkcert CA not installed properly" "ERROR"
+                log_message "Please run: mkcert -install" "ERROR"
+                return 1
+            fi
+
             # Generate locally-trusted certificates with mkcert
             cd "${temp_cert_dir}"
-            mkcert -cert-file server.crt -key-file server.key "$domain" "*.${domain}" || {
+            mkcert -cert-file server.crt -key-file server.key "$domain" "*.${domain}" localhost || {
                 log_message "ERROR: mkcert certificate generation failed"
                 return 1
             }
             log_message "✅ Generated locally-trusted certificates with mkcert"
             log_message "NOTE: These certificates are trusted by your system's browsers"
+        else
+            log_message "ERROR: mkcert not found after installation" "ERROR"
+            return 1
         fi
 
     else

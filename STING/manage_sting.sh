@@ -59,9 +59,9 @@ cleanup_on_exit() {
     exit $exit_code
 }
 
-# Trap signals for graceful shutdown
+# Trap signals for graceful shutdown (comprehensive signal coverage)
 trap cleanup_on_exit EXIT
-trap 'log_message "Received interrupt signal, cleaning up..." "WARNING"; exit 130' INT TERM
+trap 'log_message "Received interrupt signal, cleaning up..." "WARNING"; exit 130' HUP INT QUIT PIPE TERM
 
 # Load core modules in dependency order
 declare -a CORE_MODULES=(

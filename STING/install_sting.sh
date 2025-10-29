@@ -155,7 +155,7 @@ fi
 
 # Function to check if we're running under the wizard
 is_wizard_mode() {
-    [ -n "$WIZARD_CONFIG_PATH" ] || [ -f "/tmp/sting-setup-state/setup-state.json" ]
+    [ -n "${WIZARD_CONFIG_PATH:-}" ] || [ -f "/tmp/sting-setup-state/setup-state.json" ]
 }
 
 (
@@ -163,34 +163,40 @@ is_wizard_mode() {
   MAX_CONSECUTIVE_FAILURES=3
 
   while true; do
-    # First try non-interactive refresh
-    if sudo -n -v 2>/dev/null; then
-      # Success - reset failure counter
+    # Test if sudo is still available WITHOUT updating timestamp (avoids TouchID prompts)
+    if sudo -n true 2>/dev/null; then
+      # Success - sudo still valid, no need to refresh yet
       CONSECUTIVE_FAILURES=0
     else
-      # Failed - increment counter
-      CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
-      echo "[$(date)] Sudo keepalive refresh failed (attempt $CONSECUTIVE_FAILURES/$MAX_CONSECUTIVE_FAILURES)" >> /tmp/sudo-keepalive.log 2>&1
+      # Sudo expired or unavailable - try to refresh
+      if sudo -n -v 2>/dev/null; then
+        # Non-interactive refresh succeeded
+        CONSECUTIVE_FAILURES=0
+      else
+        # Failed - increment counter
+        CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
+        echo "[$(date)] Sudo keepalive refresh failed (attempt $CONSECUTIVE_FAILURES/$MAX_CONSECUTIVE_FAILURES)" >> /tmp/sudo-keepalive.log 2>&1
 
-      # If we've failed multiple times, try interactive refresh (will prompt user)
-      if [ $CONSECUTIVE_FAILURES -ge $MAX_CONSECUTIVE_FAILURES ]; then
-        echo "[$(date)] CRITICAL: Sudo credentials expired after $CONSECUTIVE_FAILURES attempts" >> /tmp/sudo-keepalive.log 2>&1
+        # If we've failed multiple times, try interactive refresh (will prompt user)
+        if [ $CONSECUTIVE_FAILURES -ge $MAX_CONSECUTIVE_FAILURES ]; then
+          echo "[$(date)] CRITICAL: Sudo credentials expired after $CONSECUTIVE_FAILURES attempts" >> /tmp/sudo-keepalive.log 2>&1
 
-        # If running under wizard, create a flag file that wizard can detect
-        if is_wizard_mode; then
-          echo "[$(date)] Creating sudo-reauth-needed flag for wizard" >> /tmp/sudo-keepalive.log 2>&1
-          touch /tmp/sting-setup-state/sudo-reauth-needed
-        fi
+          # If running under wizard, create a flag file that wizard can detect
+          if is_wizard_mode; then
+            echo "[$(date)] Creating sudo-reauth-needed flag for wizard" >> /tmp/sudo-keepalive.log 2>&1
+            touch /tmp/sting-setup-state/sudo-reauth-needed
+          fi
 
-        # On macOS, attempt one interactive prompt (will show TouchID or password prompt)
-        if [[ "$(uname)" == "Darwin" ]]; then
-          echo "[$(date)] Attempting interactive sudo prompt on macOS..." >> /tmp/sudo-keepalive.log 2>&1
-          if sudo -v 2>/dev/null; then
-            echo "[$(date)] Interactive sudo prompt succeeded" >> /tmp/sudo-keepalive.log 2>&1
-            CONSECUTIVE_FAILURES=0
-            rm -f /tmp/sting-setup-state/sudo-reauth-needed 2>/dev/null
-          else
-            echo "[$(date)] Interactive sudo prompt failed - installation may hang" >> /tmp/sudo-keepalive.log 2>&1
+          # On macOS, attempt one interactive prompt (will show TouchID or password prompt)
+          if [[ "$(uname)" == "Darwin" ]]; then
+            echo "[$(date)] Attempting interactive sudo prompt on macOS..." >> /tmp/sudo-keepalive.log 2>&1
+            if sudo -v 2>/dev/null; then
+              echo "[$(date)] Interactive sudo prompt succeeded" >> /tmp/sudo-keepalive.log 2>&1
+              CONSECUTIVE_FAILURES=0
+              rm -f /tmp/sting-setup-state/sudo-reauth-needed 2>/dev/null
+            else
+              echo "[$(date)] Interactive sudo prompt failed - installation may hang" >> /tmp/sudo-keepalive.log 2>&1
+            fi
           fi
         fi
       fi
@@ -206,6 +212,22 @@ if kill -0 "$SUDO_KEEPALIVE_PID" 2>/dev/null; then
 else
   log_message "⚠️  Warning: Sudo keepalive may not have started correctly" "WARNING"
 fi
+
+# Global cleanup function to kill sudo keepalive on script exit
+# CRITICAL: This prevents orphaned background processes that keep prompting for sudo
+cleanup_global_keepalive() {
+  if [ -n "${SUDO_KEEPALIVE_PID:-}" ]; then
+    log_message "Stopping global sudo keepalive (PID: $SUDO_KEEPALIVE_PID)..." "INFO" 2>/dev/null || true
+    kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+    pkill -P "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+  fi
+  # Fallback: Kill by pattern (catches any stray keepalive processes)
+  pkill -f "while true; do sudo -v; sleep" 2>/dev/null || true
+  pkill -f "sudo -n true.*sleep.*KEEPALIVE_INTERVAL" 2>/dev/null || true
+}
+
+# Set trap for global cleanup (will run on script exit, Ctrl+C, etc.)
+trap cleanup_global_keepalive EXIT HUP INT QUIT PIPE TERM
 
 # Pre-create system directories to avoid sudo prompts during installation
 log_message "Preparing system directories..." "INFO"
@@ -297,8 +319,12 @@ if [ "$USE_CLI" = false ]; then
   WIZARD_PID_FILE="/tmp/sting-wizard.pid"
 
   # Function to cleanup wizard processes
+  # NOTE: Comprehensive cleanup - handles sudo keepalive and wizard processes
   cleanup_wizard() {
     log_message "Cleaning up wizard processes..." "INFO"
+
+    # Call global keepalive cleanup (kills the background sudo refresh process)
+    cleanup_global_keepalive 2>/dev/null || true
 
     # Kill processes using the wizard port
     if command -v lsof &> /dev/null; then
@@ -344,8 +370,10 @@ if [ "$USE_CLI" = false ]; then
     fi
   fi
 
-  # Set up trap to cleanup on exit
-  trap cleanup_wizard EXIT INT TERM
+  # Set up trap to cleanup on exit (comprehensive signal coverage)
+  # NOTE: This chains with the global cleanup_global_keepalive trap
+  # The wizard cleanup will call cleanup_global_keepalive, ensuring proper cleanup order
+  trap cleanup_wizard EXIT HUP INT QUIT PIPE TERM
 
   # Check/install wizard dependencies
   log_message "Checking wizard dependencies..."
@@ -474,35 +502,7 @@ if [ "$USE_CLI" = false ]; then
     log_message "✅ No existing installation found" "SUCCESS"
   fi
 
-  # Update cleanup function to kill sudo keepalive (started in common setup above)
-  cleanup_wizard() {
-    log_message "Cleaning up wizard processes..." "INFO"
-
-    # Kill sudo keepalive process
-    if [ -n "${SUDO_KEEPALIVE_PID:-}" ]; then
-      log_message "Stopping sudo keepalive (PID: $SUDO_KEEPALIVE_PID)..." "INFO"
-      kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
-      # Also kill any child processes
-      pkill -P "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
-    fi
-
-    # Also kill by pattern as a fallback
-    pkill -f "while true; do sudo -v; sleep" 2>/dev/null || true
-
-    # Kill processes using the wizard port
-    if command -v lsof &> /dev/null; then
-      local pids=$(lsof -ti :$WIZARD_PORT 2>/dev/null || true)
-      if [ -n "$pids" ]; then
-        log_message "Killing processes on port $WIZARD_PORT: $pids" "INFO"
-        echo "$pids" | xargs -r kill -9 2>/dev/null || true
-      fi
-    fi
-
-    # Remove PID file
-    rm -f "$WIZARD_PID_FILE"
-
-    log_message "Wizard cleanup complete" "INFO"
-  }
+  # NOTE: cleanup_wizard() already defined above with comprehensive cleanup logic
 
   # ========================================================================
   # PRE-WIZARD HOSTNAME CONFIGURATION
@@ -888,16 +888,31 @@ else
 
   # Keep sudo session alive in background during installation
   # This prevents timeout during long operations
-  (while true; do sudo -v; sleep 50; done) &
+  # Use sudo -n to avoid TouchID prompts on macOS
+  (while true; do
+    # Only refresh if sudo is about to expire (test without prompting)
+    if ! sudo -n true 2>/dev/null; then
+      # Sudo expired, refresh it (this may prompt on first run only)
+      sudo -v 2>/dev/null || exit 1
+    fi
+    sleep 50
+  done) &
   SUDO_KEEPALIVE_PID=$!
 
-  # Cleanup function to kill sudo keepalive
+  # Cleanup function to kill sudo keepalive (both global and CLI-specific)
   cleanup_sudo() {
-    if [ -n "$SUDO_KEEPALIVE_PID" ]; then
+    # First, cleanup the global keepalive (started at top level)
+    cleanup_global_keepalive 2>/dev/null || true
+    
+    # Then cleanup the CLI-specific keepalive (if it exists)
+    if [ -n "${SUDO_KEEPALIVE_PID:-}" ]; then
       kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+      pkill -P "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
     fi
   }
-  trap cleanup_sudo EXIT INT TERM
+  # NOTE: This trap overrides the global cleanup_global_keepalive trap,
+  # but cleanup_sudo calls cleanup_global_keepalive internally, ensuring proper cleanup
+  trap cleanup_sudo EXIT HUP INT QUIT PIPE TERM
 
   # Verify manage_sting.sh exists
   MANAGE_STING="$SCRIPT_DIR/manage_sting.sh"
@@ -907,11 +922,18 @@ else
   fi
 
   # Forward remaining arguments to manage_sting.sh install
+  # NOTE: Don't use exec - we need to return here to trigger EXIT trap cleanup
   if [ $# -eq 0 ]; then
     log_message "Delegating to manage_sting.sh install..."
-    exec "$MANAGE_STING" install
+    "$MANAGE_STING" install
+    exit_code=$?
   else
     log_message "Delegating to manage_sting.sh $*..."
-    exec "$MANAGE_STING" "$@"
+    "$MANAGE_STING" "$@"
+    exit_code=$?
   fi
+
+  # Exit with the same code as manage_sting.sh
+  # This will trigger the EXIT trap to cleanup sudo keepalive
+  exit $exit_code
 fi

@@ -10,6 +10,7 @@ import remarkCleanMarkdown from '../../utils/remarkCleanMarkdown';
 import Grains from './FloatingActionSuite';
 import HoneyJarContextBar from './HoneyJarContextBar';
 import './HoneyJarContextBar.css';
+import MessageWithPII from './MessageWithPII';
 import { externalAiApi } from '../../services/externalAiApi';
 import { chatHistoryApi } from '../../services/messagingApi';
 import { systemApi } from '../../services/systemApi';
@@ -113,6 +114,27 @@ const BeeChat = () => {
   const [isSearchingHoneyJars, setIsSearchingHoneyJars] = useState(false);
   const [showHoneyJarSelector, setShowHoneyJarSelector] = useState(false);
   const [honeyJars, setHoneyJars] = useState([]);
+
+  // PII Visual Indicator Preferences
+  const [piiPreferences, setPiiPreferences] = useState({
+    enabled: true,
+    show_protection_badge: true,
+    badge_position: 'corner',
+    colors: {
+      low_risk: '#2196F3',
+      medium_risk: '#ff9800',
+      high_risk: '#ef5350'
+    },
+    underline_style: 'dotted',
+    underline_thickness: 2,
+    tooltips: {
+      enabled: true,
+      show_pii_type: true,
+      show_risk_level: true,
+      show_protection_icon: true,
+      delay_ms: 200
+    }
+  });
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -397,7 +419,8 @@ const BeeChat = () => {
         encrypted: data.encrypted,
         processing_time: data.processing_time,
         isReport: data.report_generated || false,
-        reportMetadata: data.report_metadata || null
+        reportMetadata: data.report_metadata || null,
+        pii_protection: data.pii_protection || null  // PII protection metadata
       };
 
       setMessages(prev => [...prev, beeMessage]);
@@ -897,9 +920,19 @@ const BeeChat = () => {
                     </p>
                   ) : (
                     <div className="text-sm prose prose-invert max-w-none">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkCleanMarkdown]}
-                        components={{
+                      {message.pii_protection ? (
+                        /* Render with PII visual indicators */
+                        <MessageWithPII
+                          message={message.content}
+                          piiProtection={message.pii_protection}
+                          preferences={piiPreferences}
+                          showBadge={true}
+                        />
+                      ) : (
+                        /* Fallback to standard markdown rendering */
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkCleanMarkdown]}
+                          components={{
                           // Custom components for better styling
                           p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
                           code: ({inline, children, ...props}) =>
@@ -955,10 +988,11 @@ const BeeChat = () => {
                               {children}
                             </td>
                           )
-                        }}
-                      >
-                        {cleanMarkdownContent(message.content)}
-                      </ReactMarkdown>
+                          }}
+                        >
+                          {cleanMarkdownContent(message.content)}
+                        </ReactMarkdown>
+                      )}
                     </div>
                   )}
 

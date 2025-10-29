@@ -174,6 +174,90 @@ security:
           - "account_number"   # Account identifiers
           - "date_of_birth"    # Birth dates
 
+      # Trusted Network AI - relaxed protection for local network services
+      # Use this for LM Studio, Ollama, or private AI servers on your LAN/VPN
+      # Data doesn't leave your network, but runs on a separate machine
+      trusted:
+        applies_to:
+          - "lm_studio"        # LM Studio on local network
+          - "local_network"    # Generic local network AI
+          - "tailscale"        # AI servers on Tailscale VPN
+        protection_level: "relaxed"
+        enabled: false  # Disabled by default - enable if you want some protection
+
+        # Protect medium and high risk PII, but allow names/emails
+        # Useful for local AI that processes customer data
+        pii_types:
+          - "ssn"
+          - "credit_card"
+          - "bank_account"
+          - "medical_record"
+          - "drivers_license"
+          - "passport"
+
+      # Report Generation Mode - selective protection for analytical reports
+      # Use when generating reports that need to include certain PII
+      # Example: "List all customers by first name" - names should NOT be serialized
+      report:
+        applies_to:
+          - "report_generation"
+        protection_level: "selective"
+        enabled: true  # Enabled but with selective types
+
+        # Only protect financial/medical PII in reports
+        # Allow names, emails, phones to appear in report output
+        pii_types:
+          - "ssn"
+          - "credit_card"
+          - "bank_account"
+          - "medical_record"
+          - "drivers_license"
+          - "passport"
+
+    # Network-based mode detection
+    # Automatically determine protection mode based on AI endpoint
+    auto_mode_detection:
+      enabled: true  # Enable automatic mode detection
+
+      # Treat these IP ranges as "trusted" network (use relaxed protection)
+      trusted_networks:
+        - "127.0.0.0/8"      # Localhost
+        - "10.0.0.0/8"       # Private network 10.x.x.x
+        - "172.16.0.0/12"    # Private network 172.16-31.x.x
+        - "192.168.0.0/16"   # Private network 192.168.x.x
+        - "100.64.0.0/10"    # Tailscale/CGNAT range
+
+      # Treat these domains as "trusted"
+      trusted_domains:
+        - "localhost"
+        - "*.local"
+        - "*.lan"
+        - "*.tailscale"
+
+      # Fallback mode if endpoint doesn't match any rule
+      fallback_mode: "external"  # Default to strictest protection
+
+    # Request-level PII overrides
+    # Allow individual requests to bypass PII protection for specific types
+    request_overrides:
+      enabled: true  # Allow request-level overrides
+
+      # Require this header to enable overrides (prevents accidental bypassing)
+      require_header: "X-STING-PII-Override"
+
+      # Which roles can use overrides
+      allowed_roles:
+        - "admin"
+        - "analyst"
+        - "developer"
+
+      # Log all override usage for audit trail
+      log_overrides: true
+
+      # Example usage in API request:
+      # Headers: { "X-STING-PII-Override": "exclude:person_name,email" }
+      # This would disable protection for names and emails in that request only
+
     # Audit and compliance logging
     # All PII events are logged for compliance and troubleshooting (without exposing actual PII)
     audit:
@@ -212,8 +296,64 @@ security:
       # Disable for now - may be useful in future for frequently used patterns
       cache_warming: false
 
+    # Visual Indicators
+    # Frontend visualization of protected PII for transparency and user awareness
+    visual_indicators:
+      # Master toggle for visual PII indicators in chat
+      # When enabled, protected PII is highlighted with dotted underlines and tooltips
+      enabled: true
+
+      # Show shield badge on messages containing protected PII
+      # Provides at-a-glance awareness of PII protection
+      show_protection_badge: true
+
+      # Badge position: 'corner' or 'inline' (next to timestamp)
+      badge_position: "corner"
+
+      # Risk-based color coding for PII highlights
+      # Colors follow Material Design guidelines for accessibility
+      colors:
+        low_risk:          "#2196F3"  # Blue - names, non-sensitive identifiers
+        medium_risk:       "#ff9800"  # Orange - emails, phones, addresses
+        high_risk:         "#ef5350"  # Red - SSN, credit cards, medical records
+
+      # Underline style: "dotted", "solid", or "dashed"
+      # Dotted is recommended for subtlety
+      underline_style: "dotted"
+
+      # Underline thickness in pixels
+      underline_thickness: 2
+
+      # Tooltip behavior
+      tooltips:
+        enabled: true
+        show_pii_type: true      # Show "Email" or "Name" label
+        show_risk_level: true    # Show "Low/Medium/High Risk" chip
+        show_protection_icon: true  # Show shield/lock icon
+        delay_ms: 200            # Hover delay before showing tooltip
+
+      # Admin/Role overrides
+      # Allow admins to see additional PII metadata in tooltips
+      admin_features:
+        show_token_id: false         # Show original token ($Person1_email_xxxx)
+        show_source: false           # Show if from cache/fallback/reconstructed
+        show_confidence_score: false # Show detection confidence (0.0-1.0)
+
+      # User customization
+      # Allow individual users to adjust visual indicator preferences
+      user_customizable:
+        can_disable: true             # Users can turn off visual indicators
+        can_change_colors: false      # Lock color scheme for consistency
+        can_adjust_sensitivity: false # Lock which PII types trigger indicators
+
+      # Accessibility
+      accessibility:
+        high_contrast_mode: false     # Use higher contrast colors for visibility
+        screen_reader_announcements: true  # Announce PII protection to screen readers
+        keyboard_navigation: true     # Allow tab navigation through PII items
+
       # Vault-related settings
-      vault_path: "sting/supertokens"
+      vault_path: "sting/security"
       webauthn:
         enabled: true
         rp_id: "${HOSTNAME:-localhost}"
@@ -260,10 +400,10 @@ email_service:
   production:
     provider: "${EMAIL_PROVIDER:-smtp}"  # smtp, sendgrid, ses, etc.
     smtp:
-      host: "${SMTP_HOST}"
-      port: "${SMTP_PORT:-587}"
-      username: "${SMTP_USERNAME}"
-      password: "${SMTP_PASSWORD}"
+      host: "${SMTP_HOST:-mailpit}"  # Default to mailpit for development
+      port: "${SMTP_PORT:-1025}"     # Mailpit SMTP port (use 587 for real SMTP)
+      username: "${SMTP_USERNAME:-}"  # Empty for mailpit (no auth needed)
+      password: "${SMTP_PASSWORD:-}"  # Empty for mailpit (no auth needed)
       from_address: "${SMTP_FROM:-noreply@yourdomain.com}"
       from_name: "${SMTP_FROM_NAME:-STING Platform}"
       # TLS/SSL settings

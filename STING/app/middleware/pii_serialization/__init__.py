@@ -37,7 +37,13 @@ from .cache_manager import PIICacheManager
 from .audit_logger import PIIAuditLogger
 from .config import PIIProtectionConfig
 
-__version__ = "1.0.0"
+# Enhanced components (Opus additions)
+from .enhanced_deserializer import EnhancedDeserializer
+from .improved_cache_manager import ImprovedCacheManager
+from .streaming_processor import StreamingPIIProcessor
+from .mode_detector import ModeDetector
+
+__version__ = "1.0.2"  # Bumped for mode detection
 __all__ = [
     "PIIMiddleware",
     "PIIDetector",
@@ -46,6 +52,11 @@ __all__ = [
     "PIICacheManager",
     "PIIAuditLogger",
     "PIIProtectionConfig",
+    # Enhanced components
+    "EnhancedDeserializer",
+    "ImprovedCacheManager",
+    "StreamingPIIProcessor",
+    "ModeDetector",
 ]
 
 
@@ -198,6 +209,98 @@ class PIIMiddleware:
         )
 
         return deserialized_response
+
+    async def deserialize_response_with_metadata(
+        self,
+        response: str,
+        context: dict,
+        enable_diagnostics: bool = False,
+        track_positions: bool = True
+    ) -> tuple[str, dict]:
+        """
+        Deserialize PII tokens with enhanced metadata for visual indicators.
+
+        This enhanced version returns both the deserialized response AND metadata
+        about what was protected (positions, types, risk levels) for frontend visualization.
+
+        Args:
+            response: AI response with potential PII tokens
+            context: Context from serialize_message()
+            enable_diagnostics: Include diagnostic information
+            track_positions: Track PII positions for visual indicators
+
+        Returns:
+            Tuple of (deserialized_response, pii_metadata_dict)
+            pii_metadata_dict includes:
+                - tokens_found: Number of PII tokens detected
+                - tokens_replaced: Number successfully replaced
+                - pii_metadata: List of PII annotations with positions, types, risk levels
+
+        Example:
+            >>> response = "Hello $Person1_name_hash!"
+            >>> deserialized, metadata = await middleware.deserialize_response_with_metadata(response, ctx)
+            >>> print(deserialized)
+            "Hello John Smith!"
+            >>> print(metadata['pii_metadata'][0])
+            {
+                'deserialized_position': {'start': 6, 'end': 16},
+                'pii_type': 'name',
+                'risk_level': 'low',
+                'deserialized_value': 'John Smith'
+            }
+        """
+        if not context.get("pii_serialized"):
+            return response, {'tokens_found': 0, 'pii_metadata': []}
+
+        conversation_id = context.get("conversation_id")
+
+        # Quick check: does response contain any tokens?
+        if "$" not in response:
+            return response, {'tokens_found': 0, 'pii_metadata': []}
+
+        # Check if enhanced deserializer is available
+        if isinstance(self.deserializer, EnhancedDeserializer):
+            # Use enhanced deserializer with position tracking
+            deserialized_response, metadata = await self.deserializer.deserialize_response(
+                response=response,
+                context=context,
+                enable_diagnostics=enable_diagnostics,
+                track_positions=track_positions
+            )
+
+            # Audit log
+            await self.audit_logger.log_deserialization(
+                conversation_id=conversation_id,
+                token_count=metadata.get('tokens_replaced', 0)
+            )
+
+            return deserialized_response, metadata
+        else:
+            # Fallback to basic deserializer (no position tracking)
+            pii_map = await self.cache_manager.get_mapping(conversation_id)
+
+            if not pii_map:
+                await self.audit_logger.log_cache_miss(conversation_id)
+                return response, {
+                    'error': 'cache_miss',
+                    'tokens_found': 0,
+                    'pii_metadata': []
+                }
+
+            deserialized_response = await self.deserializer.deserialize(response, pii_map)
+
+            # Audit log
+            await self.audit_logger.log_deserialization(
+                conversation_id=conversation_id,
+                token_count=len(pii_map)
+            )
+
+            # Return without position metadata (basic mode)
+            return deserialized_response, {
+                'tokens_found': len(pii_map),
+                'tokens_replaced': len(pii_map),
+                'pii_metadata': []  # No position tracking in basic mode
+            }
 
     async def extend_cache_ttl(
         self,

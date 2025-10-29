@@ -174,11 +174,6 @@ sleep() {
     return 0
 }
 
-# Test check_supertokens_health
-test_check_supertokens_health() {
-    check_supertokens_health
-}
-
 # Test check_llm_models with models present
 test_check_llm_models_present() {
     # Create a model directory to simulate models being present
@@ -265,7 +260,6 @@ echo "============================="
 
 setup_test_env
 
-run_test "check_supertokens_health" test_check_supertokens_health
 run_test "check_llm_models_present" test_check_llm_models_present
 run_test "check_llm_models_missing" test_check_llm_models_missing
 run_test "verify_db_credentials" test_verify_db_credentials
