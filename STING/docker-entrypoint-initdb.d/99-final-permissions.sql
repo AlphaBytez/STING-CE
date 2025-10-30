@@ -2,6 +2,33 @@
 -- This script runs AFTER all other initialization scripts to ensure
 -- all permissions are properly set on all created objects
 
+-- Connect to kratos database first to set up extensions and permissions
+\c kratos;
+
+-- Create required PostgreSQL extensions for Kratos (requires superuser)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS btree_gin;
+
+-- Grant all privileges on kratos database to kratos_user
+GRANT ALL ON ALL TABLES IN SCHEMA public TO kratos_user;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO kratos_user;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO kratos_user;
+
+-- Ensure kratos_user can create new objects
+GRANT CREATE ON SCHEMA public TO kratos_user;
+
+-- Set default privileges for future objects created by postgres
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+    GRANT ALL ON TABLES TO kratos_user;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+    GRANT ALL ON SEQUENCES TO kratos_user;
+
+-- Set default privileges for future objects created by kratos_user
+ALTER DEFAULT PRIVILEGES FOR ROLE kratos_user IN SCHEMA public
+    GRANT ALL ON TABLES TO kratos_user;
+ALTER DEFAULT PRIVILEGES FOR ROLE kratos_user IN SCHEMA public
+    GRANT ALL ON SEQUENCES TO kratos_user;
+
 -- Connect to sting_app database to finalize permissions
 \c sting_app;
 

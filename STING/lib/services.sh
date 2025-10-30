@@ -120,15 +120,19 @@ ensure_ssl_certificates() {
             # Copy certificates to the container
             docker cp "${cert_dir}/server.crt" "$temp_container:/certs/" 2>/dev/null || true
             docker cp "${cert_dir}/server.key" "$temp_container:/certs/" 2>/dev/null || true
-            
+
+            # Set proper permissions and ownership for Kratos (UID 10000)
+            docker run --rm -v sting_certs:/certs alpine sh -c \
+                "chmod 644 /certs/server.crt && chmod 640 /certs/server.key && chown -R 10000:10000 /certs/" 2>/dev/null || true
+
             # Clean up
             docker rm "$temp_container" >/dev/null 2>&1 || true
-            
+
             log_message "Certificates copied to Docker volume using docker cp method"
         else
             # Fallback: try the original method anyway
             docker run --rm -v sting_certs:/certs -v "${cert_dir}":/source:ro alpine sh -c \
-                "cp /source/server.crt /source/server.key /certs/ && chmod 644 /certs/server.crt && chmod 600 /certs/server.key" 2>/dev/null || {
+                "cp /source/server.crt /source/server.key /certs/ && chmod 644 /certs/server.crt && chmod 640 /certs/server.key && chown -R 10000:10000 /certs/" 2>/dev/null || {
                 log_message "WARNING: Could not copy certificates to Docker volume - continuing anyway" "WARNING"
                 # Don't fail installation over this
             }

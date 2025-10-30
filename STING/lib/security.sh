@@ -518,13 +518,14 @@ generate_ssl_certs() {
         fix_docker_credential_helper >/dev/null 2>&1
     fi
 
-    # Copy files to Docker volume
+    # Copy files to Docker volume with proper ownership for Kratos (UID 10000)
     docker run --rm -v sting_certs:/certs -v ${temp_cert_dir}:/source alpine sh -c \
         "mkdir -p /certs && \
          cp /source/server.crt /certs/ && \
          cp /source/server.key /certs/ && \
          chmod 644 /certs/server.crt && \
-         chmod 600 /certs/server.key"
+         chmod 640 /certs/server.key && \
+         chown -R 10000:10000 /certs/"
     log_message "SSL certificates copied to Docker volume"
 
     # Verify the copy worked
