@@ -157,8 +157,7 @@ services:
     - ${INSTALL_DIR}/kratos/identity.schema.sting.json:/etc/config/kratos/identity.schema.json:ro
     - ${INSTALL_DIR}/kratos/identity.schema.extended.json:/etc/config/kratos/identity.schema.extended.json:ro
     - ${INSTALL_DIR}/kratos/kratos.yml:/etc/config/kratos/kratos.yml:ro
-    - ./certs/server.crt:/etc/certs/server.crt:ro
-    - ./certs/server.key:/etc/certs/server.key:ro
+    - sting_certs:/etc/certs:ro
     - ./kratos/courier-templates:/etc/config/kratos/courier-templates:ro
     - sting_logs:/var/log/sting
     networks:
