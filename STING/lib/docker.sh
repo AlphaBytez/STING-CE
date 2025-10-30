@@ -80,7 +80,13 @@ build_docker_services() {
     # Standard build process (original logic)
     # Initialize buildx builder if not exists
     if ! docker buildx inspect builder &>/dev/null; then
-        docker buildx create --name builder --driver docker-container --use
+        # Use buildkitd.toml for DNS configuration (fixes Windows/WSL DNS issues)
+        local buildkit_config="$SCRIPT_DIR/buildkitd.toml"
+        if [ -f "$buildkit_config" ]; then
+            docker buildx create --name builder --driver docker-container --config "$buildkit_config" --use
+        else
+            docker buildx create --name builder --driver docker-container --use
+        fi
     fi
     
     # If specifically building vault, skip initialization check

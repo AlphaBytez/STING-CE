@@ -141,10 +141,19 @@ build_docker_services_nocache() {
     if false; then  # Disabled for now due to segfault
         if ! docker buildx inspect sting-builder &>/dev/null; then
             echo -e "${BLUE}Creating buildx builder 'sting-builder'...${NC}"
-            docker buildx create --name sting-builder --driver docker-container --use || {
-                echo -e "${YELLOW}⚠️  Failed to create custom builder, using default${NC}"
-                docker buildx use default || true
-            }
+            # Use buildkitd.toml for DNS configuration (fixes Windows/WSL DNS issues)
+            local buildkit_config="$SCRIPT_DIR/buildkitd.toml"
+            if [ -f "$buildkit_config" ]; then
+                docker buildx create --name sting-builder --driver docker-container --config "$buildkit_config" --use || {
+                    echo -e "${YELLOW}⚠️  Failed to create custom builder, using default${NC}"
+                    docker buildx use default || true
+                }
+            else
+                docker buildx create --name sting-builder --driver docker-container --use || {
+                    echo -e "${YELLOW}⚠️  Failed to create custom builder, using default${NC}"
+                    docker buildx use default || true
+                }
+            fi
         else
             docker buildx use sting-builder || docker buildx use default
         fi
