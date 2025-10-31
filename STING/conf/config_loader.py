@@ -745,13 +745,20 @@ class ConfigurationManager:
         # Load the configuration file if not already loaded
         if not self.raw_config:
             self.load_config()
-        
+
         # Initialize instance attributes early to prevent AttributeError
         # These must be set before any early returns from cache/state checks
         # SuperTokens secrets removed - no longer used (Kratos handles auth)
         self.api_key = None  # SuperTokens removed, set to None to prevent AttributeError
         self.dashboard_api_key = None  # SuperTokens removed, set to None to prevent AttributeError
-        
+
+        # Initialize service keys early (before any early returns from cache/state)
+        # These are accessed in generate_env_file() even when using cached config
+        self.db_password = None
+        self.honey_reserve_master_key = None
+        self.service_api_key = None
+        self.bee_service_api_key = None
+
         # Check cache first (after initializing attributes)
         if self.cache_key in self._config_cache:
             logger.debug(f"Using cached configuration for {self.cache_key}")
@@ -765,15 +772,22 @@ class ConfigurationManager:
                 state_data = json.load(f)
                 if self._verify_state_validity(state_data):
                     self.processed_config = state_data
+                    # Still need to populate secrets from Vault even when using cached state
+                    # These are accessed directly by generate_env_file()
+                    self.db_password = self._clean_value(self._get_secret('database', 'password', supertokens_safe=False))
+                    self.honey_reserve_master_key = self._clean_value(self._get_secret('honey_reserve', 'master_key', supertokens_safe=False))
+                    self.service_api_key = self._clean_value(self._get_secret('sting/service_auth', 'api_key', supertokens_safe=False))
+                    bee_api_secret = self._get_secret('service/bee-api-key', 'api_key')
+                    self.bee_service_api_key = self._clean_value(bee_api_secret) if bee_api_secret else None
                     return self.processed_config
-        
+
         # Generate Flask secret key if not exists
         flask_secret = self._get_secret('flask', 'secret_key')
         logger.info(f"Generated/Retrieved Flask secret key status: {'[EXISTS]' if flask_secret else '[NOT_FOUND]'}")
-        
+
         # Generate and set database password
         self.db_password = self._clean_value(self._get_secret('database', 'password', supertokens_safe=False))
-        
+
         # Generate Honey Reserve encryption master key
         self.honey_reserve_master_key = self._clean_value(self._get_secret('honey_reserve', 'master_key', supertokens_safe=False))
 

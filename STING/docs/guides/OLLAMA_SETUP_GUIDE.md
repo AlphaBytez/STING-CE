@@ -174,7 +174,7 @@ If your LLM backend is on a different machine (recommended for VMs):
    ```bash
    # On the LLM server
    tailscale ip -4
-   # Example output: 100.103.191.31
+   # Example output: 100.x.x.x
    ```
 
 3. **Configure Ollama to listen on Tailscale interface**:
@@ -190,12 +190,12 @@ If your LLM backend is on a different machine (recommended for VMs):
 
 4. **Test connectivity from STING VM**:
    ```bash
-   curl http://100.103.191.31:11434/v1/models
+   curl http://100.x.x.x:11434/v1/models
    ```
 
 5. **In STING wizard, use**:
    ```
-   Endpoint: http://100.103.191.31:11434
+   Endpoint: http://100.x.x.x:11434
    ```
 
 **Security Note**: Tailscale creates an encrypted mesh network, so this is secure even without HTTPS.
@@ -253,7 +253,7 @@ curl http://localhost:1234/v1/models
 # Should return: {"data": [...]}
 
 # For Tailscale remote
-curl http://100.103.191.31:11434/v1/models
+curl http://100.x.x.x:11434/v1/models
 ```
 
 #### Wizard Configuration
@@ -269,8 +269,8 @@ curl http://100.103.191.31:11434/v1/models
 | Ollama on same machine (native STING) | `http://localhost:11434` |
 | LM Studio on same machine (Docker) | `http://host.docker.internal:1234` |
 | LM Studio on same machine (native) | `http://localhost:1234` |
-| Ollama on Tailscale network | `http://100.103.191.31:11434` |
-| Ollama on local network | `http://192.168.1.100:11434` |
+| Ollama on Tailscale network | `http://100.x.x.x:11434` |
+| Ollama on local network | `http://192.168.x.x:11434` |
 
 **Model Examples**:
 
@@ -386,7 +386,7 @@ curl -v http://localhost:11434/v1/models
 
 # 4. If using Tailscale, verify IP
 tailscale ip -4
-ping 100.103.191.31
+ping 100.x.x.x  # Use your Tailscale IP
 
 # 5. Check firewall
 sudo ufw status
@@ -402,7 +402,7 @@ sudo ufw allow 11434/tcp
 **Solutions**:
 ```bash
 # 1. Verify network connectivity
-ping 100.103.191.31  # or your LLM server IP
+ping 100.x.x.x  # or your LLM server IP
 
 # 2. Check if Tailscale is connected
 tailscale status
@@ -471,13 +471,13 @@ cd /opt/sting-ce
 ```bash
 # 1. Get Windows host IP from WSL2
 ip route show | grep -i default | awk '{ print $3}'
-# Example output: 172.18.224.1
+# Example output: 172.x.x.x
 
 # 2. Test connectivity to Windows Ollama
-curl http://172.18.224.1:11434/v1/models
+curl http://172.x.x.x:11434/v1/models
 
 # 3. If that works, use that IP in wizard instead of host.docker.internal
-# Endpoint: http://172.18.224.1:11434
+# Endpoint: http://172.x.x.x:11434
 ```
 
 ### Slow Response Times

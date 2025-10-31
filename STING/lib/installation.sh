@@ -4,6 +4,432 @@
 # Dependencies should be loaded by the main script
 # No need to source them again here
 
+# ============================================================================
+# CLI Configuration Prompting Functions
+# ============================================================================
+
+# Prompt for SMTP/Email configuration in CLI mode
+prompt_smtp_configuration() {
+    log_message "╔════════════════════════════════════════════════════════════╗"
+    log_message "║      📧 Email/SMTP Configuration                          ║"
+    log_message "╚════════════════════════════════════════════════════════════╝"
+    log_message ""
+    log_message "STING uses email for user authentication (passwordless login)."
+    log_message ""
+
+    # Ask if they want to configure SMTP or use development mode
+    local email_mode
+    while true; do
+        echo ""
+        echo "Email Mode:"
+        echo "  [1] Development - Use Mailpit (email catcher for testing)"
+        echo "  [2] Production  - Configure external SMTP server"
+        echo ""
+        read -p "Select email mode [1]: " choice
+        choice=${choice:-1}
+
+        case "$choice" in
+            1)
+                email_mode="development"
+                break
+                ;;
+            2)
+                email_mode="production"
+                break
+                ;;
+            *)
+                echo "Invalid choice. Please enter 1 or 2."
+                ;;
+        esac
+    done
+
+    export EMAIL_MODE="$email_mode"
+    log_message "Email mode set to: $email_mode"
+
+    # If production mode, prompt for SMTP details
+    if [ "$email_mode" = "production" ]; then
+        log_message ""
+        log_message "📧 SMTP Server Configuration"
+        log_message "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+        # SMTP Host
+        local smtp_host
+        while true; do
+            read -p "SMTP Host (e.g., smtp.gmail.com): " smtp_host
+            if [ -n "$smtp_host" ]; then
+                break
+            else
+                echo "SMTP host cannot be empty."
+            fi
+        done
+        export SMTP_HOST="$smtp_host"
+
+        # SMTP Port
+        local smtp_port
+        read -p "SMTP Port [587]: " smtp_port
+        smtp_port=${smtp_port:-587}
+        export SMTP_PORT="$smtp_port"
+
+        # SMTP Username
+        local smtp_username
+        read -p "SMTP Username (email address): " smtp_username
+        export SMTP_USERNAME="$smtp_username"
+
+        # SMTP Password
+        local smtp_password
+        echo ""
+        echo "Note: For Gmail, use an app-specific password"
+        echo "      For SendGrid, use your API key"
+        read -s -p "SMTP Password: " smtp_password
+        echo ""
+        export SMTP_PASSWORD="$smtp_password"
+
+        # From Address
+        local smtp_from
+        read -p "From Email Address [$smtp_username]: " smtp_from
+        smtp_from=${smtp_from:-$smtp_username}
+        export SMTP_FROM="$smtp_from"
+
+        # From Name
+        local smtp_from_name
+        read -p "From Name [STING Platform]: " smtp_from_name
+        smtp_from_name=${smtp_from_name:-STING Platform}
+        export SMTP_FROM_NAME="$smtp_from_name"
+
+        # TLS Settings
+        local smtp_tls
+        read -p "Enable TLS [Y/n]: " smtp_tls
+        case "$smtp_tls" in
+            [Nn]*)
+                export SMTP_TLS_ENABLED="false"
+                export SMTP_STARTTLS_ENABLED="false"
+                ;;
+            *)
+                export SMTP_TLS_ENABLED="true"
+                export SMTP_STARTTLS_ENABLED="true"
+                ;;
+        esac
+
+        log_message ""
+        log_message "✅ SMTP configuration saved"
+        log_message "   Host: $smtp_host:$smtp_port"
+        log_message "   From: $smtp_from"
+    else
+        # Development mode - use Mailpit defaults
+        export SMTP_HOST="mailpit"
+        export SMTP_PORT="1025"
+        export SMTP_USERNAME=""
+        export SMTP_PASSWORD=""
+        export SMTP_FROM="noreply@sting.local"
+        export SMTP_FROM_NAME="STING Platform"
+        export SMTP_TLS_ENABLED="false"
+        export SMTP_STARTTLS_ENABLED="false"
+
+        log_message ""
+        log_message "✅ Using Mailpit for development"
+        log_message "   Emails will be caught at http://localhost:8025"
+    fi
+
+    log_message ""
+}
+
+# Prompt for LLM/AI configuration in CLI mode
+prompt_llm_configuration() {
+    log_message "╔════════════════════════════════════════════════════════════╗"
+    log_message "║      🤖 LLM/AI Configuration                               ║"
+    log_message "╚════════════════════════════════════════════════════════════╝"
+    log_message ""
+    log_message "STING can use AI for the Bee chatbot and other features."
+    log_message "You can use Ollama, LM Studio, OpenAI, or any OpenAI-compatible API."
+    log_message ""
+
+    # Ask if they want to configure LLM
+    local configure_llm
+    while true; do
+        echo ""
+        echo "Configure LLM/AI for STING?"
+        echo "  [Y] Yes - Configure AI endpoint (recommended)"
+        echo "  [N] No  - Skip AI configuration (can configure later)"
+        echo ""
+        read -p "Configure AI? [Y/n]: " configure_llm
+
+        case "$configure_llm" in
+            [Nn]*)
+                log_message "Skipping AI configuration"
+                export LLM_ENABLED="false"
+                return 0
+                ;;
+            *)
+                export LLM_ENABLED="true"
+                break
+                ;;
+        esac
+    done
+
+    log_message ""
+    log_message "🤖 LLM Provider Selection"
+    log_message "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Select LLM provider:"
+    echo "  [1] Ollama (local, self-hosted)"
+    echo "  [2] LM Studio (local, GUI-based)"
+    echo "  [3] External API (OpenAI-compatible)"
+    echo ""
+
+    local provider_choice
+    read -p "Select provider [1]: " provider_choice
+    provider_choice=${provider_choice:-1}
+
+    local llm_endpoint
+    local llm_provider
+    local auto_install=false
+
+    case "$provider_choice" in
+        2)
+            llm_provider="lm-studio"
+            read -p "LM Studio Endpoint [http://localhost:1234/v1]: " llm_endpoint
+            llm_endpoint=${llm_endpoint:-http://localhost:1234/v1}
+            ;;
+        3)
+            llm_provider="external"
+            read -p "API Endpoint (e.g., http://your-server:11434): " llm_endpoint
+            ;;
+        *)
+            llm_provider="ollama"
+            # Check if Ollama is installed
+            if command -v ollama >/dev/null 2>&1; then
+                log_message "✅ Ollama is already installed"
+                read -p "Ollama Endpoint [http://localhost:11434]: " llm_endpoint
+                llm_endpoint=${llm_endpoint:-http://localhost:11434}
+            else
+                log_message "Ollama not found - will be installed automatically"
+                auto_install=true
+                llm_endpoint="http://localhost:11434"
+            fi
+            ;;
+    esac
+
+    export LLM_PROVIDER="$llm_provider"
+    export LLM_ENDPOINT="$llm_endpoint"
+    export OLLAMA_AUTO_INSTALL="$auto_install"
+
+    # Model selection
+    log_message ""
+    log_message "Available models (for Ollama):"
+    log_message "  1. phi3:mini (Fast, compact, good for most tasks)"
+    log_message "  2. deepseek-r1:latest (Reasoning model for complex tasks)"
+    log_message "  3. llama3.2:latest (General purpose, larger model)"
+    log_message "  4. Custom model name"
+    log_message ""
+
+    local model_choice
+    read -p "Select default model [1]: " model_choice
+    model_choice=${model_choice:-1}
+
+    local default_model
+    case "$model_choice" in
+        2)
+            default_model="deepseek-r1:latest"
+            ;;
+        3)
+            default_model="llama3.2:latest"
+            ;;
+        4)
+            read -p "Enter model name: " default_model
+            ;;
+        *)
+            default_model="phi3:mini"
+            ;;
+    esac
+    export LLM_MODEL="$default_model"
+
+    log_message ""
+    log_message "✅ LLM configuration saved"
+    log_message "   Provider: $llm_provider"
+    log_message "   Endpoint: $llm_endpoint"
+    log_message "   Default model: $default_model"
+    log_message ""
+}
+
+# Prompt for admin user configuration in CLI mode
+prompt_admin_configuration() {
+    log_message "╔════════════════════════════════════════════════════════════╗"
+    log_message "║      👤 Admin User Configuration                          ║"
+    log_message "╚════════════════════════════════════════════════════════════╝"
+    log_message ""
+    log_message "Create an admin user for STING?"
+    log_message ""
+
+    local create_admin
+    while true; do
+        echo ""
+        echo "  [Y] Yes - Create admin user now"
+        echo "  [N] No  - Skip admin creation (can create later)"
+        echo ""
+        read -p "Create admin user? [Y/n]: " create_admin
+
+        case "$create_admin" in
+            [Nn]*)
+                export SETUP_ADMIN="false"
+                log_message "Skipping admin user creation"
+                log_message "You can create an admin later with: ./setup_first_admin.sh"
+                return 0
+                ;;
+            *)
+                export SETUP_ADMIN="true"
+                break
+                ;;
+        esac
+    done
+
+    # Get admin email
+    local admin_email
+    while true; do
+        read -p "Admin email address [admin@sting.local]: " admin_email
+        admin_email=${admin_email:-admin@sting.local}
+
+        # Basic email validation
+        if [[ "$admin_email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+            break
+        else
+            echo "Invalid email format. Please try again."
+        fi
+    done
+
+    export ADMIN_EMAIL="$admin_email"
+
+    log_message ""
+    log_message "✅ Admin configuration saved"
+    log_message "   Email: $admin_email"
+    log_message "   Authentication: Passwordless (email verification)"
+    log_message ""
+}
+
+# Save CLI configuration to .env file for persistence
+save_cli_configuration() {
+    local env_file="${INSTALL_DIR}/.env"
+
+    log_message "Saving configuration to ${env_file}..."
+
+    # Create or append to .env file
+    cat >> "$env_file" << EOF
+
+# CLI Configuration - Generated on $(date)
+# Email Configuration
+EMAIL_MODE=${EMAIL_MODE:-development}
+SMTP_HOST=${SMTP_HOST:-mailpit}
+SMTP_PORT=${SMTP_PORT:-1025}
+SMTP_USERNAME=${SMTP_USERNAME:-}
+SMTP_PASSWORD=${SMTP_PASSWORD:-}
+SMTP_FROM=${SMTP_FROM:-noreply@sting.local}
+SMTP_FROM_NAME=${SMTP_FROM_NAME:-STING Platform}
+SMTP_TLS_ENABLED=${SMTP_TLS_ENABLED:-false}
+SMTP_STARTTLS_ENABLED=${SMTP_STARTTLS_ENABLED:-false}
+
+# LLM/AI Configuration
+LLM_ENABLED=${LLM_ENABLED:-false}
+LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+LLM_ENDPOINT=${LLM_ENDPOINT:-http://localhost:11434}
+LLM_MODEL=${LLM_MODEL:-phi3:mini}
+OLLAMA_AUTO_INSTALL=${OLLAMA_AUTO_INSTALL:-false}
+
+# Admin Configuration
+ADMIN_EMAIL=${ADMIN_EMAIL:-}
+SETUP_ADMIN=${SETUP_ADMIN:-false}
+EOF
+
+    log_message "✅ Configuration saved to .env file"
+}
+
+# Update config.yml with CLI configuration values
+update_config_yml_from_cli() {
+    local config_file="${INSTALL_DIR}/conf/config.yml"
+
+    if [ ! -f "$config_file" ]; then
+        log_message "⚠️ config.yml not found, skipping CLI configuration update" "WARNING"
+        return 0
+    fi
+
+    log_message "Updating config.yml with CLI configuration..."
+
+    # Update LLM configuration if provided
+    if [ -n "${LLM_ENDPOINT:-}" ]; then
+        log_message "  Setting LLM endpoint: ${LLM_ENDPOINT}"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s|endpoint: \"http://[^\"]*\"|endpoint: \"${LLM_ENDPOINT}\"|g" "$config_file"
+        else
+            sed -i "s|endpoint: \"http://[^\"]*\"|endpoint: \"${LLM_ENDPOINT}\"|g" "$config_file"
+        fi
+    fi
+
+    if [ -n "${LLM_MODEL:-}" ]; then
+        log_message "  Setting LLM model: ${LLM_MODEL}"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s|default_model: \"[^\"]*\"|default_model: \"${LLM_MODEL}\"|g" "$config_file"
+        else
+            sed -i "s|default_model: \"[^\"]*\"|default_model: \"${LLM_MODEL}\"|g" "$config_file"
+        fi
+    fi
+
+    # Update email configuration if provided
+    if [ "${EMAIL_MODE:-}" = "production" ] && [ -n "${SMTP_HOST:-}" ]; then
+        log_message "  Setting SMTP configuration..."
+        # Note: SMTP config uses mail section, not email_service
+        # This is handled by config_loader.py via environment variables
+    fi
+
+    log_message "✅ config.yml updated with CLI configuration"
+}
+
+# Run all CLI configuration prompts
+run_cli_configuration_prompts() {
+    log_message ""
+    log_message "════════════════════════════════════════════════════════════"
+    log_message "  STING Configuration Wizard (CLI Mode)"
+    log_message "════════════════════════════════════════════════════════════"
+    log_message ""
+
+    # Run configuration prompts
+    prompt_smtp_configuration
+    prompt_llm_configuration
+    prompt_admin_configuration
+
+    log_message ""
+    log_message "════════════════════════════════════════════════════════════"
+    log_message "  Configuration Complete"
+    log_message "════════════════════════════════════════════════════════════"
+    log_message ""
+    log_message "Review your configuration:"
+    log_message "  📧 Email Mode: ${EMAIL_MODE:-development}"
+    if [ "${EMAIL_MODE:-development}" = "production" ]; then
+        log_message "     SMTP Host: ${SMTP_HOST}"
+    fi
+    log_message "  🤖 LLM/AI: ${LLM_ENABLED:-false}"
+    if [ "${LLM_ENABLED:-false}" = "true" ]; then
+        log_message "     Provider: ${LLM_PROVIDER:-ollama}"
+        log_message "     Endpoint: ${LLM_ENDPOINT}"
+        log_message "     Model: ${LLM_MODEL}"
+    fi
+    log_message "  👤 Admin User: ${ADMIN_EMAIL:-None}"
+    log_message ""
+
+    # Confirm before proceeding
+    read -p "Proceed with installation? [Y/n]: " confirm
+    case "$confirm" in
+        [Nn]*)
+            log_message "Installation cancelled"
+            exit 0
+            ;;
+        *)
+            log_message "Proceeding with installation..."
+            log_message ""
+            ;;
+    esac
+
+    # Save configuration to .env file for persistence
+    save_cli_configuration
+}
+
 # Main installation function
 install_msting() {
     local start_llm=false
@@ -91,13 +517,26 @@ install_msting() {
         log_message "Failed to install dependencies" "ERROR"
         return 1
     fi
-    
+
+    # Run CLI configuration prompts if in interactive mode
+    if [ "$interactive_prompt" = true ]; then
+        run_cli_configuration_prompts
+
+        # Update variables based on configuration
+        if [ "${SETUP_ADMIN:-true}" = "true" ] && [ -n "${ADMIN_EMAIL:-}" ]; then
+            setup_admin=true
+            admin_email="$ADMIN_EMAIL"
+        else
+            setup_admin=false
+        fi
+    fi
+
     # Apply WSL2 Docker fixes if needed
     if [ -f "${SCRIPT_DIR}/docker_wsl_fix.sh" ]; then
         source "${SCRIPT_DIR}/docker_wsl_fix.sh"
         fix_docker_credential_helper
     fi
-    
+
     # Pull base Docker images
     log_message "Pulling base Docker images..."
     docker pull postgres:16-alpine
@@ -125,7 +564,7 @@ install_msting() {
     echo ""
     log_message "📌 IMPORTANT: If you encounter permission errors with 'msting' commands:" "WARNING"
     log_message "   Please run the permission fix script after installation:"
-    log_message "   ./fix_permissions.sh"
+    log_message "   STING/fix_permissions.sh"
     log_message ""
     log_message "   This is required on both macOS and PC to ensure proper script permissions."
     echo ""
@@ -2709,6 +3148,9 @@ initialize_sting() {
 
     # 6.6. Configure hostname for WebAuthn/Passkey compatibility
     configure_hostname
+
+    # 6.7. Update config.yml with CLI configuration values
+    update_config_yml_from_cli
 
     # 7. Install services
     if ! build_and_start_services "$cache_level"; then
