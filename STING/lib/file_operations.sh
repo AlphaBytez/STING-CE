@@ -402,10 +402,10 @@ check_service_dependencies() {
             dependencies=("db" "external-ai")
             ;;
         external-ai)
-            # Check if Ollama is running
-            if ! curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
-                log_message "⚠️  Warning: Ollama not running - external-ai service may fail" "WARNING"
-                log_message "Start Ollama with: ollama serve" "INFO"
+            # Check if OpenAI-compatible endpoint is running
+            if ! curl -sf http://localhost:11434/v1/models >/dev/null 2>&1; then
+                log_message "⚠️  Warning: AI service not responding - external-ai service may fail" "WARNING"
+                log_message "Start your AI service (Ollama, LM Studio, etc.)" "INFO"
             fi
             ;;
         kratos)
@@ -419,10 +419,10 @@ check_service_dependencies() {
             ;;
         nectar-worker)
             dependencies=("app")
-            # Check if Ollama is running
-            if ! curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
-                log_message "⚠️  Warning: Ollama not running - nectar-worker may fail" "WARNING"
-                log_message "Start Ollama with: ollama serve" "INFO"
+            # Check if OpenAI-compatible endpoint is running
+            if ! curl -sf http://localhost:11434/v1/models >/dev/null 2>&1; then
+                log_message "⚠️  Warning: AI service not responding - nectar-worker may fail" "WARNING"
+                log_message "Start your AI service (Ollama, LM Studio, etc.)" "INFO"
             fi
             ;;
     esac
