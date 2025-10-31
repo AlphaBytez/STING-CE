@@ -45,6 +45,7 @@ fi
 if [ -f "$LIB_DIR/bootstrap.sh" ]; then
   # Set up minimal environment for bootstrap
   export INSTALL_DIR="${INSTALL_DIR:-$DEFAULT_INSTALL_DIR}"
+  export SOURCE_DIR="$STING_ROOT_DIR"  # Source directory for configuration files
 
   # Use temp directory for initial logs to avoid permission issues
   # The installation.sh will create proper directory with correct permissions

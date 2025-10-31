@@ -249,23 +249,71 @@ generate_initial_configuration() {
         if exec_in_utils "cd /app/conf && INSTALL_DIR=/app python3 config_loader.py config.yml --mode $mode"; then
             log_message "Environment files generated successfully using utils container" "SUCCESS"
             
-            # Copy generated env files from project directory to install directory
-            log_message "Copying generated environment files to install directory..."
-            if [ -d "${SOURCE_DIR}/env" ] && cp "${SOURCE_DIR}/env/"*.env "${INSTALL_DIR}/env/" 2>/dev/null; then
-                log_message "Environment files copied successfully" "SUCCESS"
-                
-                # Verify env files were created  
+            # Check if SOURCE_DIR is set (needed for copy operation)
+            if [ -z "${SOURCE_DIR:-}" ]; then
+                log_message "SOURCE_DIR not set - attempting auto-detection" "WARNING"
+                # Try to find the env directory
+                if [ -d "${STING_ROOT_DIR:-$(pwd)}/env" ]; then
+                    export SOURCE_DIR="${STING_ROOT_DIR:-$(pwd)}"
+                    log_message "Auto-detected SOURCE_DIR: ${SOURCE_DIR}" "SUCCESS"
+                else
+                    log_message "Cannot locate environment files" "ERROR"
+                    return 1
+                fi
+            fi
+            
+            # Determine if copy is needed based on directory structure
+            # Normalize paths for comparison (resolve symlinks, remove trailing slashes)
+            local normalized_source
+            local normalized_install
+            normalized_source="$(cd "${SOURCE_DIR}" 2>/dev/null && pwd)" || normalized_source="${SOURCE_DIR}"
+            normalized_install="$(cd "${INSTALL_DIR}" 2>/dev/null && pwd)" || normalized_install="${INSTALL_DIR}"
+            
+            # Check if we're running from the project directory (development/codespace mode)
+            if [ "${normalized_source}" = "${normalized_install}" ]; then
+                log_message "Development mode detected: SOURCE_DIR and INSTALL_DIR are the same" "INFO"
+                log_message "Environment files already in correct location at ${INSTALL_DIR}/env" "SUCCESS"
                 local env_files_created
                 env_files_created=$(find "${INSTALL_DIR}/env" -name "*.env" -type f 2>/dev/null | wc -l)
-                log_message "Created $env_files_created environment files in install directory"
-            else
-                log_message "Failed to copy environment files to install directory" "ERROR"
-                log_message "Checking if files exist in project directory..." "WARNING"
-                if [ -d "${SOURCE_DIR}/env" ]; then
-                    ls -la "${SOURCE_DIR}/env/"*.env 2>/dev/null || log_message "No .env files found in ${SOURCE_DIR}/env/"
-                else
-                    log_message "Project env directory ${SOURCE_DIR}/env does not exist"
+                log_message "Verified $env_files_created environment files in place"
+            elif [ -d "${SOURCE_DIR}/env" ]; then
+                # Production mode: copy from project directory to install directory
+                log_message "Production mode: Copying env files from ${SOURCE_DIR}/env to ${INSTALL_DIR}/env..."
+                
+                # Ensure target directory exists (use sudo if needed on Linux)
+                if [ ! -d "${INSTALL_DIR}/env" ]; then
+                    if mkdir -p "${INSTALL_DIR}/env" 2>/dev/null; then
+                        log_message "Created ${INSTALL_DIR}/env directory" "SUCCESS"
+                    elif sudo -n mkdir -p "${INSTALL_DIR}/env" 2>/dev/null; then
+                        sudo -n chown -R "$USER:$(id -gn)" "${INSTALL_DIR}/env" 2>/dev/null
+                        log_message "Created ${INSTALL_DIR}/env directory with sudo" "SUCCESS"
+                    else
+                        log_message "Failed to create ${INSTALL_DIR}/env directory" "ERROR"
+                        return 1
+                    fi
                 fi
+                
+                if cp "${SOURCE_DIR}/env/"*.env "${INSTALL_DIR}/env/" 2>/dev/null; then
+                    log_message "Environment files copied successfully" "SUCCESS"
+                    
+                    # Verify env files were created  
+                    local env_files_created
+                    env_files_created=$(find "${INSTALL_DIR}/env" -name "*.env" -type f 2>/dev/null | wc -l)
+                    log_message "Created $env_files_created environment files in install directory"
+                else
+                    log_message "Failed to copy environment files to install directory" "ERROR"
+                    log_message "Source: ${SOURCE_DIR}/env/" "INFO"
+                    log_message "Target: ${INSTALL_DIR}/env/" "INFO"
+                    log_message "Checking if files exist in source directory..." "WARNING"
+                    if ls -la "${SOURCE_DIR}/env/"*.env 2>/dev/null; then
+                        log_message "Files exist in source but copy failed - check permissions" "ERROR"
+                    else
+                        log_message "No .env files found in ${SOURCE_DIR}/env/" "ERROR"
+                    fi
+                    return 1
+                fi
+            else
+                log_message "Project env directory ${SOURCE_DIR}/env does not exist" "ERROR"
                 return 1
             fi
         else
