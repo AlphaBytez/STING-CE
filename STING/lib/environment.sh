@@ -300,6 +300,39 @@ create_virtual_environment() {
     return 0
 }
 
+# Prepare basic environment structure
+prepare_basic_environment() {
+    log_message "Preparing basic environment structure..."
+
+    # Check if Docker network exists, create if not
+    if ! docker network inspect sting_local >/dev/null 2>&1; then
+        log_message "Creating Docker network: sting_local"
+        if ! docker network create sting_local >/dev/null; then
+            log_message "ERROR: Failed to create Docker network sting_local"
+            return 1
+        fi
+        log_message "Docker network sting_local created successfully"
+    else
+        log_message "Docker network sting_local already exists"
+    fi
+
+    # Create necessary directories
+    log_message "Creating essential directories..."
+    mkdir -p "${INSTALL_DIR}/config_data" \
+             "${INSTALL_DIR}/postgres_data" \
+             "${INSTALL_DIR}/vault_data" \
+             "${INSTALL_DIR}/vault_file" \
+             "${INSTALL_DIR}/vault_persistent" \
+             "${INSTALL_DIR}/vault_logs" \
+             "${INSTALL_DIR}/certs" \
+             "${INSTALL_DIR}/uploads" \
+             "${INSTALL_DIR}/logs/llm" \
+             "${STING_MODELS_DIR:-/tmp/sting_models}"
+
+    log_message "Basic environment structure prepared successfully"
+    return 0
+}
+
 
 
 

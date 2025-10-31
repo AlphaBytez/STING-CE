@@ -268,6 +268,17 @@ fi
 log_message ""
 
 # ============================================================================
+# PRE-INSTALLATION ENVIRONMENT SETUP
+# Source environment library and prepare basic directories/networks
+# ============================================================================
+if [ -f "$LIB_DIR/environment.sh" ]; then
+  source "$LIB_DIR/environment.sh"
+  prepare_basic_environment # Call the new function here
+else
+  log_message "Warning: Could not find environment.sh" "WARNING"
+fi
+
+# ============================================================================
 # SYSTEM DEPENDENCY CHECK
 # Now that sudo is acquired and keepalive is running, check/install dependencies
 # ============================================================================
@@ -544,7 +555,7 @@ if [ "$USE_CLI" = false ]; then
         log_message "Running automatic cleanup..." "INFO"
         log_message "Executing: ./manage_sting.sh uninstall --purge" "INFO"
 
-        if "${SCRIPT_DIR}/manage_sting.sh" uninstall --purge; then
+        if ./manage_sting.sh uninstall --purge; then
           log_message "✅ Cleanup successful! Continuing with installation..." "SUCCESS"
           sleep 2
         else
@@ -924,7 +935,7 @@ else
         log_message "Running automatic cleanup..." "INFO"
         log_message "Executing: ./manage_sting.sh uninstall --purge" "INFO"
 
-        if "${SCRIPT_DIR}/manage_sting.sh" uninstall --purge; then
+        if ./manage_sting.sh uninstall --purge; then
           log_message "✅ Cleanup successful! Continuing with installation..." "SUCCESS"
           sleep 2
         else
@@ -979,8 +990,8 @@ else
   # but cleanup_sudo calls cleanup_global_keepalive internally, ensuring proper cleanup
   trap cleanup_sudo EXIT HUP INT QUIT PIPE TERM
 
-  # Verify manage_sting.sh exists
-  MANAGE_STING="$SCRIPT_DIR/manage_sting.sh"
+  # Verify manage_sting.sh exists (should be in current directory)
+  MANAGE_STING="./manage_sting.sh"
   if [ ! -x "$MANAGE_STING" ]; then
     log_message "Error: manage_sting.sh not found or not executable at: $MANAGE_STING" "ERROR"
     exit 1
