@@ -4,6 +4,53 @@
 #
 # Prefers hostnames over IPs for WebAuthn consistency. IP is only used as fallback.
 
+# Function to detect platform environment
+detect_platform() {
+    # GitHub Codespaces
+    if [ -n "${CODESPACES:-}" ] || [ -n "${CODESPACE_NAME:-}" ]; then
+        echo "codespaces"
+        return 0
+    fi
+
+    # WSL2
+    if grep -qEi "(Microsoft|WSL)" /proc/version 2>/dev/null; then
+        echo "wsl2"
+        return 0
+    fi
+
+    # macOS
+    if [[ "$(uname)" == "Darwin" ]]; then
+        echo "macos"
+        return 0
+    fi
+
+    # Docker container (but not Codespaces)
+    if [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then
+        echo "docker"
+        return 0
+    fi
+
+    # Generic Linux
+    echo "linux"
+}
+
+# Function to check if mDNS/Avahi is available
+check_mdns_support() {
+    # Check for Avahi daemon (Linux)
+    if systemctl is-active --quiet avahi-daemon 2>/dev/null || \
+       service avahi-daemon status >/dev/null 2>&1 || \
+       pgrep avahi-daemon >/dev/null 2>&1; then
+        return 0
+    fi
+
+    # Check for macOS Bonjour (always present)
+    if [[ "$(uname)" == "Darwin" ]]; then
+        return 0
+    fi
+
+    return 1
+}
+
 # Function to check if a string is an IP address
 is_ip_address() {
     local value="$1"
@@ -75,6 +122,11 @@ get_sting_hostname() {
 
     # 3. Interactive mode - ask user
     if [ "$interactive" = "true" ]; then
+        # Detect platform for smart recommendations
+        local platform=$(detect_platform)
+        local has_mdns=false
+        check_mdns_support && has_mdns=true
+
         echo "" >&2
         echo "🌐 Hostname Configuration for STING" >&2
         echo "===================================" >&2
@@ -82,27 +134,85 @@ get_sting_hostname() {
         echo "STING needs a hostname or IP address for WebAuthn/passkey support." >&2
         echo "" >&2
 
-        # Check if running in GitHub Codespaces
-        if [ -n "${CODESPACES:-}" ] || [ -n "${CODESPACE_NAME:-}" ]; then
-            echo "⚠️  GitHub Codespaces detected!" >&2
-            echo "   .local domains won't work in Codespaces." >&2
-            echo "   Use 'localhost' or forward ports and use the Codespaces URL." >&2
-            echo "" >&2
-        fi
+        # Platform-specific guidance
+        case "$platform" in
+            codespaces)
+                echo "📦 Platform: GitHub Codespaces" >&2
+                echo "   Recommendation: Use 'localhost' (option 2)" >&2
+                echo "   Note: .local domains don't work in Codespaces" >&2
+                default_option="2"
+                ;;
+            wsl2)
+                echo "🪟 Platform: WSL2 (Windows Subsystem for Linux)" >&2
+                if [ "$has_mdns" = true ]; then
+                    echo "   Recommendation: Use 'sting.local' (option 1)" >&2
+                    echo "   Note: Accessible from Windows via .local domain" >&2
+                    default_option="1"
+                else
+                    echo "   Recommendation: Use Windows hostname or IP (option 3)" >&2
+                    echo "   Note: No mDNS detected - .local may not work from Windows" >&2
+                    default_option="3"
+                fi
+                ;;
+            macos)
+                echo "🍎 Platform: macOS" >&2
+                echo "   Recommendation: Use 'sting.local' (option 1)" >&2
+                echo "   Note: Bonjour/mDNS built-in, .local works perfectly" >&2
+                default_option="1"
+                ;;
+            docker)
+                echo "🐳 Platform: Docker Container" >&2
+                echo "   Recommendation: Use 'localhost' for local access (option 2)" >&2
+                echo "   Note: For external access, use host IP or domain" >&2
+                default_option="2"
+                ;;
+            linux)
+                if [ "$has_mdns" = true ]; then
+                    echo "🐧 Platform: Linux (with mDNS/Avahi)" >&2
+                    echo "   Recommendation: Use 'sting.local' (option 1)" >&2
+                    echo "   Note: .local domains will work on your network" >&2
+                    default_option="1"
+                else
+                    echo "🐧 Platform: Linux (no mDNS detected)" >&2
+                    echo "   Recommendation: Use IP address or FQDN (option 3)" >&2
+                    echo "   Note: .local domains won't work without Avahi" >&2
+                    default_option="3"
+                fi
+                ;;
+        esac
+
+        echo "" >&2
 
         if [ -n "$detected_hostname" ]; then
             echo "Detected hostname: $detected_hostname" >&2
         else
-            echo "No hostname detected (or system uses localhost)" >&2
+            echo "No hostname detected (system uses localhost)" >&2
         fi
 
         echo "" >&2
         echo "Options:" >&2
-        echo "  1) sting.local       - Simple local domain (recommended for local VMs)" >&2
-        echo "  2) localhost         - Only works on this machine (good for Codespaces)" >&2
+
+        # Determine recommended hostname based on platform
+        local recommended_hostname
+        case "$default_option" in
+            "1") recommended_hostname="sting.local" ;;
+            "2") recommended_hostname="localhost" ;;
+            "3") recommended_hostname="$detected_hostname" ;;
+        esac
+
+        # Show options with star on recommended one
+        local star1="" star2="" star3=""
+        case "$default_option" in
+            "1") star1=" ⭐ RECOMMENDED" ;;
+            "2") star2=" ⭐ RECOMMENDED" ;;
+            "3") star3=" ⭐ RECOMMENDED" ;;
+        esac
+
+        echo "  1) sting.local       - Local network (.local domain)${star1}" >&2
+        echo "  2) localhost         - Only this machine${star2}" >&2
 
         if [ -n "$detected_hostname" ]; then
-            echo "  3) $detected_hostname  - Use detected system hostname" >&2
+            echo "  3) $detected_hostname  - Use detected hostname${star3}" >&2
             echo "  4) Custom            - Enter your own" >&2
         else
             echo "  3) Custom            - Enter your own" >&2
@@ -110,19 +220,17 @@ get_sting_hostname() {
 
         echo "" >&2
 
-        # Default to sting.local (option 1)
-        local default_option="1"
         if [ -n "$detected_hostname" ]; then
-            read -p "Select option [1-4] (default: 1 - sting.local): " choice >&2
+            read -p "Select option [1-4] (default: $default_option): " choice >&2
         else
-            read -p "Select option [1-3] (default: 1 - sting.local): " choice >&2
+            read -p "Select option [1-3] (default: $default_option): " choice >&2
         fi
 
         choice="${choice:-$default_option}"
 
         case "$choice" in
             1)
-                echo "$default_hostname"
+                echo "sting.local"
                 ;;
             2)
                 echo "localhost"
@@ -314,7 +422,9 @@ verify_hostname_resolves() {
     return 1
 }
 
-# Export function for use in other scripts
+# Export functions for use in other scripts
+export -f detect_platform
+export -f check_mdns_support
 export -f get_sting_hostname
 export -f detect_system_hostname
 export -f is_ip_address
