@@ -2,14 +2,15 @@
 # services.sh - Service management functions
 
 # Source dependencies
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/core.sh"
-source "${SCRIPT_DIR}/logging.sh"
-source "${SCRIPT_DIR}/environment.sh"
+# Use LIB_DIR instead of SCRIPT_DIR to avoid overwriting parent script's SCRIPT_DIR
+LIB_DIR_INTERNAL="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${LIB_DIR_INTERNAL}/core.sh"
+source "${LIB_DIR_INTERNAL}/logging.sh"
+source "${LIB_DIR_INTERNAL}/environment.sh"
 
 # Source enhanced startup resilience if available
-if [ -f "${SCRIPT_DIR}/service_startup_resilience.sh" ]; then
-    source "${SCRIPT_DIR}/service_startup_resilience.sh"
+if [ -f "${LIB_DIR_INTERNAL}/service_startup_resilience.sh" ]; then
+    source "${LIB_DIR_INTERNAL}/service_startup_resilience.sh"
 fi
 
 # Helper function for consistent Docker Compose calls

@@ -25,12 +25,12 @@ fi
 # Exit on any error
 set -euo pipefail
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+# Get script directory (use STING_ROOT_DIR to avoid conflicts with sourced lib files)
+STING_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$STING_ROOT_DIR"
 
 # Source required libraries for dependency checks
-LIB_DIR="$SCRIPT_DIR/lib"
+LIB_DIR="$STING_ROOT_DIR/lib"
 
 # Platform detection for install directory (matching manage_sting.sh)
 if [[ "$(uname)" == "Darwin" ]]; then
@@ -73,12 +73,9 @@ fi
 
 # Source services.sh at global scope (required for service health checks)
 # CRITICAL: Must be sourced here, NOT inside functions, so all functions can access it
-# IMPORTANT: Save SCRIPT_DIR first, as services.sh will overwrite it with lib directory
-STING_ROOT_DIR="$SCRIPT_DIR"
+# NOTE: sourced lib files may redefine SCRIPT_DIR, but we use STING_ROOT_DIR for root paths
 if [ -f "$LIB_DIR/services.sh" ]; then
   source "$LIB_DIR/services.sh"
-  # Restore SCRIPT_DIR to point to STING root, not lib directory
-  SCRIPT_DIR="$STING_ROOT_DIR"
 else
   log_message "ERROR: services.sh not found - service health checks will fail" "ERROR"
   exit 1
@@ -310,7 +307,7 @@ if [ "$USE_CLI" = false ]; then
   log_message ""
 
   # Check if wizard exists
-  WIZARD_DIR="$SCRIPT_DIR/web-setup"
+  WIZARD_DIR="$STING_ROOT_DIR/web-setup"
   WIZARD_APP="$WIZARD_DIR/app.py"
 
   if [ ! -f "$WIZARD_APP" ]; then
@@ -430,7 +427,7 @@ if [ "$USE_CLI" = false ]; then
       fi
     else
       log_message "Not running on WSL - DNS issues may require manual intervention" "WARNING"
-      log_message "Try running: sudo $SCRIPT_DIR/troubleshoot_network.sh" "INFO"
+      log_message "Try running: sudo $STING_ROOT_DIR/troubleshoot_network.sh" "INFO"
       exit 1
     fi
   else
@@ -449,7 +446,7 @@ if [ "$USE_CLI" = false ]; then
         log_message "Detected Ubuntu 24.10+ - trying version-specific python-venv package..." "INFO"
 
         # Get Python version
-        local py_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "3.12")
+        py_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "3.12")
 
         log_message "Installing python${py_version}-venv..." "INFO"
         if sudo apt-get install -y "python${py_version}-venv" 2>&1 | tee -a /tmp/venv-creation.log; then
@@ -489,7 +486,7 @@ if [ "$USE_CLI" = false ]; then
       log_message "This appears to be a DNS/network issue." "ERROR"
       log_message "" "ERROR"
       log_message "Troubleshooting steps:" "INFO"
-      log_message "1. Run: sudo $SCRIPT_DIR/troubleshoot_network.sh" "INFO"
+      log_message "1. Run: sudo $STING_ROOT_DIR/troubleshoot_network.sh" "INFO"
       log_message "2. Or manually fix DNS: sudo nano /etc/resolv.conf" "INFO"
       log_message "   Add: nameserver 8.8.8.8" "INFO"
       log_message "3. On WSL, you may need to restart: wsl --shutdown (from PowerShell)" "INFO"
