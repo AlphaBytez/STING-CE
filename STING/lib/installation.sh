@@ -184,60 +184,80 @@ prompt_llm_configuration() {
     local llm_provider
     local auto_install=false
 
-    case "$provider_choice" in
-        2)
-            llm_provider="lm-studio"
-            read -p "LM Studio Endpoint [http://localhost:1234/v1]: " llm_endpoint
-            llm_endpoint=${llm_endpoint:-http://localhost:1234/v1}
-            ;;
-        3)
-            llm_provider="external"
-            read -p "API Endpoint (e.g., http://your-server:11434): " llm_endpoint
-            ;;
-        *)
-            llm_provider="ollama"
-            # Check if Ollama is installed
-            if command -v ollama >/dev/null 2>&1; then
-                log_message "✅ Ollama is already installed"
-                read -p "Ollama Endpoint [http://localhost:11434]: " llm_endpoint
-                llm_endpoint=${llm_endpoint:-http://localhost:11434}
+    # Loop until valid endpoint or user cancels
+    local endpoint_valid=false
+    while [ "$endpoint_valid" = false ]; do
+        case "$provider_choice" in
+            2)
+                llm_provider="lm-studio"
+                read -p "LM Studio Endpoint [http://localhost:1234]: " llm_endpoint
+                llm_endpoint=${llm_endpoint:-http://localhost:1234}
+                ;;
+            3)
+                llm_provider="external"
+                read -p "API Endpoint (e.g., http://your-server:11434): " llm_endpoint
+                ;;
+            *)
+                llm_provider="ollama"
+                # Check if Ollama is installed
+                if command -v ollama >/dev/null 2>&1; then
+                    log_message "✅ Ollama is already installed"
+                    read -p "Ollama Endpoint [http://localhost:11434]: " llm_endpoint
+                    llm_endpoint=${llm_endpoint:-http://localhost:11434}
+                else
+                    log_message "Ollama not found - will be installed automatically"
+                    auto_install=true
+                    llm_endpoint="http://localhost:11434"
+                    endpoint_valid=true  # Skip validation for auto-install
+                fi
+                ;;
+        esac
+
+        # Test LLM endpoint connectivity (unless auto-installing Ollama)
+        if [ "$auto_install" = false ]; then
+            log_message ""
+            log_message "Testing LLM endpoint connectivity..."
+
+            # Test OpenAI-compatible /v1/models endpoint
+            local test_url="${llm_endpoint%/}/v1/models"
+            if timeout 5 curl -sf "$test_url" >/dev/null 2>&1; then
+                log_message "✅ LLM endpoint is reachable at: $llm_endpoint"
+                endpoint_valid=true
             else
-                log_message "Ollama not found - will be installed automatically"
-                auto_install=true
-                llm_endpoint="http://localhost:11434"
+                log_message "⚠️  Could not reach LLM endpoint at: $llm_endpoint" "WARNING"
+                log_message "   Testing: $test_url"
+                log_message "   The endpoint may not be running, or the URL may be incorrect"
+                echo ""
+                echo "Options:"
+                echo "  [R] Retry - Re-enter endpoint URL"
+                echo "  [C] Continue anyway - Proceed with installation"
+                echo "  [Q] Quit - Cancel installation"
+                echo ""
+                read -p "Select [R/C/Q] (default: R): " action
+                action=${action:-R}
+
+                case "$action" in
+                    [Cc]*)
+                        log_message "Continuing with installation despite unreachable endpoint..."
+                        endpoint_valid=true
+                        ;;
+                    [Qq]*)
+                        log_message "Installation cancelled. Please check your LLM endpoint and try again."
+                        exit 1
+                        ;;
+                    *)
+                        log_message "Re-enter your endpoint configuration..."
+                        echo ""
+                        # Loop continues to re-prompt
+                        ;;
+                esac
             fi
-            ;;
-    esac
+        fi
+    done
 
     export LLM_PROVIDER="$llm_provider"
     export LLM_ENDPOINT="$llm_endpoint"
     export OLLAMA_AUTO_INSTALL="$auto_install"
-
-    # Test LLM endpoint connectivity (unless auto-installing Ollama)
-    if [ "$auto_install" = false ]; then
-        log_message ""
-        log_message "Testing LLM endpoint connectivity..."
-
-        # Test OpenAI-compatible /v1/models endpoint
-        local test_url="${llm_endpoint%/}/v1/models"
-        if timeout 5 curl -sf "$test_url" >/dev/null 2>&1; then
-            log_message "✅ LLM endpoint is reachable"
-        else
-            log_message "⚠️  Could not reach LLM endpoint at: $llm_endpoint" "WARNING"
-            log_message "   The endpoint may not be running yet, or may need different configuration"
-            echo ""
-            read -p "Continue anyway? [y/N]: " continue_anyway
-            case "$continue_anyway" in
-                [Yy]*)
-                    log_message "Continuing with installation..."
-                    ;;
-                *)
-                    log_message "Installation cancelled. Please check your LLM endpoint and try again."
-                    exit 1
-                    ;;
-            esac
-        fi
-    fi
 
     # Model selection
     log_message ""
