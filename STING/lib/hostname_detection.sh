@@ -82,6 +82,14 @@ get_sting_hostname() {
         echo "STING needs a hostname or IP address for WebAuthn/passkey support." >&2
         echo "" >&2
 
+        # Check if running in GitHub Codespaces
+        if [ -n "${CODESPACES:-}" ] || [ -n "${CODESPACE_NAME:-}" ]; then
+            echo "⚠️  GitHub Codespaces detected!" >&2
+            echo "   .local domains won't work in Codespaces." >&2
+            echo "   Use 'localhost' or forward ports and use the Codespaces URL." >&2
+            echo "" >&2
+        fi
+
         if [ -n "$detected_hostname" ]; then
             echo "Detected hostname: $detected_hostname" >&2
         else
@@ -90,8 +98,8 @@ get_sting_hostname() {
 
         echo "" >&2
         echo "Options:" >&2
-        echo "  1) sting.local       - Simple local domain (recommended)" >&2
-        echo "  2) localhost         - Only works on this machine (no remote access)" >&2
+        echo "  1) sting.local       - Simple local domain (recommended for local VMs)" >&2
+        echo "  2) localhost         - Only works on this machine (good for Codespaces)" >&2
 
         if [ -n "$detected_hostname" ]; then
             echo "  3) $detected_hostname  - Use detected system hostname" >&2

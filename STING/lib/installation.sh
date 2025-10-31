@@ -213,6 +213,32 @@ prompt_llm_configuration() {
     export LLM_ENDPOINT="$llm_endpoint"
     export OLLAMA_AUTO_INSTALL="$auto_install"
 
+    # Test LLM endpoint connectivity (unless auto-installing Ollama)
+    if [ "$auto_install" = false ]; then
+        log_message ""
+        log_message "Testing LLM endpoint connectivity..."
+
+        # Test OpenAI-compatible /v1/models endpoint
+        local test_url="${llm_endpoint%/}/v1/models"
+        if timeout 5 curl -sf "$test_url" >/dev/null 2>&1; then
+            log_message "✅ LLM endpoint is reachable"
+        else
+            log_message "⚠️  Could not reach LLM endpoint at: $llm_endpoint" "WARNING"
+            log_message "   The endpoint may not be running yet, or may need different configuration"
+            echo ""
+            read -p "Continue anyway? [y/N]: " continue_anyway
+            case "$continue_anyway" in
+                [Yy]*)
+                    log_message "Continuing with installation..."
+                    ;;
+                *)
+                    log_message "Installation cancelled. Please check your LLM endpoint and try again."
+                    exit 1
+                    ;;
+            esac
+        fi
+    fi
+
     # Model selection
     log_message ""
     log_message "Available models (for Ollama):"
@@ -2734,13 +2760,13 @@ validate_auth_config_consistency() {
 
     # 3. Verify WebAuthn RP ID matches configured hostname
     # Use more specific pattern to match webauthn rp: section only, trim all whitespace
-    local rp_id=$(grep -A20 "webauthn:" "${INSTALL_DIR}/kratos/kratos.yml" | grep -A10 "rp:" | grep "id:" | head -1 | awk '{print $2}' | tr -d '"' | tr -d "'" | xargs)
+    local rp_id=$(grep -A20 "webauthn:" "${INSTALL_DIR}/kratos/kratos.yml" | grep -A10 "rp:" | grep "id:" | head -1 | awk '{print $2}' | tr -d '"' | tr -d "'" | tr -d '\r' | tr -d '\n' | xargs)
     if [ -z "$rp_id" ]; then
         errors+=("❌ WebAuthn RP ID not found in Kratos config")
     elif [ "$rp_id" != "$hostname" ]; then
         errors+=("❌ WebAuthn RP ID mismatch!")
-        errors+=("   Expected: '$hostname'")
-        errors+=("   Got: '$rp_id'")
+        errors+=("   Expected: ${hostname}")
+        errors+=("   Got: ${rp_id}")
         errors+=("   This WILL cause passkey/WebAuthn failures!")
     else
         log_message "   ✅ WebAuthn RP ID: $rp_id"
