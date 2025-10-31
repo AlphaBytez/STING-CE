@@ -746,17 +746,33 @@ class ConfigurationManager:
         if not self.raw_config:
             self.load_config()
         
+        # Initialize instance attributes early to prevent AttributeError
+        # These must be set before any early returns from cache/state checks
+        # SuperTokens secrets removed - no longer used (Kratos handles auth)
+        self.api_key = None  # SuperTokens removed, set to None to prevent AttributeError
+        self.dashboard_api_key = None  # SuperTokens removed, set to None to prevent AttributeError
+        
+        # Check cache first (after initializing attributes)
+        if self.cache_key in self._config_cache:
+            logger.debug(f"Using cached configuration for {self.cache_key}")
+            self.processed_config = self._config_cache[self.cache_key]
+            return self.processed_config
+
+        # State management check
+        if os.path.exists(self.state_file) and self.mode != 'initialize':
+            logger.info("Found existing configuration state")
+            with open(self.state_file, 'r') as f:
+                state_data = json.load(f)
+                if self._verify_state_validity(state_data):
+                    self.processed_config = state_data
+                    return self.processed_config
+        
         # Generate Flask secret key if not exists
         flask_secret = self._get_secret('flask', 'secret_key')
         logger.info(f"Generated/Retrieved Flask secret key status: {'[EXISTS]' if flask_secret else '[NOT_FOUND]'}")
         
-        # Generate and set database password first
+        # Generate and set database password
         self.db_password = self._clean_value(self._get_secret('database', 'password', supertokens_safe=False))
-        # SuperTokens secrets removed - no longer used (Kratos handles auth)
-        # self.api_key = self._clean_value(self._get_secret('supertokens', 'api_key', supertokens_safe=True))
-        self.api_key = None  # SuperTokens removed, set to None to prevent AttributeError
-        # self.dashboard_api_key = self._clean_value(self._get_secret('supertokens', 'dashboard_api_key', supertokens_safe=True))
-        self.dashboard_api_key = None  # SuperTokens removed, set to None to prevent AttributeError
         
         # Generate Honey Reserve encryption master key
         self.honey_reserve_master_key = self._clean_value(self._get_secret('honey_reserve', 'master_key', supertokens_safe=False))
@@ -794,21 +810,6 @@ class ConfigurationManager:
         
         api_domain = self.raw_config.get('application', {}).get('api_url', api_url)
         ssl_config = self.raw_config.get('application', {}).get('ssl', {})
-
-        # Check cache
-        if self.cache_key in self._config_cache:
-            logger.debug(f"Using cached configuration for {self.cache_key}")
-            self.processed_config = self._config_cache[self.cache_key]
-            return self.processed_config
-
-        # State management check
-        if os.path.exists(self.state_file) and self.mode != 'initialize':
-            logger.info("Found existing configuration state")
-            with open(self.state_file, 'r') as f:
-                state_data = json.load(f)
-                if self._verify_state_validity(state_data):
-                    self.processed_config = state_data
-                    return self.processed_config
 
         if not self.raw_config:
             self.load_config()
