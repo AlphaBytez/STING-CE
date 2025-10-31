@@ -519,7 +519,8 @@ generate_ssl_certs() {
     fi
 
     # Copy files to Docker volume with proper ownership for Kratos (UID 10000)
-    docker run --rm -v sting_certs:/certs -v ${temp_cert_dir}:/source alpine sh -c \
+    # Use INSTALL_DIR/certs since we already copied files there
+    docker run --rm -v sting_certs:/certs -v "${INSTALL_DIR}/certs":/source alpine sh -c \
         "mkdir -p /certs && \
          cp /source/server.crt /certs/ && \
          cp /source/server.key /certs/ && \

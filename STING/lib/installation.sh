@@ -174,7 +174,15 @@ force_cleanup_docker_resources() {
     
     # Remove STING networks
     docker network ls --format "{{.Name}}" | grep sting | xargs -r docker network rm 2>/dev/null || true
-    
+
+    # Remove buildx builder (used for local builds)
+    if docker buildx inspect builder &>/dev/null; then
+        log_message "Removing buildx builder..."
+        # Clean up refs directory first to avoid .DS_Store issues on macOS
+        rm -rf ~/.docker/buildx/refs/builder 2>/dev/null || true
+        docker buildx rm builder 2>/dev/null || true
+    fi
+
     # Clean up any orphaned containers, networks, and volumes
     docker system prune -f 2>/dev/null || true
     
@@ -2264,7 +2272,8 @@ validate_auth_config_consistency() {
     log_message "🔍 Validating authentication configuration consistency..."
     log_message "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-    local hostname="$STING_HOSTNAME"
+    # Trim whitespace from hostname to avoid comparison issues
+    local hostname=$(echo "$STING_HOSTNAME" | xargs)
     local errors=()
     local warnings=()
 
@@ -2285,8 +2294,8 @@ validate_auth_config_consistency() {
     fi
 
     # 3. Verify WebAuthn RP ID matches configured hostname
-    # Use more specific pattern to match webauthn rp: section only
-    local rp_id=$(grep -A20 "webauthn:" "${INSTALL_DIR}/kratos/kratos.yml" | grep -A10 "rp:" | grep "id:" | head -1 | awk '{print $2}' | tr -d '"' | tr -d "'")
+    # Use more specific pattern to match webauthn rp: section only, trim all whitespace
+    local rp_id=$(grep -A20 "webauthn:" "${INSTALL_DIR}/kratos/kratos.yml" | grep -A10 "rp:" | grep "id:" | head -1 | awk '{print $2}' | tr -d '"' | tr -d "'" | xargs)
     if [ -z "$rp_id" ]; then
         errors+=("❌ WebAuthn RP ID not found in Kratos config")
     elif [ "$rp_id" != "$hostname" ]; then

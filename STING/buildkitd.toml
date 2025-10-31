@@ -3,26 +3,14 @@ debug = false
 
 [worker.oci]
   enabled = true
-  # Limit cache size to 5GB
   gc = true
   gckeepstorage = 5000000000
 
 [worker.containerd]
   enabled = false
 
-# Garbage collection policy
-[worker.oci.gcpolicy]
-  all = true
-  keepBytes = 5000000000
-  keepDuration = 168h  # 1 week
-  filters = [ "type==source.local", "type==exec.cachemount", "type==source.git.checkout"]
-
-# Registry mirror and cache settings
-[registry."docker.io"]
-  mirrors = ["mirror.gcr.io"]
-
 # DNS configuration for build-time network resolution
-# Fixes "Temporary failure in name resolution" on Windows/WSL
+# Fixes "Temporary failure in name resolution" on Windows/WSL and macOS
 [dns]
   nameservers = ["8.8.8.8", "8.8.4.4", "1.1.1.1"]
   options = ["ndots:0"]

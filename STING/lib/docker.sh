@@ -78,13 +78,31 @@ build_docker_services() {
     fi
     
     # Standard build process (original logic)
-    # Initialize buildx builder if not exists
+    # Initialize buildx builder if not exists or recreate if missing DNS config
+    local buildkit_config="$SCRIPT_DIR/buildkitd.toml"
+    local need_builder_recreate=false
+
     if ! docker buildx inspect builder &>/dev/null; then
-        # Use buildkitd.toml for DNS configuration (fixes Windows/WSL DNS issues)
-        local buildkit_config="$SCRIPT_DIR/buildkitd.toml"
+        # Builder doesn't exist, need to create it
+        need_builder_recreate=true
+    elif [ -f "$buildkit_config" ]; then
+        # Builder exists, check if it has DNS config
+        if ! docker buildx inspect builder 2>/dev/null | grep -q "nameservers"; then
+            log_message_verbose "Existing builder missing DNS config, recreating..." "WARNING" true
+            # Clean up refs directory first to avoid .DS_Store issues on macOS
+            rm -rf ~/.docker/buildx/refs/builder 2>/dev/null || true
+            docker buildx rm builder 2>/dev/null || true
+            need_builder_recreate=true
+        fi
+    fi
+
+    if [ "$need_builder_recreate" = "true" ]; then
+        # Use buildkitd.toml for DNS configuration (fixes DNS resolution issues)
         if [ -f "$buildkit_config" ]; then
+            log_message_verbose "Creating buildx builder with DNS configuration..." "INFO" true
             docker buildx create --name builder --driver docker-container --config "$buildkit_config" --use
         else
+            log_message_verbose "Creating buildx builder (no DNS config found)..." "WARNING" true
             docker buildx create --name builder --driver docker-container --use
         fi
     fi
@@ -102,13 +120,27 @@ build_docker_services() {
     # Initialize build logging for Bee Intelligence
     initialize_build_logging
 
+    # Detect if we should use BuildKit or legacy builder
+    # BuildKit DNS config doesn't work reliably on macOS, use legacy builder there
+    # On Linux/WSL2, BuildKit with DNS config works great
+    local builder_arg=""
+    if [ "$(uname)" = "Darwin" ]; then
+        # macOS: BuildKit DNS doesn't work, always use legacy builder
+        log_message_verbose "Using legacy Docker builder (BuildKit DNS issues on macOS)" "INFO" true
+        export DOCKER_BUILDKIT=0
+    else
+        # Linux/WSL2: Use BuildKit with DNS config from buildkitd.toml
+        builder_arg="--builder builder"
+        log_message_verbose "Using BuildKit builder with DNS configuration for image builds" "INFO" true
+    fi
+
     if [ -z "$service" ]; then
         # Build all services with verbosity-controlled logging
         local build_cmd
         if [ "$no_cache" = "true" ]; then
-            build_cmd="DOCKER_BUILDKIT=1 docker compose build --no-cache --pull --builder builder"
+            build_cmd="docker compose build --no-cache --pull $builder_arg"
         else
-            build_cmd="docker compose build --builder builder"
+            build_cmd="docker compose build $builder_arg"
         fi
 
         # Use verbosity-controlled execution
@@ -121,15 +153,15 @@ build_docker_services() {
         # Handle special case for utils service which requires profiles
         if [ "$service" = "utils" ]; then
             if [ "$no_cache" = "true" ]; then
-                build_cmd="DOCKER_BUILDKIT=1 docker compose --profile installation build --no-cache --pull --builder builder $service"
+                build_cmd="docker compose --profile installation build --no-cache --pull $builder_arg $service"
             else
-                build_cmd="docker compose --profile installation build --builder builder $service"
+                build_cmd="docker compose --profile installation build $builder_arg $service"
             fi
         else
             if [ "$no_cache" = "true" ]; then
-                build_cmd="DOCKER_BUILDKIT=1 docker compose build --no-cache --pull --builder builder $service"
+                build_cmd="docker compose build --no-cache --pull $builder_arg $service"
             else
-                build_cmd="docker compose build --builder builder $service"
+                build_cmd="docker compose build $builder_arg $service"
             fi
         fi
 
@@ -309,4 +341,42 @@ check_container_health() {
             return 1
             ;;
     esac
+}
+
+# Function to build and start all services
+function build_and_start_services() {
+    echo "Building and starting services (cache level: ${cache_level:-moderate})..."
+    local hostname
+    hostname=$(get_hostname | tr -d '[:space:]') # Trim whitespace
+    echo "Using HOSTNAME for docker-compose: $hostname"
+    update_dotenv "HOSTNAME" "$hostname"
+    update_dotenv "COMPOSE_PROJECT_NAME" "sting"
+
+    # Determine if we should use bake or build
+    if [ -f "${INSTALL_DIR}/docker-bake.hjson" ]; then
+        # Use docker-bake if available
+        log_message "Using docker-bake.hjson for build configuration"
+        docker compose --profile "${COMPOSE_PROFILE:-default}" --env-file "${INSTALL_DIR}/.env" buildx bake --push --progress=plain
+    else
+        # Fallback to standard docker-compose build
+        log_message "WARNING: docker-bake.hjson not found, falling back to docker-compose build" "WARNING"
+        docker compose --profile "${COMPOSE_PROFILE:-default}" --env-file "${INSTALL_DIR}/.env" build
+    fi
+
+    # Start services
+    docker compose --profile "${COMPOSE_PROFILE:-default}" --env-file "${INSTALL_DIR}/.env" up -d --remove-orphans
+
+    # Wait for services to be healthy
+    if [ "$WAIT_FOR_HEALTH" = "true" ]; then
+        for service in $(docker compose ps --services); do
+            wait_for_service_health "$service"
+        done
+    fi
+
+    # Show logs
+    if [ "$SHOW_LOGS" = "true" ]; then
+        for service in $(docker compose ps --services); do
+            get_container_logs "$service" 100
+        done
+    fi
 }
