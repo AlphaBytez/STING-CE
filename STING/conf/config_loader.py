@@ -1813,16 +1813,6 @@ class ConfigurationManager:
                     logger.info(f"Removed deprecated supertokens.env file at {st_file}")
                 except Exception as e:
                     logger.warning(f"Failed to remove supertokens.env at {st_file}: {e}")
-                    
-        # Create .no_supertokens marker file to prevent future generation
-        no_st_file = os.path.join(self.env_dir, ".no_supertokens")
-        try:
-            with open(no_st_file, 'w') as f:
-                f.write("# This file prevents creation of supertokens.env\n")
-                f.write(f"# Created: {datetime.datetime.now().isoformat()}\n")
-            logger.info(f"Created .no_supertokens guard file at {no_st_file}")
-        except Exception as e:
-            logger.warning(f"Failed to create .no_supertokens guard file: {e}")
             
         # Debug logging before processing
         logger.info("===== BEFORE ENV GENERATION =====")

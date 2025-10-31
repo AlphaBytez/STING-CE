@@ -1,6 +1,0 @@
-# This file prevents creation of supertokens.env
-<<<<<<< HEAD
-# Created: 2025-10-31T04:21:11.699050
-=======
-# Created: 2025-10-31T17:00:02.257044
->>>>>>> f84b6b8 (feat: Implement safe file system operations in security.sh for improved permission handling)
