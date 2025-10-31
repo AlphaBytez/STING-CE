@@ -10,6 +10,89 @@ source "${SCRIPT_DIR}/logging.sh"
 MAX_RETRIES=${MAX_RETRIES:-3}
 RETRY_DELAY=${RETRY_DELAY:-2}
 
+# Safe file system operation helpers
+# These functions handle permission issues gracefully with proper error reporting
+
+# Safe directory creation with permission handling
+safe_mkdir() {
+    local dir_path="$1"
+    local critical="${2:-false}"  # Set to "true" for critical paths
+    
+    if ! mkdir -p "$dir_path" 2>/dev/null; then
+        if [ "$critical" = "true" ]; then
+            log_message "ERROR: Failed to create critical directory: $dir_path" "ERROR"
+            log_message "Attempting with elevated permissions..." "ERROR"
+            if sudo mkdir -p "$dir_path" 2>/dev/null; then
+                log_message "✓ Created with sudo: $dir_path"
+                return 0
+            else
+                log_message "CRITICAL: Cannot create required directory: $dir_path" "ERROR"
+                log_message "Installation cannot continue." "ERROR"
+                return 1
+            fi
+        else
+            log_message "WARNING: Failed to create directory: $dir_path"
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# Safe file removal with permission handling
+safe_rm() {
+    local path="$1"
+    local critical="${2:-false}"  # Set to "true" for critical operations
+    
+    if [ ! -e "$path" ]; then
+        return 0  # Already gone, success
+    fi
+    
+    if ! rm -rf "$path" 2>/dev/null; then
+        if [ "$critical" = "true" ]; then
+            log_message "ERROR: Failed to remove critical path: $path" "ERROR"
+            log_message "Attempting with elevated permissions..." "ERROR"
+            if sudo rm -rf "$path" 2>/dev/null; then
+                log_message "✓ Removed with sudo: $path"
+                return 0
+            else
+                log_message "CRITICAL: Cannot remove required path: $path" "ERROR"
+                log_message "Installation cannot continue." "ERROR"
+                return 1
+            fi
+        else
+            log_message "WARNING: Failed to remove path: $path (skipping)"
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# Safe chmod with permission handling
+safe_chmod() {
+    local perms="$1"
+    local path="$2"
+    local critical="${3:-false}"  # Set to "true" for critical operations
+    
+    if ! chmod "$perms" "$path" 2>/dev/null; then
+        if [ "$critical" = "true" ]; then
+            log_message "ERROR: Failed to set permissions $perms on: $path" "ERROR"
+            log_message "Attempting with elevated permissions..." "ERROR"
+            if sudo chmod "$perms" "$path" 2>/dev/null; then
+                log_message "✓ Set permissions with sudo: $perms on $path"
+                return 0
+            else
+                log_message "CRITICAL: Cannot set required permissions on: $path" "ERROR"
+                log_message "Installation cannot continue." "ERROR"
+                return 1
+            fi
+        else
+            log_message "WARNING: Failed to set permissions $perms on: $path"
+            return 1
+        fi
+    fi
+    return 0
+}
+
 # Verify all required secrets are available
 verify_secrets() {
     local required_secrets=(
@@ -208,8 +291,10 @@ setup_letsencrypt() {
 
     # Create required directories with proper permissions
     local cert_base="${INSTALL_DIR}/certs"
-    mkdir -p "${cert_base}/config" "${cert_base}/work" "${cert_base}/logs"
-    chmod -R 755 "${cert_base}"
+    safe_mkdir "${cert_base}/config" "true" || return 1
+    safe_mkdir "${cert_base}/work" "true" || return 1
+    safe_mkdir "${cert_base}/logs" "true" || return 1
+    safe_chmod "-R 755" "${cert_base}" "true" || return 1
 
     # Set up auto-renewal
     if [[ "$(uname)" != "Darwin" ]]; then
@@ -417,12 +502,27 @@ generate_ssl_certs() {
     log_message "Setting up SSL certificates for domain: $domain"
 
     # Create temp directory and ensure it's clean
-    rm -rf "${temp_cert_dir}"
-    mkdir -p "${temp_cert_dir}"
-    mkdir -p "${INSTALL_DIR}/certs"
+    # Handle permission issues on Ubuntu where Docker may have created this with root ownership
+    if [ -d "${temp_cert_dir}" ]; then
+        if ! safe_rm "${temp_cert_dir}"; then
+            log_message "WARNING: Could not clean ${temp_cert_dir}, trying alternative location..."
+            temp_cert_dir="/tmp/sting_certs_$(date +%s)"
+        fi
+    fi
+    
+    # Create directories - these are critical for certificate generation
+    if ! safe_mkdir "${temp_cert_dir}" "true"; then
+        log_message "CRITICAL: Cannot create temp certificate directory" "ERROR"
+        return 1
+    fi
+    
+    if ! safe_mkdir "${INSTALL_DIR}/certs" "true"; then
+        log_message "CRITICAL: Cannot create certificate directory" "ERROR"
+        return 1
+    fi
 
     # Set trap to cleanup temp directory on exit/error
-    trap "rm -rf '${temp_cert_dir}' 2>/dev/null || true" RETURN ERR
+    trap "safe_rm '${temp_cert_dir}' || true" RETURN ERR
 
     # Determine certificate generation method based on domain type
     if [ "$domain" == "localhost" ]; then
@@ -506,10 +606,18 @@ generate_ssl_certs() {
     fi
 
     # Copy to install directory first
-    cp "${temp_cert_dir}/server.crt" "${INSTALL_DIR}/certs/"
-    cp "${temp_cert_dir}/server.key" "${INSTALL_DIR}/certs/"
-    chmod 644 "${INSTALL_DIR}/certs/server.crt"
-    chmod 600 "${INSTALL_DIR}/certs/server.key"
+    cp "${temp_cert_dir}/server.crt" "${INSTALL_DIR}/certs/" || {
+        log_message "ERROR: Failed to copy certificate file" "ERROR"
+        return 1
+    }
+    cp "${temp_cert_dir}/server.key" "${INSTALL_DIR}/certs/" || {
+        log_message "ERROR: Failed to copy key file" "ERROR"
+        return 1
+    }
+    
+    # Set proper permissions - critical for security
+    safe_chmod 644 "${INSTALL_DIR}/certs/server.crt" "true" || return 1
+    safe_chmod 600 "${INSTALL_DIR}/certs/server.key" "true" || return 1
     log_message "SSL certificates copied to ${INSTALL_DIR}/certs"
 
     # Apply WSL2 Docker fixes if needed before pulling alpine image
@@ -532,8 +640,8 @@ generate_ssl_certs() {
     # Verify the copy worked
     docker run --rm -v sting_certs:/certs alpine ls -la /certs
 
-    # Cleanup
-    rm -rf "${temp_cert_dir}"
+    # Cleanup - non-critical operation
+    safe_rm "${temp_cert_dir}" || log_message "Note: Temp directory cleanup skipped: ${temp_cert_dir}"
     log_message "SSL certificates installation complete"
     return 0
 }
