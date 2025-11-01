@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useKratos } from './KratosProvider';
 import { useAALStatus } from '../hooks/useAALStatus';
+import { buildReturnUrl } from '../utils/kratosConfig';
 
 /**
  * ProtectedRoute - Route component that requires authentication and AAL compliance
@@ -48,7 +49,9 @@ const ProtectedRoute = ({
     // Check if user meets required AAL level
     if (requiredAAL && getCurrentAAL() < requiredAAL) {
       console.log(`🔐 Route requires AAL ${requiredAAL}, user has ${getCurrentAAL()}`);
-      const stepUpUrl = `/.ory/self-service/login/browser?aal=${requiredAAL}&return_to=${encodeURIComponent(location.pathname + location.search)}`;
+      // Build dynamic return URL to handle Codespaces/VMs/port forwarding
+      const returnUrl = buildReturnUrl(location.pathname + location.search);
+      const stepUpUrl = `/.ory/self-service/login/browser?aal=${requiredAAL}&return_to=${encodeURIComponent(returnUrl)}`;
       window.location.href = stepUpUrl;
       return null;
     }

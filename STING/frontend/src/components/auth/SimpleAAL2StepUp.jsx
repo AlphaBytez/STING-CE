@@ -1,12 +1,13 @@
 /**
  * Simple AAL2 Step-Up Component
- * 
+ *
  * Simplified approach that redirects to EnhancedKratosLogin to avoid 4010002 errors.
  * This ensures we use our proven authentication flow with all fixes applied.
  */
 
 import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { buildReturnUrl } from '../../utils/kratosConfig';
 
 const SimpleAAL2StepUp = ({ user, onSuccess, onError }) => {
   const navigate = useNavigate();
@@ -14,17 +15,19 @@ const SimpleAAL2StepUp = ({ user, onSuccess, onError }) => {
 
   useEffect(() => {
     console.log('🔐 SimpleAAL2StepUp: Redirecting to enhanced login for AAL2...');
-    
+
     // Store current page so we can return after authentication
     sessionStorage.setItem('aal2_return_url', location.pathname);
-    
+
     // Extract any method preference from location state
     const preferredMethod = location.state?.preferredMethod || 'passkey';
-    
+
+    // Build dynamic return URL to handle Codespaces/VMs/port forwarding
+    const returnUrl = buildReturnUrl('/dashboard');
+
     // Redirect to our enhanced login with AAL2 parameter
     // This ensures consistent authentication flow and avoids 4010002 errors
-    const returnTo = encodeURIComponent('/dashboard');
-    window.location.href = `/login?aal=aal2&method=${preferredMethod}&return_to=${returnTo}`;
+    window.location.href = `/login?aal=aal2&method=${preferredMethod}&return_to=${encodeURIComponent(returnUrl)}`;
   }, [location, navigate]);
 
   // Show loading while redirecting

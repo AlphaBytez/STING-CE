@@ -84,9 +84,12 @@ const RegisterPage = () => {
   
   const initiateNewFlow = () => {
     console.log('Initiating new registration flow');
-    
+
+    // Build dynamic return URL to handle Codespaces/VMs/port forwarding
+    const returnUrl = encodeURIComponent(`${window.location.origin}/dashboard`);
+
     // Use browser flow which will redirect us to a flow URL
-    window.location.href = `${baseUrl}/self-service/registration/browser`;
+    window.location.href = `${baseUrl}/self-service/registration/browser?return_to=${returnUrl}`;
   };
 
   const validatePassword = (password) => {

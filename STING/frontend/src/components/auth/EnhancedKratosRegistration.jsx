@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { buildReturnUrl } from '../../utils/kratosConfig';
 
 /**
  * EnhancedKratosRegistration - A component that handles user registration
@@ -110,8 +111,9 @@ const EnhancedKratosRegistration = () => {
   
   // Start registration flow
   const startRegistration = () => {
-    const returnTo = encodeURIComponent(window.location.origin + '/dashboard');
-    window.location.href = `${kratosUrl}/self-service/registration/browser?return_to=${returnTo}`;
+    // Build dynamic return URL to handle Codespaces/VMs/port forwarding
+    const returnUrl = buildReturnUrl('/dashboard');
+    window.location.href = `${kratosUrl}/self-service/registration/browser?return_to=${encodeURIComponent(returnUrl)}`;
   };
   
   // Extract WebAuthn-related nodes from flow

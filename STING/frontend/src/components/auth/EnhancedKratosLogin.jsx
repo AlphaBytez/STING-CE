@@ -394,8 +394,9 @@ const EnhancedKratosLogin = () => {
   
   // Start registration flow
   const startRegistration = () => {
-    const returnTo = encodeURIComponent(window.location.origin + '/dashboard');
-    window.location.href = `${kratosUrl}/self-service/registration/browser?return_to=${returnTo}`;
+    // Build dynamic return URL to handle Codespaces/VMs/port forwarding
+    const returnUrl = encodeURIComponent(`${window.location.origin}/dashboard`);
+    window.location.href = `${kratosUrl}/self-service/registration/browser?return_to=${returnUrl}`;
   };
   
   // Extract WebAuthn-related nodes from flow

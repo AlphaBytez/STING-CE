@@ -12,6 +12,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
+import { buildFlowUrl } from '../../utils/kratosConfig';
 
 const SimplifiedKratosLogin = () => {
   const navigate = useNavigate();
@@ -35,21 +36,24 @@ const SimplifiedKratosLogin = () => {
   const initializeFlow = async () => {
     setIsLoading(true);
     setError('');
-    
+
     try {
-      // REVERTED: Use browser endpoints with Accept header for JSON responses
-      const flowUrl = isAAL2 
-        ? '/.ory/self-service/login/browser?aal=aal2'
-        : '/.ory/self-service/login/browser?refresh=true';
-      
+      // Use centralized utility to build flow URL with dynamic return_to
+      // This ensures redirects work in Codespaces, VMs, and other forwarded environments
+      const flowUrl = buildFlowUrl('login', {
+        returnPath: returnTo,
+        aal: isAAL2 ? 'aal2' : undefined,
+        refresh: !isAAL2
+      });
+
       const response = await axios.get(flowUrl, {
         headers: { 'Accept': 'application/json' },
         withCredentials: true
       });
-      
+
       setFlowData(response.data);
       console.log(`🔐 ${isAAL2 ? 'AAL2' : 'Regular'} login flow initialized:`, response.data.id);
-      
+
     } catch (error) {
       console.error('Failed to initialize login flow:', error);
       setError('Failed to initialize login. Please refresh the page.');
