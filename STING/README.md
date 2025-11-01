@@ -143,16 +143,77 @@ Bee Brain packages **348 documentation files** (2.8 MB) into:
 ## 🚀 **Quick Start Guide**
 
 ### **System Requirements**
-- **macOS** (Apple Silicon recommended) or **Linux**
+- **macOS** (Apple Silicon recommended), **Linux**, or **WSL2**
 - **16GB RAM minimum** (32GB+ recommended for multiple models)
 - **Docker Desktop** and **Docker Compose**
 - **Python 3.9+** with virtual environment support
 
-### **Installation**
+### **One-Line Installation**
 
-⚠️ **Important**: Before installing, decide how you'll access STING:
-- **Single machine only?** Use the default localhost configuration
-- **Multiple machines/devices?** See [Passkey Quick Start Guide](./PASSKEY_QUICKSTART.md) first!
+Get started with STING in seconds:
+
+```bash
+# One-line bootstrap installer (recommended for first-time users)
+curl -fsSL https://raw.githubusercontent.com/sting-ce/sting-ce/main/STING/install_sting.sh | bash
+
+# One-line uninstall (clean removal)
+curl -fsSL https://raw.githubusercontent.com/sting-ce/sting-ce/main/STING/uninstall_sting.sh | bash
+
+# Uninstall with complete cleanup (removes all data)
+curl -fsSL https://raw.githubusercontent.com/sting-ce/sting-ce/main/STING/uninstall_sting.sh | bash -s -- --purge --yes
+```
+
+### **Installation Modes**
+
+STING offers two installation experiences to match your preference:
+
+#### **🌐 Web Installer (Default)**
+Interactive browser-based setup with visual guidance:
+```bash
+./install_sting.sh install
+```
+- Visual configuration wizard
+- Real-time validation and testing
+- Great for first-time users
+- Automatic browser launch
+
+#### **⌨️ CLI Installer**
+Streamlined command-line installation for automation and headless environments:
+```bash
+./install_sting.sh install --cli
+```
+- Terminal-based interactive prompts
+- Platform-aware smart defaults (GitHub Codespaces, macOS, WSL2, Linux)
+- LLM endpoint validation with retry
+- SMTP/email configuration
+- Admin user setup
+- Perfect for automation and remote servers
+
+Both modes configure:
+- **Hostname/Domain**: Platform-specific recommendations (sting.local for macOS, localhost for Codespaces, etc.)
+- **LLM Setup**: Provider-agnostic configuration (Ollama, LM Studio, OpenAI-compatible APIs)
+- **Email/SMTP**: Development (Mailpit) or production SMTP server
+- **Admin User**: First administrator account creation
+
+#### **Platform-Aware Hostname Selection**
+
+STING automatically detects your environment and recommends the best hostname configuration:
+
+| Platform | Recommendation | Reason |
+|----------|---------------|---------|
+| **GitHub Codespaces** | `localhost` | `.local` domains don't work in cloud environments |
+| **macOS** | `sting.local` | Bonjour/mDNS built-in, perfect for local network |
+| **WSL2 (with mDNS)** | `sting.local` | Accessible from Windows via `.local` domain |
+| **WSL2 (no mDNS)** | IP address | No Avahi daemon detected |
+| **Linux (with Avahi)** | `sting.local` | mDNS support enabled |
+| **Linux (no Avahi)** | IP/FQDN | No mDNS support |
+| **Docker Container** | `localhost` | For local access only |
+
+⚠️ **Important**: For cross-device passkey support, see [Passkey Quick Start Guide](./PASSKEY_QUICKSTART.md)
+
+### **Manual Installation**
+
+For advanced users who want full control:
 
 ```bash
 # 1. System Setup
@@ -166,6 +227,29 @@ Bee Brain packages **348 documentation files** (2.8 MB) into:
 
 # Alternative: Install without admin prompts
 ./install_sting.sh install --no-prompt --no-admin
+```
+
+### **LLM Configuration Options**
+
+STING supports multiple LLM providers with automatic endpoint validation:
+
+#### **Local Deployment (Recommended)**
+- **Ollama** (macOS/Linux): Best for Apple Silicon and NVIDIA GPUs
+- **LM Studio** (Cross-platform): Great for Windows and custom models
+- Both support OpenAI-compatible API format
+
+#### **Cloud Deployment**
+- **External OpenAI-compatible APIs**: Any service supporting `/v1/chat/completions`
+- **Cloud-hosted LLMs**: Groq, Together AI, or self-hosted instances
+- **Enterprise APIs**: Connect to your organization's AI infrastructure
+
+```bash
+# CLI installation with LLM validation
+./install_sting.sh install --cli
+# → Platform detected: macOS
+# → Recommendation: Ollama with automatic installation
+# → Endpoint test: http://localhost:11434 ✓
+# → Model availability check: llama3.2 ✓
 ```
 
 ### **Admin User Setup**
@@ -262,6 +346,67 @@ python3 create_admin.py --email admin@company.com --temp-password
 
 ---
 
+## 🗑️ **Uninstallation**
+
+STING provides a convenient one-line uninstall command for easy cleanup:
+
+### **Quick Uninstall**
+
+```bash
+# Standard uninstall (preserves backups and LLM models)
+curl -fsSL https://raw.githubusercontent.com/sting-ce/sting-ce/main/STING/uninstall_sting.sh | bash
+
+# Complete removal (removes all data including backups)
+curl -fsSL https://raw.githubusercontent.com/sting-ce/sting-ce/main/STING/uninstall_sting.sh | bash -s -- --purge
+
+# Automated uninstall (no prompts)
+curl -fsSL https://raw.githubusercontent.com/sting-ce/sting-ce/main/STING/uninstall_sting.sh | bash -s -- --yes
+
+# Remove everything including downloaded LLM models
+curl -fsSL https://raw.githubusercontent.com/sting-ce/sting-ce/main/STING/uninstall_sting.sh | bash -s -- --purge --llm --yes
+```
+
+### **Manual Uninstall**
+
+If you prefer to uninstall manually from the installation directory:
+
+```bash
+# Navigate to installation directory
+cd /opt/sting-ce
+
+# Standard uninstall
+./manage_sting.sh uninstall
+
+# Complete removal with all data
+./manage_sting.sh uninstall --purge
+
+# Include LLM models removal
+./manage_sting.sh uninstall --purge --llm
+```
+
+### **What Gets Removed**
+
+#### **Standard Uninstall**
+- ✗ All STING-CE Docker containers and images
+- ✗ Installation directory (`/opt/sting-ce`)
+- ✗ System `msting` command
+- ✓ **Preserves**: Docker volumes (database, vault data)
+- ✓ **Preserves**: Backups
+- ✓ **Preserves**: Downloaded LLM models
+
+#### **Purge Uninstall** (`--purge`)
+- ✗ Everything from standard uninstall
+- ✗ All Docker volumes (database, vault data, etc.)
+- ✗ All backups
+- ✓ **Preserves**: Downloaded LLM models (unless `--llm` specified)
+
+#### **Complete Cleanup** (`--purge --llm`)
+- ✗ Everything from purge uninstall
+- ✗ Downloaded LLM models from Ollama/LM Studio
+- ⚠️ **Warning**: This removes all data - cannot be undone!
+
+---
+
 ## 🛠️ **Development & Management**
 
 ### **Command Line Interface**
@@ -269,12 +414,12 @@ python3 create_admin.py --email admin@company.com --temp-password
 ```bash
 # Service Management
 ./manage_sting.sh start          # Start all services
-./manage_sting.sh stop           # Stop services  
+./manage_sting.sh stop           # Stop services
 ./manage_sting.sh restart        # Restart services
 ./manage_sting.sh status         # Check service health
 ./manage_sting.sh logs [service] # View logs
 
-# Model Management  
+# Model Management
 ./sting-llm start               # Start native LLM service
 ./sting-llm preload phi3        # Preload specific model
 ./sting-llm status              # Check model status
@@ -283,6 +428,10 @@ python3 create_admin.py --email admin@company.com --temp-password
 cd frontend && npm start         # React development server
 cd frontend && npm test          # Run frontend tests
 msting update [service]         # Update specific service
+
+# Uninstallation
+./manage_sting.sh uninstall      # Remove STING (preserves data)
+./manage_sting.sh uninstall --purge  # Complete removal
 ```
 
 ### **Configuration Management**
@@ -445,11 +594,40 @@ STING is built on the foundation of many excellent open source projects:
 
 *STING Platform - Where Security Meets Intelligence*
 
+---
+
+## ✨ Recent Improvements
+
+### Installation & Configuration (Latest Release)
+- ✅ **One-Line Bootstrap Commands**: Install and uninstall STING with a single curl command
+- ✅ **CLI Installation Mode**: Full feature parity with web installer for headless/automated deployments
+- ✅ **Platform-Aware Hostname Detection**: Smart recommendations for GitHub Codespaces, macOS, WSL2, and Linux
+- ✅ **LLM Provider Agnostic**: Support for Ollama, LM Studio, and any OpenAI-compatible API
+- ✅ **LLM Endpoint Validation**: Automatic connectivity testing with retry capability
+- ✅ **SMTP Configuration**: Email setup during installation for both development and production
+- ✅ **Admin User Setup**: Guided admin account creation during installation
+
+### Bug Fixes (Latest Release)
+- ✅ **Fixed**: `AttributeError: 'ConfigurationManager' object has no attribute 'bee_service_api_key'`
+  - Early attribute initialization to prevent crashes when using cached configuration state
+  - Vault secrets now properly populated even when loading from cache
+- ✅ **Fixed**: Quote mismatch in WebAuthn hostname validation error messages
+- ✅ **Fixed**: Hostname parsing now strips invisible characters (CR/LF) from YAML values
+- ✅ **Fixed**: LLM endpoint validation double `/v1` path issue
+
+### Platform Support
+- ✅ **GitHub Codespaces**: Automatic detection with `.local` domain warnings
+- ✅ **WSL2**: Conditional mDNS recommendations based on Avahi availability
+- ✅ **macOS**: Bonjour/mDNS built-in support with `.local` domain recommendations
+- ✅ **Docker**: Smart localhost recommendations for containerized environments
+
+---
+
 ## Known Issues
 
 ### Login Issues After Service Restart
 If you experience CSRF errors or login loops after restarting services:
-1. Run: python3 scripts/remove_force_password_change.py
+1. Run: `python3 scripts/remove_force_password_change.py`
 2. Clear browser cookies
 3. Login again
 
