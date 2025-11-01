@@ -37,7 +37,7 @@ detect_platform() {
 # Function to check if mDNS/Avahi is available
 check_mdns_support() {
     # Check for Avahi daemon (Linux)
-    if systemctl is-active --quiet avahi-daemon 2>/dev/null || \
+    if systemctl is-active --quiet avahi-daemon >/dev/null 2>&1 || \
        service avahi-daemon status >/dev/null 2>&1 || \
        pgrep avahi-daemon >/dev/null 2>&1; then
         return 0
