@@ -1,0 +1,26 @@
+{
+  "name": "STING-CE Development Environment",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-vscode.vscode-docker",
+        "github.copilot"
+      ]
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/postCreateCommand.sh",
+  "postStartCommand": "bash .devcontainer/postStartCommand.sh",
+  "forwardPorts": [8000, 3000, 5000],
+  "mounts": [
+    "source=/var/lib/tailscale,target=/var/lib/tailscale,type=volume"
+  ],
+  "containerEnv": {
+    "TAILSCALE_STATE_DIR": "/var/lib/tailscale"
+  }
+}

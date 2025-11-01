@@ -102,3 +102,14 @@ CLAUDE.md
 **/CLAUDE.md
 create_claude_user.py
 **/create_claude_user.py
+
+# Tailscale - Runtime state and auth keys (NEVER commit these!)
+/var/lib/tailscale/
+/var/run/tailscale/
+*.auth-key
+tailscale.state
+tailscaled.state
+tailscale-auth-*
+tailscale-auth.local
+.tailscale/
+# But DO commit the setup scripts and devcontainer config

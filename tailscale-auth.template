@@ -1,0 +1,16 @@
+# Tailscale Auth Key Template
+# Copy this file to tailscale-auth.local and add your actual auth key
+# The .local file is gitignored for security
+
+# Get your auth key from: https://login.tailscale.com/admin/settings/keys
+# Recommended settings for development:
+# ✅ Reusable (for multiple Codespaces)  
+# ✅ Ephemeral (auto-cleanup when disconnected)
+# ⏰ Set reasonable expiration (30-90 days)
+
+# Uncomment and replace with your actual key:
+# TAILSCALE_AUTH_KEY="tskey-auth-your-key-here"
+
+# Usage after setting your key:
+# source tailscale-auth.local
+# ./tailscale-codespace.sh connect "$TAILSCALE_AUTH_KEY"
