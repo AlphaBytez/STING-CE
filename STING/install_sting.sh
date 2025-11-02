@@ -503,6 +503,7 @@ if [ "$USE_CLI" = false ]; then
 
   has_install_dir=false
   has_containers=false
+  has_running_containers=false
   has_volumes=false
 
   if [ -d "/opt/sting-ce" ] && [ -f "/opt/sting-ce/docker-compose.yml" ]; then
@@ -511,6 +512,11 @@ if [ "$USE_CLI" = false ]; then
 
   if docker ps -a --filter "name=sting-ce" --format '{{.Names}}' 2>/dev/null | grep -q "sting-ce"; then
     has_containers=true
+  fi
+
+  # Check specifically for RUNNING containers
+  if docker ps --filter "name=sting-ce" --format '{{.Names}}' 2>/dev/null | grep -q "sting-ce"; then
+    has_running_containers=true
   fi
 
   if docker volume ls --filter "name=sting" --format '{{.Name}}' 2>/dev/null | grep -q "sting"; then
@@ -526,9 +532,17 @@ if [ "$USE_CLI" = false ]; then
     if [ "$has_install_dir" = true ]; then
       log_message "  • Installation directory exists: /opt/sting-ce" "WARNING"
     fi
+    if [ "$has_running_containers" = true ]; then
+      running_count=$(docker ps --filter "name=sting-ce" --format '{{.Names}}' 2>/dev/null | wc -l)
+      log_message "  • Found $running_count RUNNING STING container(s) ⚠️" "WARNING"
+      log_message "    (These will be stopped and removed)" "WARNING"
+    fi
     if [ "$has_containers" = true ]; then
       container_count=$(docker ps -a --filter "name=sting-ce" --format '{{.Names}}' 2>/dev/null | wc -l)
-      log_message "  • Found $container_count STING container(s)" "WARNING"
+      stopped_count=$((container_count - ${running_count:-0}))
+      if [ "$stopped_count" -gt 0 ]; then
+        log_message "  • Found $stopped_count stopped STING container(s)" "WARNING"
+      fi
     fi
     if [ "$has_volumes" = true ]; then
       volume_count=$(docker volume ls --filter "name=sting" --format '{{.Name}}' 2>/dev/null | wc -l)
@@ -537,6 +551,9 @@ if [ "$USE_CLI" = false ]; then
 
     log_message "" "WARNING"
     log_message "An existing or partial installation will prevent the installer from working correctly." "WARNING"
+    if [ "$has_running_containers" = true ]; then
+      log_message "Running containers will be gracefully stopped before cleanup." "WARNING"
+    fi
     log_message "" "WARNING"
 
     # Interactive prompt to clean up
@@ -883,6 +900,7 @@ else
 
   has_install_dir=false
   has_containers=false
+  has_running_containers=false
   has_volumes=false
 
   if [ -d "/opt/sting-ce" ] && [ -f "/opt/sting-ce/docker-compose.yml" ]; then
@@ -891,6 +909,11 @@ else
 
   if docker ps -a --filter "name=sting-ce" --format '{{.Names}}' 2>/dev/null | grep -q "sting-ce"; then
     has_containers=true
+  fi
+
+  # Check specifically for RUNNING containers
+  if docker ps --filter "name=sting-ce" --format '{{.Names}}' 2>/dev/null | grep -q "sting-ce"; then
+    has_running_containers=true
   fi
 
   if docker volume ls --filter "name=sting" --format '{{.Name}}' 2>/dev/null | grep -q "sting"; then
@@ -906,9 +929,17 @@ else
     if [ "$has_install_dir" = true ]; then
       log_message "  • Installation directory exists: /opt/sting-ce" "WARNING"
     fi
+    if [ "$has_running_containers" = true ]; then
+      running_count=$(docker ps --filter "name=sting-ce" --format '{{.Names}}' 2>/dev/null | wc -l)
+      log_message "  • Found $running_count RUNNING STING container(s) ⚠️" "WARNING"
+      log_message "    (These will be stopped and removed)" "WARNING"
+    fi
     if [ "$has_containers" = true ]; then
       container_count=$(docker ps -a --filter "name=sting-ce" --format '{{.Names}}' 2>/dev/null | wc -l)
-      log_message "  • Found $container_count STING container(s)" "WARNING"
+      stopped_count=$((container_count - ${running_count:-0}))
+      if [ "$stopped_count" -gt 0 ]; then
+        log_message "  • Found $stopped_count stopped STING container(s)" "WARNING"
+      fi
     fi
     if [ "$has_volumes" = true ]; then
       volume_count=$(docker volume ls --filter "name=sting" --format '{{.Name}}' 2>/dev/null | wc -l)
@@ -917,6 +948,9 @@ else
 
     log_message "" "WARNING"
     log_message "An existing or partial installation will prevent the installer from working correctly." "WARNING"
+    if [ "$has_running_containers" = true ]; then
+      log_message "Running containers will be gracefully stopped before cleanup." "WARNING"
+    fi
     log_message "" "WARNING"
 
     # Interactive prompt to clean up

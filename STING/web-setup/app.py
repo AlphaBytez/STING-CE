@@ -49,6 +49,11 @@ CONFIG_DRAFT_FILE = os.path.join(SETUP_DIR, 'config-draft.yml')
 # The installer will copy it to final location: /opt/sting-ce/conf/config.yml
 STAGED_CONFIG_PATH = os.path.join(SETUP_DIR, 'config.yml')
 
+# Installation timeout configuration
+# Prevents runaway installations from consuming resources indefinitely
+# 45 minutes should be sufficient for most hardware (can be adjusted via environment variable)
+INSTALLATION_TIMEOUT = int(os.environ.get('INSTALLATION_TIMEOUT', '2700'))  # Default: 45 minutes (2700 seconds)
+
 # Installer script location (from STING source, not install directory)
 INSTALLER_SCRIPT = os.path.join(STING_SOURCE, 'install_sting.sh')
 
@@ -345,36 +350,14 @@ def detect_sting_hostname():
     Detect appropriate STING hostname for WebAuthn/Passkey compatibility
 
     CRITICAL: For WebAuthn to work, the hostname must match the Kratos RP ID.
-    Prefers proper hostnames over IPs for better WebAuthn compatibility and user experience.
+    Prefers IP addresses over hostnames for simplicity and to avoid DNS/hosts file requirements.
     """
     import re
 
-    # Strategy 1: Try FQDN (but filter out .localdomain which is just a placeholder)
-    try:
-        fqdn = subprocess.run(['hostname', '-f'], capture_output=True, text=True, stderr=subprocess.DEVNULL).stdout.strip()
-        if fqdn and '.' in fqdn:
-            # Filter out fake/placeholder domains
-            if fqdn not in ['localhost', 'localhost.localdomain'] and not fqdn.endswith('.localdomain'):
-                # Valid real FQDN
-                return fqdn.lower()
-    except:
-        pass
-
-    # Strategy 2: Try short hostname with .local suffix (good for VMs/local networks)
-    # .local is the mDNS standard and works better than .localdomain
-    try:
-        short_hostname = subprocess.run(['hostname', '-s'], capture_output=True, text=True).stdout.strip().lower()
-        if short_hostname and short_hostname != 'localhost':
-            # Append .local for mDNS/local network resolution
-            return f"{short_hostname}.local"
-    except:
-        pass
-
-    # Strategy 3: Try to get primary IP address (fallback for when hostname is not useful)
-    # Only use IP as last resort since hostnames are better for WebAuthn
+    # Strategy 1: Use primary IP address (PREFERRED - no DNS/hosts file needed)
     try:
         # Try Linux: hostname -I
-        result = subprocess.run(['hostname', '-I'], capture_output=True, text=True, stderr=subprocess.DEVNULL)
+        result = subprocess.run(['hostname', '-I'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
         if result.returncode == 0:
             ips = result.stdout.strip().split()
             if ips:
@@ -385,9 +368,9 @@ def detect_sting_hostname():
     except:
         pass
 
-    # Strategy 4: Try macOS: ifconfig (since hostname -I doesn't exist on macOS)
+    # Strategy 2: Try macOS: ifconfig (since hostname -I doesn't exist on macOS)
     try:
-        result = subprocess.run(['ifconfig'], capture_output=True, text=True)
+        result = subprocess.run(['ifconfig'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
         if result.returncode == 0:
             # Parse ifconfig output for first non-loopback IP
             for line in result.stdout.split('\n'):
@@ -401,8 +384,28 @@ def detect_sting_hostname():
     except:
         pass
 
-    # Fallback: Use sting.local
-    return 'sting.local'
+    # Strategy 3: Try FQDN as fallback (but filter out .localdomain which is just a placeholder)
+    try:
+        fqdn = subprocess.run(['hostname', '-f'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip()
+        if fqdn and '.' in fqdn:
+            # Filter out fake/placeholder domains
+            if fqdn not in ['localhost', 'localhost.localdomain'] and not fqdn.endswith('.localdomain'):
+                # Valid real FQDN
+                return fqdn.lower()
+    except:
+        pass
+
+    # Strategy 4: Try short hostname with .local suffix (requires mDNS)
+    try:
+        short_hostname = subprocess.run(['hostname', '-s'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip().lower()
+        if short_hostname and short_hostname != 'localhost':
+            # Append .local for mDNS/local network resolution
+            return f"{short_hostname}.local"
+    except:
+        pass
+
+    # Final fallback: Use localhost
+    return 'localhost'
 
 @app.route('/api/system-info', methods=['GET'])
 def get_system_info():
@@ -795,8 +798,42 @@ def run_installation_background(install_id, config_data, admin_email):
                     env=env
                 )
 
-            # Monitor installation progress
+            # Monitor installation progress with timeout
+            # This prevents runaway installations from consuming resources indefinitely
+            start_time = time.time()
+
             while process.poll() is None:
+                # Check for timeout
+                elapsed_time = time.time() - start_time
+                if elapsed_time > INSTALLATION_TIMEOUT:
+                    installations[install_id]['log'] += f"\n\n❌ INSTALLATION TIMEOUT\n"
+                    installations[install_id]['log'] += f"   Installation exceeded {INSTALLATION_TIMEOUT // 60} minute timeout\n"
+                    installations[install_id]['log'] += f"   Terminating installation process (PID: {process.pid})\n"
+
+                    # Kill the installation process
+                    try:
+                        process.terminate()
+                        time.sleep(5)  # Give it a chance to terminate gracefully
+                        if process.poll() is None:
+                            process.kill()  # Force kill if still running
+                            installations[install_id]['log'] += "   Force killed installation process\n"
+                    except Exception as e:
+                        installations[install_id]['log'] += f"   Error killing process: {e}\n"
+
+                    # Clean up sudo keepalive if we started one
+                    if sudo_keepalive:
+                        try:
+                            sudo_keepalive.kill()
+                            installations[install_id]['log'] += "   Cleaned up sudo keepalive process\n"
+                        except Exception as e:
+                            installations[install_id]['log'] += f"   Warning: Could not kill sudo keepalive: {e}\n"
+
+                    installations[install_id]['completed'] = True
+                    installations[install_id]['success'] = False
+                    installations[install_id]['error'] = f'Installation timeout ({INSTALLATION_TIMEOUT // 60} minutes)'
+                    installations[install_id]['status'] = 'Installation timed out'
+                    return
+
                 time.sleep(2)
                 # Read log file to update progress
                 try:

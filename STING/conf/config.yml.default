@@ -3,6 +3,9 @@
 
 # System Configuration
 system:
+  # Domain/IP address for accessing STING
+  # Installation wizard auto-detects and sets this (prefers IP addresses for simplicity)
+  # You can manually change this later with: ./update_hostname.sh
   domain: localhost
   protocol: https
   ports:

@@ -137,12 +137,13 @@
                                 <strong class="text-blue-100">💡 Recommended Options:</strong>
                             </p>
                             <ul class="text-xs text-blue-200 mt-1 ml-4 space-y-1">
-                                <li>• <code class="bg-slate-800 px-1 rounded">.local</code> suffix - Best for VMs/local networks (e.g., <code class="bg-slate-800 px-1 rounded">sting.local</code>)</li>
+                                <li>• <strong class="text-green-300">IP address</strong> - Best for most setups (e.g., <code class="bg-slate-800 px-1 rounded">192.168.1.100</code>) - No DNS/hosts file needed!</li>
                                 <li>• Real domain - If you have DNS configured (e.g., <code class="bg-slate-800 px-1 rounded">sting.mycompany.com</code>)</li>
                                 <li>• <code class="bg-slate-800 px-1 rounded">localhost</code> - Only for single-machine testing</li>
+                                <li>• <code class="bg-slate-800 px-1 rounded">.local</code> suffix - Only if mDNS/Avahi is configured (e.g., <code class="bg-slate-800 px-1 rounded">sting.local</code>)</li>
                             </ul>
-                            <p class="text-xs text-red-300 mt-2">
-                                ⚠️ <strong>Avoid:</strong> IP addresses, <code class="bg-slate-800 px-1 rounded">.localdomain</code> suffix (won't resolve properly)
+                            <p class="text-xs text-amber-300 mt-2">
+                                💡 <strong>Tip:</strong> IP addresses work from any device on your network without configuration. Avoid <code class="bg-slate-800 px-1 rounded">.localdomain</code> suffix.
                             </p>
                         </div>
                     </div>

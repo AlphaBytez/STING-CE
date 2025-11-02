@@ -529,6 +529,8 @@ services:
           memory: 512M
     volumes:
     - ./chatbot:/app/chatbot
+    - ./llm_service/chat:/app/llm_service/chat
+    - ./llm_service/filtering:/app/llm_service/filtering
     - ./conf:/app/conf
     ports:
     - 8081:8081

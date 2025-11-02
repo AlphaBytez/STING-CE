@@ -2,7 +2,7 @@
 # Hostname Detection for STING Installation
 # Provides smart defaults for WebAuthn/Passkey compatibility
 #
-# Prefers hostnames over IPs for WebAuthn consistency. IP is only used as fallback.
+# Prefers IP addresses over hostnames for consistency and to avoid DNS/hosts file requirements.
 
 # Function to detect platform environment
 detect_platform() {
@@ -62,29 +62,12 @@ is_ip_address() {
 }
 
 # Function to detect system hostname
-# Prefers hostnames over IPs for WebAuthn consistency
+# Prefers IP addresses over hostnames for reliability and to avoid DNS/hosts file configuration
 detect_system_hostname() {
+    local primary_ip=""
     local hostname=""
 
-    # Strategy 1: Try FQDN (if it's a proper domain, not localhost)
-    hostname=$(hostname -f 2>/dev/null)
-    if [ -n "$hostname" ] && [ "$hostname" != "localhost" ] && [ "$hostname" != "localhost.localdomain" ] && [[ "$hostname" =~ \. ]]; then
-        # Valid FQDN (has dot and isn't localhost)
-        echo "$hostname"
-        return 0
-    fi
-
-    # Strategy 2: Try short hostname with .local appended (good for VMs)
-    hostname=$(hostname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')
-    if [ -n "$hostname" ] && [ "$hostname" != "localhost" ]; then
-        # Append .local for mDNS/local network resolution
-        echo "${hostname}.local"
-        return 0
-    fi
-
-    # Strategy 3: Use primary IP address (fallback for when no hostname is available)
-    local primary_ip=""
-
+    # Strategy 1: Use primary IP address (PREFERRED - no DNS/hosts file needed)
     # Linux: hostname -I
     if command -v hostname &>/dev/null && hostname -I &>/dev/null 2>&1; then
         primary_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
@@ -94,13 +77,29 @@ detect_system_hostname() {
     fi
 
     if [ -n "$primary_ip" ] && [[ ! "$primary_ip" =~ ^127\. ]]; then
-        # Valid IP that's not loopback
+        # Valid IP that's not loopback - THIS IS PREFERRED
         echo "$primary_ip"
         return 0
     fi
 
-    # Fallback: Use sting.local
-    echo "sting.local"
+    # Strategy 2: Try FQDN as fallback (if it's a proper domain, not localhost)
+    hostname=$(hostname -f 2>/dev/null)
+    if [ -n "$hostname" ] && [ "$hostname" != "localhost" ] && [ "$hostname" != "localhost.localdomain" ] && [[ "$hostname" =~ \. ]]; then
+        # Valid FQDN (has dot and isn't localhost)
+        echo "$hostname"
+        return 0
+    fi
+
+    # Strategy 3: Try short hostname with .local appended (requires mDNS)
+    hostname=$(hostname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')
+    if [ -n "$hostname" ] && [ "$hostname" != "localhost" ]; then
+        # Append .local for mDNS/local network resolution
+        echo "${hostname}.local"
+        return 0
+    fi
+
+    # Final fallback: Use localhost
+    echo "localhost"
 }
 
 # Main function to determine STING hostname
@@ -144,15 +143,9 @@ get_sting_hostname() {
                 ;;
             wsl2)
                 echo "🪟 Platform: WSL2 (Windows Subsystem for Linux)" >&2
-                if [ "$has_mdns" = true ]; then
-                    echo "   Recommendation: Use 'sting.local' (option 1)" >&2
-                    echo "   Note: Accessible from Windows via .local domain" >&2
-                    default_option="1"
-                else
-                    echo "   Recommendation: Use Windows hostname or IP (option 3)" >&2
-                    echo "   Note: No mDNS detected - .local may not work from Windows" >&2
-                    default_option="3"
-                fi
+                echo "   Recommendation: Use IP address (option 3)" >&2
+                echo "   Note: IP addresses work from Windows without hosts file setup" >&2
+                default_option="3"
                 ;;
             macos)
                 echo "🍎 Platform: macOS" >&2
@@ -167,17 +160,10 @@ get_sting_hostname() {
                 default_option="2"
                 ;;
             linux)
-                if [ "$has_mdns" = true ]; then
-                    echo "🐧 Platform: Linux (with mDNS/Avahi)" >&2
-                    echo "   Recommendation: Use 'sting.local' (option 1)" >&2
-                    echo "   Note: .local domains will work on your network" >&2
-                    default_option="1"
-                else
-                    echo "🐧 Platform: Linux (no mDNS detected)" >&2
-                    echo "   Recommendation: Use IP address or FQDN (option 3)" >&2
-                    echo "   Note: .local domains won't work without Avahi" >&2
-                    default_option="3"
-                fi
+                echo "🐧 Platform: Linux" >&2
+                echo "   Recommendation: Use IP address (option 3)" >&2
+                echo "   Note: IP addresses work everywhere without DNS/hosts file setup" >&2
+                default_option="3"
                 ;;
         esac
 
@@ -208,11 +194,16 @@ get_sting_hostname() {
             "3") star3=" ⭐ RECOMMENDED" ;;
         esac
 
-        echo "  1) sting.local       - Local network (.local domain)${star1}" >&2
-        echo "  2) localhost         - Only this machine${star2}" >&2
+        echo "  1) sting.local       - Requires mDNS/Avahi${star1}" >&2
+        echo "  2) localhost         - Local access only${star2}" >&2
 
         if [ -n "$detected_hostname" ]; then
-            echo "  3) $detected_hostname  - Use detected hostname${star3}" >&2
+            # Show different label if detected hostname is an IP vs domain
+            if is_ip_address "$detected_hostname"; then
+                echo "  3) $detected_hostname  - IP address (no DNS needed)${star3}" >&2
+            else
+                echo "  3) $detected_hostname  - Detected hostname${star3}" >&2
+            fi
             echo "  4) Custom            - Enter your own" >&2
         else
             echo "  3) Custom            - Enter your own" >&2
@@ -254,8 +245,12 @@ get_sting_hostname() {
         esac
     else
         # Non-interactive mode
-        # Always prefer sting.local for consistency
-        echo "$default_hostname"
+        # Use detected hostname (prefer IP) or fall back to localhost
+        if [ -n "$detected_hostname" ]; then
+            echo "$detected_hostname"
+        else
+            echo "localhost"
+        fi
     fi
 }
 
@@ -264,14 +259,23 @@ show_hostname_instructions() {
     local hostname="$1"
 
     echo ""
-    echo "📝 Hostname Setup Instructions"
-    echo "=============================="
+    echo "📝 Access Instructions"
+    echo "======================"
     echo ""
 
     if [ "$hostname" = "localhost" ]; then
         echo "✅ Using localhost - no additional setup needed"
         echo "⚠️  NOTE: Passkeys will only work on this machine"
-        echo "   For multi-device access, consider using a custom hostname"
+        echo "   For multi-device access, use an IP address or hostname"
+    elif is_ip_address "$hostname"; then
+        echo "✅ Using IP address: $hostname"
+        echo ""
+        echo "✨ No additional setup needed!"
+        echo "   Access STING from any device on your network at:"
+        echo ""
+        echo "   https://$hostname:8443"
+        echo ""
+        echo "   IP addresses work without DNS or /etc/hosts configuration"
     else
         echo "✅ Using hostname: $hostname"
         echo ""

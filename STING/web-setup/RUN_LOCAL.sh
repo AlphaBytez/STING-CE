@@ -5,6 +5,31 @@ echo "🐝 STING-CE Setup Wizard - Local Testing"
 echo "========================================"
 echo
 
+# Check for existing wizard processes and clean them up
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+EXISTING_PIDS=$(pgrep -f "python.*${SCRIPT_DIR}/app.py" 2>/dev/null)
+
+if [ -n "$EXISTING_PIDS" ]; then
+    echo "⚠️  Found existing wizard processes:"
+    echo "$EXISTING_PIDS" | while read pid; do
+        echo "   PID $pid"
+    done
+    echo
+    echo "Killing old wizard processes..."
+    echo "$EXISTING_PIDS" | xargs kill 2>/dev/null
+    sleep 1
+
+    # Force kill if still running
+    STILL_RUNNING=$(pgrep -f "python.*${SCRIPT_DIR}/app.py" 2>/dev/null)
+    if [ -n "$STILL_RUNNING" ]; then
+        echo "   Force killing stubborn processes..."
+        echo "$STILL_RUNNING" | xargs kill -9 2>/dev/null
+    fi
+
+    echo "✅ Cleaned up old wizard processes"
+    echo
+fi
+
 # Check if venv exists
 if [ ! -d "venv" ]; then
     echo "❌ Virtual environment not found!"
