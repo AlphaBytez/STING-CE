@@ -16,10 +16,10 @@ NC='\033[0m' # No Color
 get_service_deps() {
     local service=$1
     case "$service" in
-        app) echo "postgres redis" ;;
+        app) echo "db redis" ;;
         frontend) echo "app" ;;
-        chatbot) echo "postgres app" ;;
-        knowledge) echo "postgres redis app" ;;
+        chatbot) echo "db app" ;;
+        knowledge) echo "db redis app" ;;
         nginx) echo "app frontend" ;;
         *) echo "" ;;
     esac
@@ -195,7 +195,7 @@ ensure_all_services_started_enhanced() {
     
     # Define startup order based on dependencies
     local startup_order=(
-        "postgres"
+        "db"
         "redis"
         "kratos"
         "kratos-migrate"
@@ -206,7 +206,7 @@ ensure_all_services_started_enhanced() {
         "knowledge"
         "log-forwarder"
         "loki"
-        "grafana" 
+        "grafana"
         "promtail"
         "nginx"
     )

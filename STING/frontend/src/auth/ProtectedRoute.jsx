@@ -29,7 +29,11 @@ const ProtectedRoute = ({
   } = useAALStatus();
   
   // Show loader while checking authentication or AAL status
-  if (isLoading || aalLoading) {
+  // ALSO: If recent auth detected, give more time for session to establish
+  const recentAuth = sessionStorage.getItem('sting_recent_auth');
+  const isVeryRecentAuth = recentAuth && (Date.now() - parseInt(recentAuth)) < 3000; // 3 seconds
+
+  if (isLoading || aalLoading || isVeryRecentAuth) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-gray-900">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-400"></div>

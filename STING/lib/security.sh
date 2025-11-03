@@ -827,3 +827,297 @@ check_secure_port() {
         return 1
     fi
 }
+
+# Export mkcert CA certificate for client installation
+export_ca_certificate() {
+    local output_dir="${1:-./client-certs}"
+    local ca_root_dir
+    
+    log_message "Exporting mkcert CA certificate for client installation..."
+    
+    # Find mkcert CA root directory
+    if command -v mkcert &> /dev/null; then
+        ca_root_dir=$(mkcert -CAROOT 2>/dev/null)
+    else
+        log_message "ERROR: mkcert not found" "ERROR"
+        return 1
+    fi
+    
+    if [ ! -f "${ca_root_dir}/rootCA.pem" ]; then
+        log_message "ERROR: mkcert CA certificate not found at ${ca_root_dir}/rootCA.pem" "ERROR"
+        log_message "Run: mkcert -install" "ERROR"
+        return 1
+    fi
+    
+    # Create output directory
+    safe_mkdir "${output_dir}" "true" || return 1
+    
+    # Copy CA certificate
+    cp "${ca_root_dir}/rootCA.pem" "${output_dir}/sting-ca.pem" || {
+        log_message "ERROR: Failed to copy CA certificate" "ERROR"
+        return 1
+    }
+    
+    # Generate installation scripts for different platforms
+    create_client_install_scripts "${output_dir}"
+    
+    log_message "✅ CA certificate exported to: ${output_dir}/"
+    log_message "📋 Files created:"
+    log_message "   - sting-ca.pem (CA certificate)"
+    log_message "   - install-ca-mac.sh (macOS installer)"
+    log_message "   - install-ca-linux.sh (Linux installer)"
+    log_message "   - install-ca-windows.ps1 (Windows installer)"
+    log_message ""
+    log_message "💡 Share the ${output_dir} folder with client machines"
+    log_message "   Clients can run the appropriate install script for their OS"
+    
+    return 0
+}
+
+# Create installation scripts for client platforms
+create_client_install_scripts() {
+    local output_dir="$1"
+    local domain="${DOMAIN_NAME:-$(cat ${INSTALL_DIR}/.sting_domain 2>/dev/null || echo 'captain-den.local')}"
+    local vm_ip="${VM_IP:-$(ip route get 1 | awk '{print $7; exit}' 2>/dev/null || echo '192.168.1.100')}"
+    
+    # macOS installation script
+    cat > "${output_dir}/install-ca-mac.sh" << EOF
+#!/bin/bash
+# STING-CE CA Certificate Installer for macOS
+set -e
+
+CA_FILE="sting-ca.pem"
+DOMAIN="${domain}"
+VM_IP="${vm_ip}"
+
+echo "🔐 STING-CE Certificate Authority Installer for macOS"
+echo "=================================================="
+echo ""
+
+# Check if CA file exists
+if [ ! -f "\$CA_FILE" ]; then
+    echo "❌ Error: \$CA_FILE not found"
+    echo "Please run this script from the directory containing the CA certificate"
+    exit 1
+fi
+
+# Install CA certificate
+echo "📋 Installing CA certificate..."
+sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "\$CA_FILE"
+echo "✅ CA certificate installed successfully"
+
+# Add domain to hosts file if needed
+echo ""
+echo "🌐 Setting up domain resolution..."
+if ! grep -q "\$DOMAIN" /etc/hosts; then
+    echo "Adding \$DOMAIN to /etc/hosts..."
+    echo "\$VM_IP \$DOMAIN" | sudo tee -a /etc/hosts > /dev/null
+    echo "✅ Domain added to /etc/hosts"
+else
+    echo "✅ Domain already in /etc/hosts"
+fi
+
+echo ""
+echo "🎉 Installation complete!"
+echo "You can now access STING securely at: https://\$DOMAIN:8443"
+echo "⚠️  Please restart your browser to load the new certificate"
+EOF
+
+    # Linux installation script
+    cat > "${output_dir}/install-ca-linux.sh" << EOF
+#!/bin/bash
+# STING-CE CA Certificate Installer for Linux
+set -e
+
+CA_FILE="sting-ca.pem"
+DOMAIN="${domain}"
+VM_IP="${vm_ip}"
+
+echo "🔐 STING-CE Certificate Authority Installer for Linux"
+echo "================================================="
+echo ""
+
+# Check if CA file exists
+if [ ! -f "\$CA_FILE" ]; then
+    echo "❌ Error: \$CA_FILE not found"
+    echo "Please run this script from the directory containing the CA certificate"
+    exit 1
+fi
+
+# Detect Linux distribution and install CA certificate
+echo "📋 Installing CA certificate..."
+if [ -d "/etc/ssl/certs" ] && [ -d "/usr/local/share/ca-certificates" ]; then
+    # Ubuntu/Debian
+    sudo cp "\$CA_FILE" /usr/local/share/ca-certificates/sting-ca.crt
+    sudo update-ca-certificates
+    echo "✅ CA certificate installed (Ubuntu/Debian)"
+elif [ -d "/etc/pki/ca-trust/source/anchors" ]; then
+    # RHEL/CentOS/Fedora
+    sudo cp "\$CA_FILE" /etc/pki/ca-trust/source/anchors/sting-ca.crt
+    sudo update-ca-trust
+    echo "✅ CA certificate installed (RHEL/CentOS/Fedora)"
+elif [ -d "/usr/share/ca-certificates" ]; then
+    # Generic approach
+    sudo cp "\$CA_FILE" /usr/share/ca-certificates/sting-ca.crt
+    echo "sting-ca.crt" | sudo tee -a /etc/ca-certificates.conf
+    sudo update-ca-certificates
+    echo "✅ CA certificate installed (Generic Linux)"
+else
+    echo "⚠️  Unsupported Linux distribution"
+    echo "Please manually add \$CA_FILE to your system's certificate store"
+fi
+
+# Add domain to hosts file if needed
+echo ""
+echo "🌐 Setting up domain resolution..."
+if ! grep -q "\$DOMAIN" /etc/hosts; then
+    echo "Adding \$DOMAIN to /etc/hosts..."
+    echo "\$VM_IP \$DOMAIN" | sudo tee -a /etc/hosts > /dev/null
+    echo "✅ Domain added to /etc/hosts"
+else
+    echo "✅ Domain already in /etc/hosts"
+fi
+
+echo ""
+echo "🎉 Installation complete!"
+echo "You can now access STING securely at: https://\$DOMAIN:8443"
+echo "⚠️  Please restart your browser to load the new certificate"
+EOF
+
+    # Windows PowerShell installation script
+    cat > "${output_dir}/install-ca-windows.ps1" << EOF
+# STING-CE CA Certificate Installer for Windows
+# Run this script as Administrator
+
+param(
+    [string]\$CAFile = "sting-ca.pem",
+    [string]\$Domain = "${domain}",
+    [string]\$VMIP = "${vm_ip}"
+)
+
+Write-Host "🔐 STING-CE Certificate Authority Installer for Windows" -ForegroundColor Green
+Write-Host "======================================================" -ForegroundColor Green
+Write-Host ""
+
+# Check if running as administrator
+if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    Write-Host "❌ Error: This script must be run as Administrator" -ForegroundColor Red
+    Write-Host "Right-click PowerShell and select 'Run as Administrator'" -ForegroundColor Yellow
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+
+# Check if CA file exists
+if (-not (Test-Path \$CAFile)) {
+    Write-Host "❌ Error: \$CAFile not found" -ForegroundColor Red
+    Write-Host "Please run this script from the directory containing the CA certificate" -ForegroundColor Yellow
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+
+# Install CA certificate
+Write-Host "📋 Installing CA certificate..." -ForegroundColor Yellow
+try {
+    Import-Certificate -FilePath \$CAFile -CertStoreLocation Cert:\LocalMachine\Root
+    Write-Host "✅ CA certificate installed successfully" -ForegroundColor Green
+} catch {
+    Write-Host "❌ Error installing certificate: \$_" -ForegroundColor Red
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+
+# Add domain to hosts file if needed
+Write-Host ""
+Write-Host "🌐 Setting up domain resolution..." -ForegroundColor Yellow
+\$hostsFile = "\$env:SystemRoot\System32\drivers\etc\hosts"
+\$hostsContent = Get-Content \$hostsFile -ErrorAction SilentlyContinue
+if (\$hostsContent -notmatch \$Domain) {
+    Write-Host "Adding \$Domain to hosts file..." -ForegroundColor Yellow
+    Add-Content -Path \$hostsFile -Value "\$VMIP \$Domain"
+    Write-Host "✅ Domain added to hosts file" -ForegroundColor Green
+} else {
+    Write-Host "✅ Domain already in hosts file" -ForegroundColor Green
+}
+
+Write-Host ""
+Write-Host "🎉 Installation complete!" -ForegroundColor Green
+Write-Host "You can now access STING securely at: https://\$Domain:8443" -ForegroundColor Cyan
+Write-Host "⚠️  Please restart your browser to load the new certificate" -ForegroundColor Yellow
+Read-Host "Press Enter to exit"
+EOF
+
+    # Make scripts executable
+    chmod +x "${output_dir}/install-ca-mac.sh"
+    chmod +x "${output_dir}/install-ca-linux.sh"
+}
+
+# Copy exported certificates to remote hosts
+copy_certs_to_host() {
+    local target_host="$1"
+    local remote_path="$2"
+    local source_dir="$3"
+    
+    if [[ -z "$target_host" || -z "$remote_path" ]]; then
+        log_message "ERROR: copy-certs requires target host and remote path"
+        log_message "Usage: manage_sting.sh copy-certs <user@host> <remote_path> [source_dir]"
+        return 1
+    fi
+    
+    # Default source directory to last export or create new one
+    if [[ -z "$source_dir" ]]; then
+        source_dir="./sting-certs-export"
+        if [[ ! -d "$source_dir" ]]; then
+            log_message "📋 No source directory specified and ./sting-certs-export not found"
+            log_message "Exporting certificates first..."
+            export_ca_certificate "$source_dir" || return 1
+        fi
+    fi
+    
+    # Verify source directory exists and has required files
+    if [[ ! -d "$source_dir" ]]; then
+        log_message "ERROR: Source directory not found: $source_dir"
+        return 1
+    fi
+    
+    if [[ ! -f "$source_dir/sting-ca.pem" ]]; then
+        log_message "ERROR: Certificate files not found in $source_dir"
+        log_message "Run 'export-certs' first to generate certificate bundle"
+        return 1
+    fi
+    
+    log_message "📤 Copying certificates to $target_host:$remote_path"
+    
+    # Check if rsync is available (preferred)
+    if command -v rsync &> /dev/null; then
+        log_message "Using rsync for secure copy..."
+        if rsync -avz --progress "$source_dir/" "$target_host:$remote_path/"; then
+            log_message "✅ Certificates copied successfully using rsync"
+        else
+            log_message "❌ rsync failed, falling back to scp..."
+            scp -r "$source_dir" "$target_host:$remote_path/" || {
+                log_message "ERROR: Failed to copy certificates to remote host"
+                return 1
+            }
+        fi
+    else
+        # Fall back to scp
+        log_message "Using scp for secure copy..."
+        scp -r "$source_dir" "$target_host:$remote_path/" || {
+            log_message "ERROR: Failed to copy certificates to remote host"
+            return 1
+        }
+        log_message "✅ Certificates copied successfully using scp"
+    fi
+    
+    log_message ""
+    log_message "📋 Next steps for the remote host:"
+    log_message "   1. SSH to $target_host"
+    log_message "   2. Navigate to $remote_path/$(basename "$source_dir")"
+    log_message "   3. Run the appropriate installer:"
+    log_message "      - macOS: ./install-ca-mac.sh"
+    log_message "      - Linux: ./install-ca-linux.sh"
+    log_message "      - Windows: install-ca-windows.ps1"
+    log_message ""
+    
+    return 0
+}

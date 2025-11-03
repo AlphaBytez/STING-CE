@@ -60,7 +60,7 @@ check_admin_creation_privileges() {
 
 # Function to show help message
 show_help() {
-    echo "Usage: $0 {start|stop|restart|status|build|update|install|reinstall|uninstall|cleanup|reset|maintenance|download_models|backup|restore|buzz|cache-buzz|build-analytics|install-ollama|ollama-status|llm-status|dev|create|upload-knowledge|help} [options]"
+    echo "Usage: $0 {start|stop|restart|status|build|update|install|reinstall|uninstall|cleanup|reset|maintenance|download_models|backup|restore|buzz|cache-buzz|build-analytics|install-ollama|ollama-status|llm-status|dev|create|upload-knowledge|export-certs|copy-certs|help} [options]"
     echo
     echo "Commands:"
     echo "  start, -s [service]           Start all services or specified service"
@@ -167,7 +167,14 @@ show_help() {
     echo "    [--force]                   Skip confirmation prompts"
     echo "  create user <EMAIL>           Create regular user (future enhancement)"
     echo
-    echo "📚 Knowledge Management:"
+    echo "� Certificate Management:"
+    echo "  export-certs [directory]      Export mkcert CA certificate and installation scripts"
+    echo "                                Creates cross-platform installers for client machines"
+    echo "                                Default directory: ./client-certs"
+    echo "  copy-certs user@host /path    Copy certificates to remote host via SCP/rsync"
+    echo "    [scp|rsync]                 Transfer method (default: scp)"
+    echo
+    echo "�📚 Knowledge Management:"
     echo "  upload-knowledge [options]    Upload STING Platform Knowledge to Honey Jar"
     echo "    --update                    Update existing honey jar instead of creating new"
     echo "    --version <version>         Specify version (default: read from version.txt)"
@@ -2039,6 +2046,51 @@ main() {
             fi
             
             return $exit_code
+            ;;
+        export-certs)
+            # 🔐 Export mkcert CA certificate for client installation
+            log_message "🔐 Exporting mkcert CA certificates for client installation..."
+            
+            load_required_module "security"
+            
+            local output_dir="${1:-./client-certs}"
+            
+            # Call the export function
+            if export_ca_certificate "$output_dir"; then
+                log_message "✅ Certificates exported successfully to: $output_dir" "SUCCESS"
+                log_message "💡 Share this folder with client machines for easy installation" "INFO"
+            else
+                log_message "❌ Certificate export failed" "ERROR"
+                return 1
+            fi
+            
+            return 0
+            ;;
+        copy-certs)
+            # 🔐 Copy certificates to remote host
+            if [ -z "$1" ] || [ -z "$2" ]; then
+                log_message "❌ Target host and remote path required" "ERROR"
+                log_message "Usage: $0 copy-certs user@host /remote/path [source_dir]" "ERROR"
+                return 1
+            fi
+            
+            log_message "🔐 Copying certificates to remote host: $1"
+            
+            load_required_module "security"
+            
+            local target_host="$1"
+            local remote_path="$2"
+            local source_dir="$3"
+            
+            # Call the copy function
+            if copy_certs_to_host "$target_host" "$remote_path" "$source_dir"; then
+                log_message "✅ Certificates copied successfully" "SUCCESS"
+            else
+                log_message "❌ Certificate copy failed" "ERROR"
+                return 1
+            fi
+            
+            return 0
             ;;
         help|-h|\"\")
             show_help

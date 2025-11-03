@@ -10,7 +10,7 @@ licensing:
 
 # System Configuration
 system:
-  domain: localhost  # Change to custom domain like queen.hive
+  domain: captain-den.local  # Custom domain configured during installation
   protocol: https
   ports:
     frontend: 8443
@@ -43,7 +43,7 @@ application:
   ssl:
     enabled: true
     cert_dir: "${INSTALL_DIR}/certs"
-    domain: "${DOMAIN_NAME:-localhost}"
+    domain: "${DOMAIN_NAME:-captain-den.local}"  # Use configured domain for SSL certificates
     email: "${CERTBOT_EMAIL:-your-email@example.com}"
 
 # Database Configuration
@@ -356,11 +356,11 @@ security:
       vault_path: "sting/security"
       webauthn:
         enabled: true
-        rp_id: "${HOSTNAME:-localhost}"
+        rp_id: "${HOSTNAME:-captain-den.local}"  # Updated default to configured domain
         rp_name: "STING"
         rp_origins:
-          - "https://localhost:8443"
-          - "https://${HOSTNAME:-your-production-domain.com}"
+          - "https://captain-den.local:8443"  # Updated to configured domain
+          - "https://${HOSTNAME:-captain-den.local}:8443"  # Updated default
 
 # Frontend Configuration
 frontend:
@@ -811,9 +811,9 @@ kratos:
       enabled: true
     webauthn:
       enabled: true
-      rp_id: "localhost"
+      rp_id: "captain-den.local"  # Updated to match configured domain
       display_name: "STING Authentication"
-      origin: "https://localhost:8443"
+      origin: "https://captain-den.local:8443"  # Updated to match configured domain
     oidc:
       enabled: false
       providers:

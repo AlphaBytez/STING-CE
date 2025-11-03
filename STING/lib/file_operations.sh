@@ -315,7 +315,7 @@ check_structural_changes() {
     fi
     
     # Check Python requirements files
-    local python_services=("app" "chatbot" "llm_service" "external_ai_service" "messaging_service" "knowledge_service")
+    local python_services=("app" "chatbot" "external_ai_service" "messaging_service" "knowledge_service")
     for service in "${python_services[@]}"; do
         local req_file="$project_dir/$service/requirements.txt"
         local installed_req_file="$INSTALL_DIR/$service/requirements.txt"
@@ -653,12 +653,7 @@ sync_service_code() {
             rsync -a "$project_dir/chatbot/" "$INSTALL_DIR/chatbot/" \
                 --exclude='venv' --exclude='**/venv' --exclude='.venv' \
                 --exclude='__pycache__' --exclude='**/__pycache__' --exclude='*.pyc'
-            # Also copy llm_service/chat for shared code
-            mkdir -p "$INSTALL_DIR/llm_service"
-            rsync -a "$project_dir/llm_service/chat/" "$INSTALL_DIR/llm_service/chat/" \
-                --exclude='venv' --exclude='**/venv' --exclude='__pycache__' --exclude='*.pyc'
-            rsync -a "$project_dir/llm_service/filtering/" "$INSTALL_DIR/llm_service/filtering/" \
-                --exclude='venv' --exclude='**/venv' --exclude='__pycache__' --exclude='*.pyc'
+            # Note: llm_service removed - replaced by provider-agnostic external-ai gateway
             ;;
         nectar-worker)
             rsync -a "$project_dir/nectar_worker/" "$INSTALL_DIR/nectar_worker/" \
@@ -666,11 +661,9 @@ sync_service_code() {
                 --exclude='__pycache__' --exclude='**/__pycache__' --exclude='*.pyc'
             ;;
         llm-gateway)
-            mkdir -p "$INSTALL_DIR/llm_service"
-            rsync -a "$project_dir/llm_service/" "$INSTALL_DIR/llm_service/" \
-                --exclude='venv' --exclude='**/venv' --exclude='.venv' \
-                --exclude='__pycache__' --exclude='**/__pycache__' --exclude='*.pyc' \
-                --exclude='models' --exclude='*.bin' --exclude='*.safetensors'
+            # Note: llm_service removed - replaced by provider-agnostic external-ai gateway
+            # This case is obsolete and can be removed in future versions
+            log_message "WARNING: llm-gateway update target is deprecated. Use 'external-ai' instead."
             ;;
         app)
             rsync -a "$project_dir/app/" "$INSTALL_DIR/app/" \
@@ -754,13 +747,9 @@ sync_service_code() {
             rsync -a "$project_dir/docker-entrypoint-initdb.d/" "$INSTALL_DIR/docker-entrypoint-initdb.d/" \
                 --exclude='venv' --exclude='**/venv' --exclude='*.pyc'
             ;;
-        llm-gateway-proxy|llm-gateway)
-            mkdir -p "$INSTALL_DIR/llm_service"
-            rsync -a "$project_dir/llm_service/" "$INSTALL_DIR/llm_service/" \
-                --exclude='venv' --exclude='**/venv' --exclude='.venv' \
-                --exclude='__pycache__' --exclude='**/__pycache__' --exclude='*.pyc' \
-                --exclude='models' --exclude='*.bin' --exclude='*.safetensors'
-            # Also sync nginx config if it exists
+        llm-gateway-proxy)
+            # Note: llm_service removed - replaced by provider-agnostic external-ai gateway
+            # Sync nginx config if it exists
             if [ -f "$project_dir/nginx-llm-proxy.conf" ]; then
                 cp "$project_dir/nginx-llm-proxy.conf" "$INSTALL_DIR/nginx-llm-proxy.conf"
             fi

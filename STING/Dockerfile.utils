@@ -7,7 +7,9 @@ COPY ./conf/ /app/conf/
 COPY ./app/requirements.txt /app/app/requirements.txt
 
 # Install Python dependencies from both sources
-RUN pip install --upgrade pip && \
+# BuildKit cache mount dramatically speeds up pip downloads
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && \
     pip install -r /app/conf/requirements.in && \
     pip install -r /app/app/requirements.txt
 

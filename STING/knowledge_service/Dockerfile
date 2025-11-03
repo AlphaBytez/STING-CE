@@ -30,10 +30,10 @@ RUN apt-get update || apt-get update || apt-get update && \
 COPY requirements.txt /app/requirements.txt
 
 # Install setuptools and wheel first (required for some packages)
-RUN pip install --no-cache-dir setuptools wheel
+RUN --mount=type=cache,target=/root/.cache/pip pip install --no-cache-dir setuptools wheel
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . /app/

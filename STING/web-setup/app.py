@@ -1108,6 +1108,67 @@ def health():
     """Health check endpoint"""
     return jsonify({'status': 'healthy', 'service': 'sting-setup-wizard'})
 
+@app.route('/api/certificate-info')
+def certificate_info():
+    """
+    Demonstration endpoint showing client IP detection for certificate management.
+    This shows how we could integrate certificate generation into the wizard flow.
+    """
+    try:
+        # Detect client IP (handles proxy headers)
+        client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+        if client_ip and ',' in client_ip:
+            client_ip = client_ip.split(',')[0].strip()
+        
+        # Get server IP/hostname
+        server_ip = get_primary_ip()
+        
+        # Get current STING configuration if available
+        try:
+            state = load_setup_state()
+            config_data = state.get('wizard_data', {})
+            sting_hostname = config_data.get('system', {}).get('hostname', '')
+        except:
+            sting_hostname = ''
+        
+        # Determine if certificate management is needed
+        certificate_needed = (
+            client_ip != server_ip and 
+            client_ip != 'localhost' and 
+            client_ip != '127.0.0.1'
+        )
+        
+        # Detect client platform from User-Agent
+        user_agent = request.headers.get('User-Agent', '').lower()
+        if 'windows' in user_agent:
+            platform = 'windows'
+        elif 'mac' in user_agent or 'darwin' in user_agent:
+            platform = 'macos'
+        elif 'linux' in user_agent:
+            platform = 'linux'
+        else:
+            platform = 'unknown'
+        
+        return jsonify({
+            'client_ip': client_ip,
+            'server_ip': server_ip,
+            'sting_hostname': sting_hostname or server_ip,
+            'certificate_needed': certificate_needed,
+            'platform_detected': platform,
+            'recommendation': (
+                'Certificate installation recommended for seamless WebAuthn authentication'
+                if certificate_needed else
+                'No certificate installation needed - client and server on same machine'
+            ),
+            'wizard_integration_ready': True
+        })
+    
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'wizard_integration_ready': False
+        }), 500
+
 def get_primary_ip():
     """Get primary IP address"""
     try:

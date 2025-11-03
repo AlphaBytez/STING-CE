@@ -10,11 +10,11 @@ echo "Directory contents:"
 ls -la
 echo "PYTHONPATH: $PYTHONPATH"
 
-# Check if server.py exists
-if [ -f /app/chatbot/server.py ]; then
-    echo "Found server.py at /app/chatbot/server.py"
+# Check if bee_server.py exists (modern server)
+if [ -f /app/chatbot/bee_server.py ]; then
+    echo "Found bee_server.py at /app/chatbot/bee_server.py"
 else
-    echo "ERROR: server.py not found at /app/chatbot/server.py"
+    echo "ERROR: bee_server.py not found at /app/chatbot/bee_server.py"
     echo "Contents of /app:"
     ls -la /app
     echo "Contents of /app/chatbot:"

@@ -16,12 +16,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY ./chatbot/requirements.txt /app/requirements.txt
 
 # Install lightweight dependencies only
-RUN pip install --no-cache-dir -r /app/requirements.txt
+# BuildKit cache mount speeds up pip downloads (removed --no-cache-dir)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r /app/requirements.txt
 
 # Copy application code
 COPY ./chatbot /app/chatbot
-COPY ./llm_service/chat /app/llm_service/chat
-COPY ./llm_service/filtering /app/llm_service/filtering
 COPY ./conf /app/conf
 
 # Create directories

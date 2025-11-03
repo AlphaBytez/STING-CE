@@ -1,6 +1,31 @@
 # Instructions for Using Passkeys Across Different Machines
 
-## The Issue
+## ⚡ Quick Solution (Recommended)
+
+**STING-CE now includes automated certificate management!** For the easiest setup:
+
+```bash
+# 1. Generate certificate bundle
+./manage_sting.sh export-certs ./client-certs
+
+# 2. Copy to client machine  
+./manage_sting.sh copy-certs user@client-machine /home/user/certs
+
+# 3. On client machine, run installer:
+# macOS: ./install-ca-mac.sh
+# Linux: ./install-ca-linux.sh
+# Windows: install-ca-windows.ps1
+```
+
+**This automatically handles certificate trust AND domain configuration!**
+
+See [Certificate Management Guide](CERTIFICATE_MANAGEMENT.md) for complete documentation.
+
+---
+
+## Manual Configuration (Legacy Method)
+
+### The Issue
 You experienced a 500 error when trying to use a passkey created on Machine A to login on Machine B. This is because WebAuthn passkeys are cryptographically bound to their Relying Party ID (RP ID), which was set to 'localhost' by default.
 
 ## Recent Updates (July 2025)

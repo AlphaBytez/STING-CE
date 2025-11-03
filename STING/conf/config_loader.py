@@ -874,7 +874,7 @@ class ConfigurationManager:
         self.processed_config.update({
             'SSL_ENABLED': ssl_config.get('enabled', True),
             'SSL_CERT_DIR': ssl_config.get('cert_dir', f"{self.install_dir}/certs"),
-            'DOMAIN_NAME': ssl_config.get('domain', 'localhost'),
+            'DOMAIN_NAME': ssl_config.get('domain', self.sting_domain),  # Use STING domain instead of defaulting to localhost
             'CERTBOT_EMAIL': ssl_config.get('email', 'your-email@example.com')
         })
 

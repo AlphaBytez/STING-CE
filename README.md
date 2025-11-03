@@ -25,6 +25,7 @@ Self-hosted platform for secure, private LLM deployment with complete data sover
 - **Email Verification** - Built-in with automatic validation
 - **Session Management** - AAL2 (Two-factor) session controls
 - **OAuth2/OIDC** - Standard protocol support via Ory Kratos
+- **Certificate Management** - Automated certificate distribution for seamless WebAuthn across machines
 
 ### 🍯 Honey Jar Knowledge Management
 - **Semantic Search** - Vector-based knowledge retrieval with ChromaDB
@@ -212,6 +213,31 @@ Documentation is also available in the `STING/docs/` directory:
 # Check service status
 ./manage_sting.sh status
 ```
+
+### Certificate Management
+
+For seamless WebAuthn/passkey authentication across different machines:
+
+```bash
+# Generate certificate bundle for client distribution
+./manage_sting.sh export-certs ./client-certs
+
+# Copy certificates to remote machines
+./manage_sting.sh copy-certs user@hostname /remote/path
+
+# Clients run the appropriate installer:
+# macOS: ./install-ca-mac.sh
+# Linux: ./install-ca-linux.sh  
+# Windows: install-ca-windows.ps1
+```
+
+**Why Certificate Management Matters:**
+- **Eliminates certificate errors** that break WebAuthn authentication
+- **Essential for VM/container deployments** where clients access from different machines
+- **Critical for production** where users can't manually install certificates
+- **Enables passkey authentication** across your entire infrastructure
+
+See [Certificate Management Guide](STING/docs/guides/CERTIFICATE_MANAGEMENT.md) for complete documentation.
 
 ## 🏗️ Architecture
 

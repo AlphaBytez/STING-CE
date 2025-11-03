@@ -25,6 +25,11 @@ fi
 # Exit on any error
 set -euo pipefail
 
+# Enable BuildKit for faster Docker builds with cache mounts
+# This dramatically speeds up pip installs (10-50x on slow networks)
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+
 # Get script directory (use STING_ROOT_DIR to avoid conflicts with sourced lib files)
 STING_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$STING_ROOT_DIR"

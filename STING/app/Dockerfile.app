@@ -31,7 +31,8 @@ ENV PIP_DEFAULT_TIMEOUT=100 \
 # Copy requirements and install dependencies
 COPY conf/requirements.in /opt/sting-ce/conf/
 COPY app/requirements.txt /opt/sting-ce/app/
-RUN pip install --upgrade pip && \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && \
     pip install -r /opt/sting-ce/conf/requirements.in && \
     pip install -r /opt/sting-ce/app/requirements.txt 
 
