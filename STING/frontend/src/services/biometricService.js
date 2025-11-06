@@ -63,13 +63,20 @@ class BiometricService {
             
             // Record detection
             this.biometricDetected = userVerified;
+            
+            // Validate credential before accessing properties
+            if (!credential || !credential.id) {
+                console.error('Invalid credential object received:', credential);
+                throw new Error('WebAuthn credential validation failed: missing id property');
+            }
+            
             this.lastCredentialId = credential.id;
 
             return {
                 userVerified,
                 userPresent,
                 authenticatorType,
-                credentialId: credential.id,
+                credentialId: credential.id, // Already validated above
                 timestamp: new Date().toISOString()
             };
 

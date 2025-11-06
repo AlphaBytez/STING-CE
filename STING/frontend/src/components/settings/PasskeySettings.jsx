@@ -190,12 +190,24 @@ const PasskeySettings = () => {
             ...options.publicKey.user,
             id: Uint8Array.from(base64urlDecode(options.publicKey.user.id), c => c.charCodeAt(0))
           },
-          excludeCredentials: options.publicKey.excludeCredentials?.map(cred => ({
-            ...cred,
-            id: Uint8Array.from(base64urlDecode(cred.id), c => c.charCodeAt(0))
-          })) || []
+          excludeCredentials: options.publicKey.excludeCredentials?.map(cred => {
+            // Validate credential object before accessing properties
+            if (!cred || !cred.id) {
+              throw new Error('Invalid credential in excludeCredentials: missing credential or credential ID');
+            }
+            return {
+              ...cred,
+              id: Uint8Array.from(base64urlDecode(cred.id), c => c.charCodeAt(0))
+            };
+          }) || []
         }
       });
+
+      // Validate credential before accessing properties
+      if (!credential || !credential.id || !credential.rawId || !credential.response) {
+        console.error('❌ Invalid credential received from authenticator:', credential);
+        throw new Error('Invalid credential received from authenticator');
+      }
 
       // Helper function to encode to base64url
       const base64urlEncode = (buffer) => {

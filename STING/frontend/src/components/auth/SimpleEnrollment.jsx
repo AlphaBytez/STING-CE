@@ -386,8 +386,10 @@ const SimpleEnrollment = () => {
         publicKey: processedOptions
       });
 
-      if (!credential) {
-        throw new Error('Failed to create WebAuthn credential');
+      // Validate credential before accessing properties
+      if (!credential || !credential.id || !credential.rawId || !credential.response) {
+        console.error('❌ Invalid credential received from authenticator:', credential);
+        throw new Error('Invalid credential received from authenticator');
       }
 
       console.log('🔒 WebAuthn credential created successfully');
@@ -498,21 +500,25 @@ const SimpleEnrollment = () => {
         try {
           const credential = await originalCredentialsCreate.call(navigator.credentials, options);
           console.log('🔒 WebAuthn credential created, processing with biometric service...');
-          
-          if (credential && credential.response) {
-            // Process credential for biometric detection (if biometric service available)
-            if (window.biometricService?.processCredential) {
-              const biometricResult = await window.biometricService.processCredential(credential);
-              console.log('🔒 Biometric processing result:', biometricResult);
-              
-              if (biometricResult.success && biometricResult.biometric) {
-                console.log('🔒 Biometric authentication detected! AAL2 should be available.');
-              } else {
-                console.log('🔒 Standard passkey detected (no biometric verification).');
-              }
+
+          // Validate credential before accessing properties
+          if (!credential || !credential.id || !credential.rawId || !credential.response) {
+            console.error('❌ Invalid credential received from authenticator:', credential);
+            throw new Error('Invalid credential received from authenticator');
+          }
+
+          // Process credential for biometric detection (if biometric service available)
+          if (window.biometricService?.processCredential) {
+            const biometricResult = await window.biometricService.processCredential(credential);
+            console.log('🔒 Biometric processing result:', biometricResult);
+
+            if (biometricResult.success && biometricResult.biometric) {
+              console.log('🔒 Biometric authentication detected! AAL2 should be available.');
+            } else {
+              console.log('🔒 Standard passkey detected (no biometric verification).');
             }
           }
-          
+
           return credential;
         } catch (error) {
           console.error('🔒 Error in WebAuthn interception:', error);

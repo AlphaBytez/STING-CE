@@ -1058,8 +1058,20 @@ copy_certs_to_host() {
     local source_dir="$3"
     
     if [[ -z "$target_host" || -z "$remote_path" ]]; then
-        log_message "ERROR: copy-certs requires target host and remote path"
-        log_message "Usage: manage_sting.sh copy-certs <user@host> <remote_path> [source_dir]"
+        log_message "❌ Target host and remote path required"
+        log_message ""
+        log_message "📋 Usage: msting copy-certs <user@host> <remote_path> [source_dir]"
+        log_message ""
+        log_message "🔍 Available certificate sources:"
+        [[ -d "./sting-certs-export" ]] && log_message "  • ./sting-certs-export (default)"
+        [[ -f "/opt/sting-ce/certs/server.crt" ]] && log_message "  • /opt/sting-ce/certs/ (server certificates)"
+        [[ -f "/opt/sting-ce/sting-ca.pem" ]] && log_message "  • /opt/sting-ce/ (CA certificate)"
+        log_message ""
+        log_message "💡 Examples:"
+        log_message "  msting copy-certs user@hostname.local /home/user/certs"
+        log_message "  msting copy-certs user@192.168.1.100 /opt/certs ./sting-certs-export"
+        log_message ""
+        log_message "ℹ️  Run 'msting export-certs' first to create certificate bundle"
         return 1
     fi
     

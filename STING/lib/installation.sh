@@ -2896,11 +2896,43 @@ validate_auth_config_consistency() {
         fi
 
         if [ "$mdns_available" = false ]; then
-            warnings+=("⚠️  .local hostname used but mDNS/Avahi not detected")
-            warnings+=("   .local domains may not resolve without:")
-            warnings+=("   - systemd-resolved (usually enabled by default on Ubuntu)")
-            warnings+=("   - Avahi daemon (install: sudo apt install avahi-daemon)")
-            warnings+=("   - OR manual /etc/hosts entries on all client machines")
+            log_message "⚠️  .local hostname selected but mDNS/Avahi not detected" "WARNING"
+            log_message ""
+            log_message "For .local domains to work across your network, you need mDNS support."
+            log_message ""
+
+            # Offer to install Avahi automatically (Linux only)
+            if command -v apt-get &>/dev/null; then
+                log_message "Would you like to install avahi-daemon now? (recommended for VMs)" "INFO"
+                read -p "Install avahi-daemon? [Y/n]: " install_avahi
+                install_avahi="${install_avahi:-Y}"
+
+                if [[ "$install_avahi" =~ ^[Yy]$ ]]; then
+                    log_message "Installing avahi-daemon..." "INFO"
+                    if sudo apt-get update -qq && sudo apt-get install -y avahi-daemon avahi-utils; then
+                        sudo systemctl enable avahi-daemon
+                        sudo systemctl start avahi-daemon
+                        log_message "✅ Avahi installed and started successfully"
+                        log_message "   Your .local hostname should now work across the network!"
+                        # Clear the warning since we fixed it
+                        mdns_available=true
+                    else
+                        warnings+=("⚠️  Failed to install avahi-daemon automatically")
+                        warnings+=("   Install manually: sudo apt install avahi-daemon")
+                    fi
+                else
+                    warnings+=("⚠️  .local hostname used but mDNS/Avahi not installed")
+                    warnings+=("   .local domains may not resolve without:")
+                    warnings+=("   - Avahi daemon (install: sudo apt install avahi-daemon)")
+                    warnings+=("   - OR manual /etc/hosts entries on all client machines")
+                fi
+            else
+                warnings+=("⚠️  .local hostname used but mDNS/Avahi not detected")
+                warnings+=("   .local domains may not resolve without:")
+                warnings+=("   - systemd-resolved (usually enabled by default on Ubuntu)")
+                warnings+=("   - Avahi daemon (install via package manager)")
+                warnings+=("   - OR manual /etc/hosts entries on all client machines")
+            fi
         fi
     fi
 

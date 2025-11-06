@@ -63,6 +63,10 @@ const SimpleLogin = () => {
       
       if (publicKeyOptions.publicKey.allowCredentials && publicKeyOptions.publicKey.allowCredentials.length > 0) {
         publicKeyOptions.publicKey.allowCredentials = publicKeyOptions.publicKey.allowCredentials.map(cred => {
+          // Validate credential object before accessing properties
+          if (!cred || !cred.id) {
+            throw new Error('Invalid credential in allowCredentials: missing credential or credential ID');
+          }
           const credIdStr = cred.id.replace(/-/g, '+').replace(/_/g, '/');
           const paddedCredId = credIdStr + '=='.substring(0, (4 - credIdStr.length % 4) % 4);
           return {
@@ -79,6 +83,12 @@ const SimpleLogin = () => {
       const credential = await navigator.credentials.get({
         publicKey: publicKeyOptions.publicKey
       });
+      
+      // Validate credential before accessing properties
+      if (!credential || !credential.id || !credential.rawId || !credential.response) {
+        console.error('❌ Invalid credential received from authenticator:', credential);
+        throw new Error('Invalid credential received from authenticator');
+      }
       
       // Complete authentication
       const completeResponse = await axios.post('/api/webauthn/authentication/complete', {

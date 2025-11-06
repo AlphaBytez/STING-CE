@@ -409,8 +409,10 @@ const EnhancedRegistration = () => {
         publicKey: challengeData.publicKey
       });
       
-      if (!credential) {
-        setError('Passkey setup was cancelled or failed.');
+      // Validate credential with comprehensive checks
+      if (!credential || !credential.id || !credential.rawId || !credential.response) {
+        console.error('❌ Invalid credential received from authenticator:', credential);
+        setError('Invalid credential received from authenticator. Please try again.');
         return;
       }
       

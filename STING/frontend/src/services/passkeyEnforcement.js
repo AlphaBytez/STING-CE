@@ -446,6 +446,12 @@ export class PasskeyEnforcementService {
             // Simulate server verification delay
             await new Promise(resolve => setTimeout(resolve, 500));
             
+            // Validate credential before accessing properties
+            if (!credential || !credential.id) {
+                console.error('Invalid credential object received:', credential);
+                throw new Error('WebAuthn credential validation failed: missing id property');
+            }
+            
             // For demo, we'll always return success
             // In reality, this would involve cryptographic verification
             return {

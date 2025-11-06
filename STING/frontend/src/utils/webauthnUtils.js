@@ -103,6 +103,12 @@ export const processCredentialForBackend = (credential) => {
     throw new Error('WebAuthn credential is required');
   }
 
+  // Validate credential properties
+  if (!credential.id || !credential.rawId || !credential.response) {
+    console.error('Invalid credential object received:', credential);
+    throw new Error('WebAuthn credential validation failed: missing required properties');
+  }
+
   console.log('🔧 Processing credential for backend submission');
 
   try {

@@ -173,32 +173,37 @@ const EnhancedKratosRegistration = () => {
         publicKey: publicKeyCredentialCreationOptions
       });
       
-      if (credential) {
-        // Complete registration with our API
-        const completionResponse = await axios.post('https://localhost:5050/api/webauthn/registration/complete', {
-          credential: {
-            id: credential.id,
-            rawId: Array.from(new Uint8Array(credential.rawId)),
-            response: {
-              attestationObject: Array.from(new Uint8Array(credential.response.attestationObject)),
-              clientDataJSON: Array.from(new Uint8Array(credential.response.clientDataJSON))
-            },
-            type: credential.type
-          }
-        }, {
-          withCredentials: true,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (completionResponse.data.verified) {
-          // Success! Redirect to dashboard
-          navigate('/dashboard');
-        } else {
-          setError('Failed to register passkey: ' + (completionResponse.data.error || 'Unknown error'));
-        }
+      // Validate credential before accessing properties
+      if (!credential || !credential.id || !credential.rawId || !credential.response) {
+        console.error('❌ Invalid credential received from authenticator:', credential);
+        throw new Error('Invalid credential received from authenticator');
       }
+      
+      // Complete registration with our API
+      const completionResponse = await axios.post('https://localhost:5050/api/webauthn/registration/complete', {
+        credential: {
+          id: credential.id,
+          rawId: Array.from(new Uint8Array(credential.rawId)),
+          response: {
+            attestationObject: Array.from(new Uint8Array(credential.response.attestationObject)),
+            clientDataJSON: Array.from(new Uint8Array(credential.response.clientDataJSON))
+          },
+          type: credential.type
+        }
+      }, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (completionResponse.data.verified) {
+        // Success! Redirect to dashboard
+        navigate('/dashboard');
+      } else {
+        setError('Failed to register passkey: ' + (completionResponse.data.error || 'Unknown error'));
+      }
+      
     } catch (error) {
       console.error('WebAuthn registration error:', error);
       setError('Failed to create passkey: ' + (error.response?.data?.error || error.message));

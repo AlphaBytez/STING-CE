@@ -526,10 +526,16 @@ const HybridPasswordlessAuth = ({ mode = 'login' }) => {
       const processedOptions = {
         ...webauthnOptions,
         challenge: base64urlToArrayBuffer(webauthnOptions.challenge),
-        allowCredentials: webauthnOptions.allowCredentials?.map(cred => ({
-          ...cred,
-          id: base64urlToArrayBuffer(cred.id)
-        })) || [],
+        allowCredentials: webauthnOptions.allowCredentials?.map(cred => {
+          // Validate credential object before accessing properties
+          if (!cred || !cred.id) {
+            throw new Error('Invalid credential in allowCredentials: missing credential or credential ID');
+          }
+          return {
+            ...cred,
+            id: base64urlToArrayBuffer(cred.id)
+          };
+        }) || [],
         userVerification: 'preferred',  // AAL1: biometric preferred but not required
         timeout: 60000
       };
@@ -542,6 +548,12 @@ const HybridPasswordlessAuth = ({ mode = 'login' }) => {
       
       if (!credential) {
         throw new Error('Authentication was cancelled');
+      }
+
+      // Additional validation for credential properties
+      if (!credential.id || !credential.rawId || !credential.response) {
+        console.error('🔐 Invalid credential object received:', credential);
+        throw new Error('Invalid credential received from authenticator');
       }
       
       console.log('🔐 WebAuthn credential obtained, verifying...');
@@ -718,10 +730,16 @@ const HybridPasswordlessAuth = ({ mode = 'login' }) => {
       const processedOptions = {
         ...webauthnOptions,
         challenge: base64urlToArrayBuffer(webauthnOptions.challenge),
-        allowCredentials: webauthnOptions.allowCredentials?.map(cred => ({
-          ...cred,
-          id: base64urlToArrayBuffer(cred.id)
-        })) || [],
+        allowCredentials: webauthnOptions.allowCredentials?.map(cred => {
+          // Validate credential object before accessing properties
+          if (!cred || !cred.id) {
+            throw new Error('Invalid credential in allowCredentials: missing credential or credential ID');
+          }
+          return {
+            ...cred,
+            id: base64urlToArrayBuffer(cred.id)
+          };
+        }) || [],
         userVerification: 'required',  // CRITICAL: Forces biometric/PIN
         timeout: 60000
       };
@@ -734,6 +752,12 @@ const HybridPasswordlessAuth = ({ mode = 'login' }) => {
       
       if (!credential) {
         throw new Error('Authentication was cancelled');
+      }
+
+      // Additional validation for credential properties
+      if (!credential.id || !credential.rawId || !credential.response) {
+        console.error('🔐 Invalid credential object received:', credential);
+        throw new Error('Invalid credential received from authenticator');
       }
       
       console.log('🔐 WebAuthn credential obtained, verifying...');

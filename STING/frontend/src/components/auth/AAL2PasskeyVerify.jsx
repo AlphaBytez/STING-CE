@@ -298,6 +298,13 @@ const AAL2PasskeyVerify = () => {
               try {
                 // Call the original get and wait for user to complete biometric
                 const credential = await originalGet.call(this, options);
+
+                // Validate credential before processing
+                if (!credential || !credential.id || !credential.rawId || !credential.response) {
+                  console.error('❌ Invalid credential received from authenticator:', credential);
+                  throw new Error('Invalid credential received from authenticator');
+                }
+
                 console.log('✅ Biometric authentication completed!');
                 ceremonyCompleteRef.current = true;
 

@@ -172,7 +172,8 @@ show_help() {
     echo "                                Creates cross-platform installers for client machines"
     echo "                                Default directory: ./client-certs"
     echo "  copy-certs user@host /path    Copy certificates to remote host via SCP/rsync"
-    echo "    [scp|rsync]                 Transfer method (default: scp)"
+    echo "                                Source: ./sting-certs-export (run export-certs first)"
+    echo "                                Example: copy-certs user@hostname.local /home/user/certs"
     echo
     echo "�📚 Knowledge Management:"
     echo "  upload-knowledge [options]    Upload STING Platform Knowledge to Honey Jar"
@@ -2070,7 +2071,11 @@ main() {
             # 🔐 Copy certificates to remote host
             if [ -z "$1" ] || [ -z "$2" ]; then
                 log_message "❌ Target host and remote path required" "ERROR"
-                log_message "Usage: $0 copy-certs user@host /remote/path [source_dir]" "ERROR"
+                log_message "" "ERROR"
+                log_message "📋 Usage: $0 copy-certs <user@host> <remote_path> [source_dir]" "ERROR"
+                log_message "" "ERROR" 
+                log_message "💡 Example: $0 copy-certs user@hostname.local /home/user/certs" "ERROR"
+                log_message "ℹ️  Run '$0 export-certs' first to create certificate bundle" "ERROR"
                 return 1
             fi
             

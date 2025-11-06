@@ -350,11 +350,67 @@ def detect_sting_hostname():
     Detect appropriate STING hostname for WebAuthn/Passkey compatibility
 
     CRITICAL: For WebAuthn to work, the hostname must match the Kratos RP ID.
-    Prefers IP addresses over hostnames for simplicity and to avoid DNS/hosts file requirements.
+    Strategy:
+    - VMs with mDNS/Avahi: Prefer hostname.local (easier for remote access, better UX)
+    - Other environments: Use IP address as reliable fallback
     """
     import re
 
-    # Strategy 1: Use primary IP address (PREFERRED - no DNS/hosts file needed)
+    def is_vm():
+        """Check if running in a virtual machine"""
+        try:
+            # Check systemd-detect-virt
+            result = subprocess.run(['systemd-detect-virt'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+            if result.returncode == 0:
+                virt_type = result.stdout.strip()
+                if virt_type and virt_type != 'none':
+                    return True
+        except:
+            pass
+
+        # Check DMI product name
+        try:
+            with open('/sys/class/dmi/id/product_name', 'r') as f:
+                product = f.read().strip().lower()
+                if any(vm in product for vm in ['vmware', 'virtualbox', 'kvm', 'qemu', 'parallels', 'xen']):
+                    return True
+        except:
+            pass
+
+        return False
+
+    def has_mdns():
+        """Check if mDNS/Avahi is available"""
+        try:
+            # Check for Avahi daemon
+            result = subprocess.run(['systemctl', 'is-active', 'avahi-daemon'],
+                                  stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+            if result.returncode == 0:
+                return True
+        except:
+            pass
+
+        # Check for macOS Bonjour (always present)
+        try:
+            result = subprocess.run(['uname'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+            if result.stdout.strip() == 'Darwin':
+                return True
+        except:
+            pass
+
+        return False
+
+    # Strategy 1: For VMs with mDNS, prefer hostname.local (best UX for remote access)
+    if is_vm() and has_mdns():
+        try:
+            short_hostname = subprocess.run(['hostname', '-s'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip().lower()
+            if short_hostname and short_hostname != 'localhost':
+                # Append .local for mDNS/local network resolution
+                return f"{short_hostname}.local"
+        except:
+            pass
+
+    # Strategy 2: Use primary IP address (reliable fallback)
     try:
         # Try Linux: hostname -I
         result = subprocess.run(['hostname', '-I'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
@@ -368,7 +424,7 @@ def detect_sting_hostname():
     except:
         pass
 
-    # Strategy 2: Try macOS: ifconfig (since hostname -I doesn't exist on macOS)
+    # Strategy 3: Try macOS: ifconfig (since hostname -I doesn't exist on macOS)
     try:
         result = subprocess.run(['ifconfig'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
         if result.returncode == 0:
@@ -384,7 +440,7 @@ def detect_sting_hostname():
     except:
         pass
 
-    # Strategy 3: Try FQDN as fallback (but filter out .localdomain which is just a placeholder)
+    # Strategy 4: Try FQDN as fallback (but filter out .localdomain which is just a placeholder)
     try:
         fqdn = subprocess.run(['hostname', '-f'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip()
         if fqdn and '.' in fqdn:
@@ -395,7 +451,7 @@ def detect_sting_hostname():
     except:
         pass
 
-    # Strategy 4: Try short hostname with .local suffix (requires mDNS)
+    # Strategy 5: Try short hostname with .local suffix (requires mDNS)
     try:
         short_hostname = subprocess.run(['hostname', '-s'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip().lower()
         if short_hostname and short_hostname != 'localhost':

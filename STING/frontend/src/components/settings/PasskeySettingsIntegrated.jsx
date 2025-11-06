@@ -122,6 +122,12 @@ const PasskeySettingsIntegrated = () => {
         
         console.log('🔐 Created credential:', credential);
         
+        // Validate credential before accessing properties
+        if (!credential || !credential.id || !credential.rawId || !credential.response) {
+          console.error('❌ Invalid credential received from authenticator:', credential);
+          throw new Error('Invalid credential received from authenticator');
+        }
+        
         // Complete the registration
         const completeResponse = await axios.post('/api/webauthn/registration/complete', {
           id: credential.id,

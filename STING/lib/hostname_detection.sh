@@ -2,7 +2,39 @@
 # Hostname Detection for STING Installation
 # Provides smart defaults for WebAuthn/Passkey compatibility
 #
-# Prefers IP addresses over hostnames for consistency and to avoid DNS/hosts file requirements.
+# Prefers .local hostnames for VMs (with mDNS) for easier remote access
+# Falls back to IP addresses when mDNS is not available
+
+# Function to detect if running in a virtual machine
+is_virtual_machine() {
+    # Check systemd-detect-virt (most reliable)
+    if command -v systemd-detect-virt &>/dev/null; then
+        local virt_type=$(systemd-detect-virt 2>/dev/null)
+        if [ "$virt_type" != "none" ] && [ -n "$virt_type" ]; then
+            return 0  # Is a VM
+        fi
+    fi
+
+    # Check for common virtualization indicators
+    if [ -f /sys/class/dmi/id/product_name ]; then
+        local product_name=$(cat /sys/class/dmi/id/product_name 2>/dev/null)
+        case "$product_name" in
+            *VMware*|*VirtualBox*|*KVM*|*QEMU*|*Parallels*|*Xen*)
+                return 0  # Is a VM
+                ;;
+        esac
+    fi
+
+    # Check chassis type (vm = virtual machine)
+    if [ -f /sys/class/dmi/id/chassis_type ]; then
+        local chassis=$(cat /sys/class/dmi/id/chassis_type 2>/dev/null)
+        if [ "$chassis" = "1" ]; then  # 1 = VM/Other
+            return 0  # Likely a VM
+        fi
+    fi
+
+    return 1  # Not a VM
+}
 
 # Function to detect platform environment
 detect_platform() {
@@ -30,7 +62,13 @@ detect_platform() {
         return 0
     fi
 
-    # Generic Linux
+    # Virtual Machine (VMware, VirtualBox, KVM, etc.)
+    if is_virtual_machine; then
+        echo "vm"
+        return 0
+    fi
+
+    # Generic Linux (bare metal)
     echo "linux"
 }
 
@@ -62,12 +100,26 @@ is_ip_address() {
 }
 
 # Function to detect system hostname
-# Prefers IP addresses over hostnames for reliability and to avoid DNS/hosts file configuration
+# Strategy depends on environment:
+# - VMs with mDNS: Prefer hostname.local for easy remote access
+# - Bare metal: Prefer IP address for reliability
 detect_system_hostname() {
     local primary_ip=""
     local hostname=""
+    local platform=$(detect_platform)
 
-    # Strategy 1: Use primary IP address (PREFERRED - no DNS/hosts file needed)
+    # For VMs with mDNS, prefer hostname.local (easier for remote access)
+    if [ "$platform" = "vm" ] && check_mdns_support; then
+        # Strategy 1: Try short hostname with .local (PREFERRED for VMs)
+        hostname=$(hostname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')
+        if [ -n "$hostname" ] && [ "$hostname" != "localhost" ]; then
+            # Append .local for mDNS/local network resolution
+            echo "${hostname}.local"
+            return 0
+        fi
+    fi
+
+    # Strategy 2: Use primary IP address (reliable fallback)
     # Linux: hostname -I
     if command -v hostname &>/dev/null && hostname -I &>/dev/null 2>&1; then
         primary_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
@@ -77,12 +129,12 @@ detect_system_hostname() {
     fi
 
     if [ -n "$primary_ip" ] && [[ ! "$primary_ip" =~ ^127\. ]]; then
-        # Valid IP that's not loopback - THIS IS PREFERRED
+        # Valid IP that's not loopback
         echo "$primary_ip"
         return 0
     fi
 
-    # Strategy 2: Try FQDN as fallback (if it's a proper domain, not localhost)
+    # Strategy 3: Try FQDN as fallback (if it's a proper domain, not localhost)
     hostname=$(hostname -f 2>/dev/null)
     if [ -n "$hostname" ] && [ "$hostname" != "localhost" ] && [ "$hostname" != "localhost.localdomain" ] && [[ "$hostname" =~ \. ]]; then
         # Valid FQDN (has dot and isn't localhost)
@@ -90,7 +142,7 @@ detect_system_hostname() {
         return 0
     fi
 
-    # Strategy 3: Try short hostname with .local appended (requires mDNS)
+    # Strategy 4: Try short hostname with .local appended (requires mDNS)
     hostname=$(hostname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')
     if [ -n "$hostname" ] && [ "$hostname" != "localhost" ]; then
         # Append .local for mDNS/local network resolution
@@ -159,8 +211,21 @@ get_sting_hostname() {
                 echo "   Note: For external access, use host IP or domain" >&2
                 default_option="2"
                 ;;
+            vm)
+                echo "💻 Platform: Virtual Machine" >&2
+                if check_mdns_support; then
+                    echo "   Recommendation: Use detected hostname (option 3)" >&2
+                    echo "   Note: .local domains work great for remote VM access with mDNS/Avahi" >&2
+                    echo "   Alternative: IP address also works (shown in option 3 if detected hostname is IP)" >&2
+                else
+                    echo "   Recommendation: Use IP address (option 3)" >&2
+                    echo "   Note: mDNS/Avahi not detected - IP is more reliable" >&2
+                    echo "   Tip: Install avahi-daemon for .local hostname support" >&2
+                fi
+                default_option="3"
+                ;;
             linux)
-                echo "🐧 Platform: Linux" >&2
+                echo "🐧 Platform: Linux (Bare Metal)" >&2
                 echo "   Recommendation: Use IP address (option 3)" >&2
                 echo "   Note: IP addresses work everywhere without DNS/hosts file setup" >&2
                 default_option="3"
@@ -427,6 +492,7 @@ verify_hostname_resolves() {
 }
 
 # Export functions for use in other scripts
+export -f is_virtual_machine
 export -f detect_platform
 export -f check_mdns_support
 export -f get_sting_hostname

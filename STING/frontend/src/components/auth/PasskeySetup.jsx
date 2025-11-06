@@ -274,18 +274,23 @@ const PasskeySetup = () => {
         publicKey: publicKeyCredentialCreationOptions
       });
 
-      if (credential) {
-        console.log('🔐 Credential created successfully:', credential.id);
-        console.log('🔐 Full credential object:', credential);
-        console.log('🔐 Credential properties:', Object.keys(credential));
-        console.log('🔐 Credential rawId type:', typeof credential.rawId);
-        console.log('🔐 Credential rawId value:', credential.rawId);
-        console.log('🔐 Credential response type:', typeof credential.response);
-        console.log('🔐 Credential response properties:', Object.keys(credential.response));
+      // Validate credential before accessing properties
+      if (!credential || !credential.id || !credential.rawId || !credential.response) {
+        console.error('❌ Invalid credential received from authenticator:', credential);
+        throw new Error('Invalid credential received from authenticator');
+      }
+      
+      console.log('🔐 Credential created successfully:', credential.id);
+      console.log('🔐 Full credential object:', credential);
+      console.log('🔐 Credential properties:', Object.keys(credential));
+      console.log('🔐 Credential rawId type:', typeof credential.rawId);
+      console.log('🔐 Credential rawId value:', credential.rawId);
+      console.log('🔐 Credential response type:', typeof credential.response);
+      console.log('🔐 Credential response properties:', Object.keys(credential.response));
 
-        // Prepare credential data for backend
-        const credentialData = {
-          id: credential.id,
+      // Prepare credential data for backend
+      const credentialData = {
+        id: credential.id,
           rawId: credential.rawId ? Array.from(new Uint8Array(credential.rawId)) : null,
           response: {
             attestationObject: credential.response.attestationObject ? 
@@ -343,7 +348,7 @@ const PasskeySetup = () => {
         } else {
           setError('Failed to register passkey: ' + (completionResponse.data.error || 'Unknown error'));
         }
-      }
+        
     } catch (error) {
       console.error('🔐 PasskeySetup error:', error);
       

@@ -185,12 +185,28 @@ const PasskeyDebugPanel = () => {
         publicKey: {
           ...options,
           challenge: Uint8Array.from(atob(options.challenge), c => c.charCodeAt(0)),
-          allowCredentials: options.allowCredentials?.map(cred => ({
-            ...cred,
-            id: Uint8Array.from(atob(cred.id), c => c.charCodeAt(0))
-          }))
+          allowCredentials: options.allowCredentials?.map(cred => {
+            // Validate credential object before accessing properties
+            if (!cred || !cred.id) {
+              throw new Error('Invalid credential in allowCredentials: missing credential or credential ID');
+            }
+            return {
+              ...cred,
+              id: Uint8Array.from(atob(cred.id), c => c.charCodeAt(0))
+            };
+          })
         }
       });
+
+      // Validate credential before using it
+      if (!credential) {
+        throw new Error('Authentication was cancelled');
+      }
+
+      if (!credential.id || !credential.rawId || !credential.response) {
+        console.error('🔐 Invalid credential object received:', credential);
+        throw new Error('Invalid credential received from authenticator');
+      }
 
       // Complete authentication
       const completeResponse = await axios.post(

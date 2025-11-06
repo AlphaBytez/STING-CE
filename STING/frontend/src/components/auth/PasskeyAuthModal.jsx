@@ -24,11 +24,14 @@ const PasskeyAuthModal = ({ visible, onSuccess, onCancel, title = "Passkey Authe
 
     try {
       // Start passkey authentication
+      console.log('🔐 Starting passkey authentication...');
       const beginResponse = await axios.post('/api/webauthn/authentication/begin', {
         username: identity?.traits?.email || identity?.email
       }, {
         withCredentials: true
       });
+
+      console.log('🔐 Authentication begin response:', beginResponse.data);
 
       if (!beginResponse.data.publicKey) {
         throw new Error('Invalid authentication challenge received');
@@ -38,19 +41,34 @@ const PasskeyAuthModal = ({ visible, onSuccess, onCancel, title = "Passkey Authe
       const publicKeyCredentialRequestOptions = {
         ...beginResponse.data.publicKey,
         challenge: base64UrlToArrayBuffer(beginResponse.data.publicKey.challenge),
-        allowCredentials: beginResponse.data.publicKey.allowCredentials?.map(cred => ({
-          ...cred,
-          id: base64UrlToArrayBuffer(cred.id)
-        }))
+        allowCredentials: beginResponse.data.publicKey.allowCredentials?.map(cred => {
+          // Validate credential object before accessing properties
+          if (!cred || !cred.id) {
+            throw new Error('Invalid credential in allowCredentials: missing credential or credential ID');
+          }
+          return {
+            ...cred,
+            id: base64UrlToArrayBuffer(cred.id)
+          };
+        })
       };
 
       // Request passkey authentication from the browser
+      console.log('🔐 Requesting credential from browser with options:', publicKeyCredentialRequestOptions);
       const credential = await navigator.credentials.get({
         publicKey: publicKeyCredentialRequestOptions
       });
 
+      console.log('🔐 Received credential from browser:', credential);
+
       if (!credential) {
         throw new Error('Authentication was cancelled');
+      }
+
+      // Add additional validation to ensure credential has required properties
+      if (!credential.id || !credential.rawId || !credential.response) {
+        console.error('🔐 Invalid credential object:', credential);
+        throw new Error('Invalid credential received from authenticator');
       }
 
       // Prepare the response
@@ -66,10 +84,28 @@ const PasskeyAuthModal = ({ visible, onSuccess, onCancel, title = "Passkey Authe
         }
       };
 
+      console.log('🔐 Prepared credential response:', {
+        id: response.id,
+        type: response.type,
+        hasAuthenticatorData: !!response.response.authenticatorData,
+        hasClientDataJSON: !!response.response.clientDataJSON,
+        hasSignature: !!response.response.signature
+      });
+
       // Complete authentication
-      const completeResponse = await axios.post('/api/webauthn/authentication/complete', response, {
+      console.log('🔐 Sending authentication complete request with:', {
+        credential: response,
+        challenge_id: beginResponse.data.challenge_id
+      });
+      
+      const completeResponse = await axios.post('/api/webauthn/authentication/complete', {
+        credential: response,
+        challenge_id: beginResponse.data.challenge_id
+      }, {
         withCredentials: true
       });
+
+      console.log('🔐 Authentication complete response:', completeResponse.data);
 
       if (completeResponse.data.success) {
         setAuthState('success');

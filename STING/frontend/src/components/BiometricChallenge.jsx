@@ -117,7 +117,17 @@ const BiometricChallenge = () => {
         publicKey: challengeData.publicKey
       });
 
-      console.log('🔐 WebAuthn credential obtained');
+      console.log('🔐 WebAuthn credential obtained:', credential);
+
+      // Validate credential before using it
+      if (!credential) {
+        throw new Error('Authentication was cancelled or failed');
+      }
+
+      if (!credential.id || !credential.rawId || !credential.response) {
+        console.error('🔐 Invalid credential object received:', credential);
+        throw new Error('Invalid credential received from authenticator');
+      }
 
       // Complete authentication
       const completeResponse = await fetch('/api/webauthn/authentication/complete', {

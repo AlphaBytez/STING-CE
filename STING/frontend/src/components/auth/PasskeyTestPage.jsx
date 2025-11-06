@@ -97,6 +97,11 @@ const PasskeyTestPage = () => {
         publicKey: publicKeyCredentialCreationOptions,
       });
       
+      // Validate credential before accessing properties
+      if (!credential || !credential.id || !credential.rawId || !credential.response) {
+        throw new Error('Invalid credential received from authenticator');
+      }
+      
       logDebug('Registration successful!');
       setTestStatus('Registration successful!');
       setTestResult({

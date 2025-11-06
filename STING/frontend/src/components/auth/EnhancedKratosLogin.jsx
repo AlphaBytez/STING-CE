@@ -500,6 +500,10 @@ const EnhancedKratosLogin = () => {
       
       if (publicKeyOptions.publicKey.allowCredentials && publicKeyOptions.publicKey.allowCredentials.length > 0) {
         publicKeyOptions.publicKey.allowCredentials = publicKeyOptions.publicKey.allowCredentials.map(cred => {
+          // Validate credential object before accessing properties
+          if (!cred || !cred.id) {
+            throw new Error('Invalid credential in allowCredentials: missing credential or credential ID');
+          }
           // Handle base64url encoding for credential IDs
           const credIdStr = cred.id.replace(/-/g, '+').replace(/_/g, '/');
           const paddedCredId = credIdStr + '=='.substring(0, (4 - credIdStr.length % 4) % 4);
@@ -528,6 +532,17 @@ const EnhancedKratosLogin = () => {
       }
       
       console.log('🔐 Got credential from browser:', credential);
+
+      // Validate credential before using it
+      if (!credential) {
+        throw new Error('Authentication was cancelled or failed');
+      }
+
+      if (!credential.id || !credential.rawId || !credential.response) {
+        console.error('🔐 Invalid credential object received:', credential);
+        throw new Error('Invalid credential received from authenticator');
+      }
+      
       console.log('🔐 Credential ID:', credential.id);
       console.log('🔐 Credential type:', credential.type);
       
