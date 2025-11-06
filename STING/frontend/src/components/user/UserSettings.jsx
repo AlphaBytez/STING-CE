@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Lock, Bell, Shield, Trash2, Settings as SettingsIcon, Cpu, User, Info, Key } from 'lucide-react';
+import { Mail, Lock, Bell, Shield, Trash2, Settings as SettingsIcon, Cpu, User, Info, Key, Download } from 'lucide-react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import SecuritySettings from './SecuritySettings';
 import EmailSettings from './EmailSettings';
@@ -8,6 +8,7 @@ import PreferenceSettings from './PreferenceSettings';
 import AccountDeletion from './AccountDeletion';
 import ProfileSettings from './ProfileSettings';
 import AboutSettings from './AboutSettings';
+import CertificateSettings from './CertificateSettings';
 import BeeSettings from '../settings/BeeSettings';
 import BeeSettingsReadOnly from '../settings/BeeSettingsReadOnly';
 import ApiKeySettings from '../settings/ApiKeySettings';
@@ -24,7 +25,7 @@ const UserSettings = () => {
   // Check URL parameters for initial tab
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['profile', 'security', 'api-keys', 'recovery-codes', 'email', 'password', 'preferences', 'llm', 'about', 'delete'].includes(tabParam)) {
+    if (tabParam && ['profile', 'security', 'certificates', 'api-keys', 'recovery-codes', 'email', 'password', 'preferences', 'llm', 'about', 'delete'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -38,6 +39,7 @@ const UserSettings = () => {
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'security', label: 'Security', icon: Shield },
+    { id: 'certificates', label: 'Certificates', icon: Download, badge: 'Passkeys' },
     { id: 'api-keys', label: 'API Keys', icon: Key, badge: 'Tier 2-3' },
     { id: 'recovery-codes', label: 'Recovery Codes', icon: Shield, badge: 'Tier 3-4' },
     { id: 'email', label: 'Email', icon: Mail },
@@ -64,6 +66,8 @@ const UserSettings = () => {
         return <ProfileSettings />;
       case 'security':
         return <SecuritySettings />;
+      case 'certificates':
+        return <CertificateSettings />;
       case 'api-keys':
         return <ApiKeySettings />;
       case 'recovery-codes':

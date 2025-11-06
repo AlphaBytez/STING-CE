@@ -259,34 +259,53 @@ prompt_llm_configuration() {
     export LLM_ENDPOINT="$llm_endpoint"
     export OLLAMA_AUTO_INSTALL="$auto_install"
 
-    # Model selection
+    # Model selection - Query real models using OpenAI-compatible API
     log_message ""
-    log_message "Available models (for Ollama):"
-    log_message "  1. phi3:mini (Fast, compact, good for most tasks)"
-    log_message "  2. deepseek-r1:latest (Reasoning model for complex tasks)"
-    log_message "  3. llama3.2:latest (General purpose, larger model)"
-    log_message "  4. Custom model name"
-    log_message ""
+    log_message "Fetching available models from LLM endpoint: $llm_endpoint"
 
-    local model_choice
-    read -p "Select default model [1]: " model_choice
-    model_choice=${model_choice:-1}
+    # Query using OpenAI-compatible API (works with Ollama, LM Studio, vLLM, etc.)
+    local available_models
+    local default_model="phi3:mini"
 
-    local default_model
-    case "$model_choice" in
-        2)
-            default_model="deepseek-r1:latest"
-            ;;
-        3)
-            default_model="llama3.2:latest"
-            ;;
-        4)
-            read -p "Enter model name: " default_model
-            ;;
-        *)
-            default_model="phi3:mini"
-            ;;
-    esac
+    if available_models=$(curl -s "$llm_endpoint/v1/models" 2>/dev/null | jq -r '.data[]?.id' 2>/dev/null | sort); then
+        if [ -n "$available_models" ]; then
+            log_message "✅ Found models on $llm_endpoint:"
+            local i=1
+            declare -A model_map
+
+            while IFS= read -r model; do
+                [ -z "$model" ] && continue
+                log_message "  $i. $model"
+                model_map[$i]="$model"
+                ((i++))
+            done <<< "$available_models"
+
+            log_message "  $i. Custom model name"
+            log_message ""
+
+            local model_choice
+            read -p "Select default model [1]: " model_choice
+            model_choice=${model_choice:-1}
+
+            if [ "$model_choice" = "$i" ]; then
+                read -p "Enter custom model name: " default_model
+            elif [ -n "${model_map[$model_choice]}" ]; then
+                default_model="${model_map[$model_choice]}"
+            else
+                log_message "Invalid selection, using first available model" "WARNING"
+                default_model="${model_map[1]}"
+            fi
+        else
+            log_message "⚠️  No models found on endpoint. Using default: $default_model" "WARNING"
+        fi
+    else
+        log_message "⚠️  Could not fetch models from $llm_endpoint" "WARNING"
+        log_message "   This is normal if the LLM service isn't running yet."
+        log_message "   Using default model: $default_model"
+        log_message ""
+        read -p "Press Enter to continue or Ctrl+C to abort..."
+    fi
+
     export LLM_MODEL="$default_model"
 
     log_message ""
@@ -382,6 +401,9 @@ OLLAMA_AUTO_INSTALL=${OLLAMA_AUTO_INSTALL:-false}
 # Admin Configuration
 ADMIN_EMAIL=${ADMIN_EMAIL:-}
 SETUP_ADMIN=${SETUP_ADMIN:-false}
+
+# Hostname Configuration
+STING_HOSTNAME=${STING_HOSTNAME:-localhost}
 EOF
 
     log_message "✅ Configuration saved to .env file"
@@ -427,6 +449,54 @@ update_config_yml_from_cli() {
     log_message "✅ config.yml updated with CLI configuration"
 }
 
+# Prompt for hostname configuration
+prompt_hostname_configuration() {
+    log_message "╔════════════════════════════════════════════════════════════╗"
+    log_message "║      🌐 Hostname Configuration                            ║"
+    log_message "╚════════════════════════════════════════════════════════════╝"
+    log_message ""
+
+    # Load hostname detection module
+    # Try multiple possible locations for hostname_detection.sh
+    local hostname_script=""
+
+    # Try finding the file relative to this script's location (most reliable)
+    local this_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    if [ -f "$this_script_dir/hostname_detection.sh" ]; then
+        hostname_script="$this_script_dir/hostname_detection.sh"
+    elif [ -n "${STING_ROOT_DIR:-}" ] && [ -f "$STING_ROOT_DIR/lib/hostname_detection.sh" ]; then
+        hostname_script="$STING_ROOT_DIR/lib/hostname_detection.sh"
+    elif [ -n "${SCRIPT_DIR:-}" ] && [ -f "$SCRIPT_DIR/lib/hostname_detection.sh" ]; then
+        hostname_script="$SCRIPT_DIR/lib/hostname_detection.sh"
+    elif [ -f "${INSTALL_DIR}/lib/hostname_detection.sh" ]; then
+        hostname_script="${INSTALL_DIR}/lib/hostname_detection.sh"
+    fi
+
+    if [ -n "$hostname_script" ]; then
+        source "$hostname_script"
+    else
+        log_message "⚠️ hostname_detection.sh not found, using localhost as fallback" "WARNING"
+        export STING_HOSTNAME="localhost"
+        return 0
+    fi
+
+    # Get hostname interactively (will use the nice prompt from hostname_detection.sh)
+    log_message "STING needs a hostname or IP address for WebAuthn/passkey support."
+    log_message ""
+    STING_HOSTNAME=$(get_sting_hostname true)
+
+    if [ -z "$STING_HOSTNAME" ]; then
+        log_message "⚠️ No hostname selected, defaulting to localhost" "WARNING"
+        STING_HOSTNAME="localhost"
+    fi
+
+    export STING_HOSTNAME
+    log_message ""
+    log_message "✅ Hostname configured: $STING_HOSTNAME"
+    log_message ""
+}
+
 # Run all CLI configuration prompts
 run_cli_configuration_prompts() {
     log_message ""
@@ -435,7 +505,8 @@ run_cli_configuration_prompts() {
     log_message "════════════════════════════════════════════════════════════"
     log_message ""
 
-    # Run configuration prompts
+    # Run configuration prompts (INCLUDING hostname early!)
+    prompt_hostname_configuration
     prompt_smtp_configuration
     prompt_llm_configuration
     prompt_admin_configuration
@@ -446,6 +517,25 @@ run_cli_configuration_prompts() {
     log_message "════════════════════════════════════════════════════════════"
     log_message ""
     log_message "Review your configuration:"
+
+    # Hostname with helpful context
+    local hostname_value="${STING_HOSTNAME:-localhost}"
+    log_message "  🌐 Hostname: $hostname_value"
+
+    # Add helpful notes about authentication methods based on hostname
+    if [ "$hostname_value" = "localhost" ]; then
+        log_message "     ℹ️  WebAuthn/passkeys: Local device only"
+        log_message "     ℹ️  Email codes/TOTP: Available from any device"
+    elif [[ "$hostname_value" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        log_message "     ℹ️  Access: https://$hostname_value:8443"
+        log_message "     ℹ️  WebAuthn/passkeys: Will work after installing CA cert"
+        log_message "     ℹ️  Email codes/TOTP: Available without cert"
+    else
+        log_message "     ℹ️  Access: https://$hostname_value:8443"
+        log_message "     ℹ️  WebAuthn/passkeys: Will work after installing CA cert"
+        log_message "     ℹ️  Email codes/TOTP: Available without cert"
+    fi
+
     log_message "  📧 Email Mode: ${EMAIL_MODE:-development}"
     if [ "${EMAIL_MODE:-development}" = "production" ]; then
         log_message "     SMTP Host: ${SMTP_HOST}"
@@ -616,12 +706,14 @@ install_msting() {
     echo ""
     
     # Handle admin setup - enhanced with scenario detection
-    if [ "$setup_admin" = true ] && [ "$interactive_prompt" = false ]; then
-        # Non-interactive: setup admin with provided email
-        log_message "Setting up admin user as requested..."
-        create_admin_user_with_verification "$admin_email"
+    if [ "$setup_admin" = true ] && [ -n "$admin_email" ]; then
+        # User requested admin creation and provided email (interactive or non-interactive)
+        # Honor their choice and create admin automatically (PASSWORDLESS)
+        log_message "Setting up passwordless admin user as requested during configuration..."
+        create_passwordless_admin_user "$admin_email"
     else
-        # Smart admin setup based on installation scenario
+        # No admin configured, or admin creation declined
+        # Use smart admin setup to handle different scenarios (fresh/reinstall/upgrade)
         smart_admin_setup
     fi
     
@@ -994,14 +1086,39 @@ uninstall_msting_with_confirmation() {
     echo "     - User data and admin credentials"
     echo "     - All configuration files"
     echo ""
-    read -p "Are you sure you want to uninstall STING? (yes/no): " confirm
-    
-    if [ "$confirm" = "yes" ]; then
-        uninstall_msting "$@"
-    else
-        log_message "Uninstall cancelled"
-        return 1
-    fi
+
+    # Retry loop for confirmation (up to 3 attempts)
+    local attempts=0
+    local max_attempts=3
+
+    while [ $attempts -lt $max_attempts ]; do
+        read -p "Are you sure you want to uninstall STING? (yes/no): " confirm
+
+        # Normalize input: trim whitespace, lowercase, remove extra characters
+        confirm=$(echo "$confirm" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z]//g')
+
+        case "$confirm" in
+            yes|y)
+                uninstall_msting "$@"
+                return $?
+                ;;
+            no|n)
+                log_message "Uninstall cancelled"
+                return 1
+                ;;
+            *)
+                attempts=$((attempts + 1))
+                if [ $attempts -lt $max_attempts ]; then
+                    echo "❌ Invalid input: '$confirm'. Please type 'yes' or 'no' (attempt $attempts/$max_attempts)"
+                    echo ""
+                else
+                    echo "❌ Too many invalid attempts. Uninstall cancelled."
+                    log_message "Uninstall cancelled after $max_attempts invalid attempts"
+                    return 1
+                fi
+                ;;
+        esac
+    done
 }
 
 # Atomic Reinstall STING with rollback capability
@@ -3019,10 +3136,12 @@ configure_hostname() {
         return 0
     fi
 
-    # Get hostname (interactive mode if not already set via env var)
+    # Get hostname (interactive mode if not already set via env var or CLI wizard)
     if [ -z "$STING_HOSTNAME" ]; then
         log_message "Detecting hostname for STING configuration..."
         STING_HOSTNAME=$(get_sting_hostname true)
+    else
+        log_message "Using pre-configured hostname: $STING_HOSTNAME"
     fi
 
     if [ -z "$STING_HOSTNAME" ]; then
@@ -3031,7 +3150,7 @@ configure_hostname() {
     fi
 
     export STING_HOSTNAME
-    log_message "Using hostname: $STING_HOSTNAME"
+    log_message "Applying hostname to configuration files: $STING_HOSTNAME"
 
     # Generate kratos.yml from template
     if [ -f "${INSTALL_DIR}/kratos/kratos.yml.template" ]; then
@@ -4027,9 +4146,9 @@ except Exception as e:
         log_message "Could not remove broken admin user - proceeding anyway" "WARNING"
     fi
     
-    # Now create a fresh admin user
-    log_message "Creating fresh admin user..."
-    create_admin_user_with_verification "admin@sting.local"
+    # Now create a fresh admin user (PASSWORDLESS)
+    log_message "Creating fresh passwordless admin user..."
+    create_passwordless_admin_user "admin@sting.local"
 
     local sting_url=$(get_sting_url)
     local host_ip="${STING_HOST_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
@@ -4267,10 +4386,15 @@ except Exception as e:
     fi
 }
 
-# Legacy function - Create admin user with email verification and forced password change
+# DEPRECATED - Legacy function - Create admin user with PASSWORD (old method)
+# WARNING: This function creates a PASSWORD-BASED admin user
+# Use create_passwordless_admin_user() instead for passwordless authentication
+# This function is kept for backward compatibility and emergency password recovery only
 create_admin_user_with_verification() {
     local email="${1:-admin@sting.local}"
-    
+
+    log_message "⚠️  WARNING: Creating admin with PASSWORD (legacy method)" "WARNING"
+    log_message "Use create_passwordless_admin_user() for passwordless auth" "WARNING"
     log_message "Creating admin user with email verification: $email"
     
     # Wait for services to be ready

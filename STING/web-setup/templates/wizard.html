@@ -112,38 +112,42 @@
 
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2">
-                            🌐 STING Hostname
+                        <label class="block text-sm font-medium text-slate-300 mb-3">
+                            🌐 STING Hostname Configuration
                             <span class="text-xs text-amber-400">(Required for Hardware Keys/Passkeys)</span>
                         </label>
-                        <div class="relative">
-                            <input type="text" id="hostname" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 focus:ring-2 focus:ring-amber-400 focus:border-transparent" placeholder="sting.local">
-                            <div id="hostname-badge" class="hidden absolute top-2 right-2 bg-green-500/20 text-green-400 text-xs px-2 py-1 rounded border border-green-500/50">
-                                ✓ Auto-detected
+
+                        <!-- Platform Detection Info -->
+                        <div id="platform-info" class="mb-4 bg-slate-700/50 border border-slate-600 rounded-lg p-3">
+                            <div class="flex items-center gap-2 text-sm">
+                                <span class="text-slate-400">💻 Platform:</span>
+                                <span id="platform-type" class="text-slate-200 font-medium">Detecting...</span>
+                            </div>
+                            <div id="platform-guidance" class="text-xs text-blue-300 mt-2 hidden">
+                                <!-- Will be populated by JS -->
                             </div>
                         </div>
 
-                        <div class="mt-2 bg-amber-900/20 border border-amber-500/30 rounded-lg p-3">
+                        <!-- Hostname Options (Radio Buttons) -->
+                        <div id="hostname-options" class="space-y-2 mb-4">
+                            <!-- Will be dynamically populated by JS -->
+                            <div class="text-slate-400 text-sm">Loading hostname options...</div>
+                        </div>
+
+                        <!-- Custom Hostname Input (Hidden by default) -->
+                        <div id="custom-hostname-input" class="hidden mt-2">
+                            <input type="text" id="custom-hostname-value" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 focus:ring-2 focus:ring-amber-400 focus:border-transparent" placeholder="Enter hostname or IP address">
+                        </div>
+
+                        <!-- Hidden input to store final selected value -->
+                        <input type="hidden" id="hostname" value="">
+
+                        <div class="mt-3 bg-amber-900/20 border border-amber-500/30 rounded-lg p-3">
                             <p class="text-xs text-amber-200">
                                 <strong class="text-amber-100">🎯 CRITICAL:</strong> This hostname must match what you'll use to access STING.
                             </p>
                             <p class="text-xs text-amber-200 mt-2">
                                 If you change this after installation, you'll need to run: <code class="bg-slate-800 px-1 rounded">update_hostname.sh</code>
-                            </p>
-                        </div>
-
-                        <div class="mt-2 bg-blue-900/30 border border-blue-500/30 rounded-lg p-3">
-                            <p class="text-xs text-blue-200">
-                                <strong class="text-blue-100">💡 Recommended Options:</strong>
-                            </p>
-                            <ul class="text-xs text-blue-200 mt-1 ml-4 space-y-1">
-                                <li>• <strong class="text-green-300">IP address</strong> - Best for most setups (e.g., <code class="bg-slate-800 px-1 rounded">192.168.1.100</code>) - No DNS/hosts file needed!</li>
-                                <li>• Real domain - If you have DNS configured (e.g., <code class="bg-slate-800 px-1 rounded">sting.mycompany.com</code>)</li>
-                                <li>• <code class="bg-slate-800 px-1 rounded">localhost</code> - Only for single-machine testing</li>
-                                <li>• <code class="bg-slate-800 px-1 rounded">.local</code> suffix - Only if mDNS/Avahi is configured (e.g., <code class="bg-slate-800 px-1 rounded">sting.local</code>)</li>
-                            </ul>
-                            <p class="text-xs text-amber-300 mt-2">
-                                💡 <strong>Tip:</strong> IP addresses work from any device on your network without configuration. Avoid <code class="bg-slate-800 px-1 rounded">.localdomain</code> suffix.
                             </p>
                         </div>
                     </div>
@@ -569,50 +573,100 @@
 
         async function loadSystemInfo() {
             try {
-                const response = await fetch('/api/system-info');
-                const data = await response.json();
+                // Load basic system info
+                const sysResponse = await fetch('/api/system-info');
+                const sysData = await sysResponse.json();
 
-                // Use sting_hostname from API (with smart detection) or fall back to sting.local
-                const hostname = data.sting_hostname || 'sting.local';
-                const hostnameInput = document.getElementById('hostname');
-                const hostnameBadge = document.getElementById('hostname-badge');
+                document.getElementById('timezone').value = sysData.timezone;
+                document.getElementById('current-ip').textContent = sysData.ip_address;
+                document.getElementById('current-ip-hosts').textContent = sysData.ip_address;
 
-                hostnameInput.value = hostname;
-                document.getElementById('timezone').value = data.timezone;
-                document.getElementById('current-ip').textContent = data.ip_address;
+                // Load hostname options with rich context
+                const hostnameResponse = await fetch('/api/hostname-options');
+                const hostnameData = await hostnameResponse.json();
 
-                // Update hostname display in the help text
-                document.getElementById('hostname-display').textContent = hostname;
-                document.getElementById('current-ip-hosts').textContent = data.ip_address;
+                // Update platform info
+                const platformType = hostnameData.platform === 'vm' ? 'Virtual Machine' : 'Bare Metal';
+                document.getElementById('platform-type').textContent = platformType;
 
-                // Show auto-detected badge if hostname was detected
-                if (data.sting_hostname && data.sting_hostname !== 'sting.local') {
-                    hostnameBadge.classList.remove('hidden');
-                    console.log(`🎯 Auto-detected hostname: ${hostname}`);
+                const guidanceEl = document.getElementById('platform-guidance');
+                if (hostnameData.guidance) {
+                    guidanceEl.textContent = `💡 ${hostnameData.guidance}`;
+                    guidanceEl.classList.remove('hidden');
                 }
 
-                // Hide badge when user starts typing
-                hostnameInput.addEventListener('input', function() {
-                    hostnameBadge.classList.add('hidden');
-                }, { once: true });
+                // Render hostname options as radio buttons
+                const optionsContainer = document.getElementById('hostname-options');
+                optionsContainer.innerHTML = hostnameData.options.map((option, index) => {
+                    const isRecommended = option.recommended;
+                    const hasWarning = option.warning;
+                    const requiresMdns = option.requires_mdns && !hostnameData.mdns_available;
+
+                    return `
+                        <div class="relative">
+                            <label class="flex items-start gap-3 p-3 bg-slate-700/50 border ${isRecommended ? 'border-green-500/50' : 'border-slate-600'} rounded-lg cursor-pointer hover:bg-slate-700 transition-colors ${requiresMdns ? 'opacity-60' : ''}">
+                                <input type="radio"
+                                       name="hostname-option"
+                                       value="${option.value}"
+                                       class="mt-1"
+                                       ${isRecommended ? 'checked' : ''}
+                                       ${requiresMdns ? 'disabled' : ''}
+                                       onchange="handleHostnameChange('${option.value}')">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-slate-100 font-medium">${option.label}</span>
+                                        ${isRecommended ? '<span class="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/50">⭐ RECOMMENDED</span>' : ''}
+                                    </div>
+                                    <p class="text-xs text-slate-400 mt-1">${option.description}</p>
+                                    ${hasWarning ? `<p class="text-xs text-amber-400 mt-1">⚠️ ${option.warning}</p>` : ''}
+                                </div>
+                            </label>
+                        </div>
+                    `;
+                }).join('');
+
+                // Set initial hostname value (recommended option)
+                const recommendedOption = hostnameData.options.find(opt => opt.recommended);
+                if (recommendedOption) {
+                    document.getElementById('hostname').value = recommendedOption.value;
+                    document.getElementById('hostname-display').textContent = recommendedOption.value;
+                }
 
             } catch (error) {
                 console.error('Failed to load system info:', error);
+                // Fallback: show simple text input
+                document.getElementById('hostname-options').innerHTML = `
+                    <p class="text-red-400">Failed to load hostname options. Please enter manually:</p>
+                    <input type="text" id="hostname-fallback" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100" placeholder="sting.local">
+                `;
             }
         }
 
-        // Update hostname display when user types
-        document.addEventListener('DOMContentLoaded', function() {
-            const hostnameInput = document.getElementById('hostname');
-            if (hostnameInput) {
-                hostnameInput.addEventListener('input', function(e) {
-                    const hostnameDisplay = document.getElementById('hostname-display');
-                    if (hostnameDisplay) {
-                        hostnameDisplay.textContent = e.target.value || 'sting.local';
-                    }
+        function handleHostnameChange(value) {
+            const customInput = document.getElementById('custom-hostname-input');
+            const hostnameField = document.getElementById('hostname');
+            const hostnameDisplay = document.getElementById('hostname-display');
+
+            if (value === 'custom') {
+                // Show custom input field
+                customInput.classList.remove('hidden');
+
+                // Listen for custom input changes
+                const customValueInput = document.getElementById('custom-hostname-value');
+                customValueInput.addEventListener('input', function(e) {
+                    hostnameField.value = e.target.value;
+                    hostnameDisplay.textContent = e.target.value || 'custom';
                 });
+
+                // Set focus to custom input
+                customValueInput.focus();
+            } else {
+                // Hide custom input and use selected value
+                customInput.classList.add('hidden');
+                hostnameField.value = value;
+                hostnameDisplay.textContent = value;
             }
-        });
+        }
 
         async function detectDisks() {
             try {

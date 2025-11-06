@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Key, 
-  Plus, 
-  Trash2, 
+import {
+  Key,
+  Plus,
+  Trash2,
   AlertCircle,
   CheckCircle,
   Shield,
@@ -11,6 +11,7 @@ import {
 import { useTheme } from '../../context/ThemeContext';
 import { useKratos } from '../../auth/KratosProviderRefactored';
 import axios from 'axios';
+import CertificateWarning from '../common/CertificateWarning';
 
 /**
  * PasskeySettingsIntegrated - Uses custom WebAuthn endpoints for passkey management
@@ -254,6 +255,9 @@ const PasskeySettingsIntegrated = () => {
         <p className="text-gray-400 mb-6">
           Passkeys provide a secure, passwordless way to sign in using biometrics, security keys, or device credentials.
         </p>
+
+        {/* Certificate Trust Warning */}
+        <CertificateWarning className="mb-6" />
 
         {/* Email Verification Notice */}
         {identity && identity.verifiable_addresses && identity.verifiable_addresses.length > 0 && !identity.verifiable_addresses[0].verified && (

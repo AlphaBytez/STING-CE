@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Smartphone, 
-  Monitor, 
-  Key, 
-  Plus, 
-  Edit3, 
-  Trash2, 
+import {
+  Smartphone,
+  Monitor,
+  Key,
+  Plus,
+  Edit3,
+  Trash2,
   AlertCircle,
   CheckCircle,
   Clock,
@@ -17,6 +17,7 @@ import {
 import { useTheme } from '../../context/ThemeContext';
 import { useKratos } from '../../auth/KratosProvider';
 import PasskeyStatus from '../auth/PasskeyStatus';
+import CertificateWarning from '../common/CertificateWarning';
 
 const PasskeySettings = () => {
   const { themeColors } = useTheme();
@@ -361,6 +362,9 @@ const PasskeySettings = () => {
       <div className="mb-6">
         <PasskeyStatus />
       </div>
+
+      {/* Certificate Trust Warning */}
+      <CertificateWarning className="mb-6" />
 
       {/* Info about passkeys */}
       <div className="mb-6 p-4 bg-blue-900/20 border border-blue-700/50 rounded-lg">

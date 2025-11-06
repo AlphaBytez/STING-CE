@@ -79,11 +79,39 @@ echo ""
 if [ -z "$YES_FLAG" ]; then
     echo -e "${RED}⚠️  This action cannot be undone!${NC}"
     echo ""
-    read -p "Are you sure you want to uninstall STING-CE? [y/N]: " confirm
-    case "$confirm" in
-        [Yy]*) echo "Proceeding with uninstall..." ;;
-        *) echo "Uninstall cancelled."; exit 0 ;;
-    esac
+
+    # Retry loop for confirmation (up to 3 attempts)
+    attempts=0
+    max_attempts=3
+    confirmed=false
+
+    while [ $attempts -lt $max_attempts ] && [ "$confirmed" = "false" ]; do
+        read -p "Are you sure you want to uninstall STING-CE? (yes/no): " confirm
+
+        # Normalize input: trim whitespace, lowercase, remove extra characters
+        confirm=$(echo "$confirm" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z]//g')
+
+        case "$confirm" in
+            yes|y)
+                echo "Proceeding with uninstall..."
+                confirmed=true
+                ;;
+            no|n)
+                echo "Uninstall cancelled."
+                exit 0
+                ;;
+            *)
+                attempts=$((attempts + 1))
+                if [ $attempts -lt $max_attempts ]; then
+                    echo "❌ Invalid input. Please type 'yes' or 'no' (attempt $attempts/$max_attempts)"
+                    echo ""
+                else
+                    echo "❌ Too many invalid attempts. Uninstall cancelled."
+                    exit 0
+                fi
+                ;;
+        esac
+    done
 fi
 
 echo ""

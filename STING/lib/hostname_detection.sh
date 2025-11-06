@@ -282,6 +282,8 @@ get_sting_hostname() {
             read -p "Select option [1-3] (default: $default_option): " choice >&2
         fi
 
+        # Trim whitespace and use default if empty
+        choice=$(echo "$choice" | tr -d '[:space:]')
         choice="${choice:-$default_option}"
 
         case "$choice" in

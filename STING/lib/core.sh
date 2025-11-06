@@ -37,7 +37,7 @@ check_root() {
     fi
     
     # Commands that don't need root
-    local no_root_commands=("status" "logs" "help" "debug" "version" "info" "list" "ps" "dev" "create")
+    local no_root_commands=("status" "logs" "help" "debug" "version" "info" "list" "ps" "dev" "create" "export-certs")
     for cmd in "${no_root_commands[@]}"; do
         if [[ "$COMMAND" == "$cmd" ]] || [[ "$1" == "$cmd" ]]; then
             return 0
@@ -141,6 +141,64 @@ verify_checksum() {
     fi
 }
 
+# Forgiving yes/no prompt with retry logic
+# Usage: prompt_yes_no "Question text?" [default_yes/default_no] [max_attempts]
+# Returns: 0 for yes, 1 for no
+prompt_yes_no() {
+    local question="$1"
+    local default="${2:-default_no}"  # default_yes or default_no
+    local max_attempts="${3:-3}"
+    local attempts=0
+
+    while [ $attempts -lt $max_attempts ]; do
+        # Show prompt with default indicator
+        if [ "$default" = "default_yes" ]; then
+            read -p "$question [Y/n]: " response
+        else
+            read -p "$question [y/N]: " response
+        fi
+
+        # Normalize input: trim whitespace, lowercase, remove extra characters
+        response=$(echo "$response" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z]//g')
+
+        # Handle empty response (use default)
+        if [ -z "$response" ]; then
+            if [ "$default" = "default_yes" ]; then
+                return 0
+            else
+                return 1
+            fi
+        fi
+
+        # Check response
+        case "$response" in
+            yes|y)
+                return 0
+                ;;
+            no|n)
+                return 1
+                ;;
+            *)
+                attempts=$((attempts + 1))
+                if [ $attempts -lt $max_attempts ]; then
+                    echo "❌ Invalid input. Please type 'yes' or 'no' (attempt $attempts/$max_attempts)"
+                    echo ""
+                else
+                    echo "❌ Too many invalid attempts."
+                    # Use default on max attempts
+                    if [ "$default" = "default_yes" ]; then
+                        echo "Defaulting to: yes"
+                        return 0
+                    else
+                        echo "Defaulting to: no"
+                        return 1
+                    fi
+                fi
+                ;;
+        esac
+    done
+}
+
 # Export functions for use in other modules
 export -f check_root
 export -f handle_error
@@ -148,3 +206,4 @@ export -f cleanup
 export -f get_app_env
 export -f create_checksum
 export -f verify_checksum
+export -f prompt_yes_no

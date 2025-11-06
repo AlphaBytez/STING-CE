@@ -1,7 +1,7 @@
 """
 Config routes for frontend configuration including theme settings, SMTP, and auth modes
 """
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file, send_from_directory
 from flask_cors import CORS
 import os
 import logging
@@ -9,6 +9,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import yaml
+import subprocess
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +204,7 @@ def get_registration_config():
         # For now, always allow registration
         # In production, this could be controlled by environment variables or config
         registration_enabled = os.getenv('REGISTRATION_ENABLED', 'true').lower() == 'true'
-        
+
         return jsonify({
             'success': True,
             'enabled': registration_enabled,
@@ -211,11 +212,195 @@ def get_registration_config():
             'admin_approval_required': False,
             'email_verification_required': True
         })
-        
+
     except Exception as e:
         logger.error(f"Error getting registration config: {str(e)}")
         return jsonify({
             'success': False,
             'error': 'Failed to get registration configuration',
             'enabled': True  # Default to enabled on error
+        }), 500
+
+# Certificate Management Routes
+@config_bp.route('/cert/download', methods=['GET'])
+def download_ca_cert():
+    """Download STING CA certificate for client installation"""
+    try:
+        # Try multiple possible certificate locations
+        cert_paths = [
+            '/app/certs/client-certs/sting-ca.pem',  # Mounted location (preferred)
+            '/.sting-ce/client-certs/sting-ca.pem',  # Host /opt/sting-ce mounted as /.sting-ce
+            '/opt/sting-ce/client-certs/sting-ca.pem',
+            '/opt/sting-ce/sting-certs-export/sting-ca.pem',
+            '/opt/sting-ce/certs/ca.pem'
+        ]
+
+        ca_path = None
+        for path in cert_paths:
+            if os.path.exists(path):
+                ca_path = path
+                logger.info(f"Found CA certificate at: {path}")
+                break
+
+        if ca_path and os.path.exists(ca_path):
+            return send_file(
+                ca_path,
+                mimetype='application/x-pem-file',
+                as_attachment=True,
+                download_name='sting-ca.pem'
+            )
+        else:
+            logger.warning(f"CA certificate not found. Checked paths: {cert_paths}")
+            return jsonify({
+                'success': False,
+                'error': 'CA certificate not found. Please export certificates first.',
+                'instructions': {
+                    'command': 'msting export-certs',
+                    'description': 'This will generate client certificates and installation scripts',
+                    'note': 'Run this command on the STING host (not inside the container)'
+                }
+            }), 404
+
+    except Exception as e:
+        logger.error(f"Error downloading CA certificate: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to download certificate: {str(e)}'
+        }), 500
+
+@config_bp.route('/cert/installer/<platform>', methods=['GET'])
+def download_installer(platform):
+    """Download platform-specific certificate installer"""
+    try:
+        installers = {
+            'windows': 'install-ca-windows.ps1',
+            'mac': 'install-ca-mac.sh',
+            'macos': 'install-ca-mac.sh',
+            'linux': 'install-ca-linux.sh'
+        }
+
+        if platform.lower() not in installers:
+            return jsonify({
+                'success': False,
+                'error': f'Invalid platform: {platform}. Use windows, mac, or linux'
+            }), 400
+
+        installer_filename = installers[platform.lower()]
+
+        # Try multiple possible locations
+        installer_paths = [
+            f'/app/certs/client-certs/{installer_filename}',  # Mounted location (preferred)
+            f'/.sting-ce/client-certs/{installer_filename}',  # Host /opt/sting-ce mounted as /.sting-ce
+            f'/opt/sting-ce/client-certs/{installer_filename}',
+            f'/opt/sting-ce/sting-certs-export/{installer_filename}'
+        ]
+
+        installer_path = None
+        for path in installer_paths:
+            if os.path.exists(path):
+                installer_path = path
+                break
+
+        if installer_path and os.path.exists(installer_path):
+            return send_file(
+                installer_path,
+                as_attachment=True,
+                download_name=installer_filename
+            )
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Installer not found. Run: msting export-certs'
+            }), 404
+
+    except Exception as e:
+        logger.error(f"Error downloading installer: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to download installer: {str(e)}'
+        }), 500
+
+@config_bp.route('/cert/health', methods=['GET'])
+def cert_health():
+    """Check if client trusts the STING certificate"""
+    try:
+        # If this endpoint is reached via HTTPS without browser warnings,
+        # the cert is trusted
+        return jsonify({
+            'success': True,
+            'trusted': True,
+            'message': 'Certificate is trusted by your browser'
+        })
+    except Exception as e:
+        logger.error(f"Error checking cert health: {str(e)}")
+        return jsonify({
+            'success': False,
+            'trusted': False,
+            'error': str(e)
+        }), 500
+
+@config_bp.route('/cert/info', methods=['GET'])
+def cert_info():
+    """Get certificate and hostname information for setup guidance"""
+    try:
+        # Get configured hostname/RP ID
+        webauthn_rp_id = os.getenv('WEBAUTHN_RP_ID', 'localhost')
+
+        # Get system IP - prefer STING_HOSTNAME if it's an IP, otherwise try to detect
+        sting_hostname = os.getenv('STING_HOSTNAME', '')
+
+        # Check if STING_HOSTNAME is an IP address
+        import re
+        ip_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
+        if sting_hostname and re.match(ip_pattern, sting_hostname):
+            primary_ip = sting_hostname
+        else:
+            # Try to get IP from hostname -I, but filter out Docker IPs (172.x, 10.x for Docker networks)
+            try:
+                ip_result = subprocess.run(
+                    ['hostname', '-I'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if ip_result.returncode == 0:
+                    all_ips = ip_result.stdout.strip().split()
+                    # Prefer IPs that are NOT Docker internal (not 172.17-32.x.x.x or 10.x.x.x)
+                    for ip in all_ips:
+                        if not (ip.startswith('172.1') or ip.startswith('172.2') or
+                               ip.startswith('172.3') or ip.startswith('10.')):
+                            primary_ip = ip
+                            break
+                    else:
+                        # Fallback to first IP if no "good" IP found
+                        primary_ip = all_ips[0] if all_ips else 'unknown'
+                else:
+                    primary_ip = 'unknown'
+            except:
+                primary_ip = 'unknown'
+
+        # Check if certs are available (check multiple possible locations)
+        cert_available = os.path.exists('/app/certs/client-certs/sting-ca.pem') or \
+                        os.path.exists('/.sting-ce/client-certs/sting-ca.pem') or \
+                        os.path.exists('/opt/sting-ce/client-certs/sting-ca.pem') or \
+                        os.path.exists('/opt/sting-ce/sting-certs-export/sting-ca.pem')
+
+        return jsonify({
+            'success': True,
+            'hostname': webauthn_rp_id,
+            'ip_address': primary_ip,
+            'cert_available': cert_available,
+            'download_urls': {
+                'certificate': '/api/config/cert/download',
+                'windows_installer': '/api/config/cert/installer/windows',
+                'mac_installer': '/api/config/cert/installer/mac',
+                'linux_installer': '/api/config/cert/installer/linux'
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting cert info: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
         }), 500

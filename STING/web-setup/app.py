@@ -100,22 +100,28 @@ def save_setup_state(state):
 
 def test_llm_endpoint(endpoint_url, model_name=None):
     """
-    Test LLM endpoint connectivity and model availability (OpenAI-compatible API standard)
+    Test LLM endpoint connectivity and model availability
+    Uses OpenAI-compatible API (works with Ollama, LM Studio, vLLM, etc.)
     Returns: (success: bool, message: str, models: list)
     """
     try:
-        # Use OpenAI-compatible API (LM Studio, vLLM, Ollama with OpenAI mode)
+        # Use OpenAI-compatible API standard (supported by all major LLM servers)
         response = requests.get(f"{endpoint_url}/v1/models", timeout=5)
         if response.status_code == 200:
             data = response.json()
             models = [m['id'] for m in data.get('data', [])]
 
+            if not models:
+                return False, "Endpoint reachable but no models found", []
+
+            # If specific model provided, check if it exists
             if model_name and model_name not in models:
                 return False, f"Model '{model_name}' not found. Available: {', '.join(models[:5])}", models
 
-            return True, f"Connected successfully (OpenAI-compatible). Found {len(models)} models.", models
+            return True, f"Connected successfully. Found {len(models)} model(s).", models
         else:
             return False, f"LLM service returned status {response.status_code}", []
+
     except requests.exceptions.Timeout:
         return False, "Connection timeout - endpoint not responding", []
     except requests.exceptions.ConnectionError:
@@ -137,8 +143,8 @@ def validate_config_with_loader(config_data):
         with open(CONFIG_DRAFT_FILE, 'w') as f:
             yaml.dump(config_data, f)
 
-        # Try to load with config_loader
-        loaded_config = load_config(CONFIG_DRAFT_FILE)
+        # Try to load with config_loader (validation only)
+        _ = load_config(CONFIG_DRAFT_FILE)
 
         # If we get here, config is valid
         return True, []
@@ -480,6 +486,142 @@ def get_system_info():
             'timezone': timezone or 'UTC',
             'ip_address': get_primary_ip()
         })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/hostname-options', methods=['GET'])
+def get_hostname_options():
+    """Get hostname configuration options with context (like CLI installer)"""
+    try:
+        import re
+
+        # Reuse helper functions from detect_sting_hostname
+        def is_vm():
+            """Check if running in a virtual machine"""
+            try:
+                result = subprocess.run(['systemd-detect-virt'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                if result.returncode == 0:
+                    virt_type = result.stdout.strip()
+                    if virt_type and virt_type != 'none':
+                        return True
+            except:
+                pass
+
+            try:
+                with open('/sys/class/dmi/id/product_name', 'r') as f:
+                    product = f.read().strip().lower()
+                    if any(vm in product for vm in ['vmware', 'virtualbox', 'kvm', 'qemu', 'parallels', 'xen']):
+                        return True
+            except:
+                pass
+
+            return False
+
+        def has_mdns():
+            """Check if mDNS/Avahi is available"""
+            try:
+                result = subprocess.run(['systemctl', 'is-active', 'avahi-daemon'],
+                                      stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                if result.returncode == 0:
+                    return True
+            except:
+                pass
+
+            try:
+                result = subprocess.run(['uname'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                if result.stdout.strip() == 'Darwin':
+                    return True
+            except:
+                pass
+
+            return False
+
+        # Detect platform and capabilities
+        platform = 'vm' if is_vm() else 'bare-metal'
+        mdns_available = has_mdns()
+
+        # Get detected hostname
+        detected_hostname = detect_sting_hostname()
+
+        # Get short hostname for .local option
+        short_hostname = None
+        try:
+            short_hostname = subprocess.run(['hostname', '-s'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip().lower()
+            if short_hostname == 'localhost' or not short_hostname:
+                short_hostname = None
+        except:
+            pass
+
+        # Get primary IP
+        primary_ip = get_primary_ip()
+
+        # Build options list (similar to CLI)
+        options = []
+
+        # Option 1: sting.local (generic .local hostname)
+        options.append({
+            'value': 'sting.local',
+            'label': 'sting.local',
+            'description': 'Generic STING hostname',
+            'requires_mdns': True,
+            'recommended': False,
+            'warning': None if mdns_available else 'Requires mDNS/Avahi to be installed'
+        })
+
+        # Option 2: localhost (local only)
+        options.append({
+            'value': 'localhost',
+            'label': 'localhost',
+            'description': 'Local access only (not suitable for remote access)',
+            'requires_mdns': False,
+            'recommended': False,
+            'warning': 'Not recommended for VMs - remote access will not work'
+        })
+
+        # Option 3: Detected hostname (recommended)
+        is_ip = re.match(r'^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$', detected_hostname)
+        options.append({
+            'value': detected_hostname,
+            'label': detected_hostname,
+            'description': f'Detected {"IP address" if is_ip else "hostname"} (auto-detected)',
+            'requires_mdns': detected_hostname.endswith('.local'),
+            'recommended': True,
+            'warning': None
+        })
+
+        # Option 4: Custom (placeholder for user input)
+        options.append({
+            'value': 'custom',
+            'label': 'Custom hostname',
+            'description': 'Enter your own hostname or IP address',
+            'requires_mdns': False,
+            'recommended': False,
+            'warning': None
+        })
+
+        # Platform-specific guidance
+        if platform == 'vm':
+            if mdns_available:
+                guidance = '.local domains work great for remote VM access with mDNS/Avahi'
+                recommendation = 'Use detected hostname (recommended for VMs with mDNS)'
+            else:
+                guidance = 'IP address recommended, or install Avahi for .local hostname support'
+                recommendation = 'Use detected IP or install Avahi for better hostname support'
+        else:
+            guidance = 'localhost works for local testing, or use your domain/IP for remote access'
+            recommendation = 'Use detected value or configure custom domain'
+
+        return jsonify({
+            'platform': platform,
+            'mdns_available': mdns_available,
+            'detected_hostname': detected_hostname,
+            'primary_ip': primary_ip,
+            'short_hostname': short_hostname,
+            'options': options,
+            'guidance': guidance,
+            'recommendation': recommendation
+        })
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -845,9 +987,19 @@ def run_installation_background(install_id, config_data, admin_email):
                 env['STING_HOSTNAME'] = detect_sting_hostname()
                 installations[install_id]['log'] += f"🌐 Auto-detected hostname: {env['STING_HOSTNAME']}\n"
 
+            # Build installation command with admin creation if requested
+            install_cmd = [INSTALLER_SCRIPT, 'install', '--no-prompt']
+
+            # Add admin email if provided (enables automatic admin creation during install)
+            if admin_email and admin_email.strip():
+                install_cmd.append(f'--admin-email={admin_email.strip()}')
+                installations[install_id]['log'] += f"👤 Admin user will be created: {admin_email}\n"
+            else:
+                installations[install_id]['log'] += "👤 Skipping admin user creation\n"
+
             with open(install_log_file, 'w') as log_file:
                 process = subprocess.Popen(
-                    [INSTALLER_SCRIPT, 'install'],
+                    install_cmd,
                     stdout=log_file,
                     stderr=subprocess.STDOUT,
                     text=True,
@@ -930,35 +1082,57 @@ def run_installation_background(install_id, config_data, admin_email):
                 # Installation succeeded but with warnings
                 installations[install_id]['log'] += '\n\n⚠️  Installation completed with warnings (non-fatal)\n'
 
-            installations[install_id]['status'] = 'Creating admin account...'
+            # 3. Verify admin account was created (fallback creation if needed)
+            # Admin should already be created during installation via --admin-email flag
+            # This is just a safety check/fallback
+            installations[install_id]['status'] = 'Verifying admin account...'
             installations[install_id]['progress'] = 90
 
-            # 3. Wait for services to be ready (up to 60 seconds)
-            time.sleep(10)  # Give services time to start
+            # Wait for services to be ready
+            time.sleep(10)
 
-            # 4. Create admin account using create-new-admin.py
-            # Use INSTALL_DIR not STING_SOURCE (files are now in /opt/sting-ce after rsync)
+            # 4. Check if admin was created during installation
             install_dir = get_install_directory()
-            admin_script = os.path.join(install_dir, 'scripts/admin/create-new-admin.py')
-            if os.path.exists(admin_script) and admin_email:
+            admin_check_script = os.path.join(install_dir, 'scripts/admin/check-admin-exists.py')
+
+            admin_exists = False
+            if os.path.exists(admin_check_script) and admin_email:
                 try:
-                    admin_result = subprocess.run(
-                        ['python3', admin_script, '--email', admin_email, '--passwordless'],
+                    check_result = subprocess.run(
+                        ['python3', admin_check_script, '--email', admin_email],
                         capture_output=True,
                         text=True,
-                        timeout=30
+                        timeout=10
                     )
-                    installations[install_id]['log'] += f"\n\n{'='*50}\n"
-                    installations[install_id]['log'] += "Creating Admin Account\n"
-                    installations[install_id]['log'] += f"{'='*50}\n\n"
-                    installations[install_id]['log'] += admin_result.stdout
-
-                    if admin_result.returncode != 0:
-                        installations[install_id]['log'] += f"\n\nWarning: Admin creation failed: {admin_result.stderr}"
-                        installations[install_id]['log'] += f"\nYou can create admin manually: ./manage_sting.sh create admin {admin_email}"
+                    admin_exists = check_result.returncode == 0
+                    if admin_exists:
+                        installations[install_id]['log'] += f"\n✅ Admin account verified: {admin_email}\n"
                 except Exception as e:
-                    installations[install_id]['log'] += f"\n\nWarning: Could not create admin: {str(e)}"
-                    installations[install_id]['log'] += f"\nYou can create admin manually: ./manage_sting.sh create admin {admin_email}"
+                    installations[install_id]['log'] += f"\nWarning: Could not verify admin: {str(e)}\n"
+
+            # Fallback: Create admin if it doesn't exist (should rarely happen now)
+            if not admin_exists and admin_email:
+                installations[install_id]['log'] += f"\n⚠️  Admin not found, creating via fallback method...\n"
+                admin_script = os.path.join(install_dir, 'scripts/admin/create-new-admin.py')
+                if os.path.exists(admin_script):
+                    try:
+                        admin_result = subprocess.run(
+                            ['python3', admin_script, '--email', admin_email, '--passwordless'],
+                            capture_output=True,
+                            text=True,
+                            timeout=30
+                        )
+                        installations[install_id]['log'] += f"\n{'='*50}\n"
+                        installations[install_id]['log'] += "Creating Admin Account (Fallback)\n"
+                        installations[install_id]['log'] += f"{'='*50}\n\n"
+                        installations[install_id]['log'] += admin_result.stdout
+
+                        if admin_result.returncode != 0:
+                            installations[install_id]['log'] += f"\n\nWarning: Admin creation failed: {admin_result.stderr}"
+                            installations[install_id]['log'] += f"\nYou can create admin manually: ./manage_sting.sh create admin {admin_email}"
+                    except Exception as e:
+                        installations[install_id]['log'] += f"\n\nWarning: Could not create admin: {str(e)}"
+                        installations[install_id]['log'] += f"\nYou can create admin manually: ./manage_sting.sh create admin {admin_email}"
 
             # 5. Mark setup as complete
             state = load_setup_state()
