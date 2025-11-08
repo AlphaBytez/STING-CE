@@ -650,11 +650,13 @@ async def bee_chat(request: BeeChatRequest):
         
         if is_report_request:
             # Handle as report generation with enhanced context
-            # enhanced_prompt = await bee_context_manager.build_enhanced_prompt(
-            #     request.message,
-            #     request.user_id
-            # )
-            enhanced_prompt = request.message
+            enhanced_prompt = await bee_context_manager.build_enhanced_prompt(
+                request.message,
+                request.user_id,
+                conversation_id=request.conversation_id,
+                conversation_history=None,
+                honey_jar_id=request.honey_jar_id
+            )
 
             report_prompt = f"""{enhanced_prompt}
 

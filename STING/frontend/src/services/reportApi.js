@@ -1,4 +1,4 @@
-import apiClient from './api';
+import apiClient from '../utils/apiClient';
 
 // Report API endpoints
 const REPORT_BASE_URL = '/api/reports';

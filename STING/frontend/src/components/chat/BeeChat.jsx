@@ -11,12 +11,14 @@ import Grains from './FloatingActionSuite';
 import HoneyJarContextBar from './HoneyJarContextBar';
 import './HoneyJarContextBar.css';
 import MessageWithPII from './MessageWithPII';
+import BeeAuthModal from './BeeAuthModal';
 import { externalAiApi } from '../../services/externalAiApi';
 import { chatHistoryApi } from '../../services/messagingApi';
 import { systemApi } from '../../services/systemApi';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { resilientGet } from '../../utils/resilientApiClient';
 import { usePageVisibilityInterval } from '../../hooks/usePageVisibilityInterval';
+import { shouldRetryOperation, getStoredOperationContext, handleReturnFromAuth } from '../../utils/tieredAuth';
 
 // Clean markdown content from LLM responses
 const cleanMarkdownContent = (content) => {
@@ -114,6 +116,12 @@ const BeeChat = () => {
   const [isSearchingHoneyJars, setIsSearchingHoneyJars] = useState(false);
   const [showHoneyJarSelector, setShowHoneyJarSelector] = useState(false);
   const [honeyJars, setHoneyJars] = useState([]);
+
+  // Bee authentication modal state
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authOperation, setAuthOperation] = useState('');
+  const [authTier, setAuthTier] = useState(2);
+  const [authContext, setAuthContext] = useState({});
 
   // PII Visual Indicator Preferences
   const [piiPreferences, setPiiPreferences] = useState({
@@ -348,6 +356,45 @@ const BeeChat = () => {
     }
     return userId;
   };
+
+  // Handle return from authentication flow
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const beeAuthComplete = urlParams.get('bee_auth');
+
+    if (beeAuthComplete === 'complete') {
+      console.log('🔄 User returned from Bee authentication');
+
+      // Set a marker so operations know auth is satisfied
+      handleReturnFromAuth('BEE_AUTH');
+
+      // Clean up URL
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
+
+      // Show success message
+      const authSuccessMessage = {
+        id: `auth_success_${Date.now()}`,
+        sender: 'system',
+        content: '✅ Authentication successful! You can now continue.',
+        timestamp: new Date().toISOString(),
+        isAction: true
+      };
+
+      setMessages(prev => [...prev, authSuccessMessage]);
+    }
+  }, []);
+
+  // Helper function to trigger authentication modal
+  const requestAuthentication = (operation, tier = 2, context = {}) => {
+    setAuthOperation(operation);
+    setAuthTier(tier);
+    setAuthContext(context);
+    setShowAuthModal(true);
+  };
+
+  // Export this function so Bee can request authentication
+  window.beeRequestAuth = requestAuthentication;
 
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -1258,6 +1305,15 @@ const BeeChat = () => {
           </div>
         </div>
       )}
+
+      {/* Bee Authentication Modal */}
+      <BeeAuthModal
+        open={showAuthModal}
+        operation={authOperation}
+        tier={authTier}
+        context={authContext}
+        onCancel={() => setShowAuthModal(false)}
+      />
     </React.Fragment>
   );
 };

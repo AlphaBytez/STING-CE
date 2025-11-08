@@ -39,23 +39,42 @@ export const hasRecentAuth = (tier, operation = 'general') => {
   const cacheDuration = TIER_CACHE_DURATION[tier] || 0;
   if (cacheDuration === 0) return false; // No cache for critical operations
 
+  // Check operation-specific marker first
   const storageKey = `${operation}_auth_verified`;
   const recentAuth = sessionStorage.getItem(storageKey);
 
-  if (!recentAuth) return false;
+  if (recentAuth) {
+    const authTime = parseInt(recentAuth);
+    const cacheExpiry = Date.now() - cacheDuration;
+    if (authTime > cacheExpiry) return true;
+  }
 
-  const authTime = parseInt(recentAuth);
-  const cacheExpiry = Date.now() - cacheDuration;
+  // Also check tier-level marker (shared across all operations of same tier)
+  const tierKey = `tier_${tier}_auth_verified`;
+  const tierAuth = sessionStorage.getItem(tierKey);
 
-  return authTime > cacheExpiry;
+  if (!tierAuth) return false;
+
+  const tierAuthTime = parseInt(tierAuth);
+  const tierCacheExpiry = Date.now() - cacheDuration;
+
+  return tierAuthTime > tierCacheExpiry;
 };
 
 /**
  * Set authorization marker for completed authentication
  */
-export const setAuthMarker = (operation) => {
-  sessionStorage.setItem(`${operation}_auth_verified`, Date.now().toString());
-  console.log(`✅ Authorization marker set for ${operation}`);
+export const setAuthMarker = (operation, tier = null) => {
+  const timestamp = Date.now().toString();
+  sessionStorage.setItem(`${operation}_auth_verified`, timestamp);
+
+  // Also set tier-level marker if tier is provided (shared across all operations of same tier)
+  if (tier) {
+    sessionStorage.setItem(`tier_${tier}_auth_verified`, timestamp);
+    console.log(`✅ Authorization marker set for ${operation} and tier ${tier}`);
+  } else {
+    console.log(`✅ Authorization marker set for ${operation}`);
+  }
 };
 
 /**
@@ -99,15 +118,18 @@ export const handleAuthError = (error, operation, returnUrl = null) => {
 /**
  * Check if user just returned from authentication
  */
-export const handleReturnFromAuth = (operation) => {
+export const handleReturnFromAuth = (operation, tier = null) => {
   const urlParams = new URLSearchParams(window.location.search);
   const preAuthComplete = urlParams.get('preauth');
 
   if (preAuthComplete === 'complete') {
     console.log(`🎉 User returned from successful authentication for ${operation}`);
 
-    // Set authorization marker
-    setAuthMarker(operation);
+    // Get tier from URL if not provided
+    const urlTier = tier || parseInt(urlParams.get('tier'));
+
+    // Set authorization marker (includes tier-level marker if tier is known)
+    setAuthMarker(operation, urlTier);
 
     // Clean up URL
     window.history.replaceState({}, '', window.location.pathname);

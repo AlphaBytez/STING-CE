@@ -7,7 +7,8 @@ from flask import Blueprint, request, jsonify, g
 from app.utils.decorators import require_auth_or_api_key
 from app.utils.complexity_detector import get_complexity_detector, QueryComplexity
 from app.services.report_service import get_report_service
-from app.utils.flexible_auth import get_current_user, get_user_role
+from app.services.request_classifier import classify_request, format_classification_message
+from app.utils.flexible_auth import get_current_auth_user as get_current_user
 from datetime import datetime
 import requests
 import logging
@@ -96,36 +97,33 @@ def chat_with_bee():
             'require_auth': False  # Auth already validated by Flask decorator
         }
 
-        # Phase 3: Complexity detection and routing
-        # Check if query is too complex for interactive chat
+        # Phase 3: Enhanced request classification and routing
+        # Classify request to determine if it should be handled as chat or report
         try:
-            complexity_detector = get_complexity_detector()
-            complexity, metadata = complexity_detector.detect_complexity(
-                user_message=message,
-                conversation_history=data.get('conversation_history'),
-                context=context
+            # Classify the request using comprehensive pattern detection
+            classification, classification_metadata = classify_request(
+                prompt=message,
+                user_request=message,
+                max_chat_tokens=2000  # Configurable threshold
             )
 
             logger.info(
-                f"Complexity detection for user {context['user_id']}: "
-                f"{metadata['total_tokens']} tokens → {complexity.value}"
+                f"Request classification for user {context['user_id']}: "
+                f"{classification_metadata['total_estimated_tokens']} tokens → {classification}"
             )
 
-            # If query is too large, return error with suggestion
-            if complexity == QueryComplexity.TOO_LARGE:
-                return jsonify({
-                    'error': 'QUERY_TOO_LARGE',
-                    'message': f"Your query is too large ({metadata['total_tokens']} tokens). "
-                               f"Please break it into smaller queries or reduce the context.",
-                    'metadata': metadata,
-                    'suggestion': 'Try rephrasing your question more concisely or split it into multiple queries.'
-                }), 413
+            # Log reasoning for debugging
+            if classification_metadata.get('reasoning'):
+                logger.debug(
+                    f"Classification reasoning: {', '.join(classification_metadata['reasoning'][:3])}"
+                )
 
-            # If query is complex, route to report generation
-            if complexity == QueryComplexity.COMPLEX:
+            # If classified as REPORT, route to report generation
+            if classification == "report":
                 logger.info(
-                    f"Routing complex query to report generation for user {context['user_id']} "
-                    f"({metadata['total_tokens']} tokens)"
+                    f"Routing to report generation for user {context['user_id']} "
+                    f"({classification_metadata['total_estimated_tokens']} tokens, "
+                    f"reasons: {len(classification_metadata.get('reasoning', []))})"
                 )
 
                 report_service = get_report_service()
@@ -144,30 +142,51 @@ def chat_with_bee():
                         'details': report_result.get('error')
                     }), 500
 
-                # Return report creation response
+                # Generate user-friendly response
+                bee_response = format_classification_message(classification, classification_metadata)
+
+                # Add report-specific details
+                bee_response += f"\n\n**Report ID:** #{report_result['report_id']}"
+
+                if report_result.get('queue_position'):
+                    bee_response += f"\n**Queue Position:** #{report_result['queue_position']}"
+
+                if report_result.get('estimated_completion'):
+                    bee_response += f"\n**Estimated Completion:** {report_result['estimated_completion']}"
+
+                # Return response with enhanced metadata
                 return jsonify({
-                    'response': f"🔍 Your query is quite complex and will be processed as a detailed report.\n\n"
-                                f"**Report ID:** {report_result['report_id']}\n"
-                                f"**Queue Position:** {report_result.get('queue_position', 'N/A')}\n"
-                                f"**Estimated Completion:** {report_result.get('estimated_completion', 'Soon')}\n\n"
-                                f"You'll be notified when your report is ready. You can view it in the Reports section.",
+                    'response': bee_response,
                     'conversation_id': conversation_id,
                     'report_generated': True,
                     'report_metadata': {
                         'report_id': report_result['report_id'],
-                        'complexity': complexity.value,
-                        'token_count': metadata['total_tokens'],
+                        'classification': classification,
+                        'token_count': classification_metadata['total_estimated_tokens'],
+                        'reasoning': classification_metadata.get('reasoning', [])[:3],
+                        'word_count_requested': classification_metadata.get('word_count_requested'),
                         'queue_position': report_result.get('queue_position'),
                         'estimated_completion': report_result.get('estimated_completion')
                     },
-                    'metadata': metadata,
+                    'metadata': classification_metadata,
                     'bee_personality': 'professional_analyst',
                     'timestamp': datetime.now().isoformat()
                 }), 200
 
-        except Exception as complexity_error:
-            # Log but don't block if complexity detection fails
-            logger.warning(f"Complexity detection failed: {complexity_error}, proceeding with interactive chat")
+            # If classified as CHAT, continue with normal chat flow
+            else:
+                logger.info(
+                    f"Processing as interactive chat for user {context['user_id']} "
+                    f"({classification_metadata['total_estimated_tokens']} tokens)"
+                )
+                # Continue to existing chat processing below
+
+        except Exception as classification_error:
+            # Log but don't block if classification fails - default to chat
+            logger.warning(
+                f"Request classification failed: {classification_error}, "
+                f"proceeding with interactive chat"
+            )
 
         # Try external AI service first (modern stack)
         try:
@@ -290,7 +309,7 @@ def chatbot_health():
             external_ai_healthy = response.status_code == 200
         except:
             pass
-        
+
         # Check direct chatbot service
         chatbot_healthy = False
         try:
@@ -298,7 +317,7 @@ def chatbot_health():
             chatbot_healthy = response.status_code == 200
         except:
             pass
-        
+
         return jsonify({
             'status': 'healthy' if (external_ai_healthy or chatbot_healthy) else 'unhealthy',
             'services': {
@@ -306,7 +325,119 @@ def chatbot_health():
                 'chatbot': chatbot_healthy
             }
         })
-        
+
     except Exception as e:
         logger.error(f"Health check error: {e}")
         return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@chatbot_bp.route('/api/bee/check-auth', methods=['POST'])
+@require_auth_or_api_key(['admin', 'write', 'read'])
+def check_auth_requirement():
+    """
+    Check if a Bee operation requires additional authentication
+
+    This endpoint allows Bee to proactively check if the user needs to
+    authenticate before performing a sensitive operation.
+
+    Request body:
+    {
+        "operation": "generate_report",  // The operation to check
+        "tier": 2,                       // Security tier required (2, 3, or 4)
+        "context": {}                    // Optional context data
+    }
+
+    Response:
+    {
+        "requires_auth": true/false,
+        "current_aal": "aal1" or "aal2",
+        "available_methods": ["webauthn", "totp", "email"],
+        "message": "Authentication required for this operation"
+    }
+    """
+    try:
+        data = request.get_json()
+        operation = data.get('operation', 'unknown_operation')
+        tier = data.get('tier', 2)
+
+        # Check if user has session authentication (API keys bypass this)
+        if hasattr(g, 'api_key') and g.api_key:
+            # API key users don't need additional auth
+            return jsonify({
+                'requires_auth': False,
+                'auth_type': 'api_key',
+                'message': 'API key authentication sufficient'
+            })
+
+        # Check session user's AAL level
+        if not hasattr(g, 'user') or not g.user:
+            return jsonify({
+                'requires_auth': True,
+                'current_aal': None,
+                'message': 'No authentication found'
+            }), 401
+
+        user_id = g.user.id
+
+        # Check current AAL level from multiple sources
+        from flask import session as flask_session
+
+        aal2_verified = flask_session.get('aal2_verified', False)
+        custom_aal2_verified = flask_session.get('custom_aal2_verified', False)
+
+        # Check Redis AAL2
+        redis_aal2_verified = False
+        try:
+            import redis
+            redis_client = redis.from_url('redis://redis:6379/0')
+            redis_key = f"sting:custom_aal2:{user_id}"
+            redis_aal2_verified = bool(redis_client.get(redis_key))
+        except Exception as redis_error:
+            logger.debug(f"Redis AAL2 check failed (non-critical): {redis_error}")
+
+        # Check Kratos AAL2
+        kratos_aal2 = hasattr(g, 'session_data') and g.session_data and \
+                     g.session_data.get('authenticator_assurance_level') == 'aal2'
+
+        any_aal2_verified = aal2_verified or custom_aal2_verified or redis_aal2_verified or kratos_aal2
+
+        # Check what methods user has available
+        available_methods = []
+        try:
+            from app.decorators.aal2 import aal2_manager
+            enrollment_status = aal2_manager.check_passkey_enrollment(user_id)
+
+            if enrollment_status.get('enrolled'):
+                details = enrollment_status.get('details', {})
+                if details.get('kratos_passkey') or details.get('sting_webauthn'):
+                    available_methods.append('webauthn')
+                if details.get('kratos_totp'):
+                    available_methods.append('totp')
+                available_methods.append('email')  # Email is always available
+        except Exception as e:
+            logger.warning(f"Could not check available methods: {e}")
+            available_methods = ['email']  # Fallback
+
+        # Determine if auth is required based on tier
+        current_aal = 'aal2' if any_aal2_verified else 'aal1'
+        requires_auth = tier >= 2 and not any_aal2_verified
+
+        response_data = {
+            'requires_auth': requires_auth,
+            'current_aal': current_aal,
+            'required_tier': tier,
+            'available_methods': available_methods,
+            'message': f'Authentication required for {operation}' if requires_auth else 'Authentication satisfied'
+        }
+
+        logger.info(f"🔐 Bee auth check: operation={operation}, tier={tier}, requires_auth={requires_auth}, current_aal={current_aal}")
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        logger.error(f"Auth check error: {e}", exc_info=True)
+        return jsonify({
+            'error': 'AUTH_CHECK_FAILED',
+            'message': 'Failed to check authentication requirements',
+            'details': str(e)
+        }), 500

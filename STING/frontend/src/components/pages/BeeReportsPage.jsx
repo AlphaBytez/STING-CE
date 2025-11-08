@@ -53,7 +53,7 @@ const REPORT_OPERATIONS = {
   },
   DOWNLOAD_REPORT: {
     name: 'DOWNLOAD_REPORT',
-    tier: 3,
+    tier: 2,  // Changed from 3 to match backend @require_auth_method(['webauthn', 'totp'])
     description: 'Download report files'
   },
   SHARE_REPORT: {
@@ -114,8 +114,8 @@ const BeeReportsPage = () => {
         // Get stored context
         const context = getStoredOperationContext(operation.name);
 
-        // Set auth marker
-        handleReturnFromAuth(operation.name);
+        // Set auth marker (include tier for shared tier-level caching)
+        handleReturnFromAuth(operation.name, operation.tier);
 
         // Auto-retry the operation based on its type
         setTimeout(() => {
@@ -399,20 +399,15 @@ const BeeReportsPage = () => {
 
 
   const handleDownload = async (reportId) => {
-    // Check authentication BEFORE attempting download (Tier 3 - sensitive operation)
-    const canProceed = await protectReportOperation('DOWNLOAD_REPORT', { reportId });
-    if (!canProceed) {
-      // User was redirected to security-upgrade or cancelled
-      return;
-    }
-
+    // Let backend handle AAL2 check via decorator - it will return 403 if insufficient
+    // The apiClient interceptor will catch 403 and redirect to security-upgrade if needed
     try {
-      console.log('🔄 Downloading report (authentication pre-verified)');
+      console.log('🔄 Downloading report (backend will verify AAL2)');
 
       await reportApi.downloadReport(reportId);
       message.success('Report downloaded successfully');
 
-      // Clear auth markers since operation succeeded
+      // Clear auth markers since operation succeeded (if any were set)
       clearAuthMarker(REPORT_OPERATIONS.DOWNLOAD_REPORT.name);
 
       // Update download count locally

@@ -58,10 +58,30 @@ apiClient.interceptors.response.use(
     // Handle 403 2FA setup required
     if (error.response?.status === 403) {
       const errorData = error.response?.data;
+
+      // Handle METHOD_REQUIRED (AAL2 authentication required)
+      if (errorData?.code === 'METHOD_REQUIRED' || errorData?.error === 'SPECIFIC_METHOD_REQUIRED') {
+        console.log('[API Client] 🔐 Level 2 authentication required - redirecting to security upgrade');
+        console.log('[API Client] Required methods:', errorData.required_methods);
+
+        const currentPath = window.location.pathname;
+        // Don't redirect if already on security-upgrade
+        if (!currentPath.includes('/security-upgrade')) {
+          // Store operation context
+          const operation = errorData.operation || 'ACCESS_PROTECTED_RESOURCE';
+          const tier = 2; // AAL2
+
+          // Redirect to security-upgrade with return URL
+          const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+          window.location.href = `/security-upgrade?reason=${encodeURIComponent(operation)}&tier=${tier}&return_to=${returnUrl}`;
+        }
+        return Promise.reject(error);
+      }
+
       if (errorData?.error === '2FA_SETUP_REQUIRED') {
         console.log('[API Client] 2FA setup required - redirecting to security settings');
         console.log('[API Client] Missing 2FA methods:', errorData.missing);
-        
+
         const currentPath = window.location.pathname;
         // Don't redirect if already on security settings OR during AAL2 flow
         const isAAL2Flow = sessionStorage.getItem('aal2_passkey_setup');
@@ -73,11 +93,11 @@ apiClient.interceptors.response.use(
         }
         return Promise.reject(error);
       }
-      
+
       // Handle passkey requirement for sensitive operations
       if (errorData?.error === 'PASSKEY_REQUIRED') {
         console.log('[API Client] Passkey required for sensitive operation - redirecting to security settings');
-        
+
         const currentPath = window.location.pathname;
         // Don't redirect if already on security settings
         if (!currentPath.includes('/dashboard/settings')) {

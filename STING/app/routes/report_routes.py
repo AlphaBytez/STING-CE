@@ -17,7 +17,7 @@ from app.models.report_models import (
 )
 from app.database import get_db_session
 from app.utils.decorators import require_auth, require_auth_or_api_key, require_aal2_or_api_key
-from app.utils.flexible_auth import require_auth_flexible, get_current_user
+from app.utils.flexible_auth import require_auth_flexible, get_current_auth_user as get_current_user
 from app.services.report_service import get_report_service
 from app.services.file_service import get_file_service
 from app.middleware.auth_middleware import enforce_passkey_only
@@ -229,6 +229,7 @@ def get_user_role() -> str:
 
 @report_bp.route('/templates', methods=['GET'])
 @require_auth_or_api_key(['admin', 'read'])
+@require_auth_method(['webauthn', 'totp'])  # Tier 2 protection - requires second factor
 def get_available_templates():
     """Get available report templates for the current user"""
     try:
@@ -361,6 +362,7 @@ def create_report():
 
 @report_bp.route('/', methods=['GET'])
 @require_auth_or_api_key(['admin', 'read'])
+@require_auth_method(['webauthn', 'totp'])  # Tier 2 protection - requires second factor
 def list_reports():
     """List reports for the current user"""
     try:
@@ -380,12 +382,10 @@ def list_reports():
                 # For demo searches, return all demo reports regardless of user_id
                 query = session.query(Report).filter(Report.title.like('%Demo%'))
             else:
-                # Base query for user's own reports
-                query = session.query(Report).filter(Report.user_id == user_id)
-
-                # Also include demo reports for all authenticated users
-                demo_query = session.query(Report).filter(Report.title.like('%Demo%'))
-                query = query.union(demo_query)
+                # Base query: user's own reports OR demo reports (using OR instead of UNION to avoid JSON comparison issues)
+                query = session.query(Report).filter(
+                    (Report.user_id == user_id) | (Report.title.like('%Demo%'))
+                )
 
             # Apply status filter if provided
             if status_filter:
@@ -472,7 +472,7 @@ def get_report(report_id: str):
 
 @report_bp.route('/<report_id>/download', methods=['GET'])
 @require_auth_or_api_key(['admin', 'read'])
-@require_auth_method(['webauthn', 'totp', 'email'])  # Tier 2 (compatible with current session data)
+@require_auth_method(['webauthn', 'totp'])  # Tier 2 - requires second factor
 def download_report(report_id: str):
     """Download report file with access control"""
     try:
@@ -533,7 +533,7 @@ def download_report(report_id: str):
 
 @report_bp.route('/<report_id>/preview', methods=['GET'])
 @require_auth_or_api_key(['admin', 'read'])
-@require_auth_method(['webauthn', 'totp', 'email'])  # Tier 2 (compatible with current session data)
+@require_auth_method(['webauthn', 'totp'])  # Tier 2 - requires second factor
 def preview_report(report_id: str):
     """Preview report file inline (for PDF viewing in browser) with access control"""
     try:

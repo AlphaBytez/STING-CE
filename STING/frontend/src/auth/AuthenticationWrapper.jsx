@@ -198,10 +198,10 @@ const AuthenticationWrapper = () => {
           {/* Legacy AAL2 route - redirect to security upgrade */}
           <Route path="/auth/aal2-complete" element={<Navigate to="/security-upgrade" replace />} />
 
-          {/* Redirect root to login page */}
-          <Route 
-            path="/" 
-            element={<Navigate to="/login" replace />} 
+          {/* Redirect root to dashboard (will redirect to login if not authenticated) */}
+          <Route
+            path="/"
+            element={<Navigate to="/dashboard" replace />}
           />
           
           {/* 404 route */}

@@ -9,11 +9,13 @@ import logging
 import asyncio
 import json
 import tempfile
+import re
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 import pandas as pd
 from io import BytesIO
 import uuid
+from markdown_it import MarkdownIt
 
 # Add app to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -32,7 +34,8 @@ from app.workers.report_generators import (
     BeeChatAnalyticsGenerator,
     EncryptionStatusReportGenerator,
     StorageUtilizationReportGenerator,
-    HealthcareComplianceGenerator
+    HealthcareComplianceGenerator,
+    BeeConversationalReportGenerator
 )
 
 # Configure logging
@@ -61,7 +64,8 @@ class ReportWorker:
             'bee_chat_analytics': BeeChatAnalyticsGenerator,
             'encryption_status_report': EncryptionStatusReportGenerator,
             'storage_utilization_report': StorageUtilizationReportGenerator,
-            'healthcare_compliance_report': HealthcareComplianceGenerator
+            'healthcare_compliance_report': HealthcareComplianceGenerator,
+            'bee_conversational_report': BeeConversationalReportGenerator
         }
         
         logger.info(f"Report worker {self.worker_id} initialized")
@@ -139,8 +143,15 @@ class ReportWorker:
             )
             
             # Generate report data
-            self.report_service.update_progress(report_id, 30, "Collecting data")
+            if template_name == 'bee_conversational_report':
+                self.report_service.update_progress(report_id, 30, "Generating AI content (this may take 30-60 seconds)...")
+            else:
+                self.report_service.update_progress(report_id, 30, "Collecting data")
+
             report_data = await generator.generate()
+
+            # Update progress after data collection
+            self.report_service.update_progress(report_id, 65, "Content generated, formatting report...")
             
             # Generate output file
             self.report_service.update_progress(report_id, 70, "Creating report file")
@@ -186,12 +197,53 @@ class ReportWorker:
         except Exception as e:
             logger.error(f"Failed to process report {report_id}: {e}")
             self.report_service.fail_job(report_id, str(e), retry=True)
-    
-    async def create_output_file(self, report_data: Dict[str, Any], 
+
+    def _render_inline_markdown(self, tokens):
+        """Helper to render inline markdown tokens (bold, italic, code, etc.) to HTML"""
+        if not tokens:
+            return ""
+
+        result = []
+        for token in tokens:
+            if token.type == 'text':
+                # Escape XML special characters
+                text = token.content.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                result.append(text)
+            elif token.type == 'strong_open':
+                result.append('<b>')
+            elif token.type == 'strong_close':
+                result.append('</b>')
+            elif token.type == 'em_open':
+                result.append('<i>')
+            elif token.type == 'em_close':
+                result.append('</i>')
+            elif token.type == 'code_inline':
+                # Monospace code
+                code_text = token.content.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                result.append(f'<font face="Courier">{code_text}</font>')
+            elif token.type == 'link_open':
+                # We can't easily handle links in PDF, just render the text
+                pass
+            elif token.type == 'link_close':
+                pass
+            else:
+                # For any other token, try to get content
+                if hasattr(token, 'content') and token.content:
+                    text = token.content.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                    result.append(text)
+
+        return ''.join(result)
+
+    async def create_output_file(self, report_data: Dict[str, Any],
                                 output_format: str, template_name: str,
                                 report_title: str) -> Dict[str, Any]:
         """Create the output file in the requested format"""
-        
+
+        # Debug logging for Bee reports
+        if 'generated_content' in report_data:
+            content_len = len(report_data.get('generated_content', ''))
+            logger.info(f"🐝 Creating PDF for Bee report with {content_len} chars of generated_content")
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_title = "".join(c for c in report_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
         filename = f"{safe_title}_{timestamp}.{output_format}"
@@ -253,16 +305,71 @@ class ReportWorker:
             STING_ACCENT = colors.HexColor('#f59e0b')    # Honey accent (subtle)
             STING_LIGHT = colors.HexColor('#f8fafc')     # Light background
 
-            # Header Section with STING Branding
-            header_style = ParagraphStyle(
-                'STINGHeader',
-                parent=styles['Normal'],
-                fontSize=10,
-                textColor=STING_BLUE,
-                alignment=2  # Right align
-            )
-            story.append(Paragraph("Generated by <b>STING Platform</b>", header_style))
+            # Prominent STING Header Banner with Logo
+            try:
+                # Try to load the STING logo
+                logo_path = '/opt/sting-ce/app/static/sting-logo.png'
+                if os.path.exists(logo_path):
+                    logo = Image(logo_path, width=0.4*inch, height=0.4*inch)
+
+                    # Create a table to align logo and text
+                    banner_style = ParagraphStyle(
+                        'STINGBanner',
+                        parent=styles['Normal'],
+                        fontSize=18,
+                        textColor=STING_BLUE,
+                        alignment=0,
+                        leftIndent=0,
+                        spaceBefore=0,
+                        spaceAfter=0
+                    )
+
+                    header_table = Table(
+                        [[logo, Paragraph("<b>STING</b> Security Intelligence Platform", banner_style)]],
+                        colWidths=[0.5*inch, 5*inch]
+                    )
+                    header_table.setStyle(TableStyle([
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                        ('TOPPADDING', (0, 0), (-1, -1), 0),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                    ]))
+                    story.append(header_table)
+                else:
+                    # Fallback to text-only banner without emoji
+                    banner_style = ParagraphStyle(
+                        'STINGBanner',
+                        parent=styles['Normal'],
+                        fontSize=20,
+                        textColor=STING_BLUE,
+                        alignment=0,
+                        leftIndent=0,
+                        spaceBefore=0,
+                        spaceAfter=0
+                    )
+                    story.append(Paragraph("<b>STING</b> Security Intelligence Platform", banner_style))
+            except Exception as e:
+                logger.warning(f"Could not load logo: {e}")
+                # Fallback to text-only banner
+                banner_style = ParagraphStyle(
+                    'STINGBanner',
+                    parent=styles['Normal'],
+                    fontSize=20,
+                    textColor=STING_BLUE,
+                    alignment=0,
+                    leftIndent=0,
+                    spaceBefore=0,
+                    spaceAfter=0
+                )
+                story.append(Paragraph("<b>STING</b> Security Intelligence Platform", banner_style))
+
+            # Divider line
+            divider = Drawing(400, 2)
+            divider.add(Rect(0, 0, 600, 2, fillColor=STING_BLUE, strokeColor=STING_BLUE))
             story.append(Spacer(1, 0.1*inch))
+            story.append(divider)
+            story.append(Spacer(1, 0.3*inch))
 
             # Branded Title Section
             title_style = ParagraphStyle(
@@ -325,6 +432,120 @@ class ReportWorker:
                 for key, value in report_data['summary'].items():
                     clean_key = key.replace('_', ' ').title()
                     story.append(Paragraph(f"<b style='color: {STING_BLUE}'>{clean_key}:</b> {value}", summary_style))
+                story.append(Spacer(1, 0.4*inch))
+
+            # Bee Conversational Report Content
+            if 'generated_content' in report_data and report_data['generated_content']:
+                # Content header
+                content_header_style = ParagraphStyle(
+                    'STINGContentHeader',
+                    parent=styles['Heading2'],
+                    fontSize=16,
+                    textColor=STING_BLUE,
+                    spaceAfter=0.2*inch
+                )
+                story.append(Paragraph("Generated Report", content_header_style))
+
+                # Content body style
+                content_style = ParagraphStyle(
+                    'STINGContent',
+                    parent=styles['Normal'],
+                    fontSize=11,
+                    textColor=STING_DARK,
+                    leftIndent=0,
+                    rightIndent=0,
+                    spaceAfter=12,
+                    spaceBefore=6,
+                    leading=14,
+                    alignment=4  # Justify
+                )
+
+                # Parse and render the generated content using markdown-it
+                generated_content = report_data['generated_content']
+
+                # Initialize markdown parser
+                md = MarkdownIt()
+                tokens = md.parse(generated_content)
+
+                # Define styles for different elements
+                h1_style = ParagraphStyle(
+                    'STINGH1',
+                    parent=styles['Heading1'],
+                    fontSize=16,
+                    textColor=STING_BLUE,
+                    spaceAfter=12,
+                    spaceBefore=20
+                )
+                h2_style = ParagraphStyle(
+                    'STINGH2',
+                    parent=styles['Heading2'],
+                    fontSize=14,
+                    textColor=STING_BLUE,
+                    spaceAfter=10,
+                    spaceBefore=16
+                )
+                h3_style = ParagraphStyle(
+                    'STINGH3',
+                    parent=styles['Heading3'],
+                    fontSize=13,
+                    textColor=STING_BLUE,
+                    spaceAfter=8,
+                    spaceBefore=12
+                )
+                bullet_style = ParagraphStyle(
+                    'STINGBullet',
+                    parent=styles['Normal'],
+                    fontSize=11,
+                    textColor=STING_DARK,
+                    leftIndent=20,
+                    bulletIndent=10,
+                    spaceAfter=4
+                )
+
+                # Process tokens and build story
+                current_list_items = []
+                i = 0
+                while i < len(tokens):
+                    token = tokens[i]
+
+                    if token.type == 'heading_open':
+                        level = int(token.tag[1])  # h1 -> 1, h2 -> 2, etc.
+                        i += 1
+                        if i < len(tokens) and tokens[i].type == 'inline':
+                            text = self._render_inline_markdown(tokens[i].children) if tokens[i].children else tokens[i].content
+                            if level == 1:
+                                story.append(Paragraph(text, h1_style))
+                            elif level == 2:
+                                story.append(Paragraph(text, h2_style))
+                            else:
+                                story.append(Paragraph(text, h3_style))
+                        i += 1  # Skip heading_close
+
+                    elif token.type == 'paragraph_open':
+                        i += 1
+                        if i < len(tokens) and tokens[i].type == 'inline':
+                            text = self._render_inline_markdown(tokens[i].children) if tokens[i].children else tokens[i].content
+                            if text.strip():
+                                story.append(Paragraph(text, content_style))
+                        i += 1  # Skip paragraph_close
+
+                    elif token.type == 'bullet_list_open':
+                        current_list_items = []
+                        i += 1
+                        # Collect all list items
+                        while i < len(tokens) and tokens[i].type != 'bullet_list_close':
+                            if tokens[i].type == 'list_item_open':
+                                i += 1
+                                if i < len(tokens) and tokens[i].type == 'paragraph_open':
+                                    i += 1
+                                    if i < len(tokens) and tokens[i].type == 'inline':
+                                        text = self._render_inline_markdown(tokens[i].children) if tokens[i].children else tokens[i].content
+                                        story.append(Paragraph(f"• {text}", bullet_style))
+                            i += 1
+
+                    else:
+                        i += 1
+
                 story.append(Spacer(1, 0.4*inch))
 
             # Professional Data Table
@@ -410,7 +631,7 @@ class ReportWorker:
             )
             generation_time = datetime.now().strftime('%B %d, %Y at %I:%M %p')
             story.append(Paragraph(
-                f"🐝 <b>STING Platform</b> • Generated on {generation_time} • "
+                f"<b>STING Platform</b> • Generated on {generation_time} • "
                 f"Secure Intelligence & Analytics",
                 footer_style
             ))

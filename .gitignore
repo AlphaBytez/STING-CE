@@ -113,3 +113,13 @@ tailscale-auth-*
 tailscale-auth.local
 .tailscale/
 # But DO commit the setup scripts and devcontainer config
+
+# Testing and development files
+QUICK_TEST.md
+TESTING_*.md
+TEST_*.md
+BROWSER_TEST.js
+REBUILD_SERVICES.sh
+*_output.txt
+**/test_request_classifier.py
+.claude/

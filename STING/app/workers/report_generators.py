@@ -456,3 +456,127 @@ class HealthcareComplianceGenerator(BaseReportGenerator):
                 'Schedule quarterly compliance audits'
             ]
         }
+
+
+class BeeConversationalReportGenerator(BaseReportGenerator):
+    """Generator for Bee conversational reports - handles complex queries routed from chat"""
+
+    async def collect_data(self) -> Dict[str, Any]:
+        """Call external-ai service to generate the long-form content"""
+        try:
+            user_query = self.parameters.get('user_query', '')
+            conversation_id = self.parameters.get('conversation_id')
+            context = self.parameters.get('context', {})
+
+            logger.info(f"Generating Bee conversational report for query: {user_query[:100]}...")
+
+            # Prepare request for external-ai service
+            external_ai_url = os.environ.get('EXTERNAL_AI_SERVICE_URL', 'http://external-ai:8091')
+
+            # Call Bee chat with special report generation context
+            response = requests.post(
+                f"{external_ai_url}/bee/chat",
+                json={
+                    'message': user_query,
+                    'user_id': self.user_id,  # Required field
+                    'conversation_id': conversation_id,
+                    'context': {
+                        **context,
+                        'generation_mode': 'report',
+                        'output_format': 'detailed_markdown',
+                        'bypass_token_limit': True  # Allow full generation
+                    },
+                    'require_auth': False  # Auth already validated
+                },
+                timeout=180  # Allow up to 3 minutes for report generation
+            )
+
+            if response.status_code != 200:
+                logger.error(f"External AI service returned {response.status_code}: {response.text}")
+                raise Exception(f"Failed to generate report content: {response.status_code}")
+
+            response_data = response.json()
+            bee_response = response_data.get('response', '')
+
+            if not bee_response:
+                raise Exception("Empty response from Bee service")
+
+            logger.info(f"Successfully generated {len(bee_response)} characters of report content")
+
+            return {
+                'user_query': user_query,
+                'conversation_id': conversation_id,
+                'bee_response': bee_response,
+                'response_metadata': response_data.get('metadata', {}),
+                'word_count': len(bee_response.split()),
+                'char_count': len(bee_response)
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to collect data for Bee conversational report: {e}")
+            raise
+
+    async def process_data(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process the Bee response into structured report format"""
+        bee_response = raw_data.get('bee_response', '')
+        user_query = raw_data.get('user_query', '')
+
+        return {
+            'report_type': 'bee_conversational',
+            'title': f"Report: {user_query[:100]}",
+            'generated_content': bee_response,
+            'executive_summary': self._extract_summary(bee_response),
+            'metadata': {
+                'word_count': raw_data.get('word_count', 0),
+                'char_count': raw_data.get('char_count', 0),
+                'conversation_id': raw_data.get('conversation_id'),
+                'original_query': user_query
+            },
+            'content_sections': self._parse_sections(bee_response)
+        }
+
+    def _extract_summary(self, content: str) -> str:
+        """Extract or generate a brief summary from the content"""
+        lines = content.split('\n')
+        summary_lines = []
+        char_count = 0
+
+        for line in lines:
+            if char_count + len(line) > 500:
+                break
+            if line.strip():
+                summary_lines.append(line.strip())
+                char_count += len(line)
+
+        summary = ' '.join(summary_lines)
+        if len(content) > 500:
+            summary += '...'
+
+        return summary
+
+    def _parse_sections(self, content: str) -> List[Dict[str, str]]:
+        """Parse markdown content into sections"""
+        sections = []
+        current_section = {'title': 'Introduction', 'content': []}
+
+        for line in content.split('\n'):
+            if line.startswith('##'):
+                if current_section['content']:
+                    sections.append({
+                        'title': current_section['title'],
+                        'content': '\n'.join(current_section['content'])
+                    })
+                current_section = {
+                    'title': line.replace('#', '').strip(),
+                    'content': []
+                }
+            else:
+                current_section['content'].append(line)
+
+        if current_section['content']:
+            sections.append({
+                'title': current_section['title'],
+                'content': '\n'.join(current_section['content'])
+            })
+
+        return sections
