@@ -50,6 +50,12 @@ htmlcov/
 *.local
 config.local.yml
 
+# Generated config files (built from templates with hostnames)
+STING/kratos/kratos.yml
+STING/frontend/public/env.js
+STING/app/static/env.js
+STING/client-certs/*
+
 # LLM Model Files (but NOT Python app/models code!)
 *.gguf
 *.bin
@@ -123,3 +129,7 @@ REBUILD_SERVICES.sh
 *_output.txt
 **/test_request_classifier.py
 .claude/
+client-certs/install-ca-linux.sh
+client-certs/install-ca-mac.sh
+client-certs/install-ca-windows.ps1
+client-certs/install-ca-linux.sh
