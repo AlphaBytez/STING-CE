@@ -349,9 +349,10 @@ prompt_admin_configuration() {
 
     # Get admin email
     local admin_email
+    local default_email="admin@${STING_HOSTNAME}"
     while true; do
-        read -p "Admin email address [admin@sting.local]: " admin_email
-        admin_email=${admin_email:-admin@sting.local}
+        read -p "Admin email address [${default_email}]: " admin_email
+        admin_email=${admin_email:-${default_email}}
 
         # Basic email validation
         if [[ "$admin_email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
@@ -4225,9 +4226,10 @@ setup_admin_user_interactive() {
     
     # Get admin email
     local admin_email
+    local default_email="admin@${STING_HOSTNAME}"
     while true; do
-        read -p "Enter admin email address [admin@sting.local]: " admin_email
-        admin_email=${admin_email:-admin@sting.local}
+        read -p "Enter admin email address [${default_email}]: " admin_email
+        admin_email=${admin_email:-${default_email}}
         
         # Basic email validation
         if [[ "$admin_email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
@@ -4258,7 +4260,7 @@ setup_admin_user_interactive() {
 
 # Create passwordless admin user - creates identity only, no password
 create_passwordless_admin_user() {
-    local email="${1:-admin@sting.local}"
+    local email="${1:-admin@${STING_HOSTNAME}}"
     
     log_message "Creating passwordless admin user: $email"
     
