@@ -995,32 +995,39 @@ else
     log_message "✅ No existing installation found" "SUCCESS"
   fi
 
-  # Kill any existing sudo keepalive processes from previous failed installations
-  log_message "Cleaning up any stale sudo keepalive processes..." "INFO"
-  pkill -f "while true; do sudo -v; sleep" 2>/dev/null || true
+  # Check if global sudo keepalive is already running
+  # If it is, we don't need to start another one (prevents duplicate processes)
+  if [ -n "${SUDO_KEEPALIVE_PID:-}" ] && kill -0 "$SUDO_KEEPALIVE_PID" 2>/dev/null; then
+    log_message "✅ Global sudo keepalive already active (PID: $SUDO_KEEPALIVE_PID)" "SUCCESS"
+  else
+    # Kill any existing sudo keepalive processes from previous failed installations
+    log_message "Cleaning up any stale sudo keepalive processes..." "INFO"
+    pkill -f "while true; do sudo -v; sleep" 2>/dev/null || true
 
-  # Keep sudo session alive in background during installation
-  # This prevents timeout during long operations
-  # Use sudo -n to avoid TouchID prompts on macOS
-  (while true; do
-    # Only refresh if sudo is about to expire (test without prompting)
-    if ! sudo -n true 2>/dev/null; then
-      # Sudo expired, refresh it (this may prompt on first run only)
-      sudo -v 2>/dev/null || exit 1
-    fi
-    sleep 50
-  done) &
-  SUDO_KEEPALIVE_PID=$!
+    # Keep sudo session alive in background during installation
+    # This prevents timeout during long operations
+    # Use sudo -n to avoid TouchID prompts on macOS
+    (while true; do
+      # Only refresh if sudo is about to expire (test without prompting)
+      if ! sudo -n true 2>/dev/null; then
+        # Sudo expired, refresh it (this may prompt on first run only)
+        sudo -v 2>/dev/null || exit 1
+      fi
+      sleep 50
+    done) &
+    CLI_SUDO_KEEPALIVE_PID=$!
+    log_message "✅ CLI sudo keepalive started (PID: $CLI_SUDO_KEEPALIVE_PID)" "SUCCESS"
+  fi
 
   # Cleanup function to kill sudo keepalive (both global and CLI-specific)
   cleanup_sudo() {
     # First, cleanup the global keepalive (started at top level)
     cleanup_global_keepalive 2>/dev/null || true
-    
-    # Then cleanup the CLI-specific keepalive (if it exists)
-    if [ -n "${SUDO_KEEPALIVE_PID:-}" ]; then
-      kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
-      pkill -P "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+
+    # Then cleanup the CLI-specific keepalive (if it exists and is different from global)
+    if [ -n "${CLI_SUDO_KEEPALIVE_PID:-}" ]; then
+      kill "$CLI_SUDO_KEEPALIVE_PID" 2>/dev/null || true
+      pkill -P "$CLI_SUDO_KEEPALIVE_PID" 2>/dev/null || true
     fi
   }
   # NOTE: This trap overrides the global cleanup_global_keepalive trap,
