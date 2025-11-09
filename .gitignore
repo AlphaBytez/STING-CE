@@ -55,6 +55,7 @@ STING/kratos/kratos.yml
 STING/frontend/public/env.js
 STING/app/static/env.js
 STING/client-certs/*
+STING/test-certs/
 
 # LLM Model Files (but NOT Python app/models code!)
 *.gguf
