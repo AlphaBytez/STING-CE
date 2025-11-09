@@ -493,16 +493,25 @@ const PasskeyManagerDirect = ({ isEnrollmentMode = false, onSetupComplete = null
               
               // Emit event to trigger AAL status refresh across the app
               window.dispatchEvent(new CustomEvent('aal-status-refresh'));
-              
+
               console.log('✅ Session and AAL status refreshed successfully');
+
+              // Auto-reload after brief delay for non-enrollment mode to show success message
+              // This prevents the "Leave site?" dialog and ensures clean UI state
+              if (!isEnrollmentMode) {
+                console.log('🔄 Auto-reloading page to refresh UI state...');
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1500); // 1.5 second delay to show success message
+              }
             } catch (refreshError) {
               console.error('⚠️ Error refreshing session after passkey registration:', refreshError);
               // Don't fail the registration, just log the error
             }
-            
-            // Note: Removed automatic navigation to prevent "Leave site?" dialog
-            // The user should stay on the enrollment page in enrollment mode
-            console.log(`🔐 Passkey registration completed, ${isEnrollmentMode ? 'staying on enrollment page' : 'staying on settings page'}`);
+
+            // Note: In enrollment mode, the callback handles navigation
+            // In settings mode, we auto-reload to prevent "Leave site?" dialog
+            console.log(`🔐 Passkey registration completed, ${isEnrollmentMode ? 'enrollment callback triggered' : 'page will auto-reload'}`);
           }
         } catch (err) {
           console.error('Error checking for new passkey:', err);

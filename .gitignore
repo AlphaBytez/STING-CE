@@ -48,6 +48,10 @@ htmlcov/
 
 # Local config
 *.local
+
+# Generated configuration files (use .default templates instead)
+conf/config.yml
+kratos/kratos.yml
 config.local.yml
 
 # Generated config files (built from templates with hostnames)
@@ -60,7 +64,7 @@ STING/test-certs/
 # LLM Model Files (but NOT Python app/models code!)
 *.gguf
 *.bin
-*.safetensors
+*.safetensors 
 # Only ignore LLM model directories, not app/models
 llm_service/models/
 llm-models/

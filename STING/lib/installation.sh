@@ -220,7 +220,7 @@ prompt_llm_configuration() {
 
             # Test OpenAI-compatible /v1/models endpoint
             local test_url="${llm_endpoint%/}/v1/models"
-            if timeout 5 curl -sf "$test_url" >/dev/null 2>&1; then
+            if curl -sf --max-time 5 "$test_url" >/dev/null 2>&1; then
                 log_message "✅ LLM endpoint is reachable at: $llm_endpoint"
                 endpoint_valid=true
             else
@@ -3208,11 +3208,23 @@ configure_hostname() {
     log_message "Updating config.yml with hostname..."
     if [ -f "${INSTALL_DIR}/conf/config.yml" ]; then
         if [[ "$(uname)" == "Darwin" ]]; then
+            # Update system domain
             sed -i '' "s/^  domain: .*/  domain: $STING_HOSTNAME/" "${INSTALL_DIR}/conf/config.yml"
+            # Update WebAuthn RP ID (multiple locations in config)
+            sed -i '' "s/rp_id: *\"[^\"]*\"/rp_id: \"$STING_HOSTNAME\"/g" "${INSTALL_DIR}/conf/config.yml"
+            sed -i '' "s/rp_id: *\"\${HOSTNAME:-[^}]*}\"/rp_id: \"\${HOSTNAME:-$STING_HOSTNAME}\"/g" "${INSTALL_DIR}/conf/config.yml"
+            # Update WebAuthn origins
+            sed -i '' "s|https://[^:\"]*:8443|https://$STING_HOSTNAME:8443|g" "${INSTALL_DIR}/conf/config.yml"
         else
+            # Update system domain
             sed -i "s/^  domain: .*/  domain: $STING_HOSTNAME/" "${INSTALL_DIR}/conf/config.yml"
+            # Update WebAuthn RP ID (multiple locations in config)
+            sed -i "s/rp_id: *\"[^\"]*\"/rp_id: \"$STING_HOSTNAME\"/g" "${INSTALL_DIR}/conf/config.yml"
+            sed -i "s/rp_id: *\"\${HOSTNAME:-[^}]*}\"/rp_id: \"\${HOSTNAME:-$STING_HOSTNAME}\"/g" "${INSTALL_DIR}/conf/config.yml"
+            # Update WebAuthn origins
+            sed -i "s|https://[^:\"]*:8443|https://$STING_HOSTNAME:8443|g" "${INSTALL_DIR}/conf/config.yml"
         fi
-        log_message "✅ Updated config.yml domain to: $STING_HOSTNAME"
+        log_message "✅ Updated config.yml domain and WebAuthn RP_ID to: $STING_HOSTNAME"
     else
         log_message "⚠️ config.yml not found, skipping domain update" "WARNING"
     fi
