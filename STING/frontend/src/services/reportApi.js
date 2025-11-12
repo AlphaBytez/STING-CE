@@ -55,9 +55,16 @@ class ReportApiService {
             if (status) queryParams.status = status;
             if (search) queryParams.search = search;
 
+            // Add cache-busting timestamp to ensure fresh data for progress updates
+            queryParams._t = Date.now();
+
             const response = await apiClient.get(`${REPORT_BASE_URL}/`, {
                 params: queryParams,
-                timeout: 15000
+                timeout: 15000,
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache'
+                }
             });
 
             // If authenticated but no reports in database, add demo reports

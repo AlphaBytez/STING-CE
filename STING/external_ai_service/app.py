@@ -219,67 +219,66 @@ class OllamaClient:
             return []  # Return empty list for startup robustness
     
     async def generate(self, model: str, prompt: str, options: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Generate text (supports both OpenAI-compatible and Ollama native APIs)"""
+        """Generate text using OpenAI-compatible API only (/v1/chat/completions)"""
         try:
-            async with aiohttp.ClientSession() as session:
-                # Try OpenAI-compatible API first (LM Studio, vLLM, Ollama OpenAI mode)
-                try:
-                    import time
-                    start_time = time.time()
+            import time
+            start_time = time.time()
 
-                    openai_payload = {
-                        "model": model,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "stream": False,
-                        "temperature": options.get("temperature", 0.7) if options else 0.7,
-                        "max_tokens": options.get("num_predict", 2048) if options else 2048
-                    }
+            max_tokens_value = options.get("num_predict", 2048) if options else 2048
 
-                    async with session.post(
-                        f"{self.base_url}/v1/chat/completions",
-                        json=openai_payload
-                    ) as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            # Calculate duration since OpenAI API doesn't provide it
-                            duration_ns = int((time.time() - start_time) * 1e9)
+            # Set timeout for LLM generation
+            # Conservative timeout for long-form report generation (up to 16K tokens)
+            # At ~10 tokens/sec, 16K tokens ≈ 27 minutes. Set to 45 min for safety.
+            timeout_seconds = 2700  # 45 minutes - reports are queued, so longer timeout is acceptable
+            # Set total timeout but sock_read=None for non-streaming responses
+            # In non-streaming mode, LM Studio doesn't send data until fully generated
+            # so sock_read needs to be unlimited (None) to avoid timeout during generation
+            timeout = aiohttp.ClientTimeout(total=timeout_seconds, sock_read=None)
 
-                            # Convert OpenAI format to Ollama format for compatibility
-                            logger.info(f"✅ OpenAI-compatible API successful for model {model}")
-                            return {
-                                "response": data["choices"][0]["message"]["content"],
-                                "model": data.get("model", model),
-                                "created_at": data.get("created", ""),
-                                "done": True,
-                                "eval_count": data.get("usage", {}).get("completion_tokens", 0),
-                                "total_duration": duration_ns
-                            }
-                        else:
-                            logger.warning(f"OpenAI API returned status {response.status}, falling back to Ollama native")
-                except Exception as e:
-                    logger.info(f"OpenAI-compatible API not available ({str(e)}), trying Ollama native API")
-                    pass  # Fall through to Ollama native API
+            openai_payload = {
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": False,
+                "temperature": options.get("temperature", 0.7) if options else 0.7,
+                "max_tokens": max_tokens_value
+            }
+            logger.info(f"📤 Sending to LLM: max_tokens={max_tokens_value}, model={model}, timeout={timeout_seconds}s")
 
-                # Fall back to Ollama native API
-                ollama_payload = {
-                    "model": model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": options or {}
-                }
-
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
-                    f"{self.base_url}/api/generate",
-                    json=ollama_payload
+                    f"{self.base_url}/v1/chat/completions",
+                    json=openai_payload
                 ) as response:
                     if response.status == 200:
-                        return await response.json()
+                        data = await response.json()
+                        # Calculate duration since OpenAI API doesn't provide it
+                        duration_ns = int((time.time() - start_time) * 1e9)
+
+                        # Convert OpenAI format to Ollama format for compatibility
+                        completion_tokens = data.get("usage", {}).get("completion_tokens", 0)
+                        finish_reason = data.get("choices", [{}])[0].get("finish_reason", "unknown")
+                        logger.info(f"✅ OpenAI-compatible API successful for model {model}")
+                        logger.info(f"📊 Token usage: completion={completion_tokens}, requested_max={max_tokens_value}, finish_reason={finish_reason}")
+                        return {
+                            "response": data["choices"][0]["message"]["content"],
+                            "model": data.get("model", model),
+                            "created_at": data.get("created", ""),
+                            "done": True,
+                            "eval_count": completion_tokens,
+                            "total_duration": duration_ns
+                        }
                     else:
                         error_text = await response.text()
-                        raise HTTPException(status_code=response.status, detail=error_text)
+                        logger.error(f"❌ OpenAI API returned status {response.status}: {error_text}")
+                        raise HTTPException(status_code=response.status, detail=f"LLM API error: {error_text}")
+        except HTTPException:
+            raise
         except Exception as e:
+            import traceback
             logger.error(f"Failed to generate: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            logger.error(f"Exception type: {type(e).__name__}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
 
 # Initialize Ollama client
 ollama_client = OllamaClient()
@@ -312,6 +311,17 @@ if PIIMiddleware is not None:
                     'temperature': conversation_config.get('temperature', 0.7),
                 })
                 logger.info(f"LLM config loaded: max_tokens={llm_config['max_tokens']}, temperature={llm_config['temperature']}")
+
+                # Load report generation configuration
+                llm_service_config = app_config.get('llm_service', {})
+                report_gen_config = llm_service_config.get('report_generation', {})
+                llm_config.update({
+                    'report_model': report_gen_config.get('model', 'microsoft/phi-4-mini-reasoning'),
+                    'report_fallback_model': report_gen_config.get('fallback_model', 'microsoft/phi-4-mini-reasoning'),
+                    'report_max_tokens': report_gen_config.get('max_tokens', 8192),
+                    'report_min_output_tokens': report_gen_config.get('min_output_tokens', 4500),
+                })
+                logger.info(f"Report generation config loaded: model={llm_config['report_model']}, max_tokens={llm_config['report_max_tokens']}")
 
                 # Initialize mode detector for intelligent PII protection mode selection
                 if ModeDetector is not None:
@@ -645,10 +655,29 @@ async def bee_chat(request: BeeChatRequest):
             model_name = default_model
         
         # Detect if user is asking for a report
-        report_keywords = ["generate report", "create report", "report on", "analyze", "summary report", "detailed analysis"]
-        is_report_request = any(keyword in request.message.lower() for keyword in report_keywords)
-        
+        # Check context first (explicit report generation from report worker)
+        is_report_request = request.context and request.context.get('generation_mode') == 'report'
+
+        # If not explicitly set in context, check keywords in message
+        if not is_report_request:
+            report_keywords = ["generate report", "create report", "report on", "analyze", "summary report", "detailed analysis", "word analysis", "word report"]
+            is_report_request = any(keyword in request.message.lower() for keyword in report_keywords)
+
         if is_report_request:
+            # Override model for report generation - use model from config (user-editable in config.yml)
+            report_model = llm_config.get('report_model', model_name)
+            fallback_model = llm_config.get('report_fallback_model', model_name)
+            logger.info(f"🔄 Switching to report-optimized model: {report_model} (from {model_name})")
+
+            # Verify report model is available, fall back if necessary
+            if report_model in available_models:
+                model_name = report_model
+            elif fallback_model in available_models:
+                logger.warning(f"Report model '{report_model}' not available, using fallback: {fallback_model}")
+                model_name = fallback_model
+            else:
+                logger.warning(f"Neither report model '{report_model}' nor fallback '{fallback_model}' available, using default: {model_name}")
+
             # Handle as report generation with enhanced context
             enhanced_prompt = await bee_context_manager.build_enhanced_prompt(
                 request.message,
@@ -660,28 +689,57 @@ async def bee_chat(request: BeeChatRequest):
 
             report_prompt = f"""{enhanced_prompt}
 
-Since this is a report request, please generate a comprehensive report that includes:
+You are generating a professional enterprise report. This MUST be a comprehensive, detailed document.
 
-1. **Executive Summary**
-   - Brief overview of the analysis
-   - Key findings at a glance
+CRITICAL REQUIREMENTS - YOU MUST FOLLOW THESE:
+1. Minimum length: 3500-5000 words (approximately 4500-7000 tokens)
+2. Each major section MUST contain 4-6 substantial paragraphs with specific details
+3. DO NOT use LaTeX notation like \\boxed{{}} - write in plain professional prose
+4. DO NOT stop until you have thoroughly covered all sections with extensive detail
+5. Provide concrete examples, data points, and technical specifics throughout
 
-2. **Detailed Analysis**
-   - In-depth examination of the topic
-   - Data points and insights
-   - Technical details where relevant
+REQUIRED STRUCTURE (follow this exactly):
 
-3. **Recommendations**
-   - Actionable next steps
-   - Best practices
-   - Risk mitigation strategies
+1. **Executive Summary** (400-600 words)
+   Write 4-5 detailed paragraphs covering:
+   - Comprehensive overview of the analysis scope and methodology
+   - All key findings with specific metrics and observations
+   - Critical implications and business impact
+   - High-level recommendations summary
 
-4. **Conclusion**
-   - Summary of key takeaways
-   - Future considerations
+2. **Detailed Analysis** (1500-2000 words minimum)
+   Write 6-8 comprehensive paragraphs covering:
+   - In-depth technical examination with specific architecture details
+   - Multiple data points, configurations, and system behaviors
+   - Security analysis with threat models and mitigation details
+   - Performance characteristics and scalability considerations
+   - Integration points and API specifications
+   - Detailed technical workflows and data flows
 
-Format the response as a structured report with clear sections and professional tone.
-Include relevant security considerations where applicable.
+3. **Recommendations** (800-1200 words)
+   Write 5-7 detailed paragraphs covering:
+   - Specific, actionable next steps with implementation details
+   - Best practices with concrete examples
+   - Risk mitigation strategies with prioritization
+   - Resource requirements and timelines
+   - Success metrics and monitoring approaches
+
+4. **Conclusion** (400-600 words)
+   Write 4-5 paragraphs covering:
+   - Comprehensive summary of all key findings
+   - Strategic implications for the organization
+   - Future roadmap and evolution considerations
+   - Final recommendations prioritized by impact
+
+FORMATTING RULES:
+- Use markdown headers (##) for sections
+- Write in clear, professional business prose
+- Include specific technical details and examples
+- Avoid brevity - elaborate thoroughly on each point
+- NO mathematical notation or LaTeX formatting
+- Maintain professional enterprise report tone throughout
+
+Begin the report now. Remember: This must be thorough and comprehensive with substantial detail in every section.
 """
 
             # PII Protection: Serialize before sending to LLM
@@ -710,12 +768,22 @@ Include relevant security considerations where applicable.
                     logger.error(f"PII serialization failed: {e}")
                     # Continue without serialization on error
 
-            result = await ollama_client.generate(model_name, report_prompt)
+            # Prepare LLM options with higher max_tokens for comprehensive reports
+            report_llm_options = {
+                'num_predict': llm_config.get('report_max_tokens', 8192),  # Higher limit for detailed reports
+                'temperature': llm_config.get('temperature', 0.7),
+            }
+            logger.info(f"🔍 Report generation: num_predict={report_llm_options['num_predict']}, model={model_name}")
+
+            result = await ollama_client.generate(model_name, report_prompt, report_llm_options)
 
             # Strip <think> tags from response (internal reasoning not shown to user)
             import re
             raw_response = result.get("response", "")
+            # Remove complete think blocks
             clean_response = re.sub(r'<think>.*?</think>\s*', '', raw_response, flags=re.DOTALL)
+            # Remove orphaned/malformed think tags (opening or closing without pair)
+            clean_response = re.sub(r'</?think>\s*', '', clean_response, flags=re.DOTALL)
             # Remove "User:" and "Bee:" labels that the model might echo back
             clean_response = re.sub(r'^User:\s*.*?\n\nBee:\s*', '', clean_response, flags=re.DOTALL | re.MULTILINE)
             clean_response = re.sub(r'^User:\s*', '', clean_response, flags=re.MULTILINE)
@@ -724,6 +792,14 @@ Include relevant security considerations where applicable.
             clean_response = re.sub(r'^\s*[,)}\]]\s*', '', clean_response, flags=re.MULTILINE)  # Remove leading punctuation
             clean_response = re.sub(r'\n\s*[,)}\]]\s*\n', '\n', clean_response)  # Remove punctuation on its own line
             clean_response = re.sub(r'\s+([,)}\]])\s+', r'\1 ', clean_response)  # Fix spacing around punctuation
+
+            # Remove LaTeX notation and mathematical formatting (reports should be plain prose)
+            clean_response = re.sub(r'\\boxed\{([^}]*)\}', r'\1', clean_response)  # Remove \boxed{content} -> content
+            clean_response = re.sub(r'\\text\{([^}]*)\}', r'\1', clean_response)  # Remove \text{content} -> content
+            clean_response = re.sub(r'\$\$[^$]*\$\$', '', clean_response)  # Remove display math $$...$$
+            clean_response = re.sub(r'\$[^$]*\$', '', clean_response)  # Remove inline math $...$
+            clean_response = re.sub(r'\\[a-zA-Z]+\{[^}]*\}', '', clean_response)  # Remove other LaTeX commands
+            clean_response = re.sub(r'Final Answer[:\s]*', '', clean_response, flags=re.IGNORECASE)  # Remove "Final Answer:" prefix
 
             # PII Protection: Deserialize response with enhanced metadata for visual indicators
             pii_protected_metadata = None
@@ -841,6 +917,8 @@ Include relevant security considerations where applicable.
             raw_response = result.get("response", "")
             # Remove everything between <think> and </think> tags, including the tags
             clean_response = re.sub(r'<think>.*?</think>\s*', '', raw_response, flags=re.DOTALL)
+            # Remove orphaned/malformed think tags (opening or closing without pair)
+            clean_response = re.sub(r'</?think>\s*', '', clean_response, flags=re.DOTALL)
             # Also remove "Explanation:" sections that Phi-4 sometimes adds
             clean_response = re.sub(r'\n\s*Explanation:.*', '', clean_response, flags=re.DOTALL)
             # Remove "Reasoning:" sections too
@@ -853,6 +931,14 @@ Include relevant security considerations where applicable.
             clean_response = re.sub(r'^\s*[,)}\]]\s*', '', clean_response, flags=re.MULTILINE)  # Remove leading punctuation
             clean_response = re.sub(r'\n\s*[,)}\]]\s*\n', '\n', clean_response)  # Remove punctuation on its own line
             clean_response = re.sub(r'\s+([,)}\]])\s+', r'\1 ', clean_response)  # Fix spacing around punctuation
+
+            # Remove LaTeX notation and mathematical formatting (reports should be plain prose)
+            clean_response = re.sub(r'\\boxed\{([^}]*)\}', r'\1', clean_response)  # Remove \boxed{content} -> content
+            clean_response = re.sub(r'\\text\{([^}]*)\}', r'\1', clean_response)  # Remove \text{content} -> content
+            clean_response = re.sub(r'\$\$[^$]*\$\$', '', clean_response)  # Remove display math $$...$$
+            clean_response = re.sub(r'\$[^$]*\$', '', clean_response)  # Remove inline math $...$
+            clean_response = re.sub(r'\\[a-zA-Z]+\{[^}]*\}', '', clean_response)  # Remove other LaTeX commands
+            clean_response = re.sub(r'Final Answer[:\s]*', '', clean_response, flags=re.IGNORECASE)  # Remove "Final Answer:" prefix
 
             # PII Protection: Deserialize response with enhanced metadata for visual indicators
             pii_protected_metadata = None
@@ -1270,38 +1356,98 @@ async def process_report_request(request: QueuedRequest) -> Dict[str, Any]:
     payload = request.payload
     
     # Similar to existing report generation logic
-    prompt = f"""
-Generate a comprehensive report for template: {payload.get('templateId')}
+    prompt = f"""CRITICAL INSTRUCTION: Generate an EXTREMELY comprehensive, detailed report. This is a professional-grade analytical document that must be thorough and exhaustive. DO NOT write a brief summary - this requires substantial depth and analysis.
 
-Data Sources: {', '.join(payload.get('dataSources', []))}
-Privacy Level: {payload.get('privacyLevel')}
-Required Fields: {json.dumps(payload.get('requiredFields', {}), indent=2)}
+REPORT REQUIREMENTS:
+- Template: {payload.get('templateId')}
+- Data Sources: {', '.join(payload.get('dataSources', []))}
+- Privacy Level: {payload.get('privacyLevel')}
+- Required Fields: {json.dumps(payload.get('requiredFields', {}), indent=2)}
 
-Please provide:
-1. Executive Summary
-2. Key Findings
-3. Detailed Analysis
-4. Recommendations
-5. Conclusion
+MANDATORY SECTIONS (Each section must be detailed and comprehensive):
 
-Format the response as a structured report.
+1. EXECUTIVE SUMMARY (minimum 500 words)
+   - Provide a thorough overview covering all key aspects
+   - Include context, scope, and high-level findings
+   - Summarize critical insights and recommendations
+   - DO NOT make this brief - it should be substantial
+
+2. DETAILED FINDINGS (minimum 2000 words)
+   - Present comprehensive analysis of all data sources
+   - Include specific examples, metrics, and observations
+   - Break down findings by category with detailed subsections
+   - Provide context and interpretation for each finding
+   - Include quantitative and qualitative analysis
+
+3. IN-DEPTH TECHNICAL ANALYSIS (minimum 2000 words)
+   - Conduct thorough examination of technical aspects
+   - Analyze patterns, trends, and correlations
+   - Discuss methodology and analytical approaches
+   - Present detailed evidence supporting conclusions
+   - Include comparative analysis where relevant
+
+4. COMPREHENSIVE RECOMMENDATIONS (minimum 1500 words)
+   - Provide detailed, actionable recommendations
+   - Explain rationale and expected outcomes for each
+   - Include implementation considerations and priorities
+   - Discuss potential challenges and mitigation strategies
+   - Present both short-term and long-term recommendations
+
+5. RISK ASSESSMENT & CONSIDERATIONS (minimum 1000 words)
+   - Analyze potential risks and vulnerabilities
+   - Evaluate likelihood and impact of identified risks
+   - Discuss compliance and regulatory considerations
+   - Provide risk mitigation strategies
+
+6. CONCLUSION & NEXT STEPS (minimum 500 words)
+   - Synthesize key points from the entire analysis
+   - Provide clear, actionable next steps
+   - Include timeline and resource considerations
+   - Summarize critical takeaways
+
+WRITING REQUIREMENTS:
+- Write in a professional, analytical tone
+- Use specific examples and concrete details throughout
+- Include relevant technical terminology appropriately
+- Structure with clear headings and subheadings
+- Ensure logical flow between sections
+- Maintain depth and substance in every section
+- DO NOT stop writing until all sections are thoroughly covered
+- Target total length: 10,000+ words for comprehensive coverage
+
+BEGIN COMPREHENSIVE REPORT:
 """
     
     # Get available models and use the appropriate one
-    models = await ollama_client.list_models()
+    models = await ollama_client.get_models()
     if not models:
         raise HTTPException(status_code=503, detail="No Ollama models available")
-    
-    default_model = AI_PROVIDERS["ollama"]["defaultModel"]
+
+    # Use report-specific model from config
+    report_model = llm_config.get('report_model', AI_PROVIDERS["ollama"]["defaultModel"])
+    report_fallback = llm_config.get('report_fallback_model', AI_PROVIDERS["ollama"]["defaultModel"])
     available_models = [m["name"] for m in models]
-    
-    if default_model not in available_models:
-        model = available_models[0]
-        logger.warning(f"Default model '{default_model}' not found, using {model}")
+
+    # Try report model first, then fallback, then first available
+    if report_model in available_models:
+        model = report_model
+        logger.info(f"Using configured report model: {model}")
+    elif report_fallback in available_models:
+        model = report_fallback
+        logger.warning(f"Report model '{report_model}' not found, using fallback: {model}")
     else:
-        model = default_model
-        
-    result = await ollama_client.generate(model, prompt)
+        model = available_models[0]
+        logger.warning(f"Neither report model '{report_model}' nor fallback found, using: {model}")
+
+    # Prepare options with report-specific max_tokens
+    report_max_tokens = llm_config.get('report_max_tokens', 8192)
+    options = {
+        "num_predict": report_max_tokens,
+        "temperature": 0.7
+    }
+    logger.info(f"Report generation: model={model}, max_tokens={report_max_tokens}")
+
+    result = await ollama_client.generate(model, prompt, options)
     
     return {
         "reportId": f"report_{request.request_id}",

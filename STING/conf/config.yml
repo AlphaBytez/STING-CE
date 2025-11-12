@@ -862,6 +862,24 @@ llm_service:
     enabled: true
     port: 8091
     ollama_endpoint: "http://100.103.191.31:11434/"
+
+  # Report Generation Configuration
+  # Configure which model to use for generating long-form reports
+  report_generation:
+    # Primary model for report generation (optimized for long-form content)
+    # Phi-4 Reasoning Plus: 14B model with 16K max output tokens (2x Qwen's 8K limit)
+    model: "microsoft/phi-4-reasoning-plus"  # Best for comprehensive reports, analytical reasoning
+    # Fallback model if report model is not available
+    fallback_model: "qwen2.5-14b-instruct"
+    # Maximum tokens for report generation (16K for comprehensive reports)
+    # Phi-4 supports full 16K output unlike Qwen (8K limit) or Llama (2K limit)
+    max_tokens: 16384
+    # Minimum expected output tokens (used for validation/warnings)
+    min_output_tokens: 8000
+    # Note: Reports are asynchronous and ephemeral (downloaded then cleared).
+    # Larger token limits produce more comprehensive analysis without storage concerns.
+    # Phi-4 Reasoning Plus optimized for analytical tasks and respects length requirements.
+
   default_model: ollama  # Use Ollama for local AI models
   
   # Hardware acceleration settings (cross-platform)

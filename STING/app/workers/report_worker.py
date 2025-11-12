@@ -150,16 +150,27 @@ class ReportWorker:
 
             report_data = await generator.generate()
 
+            # Update report title if a better one was generated
+            if 'title' in report_data and report_data['title'] != report_title:
+                with get_db_session() as session:
+                    report = get_report_by_id(session, report_id)
+                    if report:
+                        report.title = report_data['title']
+                        session.commit()
+                        logger.info(f"Updated report title to: {report_data['title']}")
+
             # Update progress after data collection
             self.report_service.update_progress(report_id, 65, "Content generated, formatting report...")
-            
+
             # Generate output file
             self.report_service.update_progress(report_id, 70, "Creating report file")
+            # Use the generated title if available for the filename
+            final_title = report_data.get('title', report_title)
             file_data = await self.create_output_file(
                 report_data,
                 report_output_format,
                 template_name,
-                report_title
+                final_title
             )
             
             # Save file to storage
@@ -454,9 +465,9 @@ class ReportWorker:
                     textColor=STING_DARK,
                     leftIndent=0,
                     rightIndent=0,
-                    spaceAfter=12,
-                    spaceBefore=6,
-                    leading=14,
+                    spaceAfter=16,
+                    spaceBefore=8,
+                    leading=16,
                     alignment=4  # Justify
                 )
 
@@ -473,33 +484,38 @@ class ReportWorker:
                     parent=styles['Heading1'],
                     fontSize=16,
                     textColor=STING_BLUE,
-                    spaceAfter=12,
-                    spaceBefore=20
+                    spaceAfter=16,
+                    spaceBefore=24,
+                    leading=20
                 )
                 h2_style = ParagraphStyle(
                     'STINGH2',
                     parent=styles['Heading2'],
                     fontSize=14,
                     textColor=STING_BLUE,
-                    spaceAfter=10,
-                    spaceBefore=16
+                    spaceAfter=14,
+                    spaceBefore=20,
+                    leading=18
                 )
                 h3_style = ParagraphStyle(
                     'STINGH3',
                     parent=styles['Heading3'],
                     fontSize=13,
                     textColor=STING_BLUE,
-                    spaceAfter=8,
-                    spaceBefore=12
+                    spaceAfter=12,
+                    spaceBefore=16,
+                    leading=16
                 )
                 bullet_style = ParagraphStyle(
                     'STINGBullet',
                     parent=styles['Normal'],
                     fontSize=11,
                     textColor=STING_DARK,
-                    leftIndent=20,
+                    leftIndent=25,
                     bulletIndent=10,
-                    spaceAfter=4
+                    spaceAfter=8,
+                    spaceBefore=4,
+                    leading=16
                 )
 
                 # Process tokens and build story

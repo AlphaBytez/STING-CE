@@ -67,7 +67,51 @@ class ReportService:
         except Exception as e:
             logger.error(f"Failed to connect to Redis: {e}")
             raise ReportServiceError(f"Redis connection failed: {str(e)}")
-    
+
+    def _generate_report_title(self, user_message: str) -> str:
+        """
+        Generate a concise, descriptive report title from user query.
+
+        Examples:
+        - "analyze sting platform security features including authentication frameworks"
+          -> "STING Platform Security Analysis"
+        - "provide a detailed breakdown of honey jar encryption mechanisms"
+          -> "Honey Jar Encryption Mechanisms"
+        - "what are the best practices for deploying sting in production"
+          -> "STING Production Deployment Best Practices"
+        """
+        # Extract first sentence (up to first punctuation)
+        first_sentence = user_message.split('.')[0].split('?')[0].split('!')[0].strip()
+
+        # Remove common question/request words and articles
+        stop_words = {
+            'analyze', 'provide', 'generate', 'create', 'give', 'show', 'tell', 'explain',
+            'what', 'how', 'why', 'when', 'where', 'who', 'which', 'could', 'would',
+            'me', 'a', 'an', 'the', 'of', 'for', 'to', 'in', 'on', 'at', 'with', 'about',
+            'are', 'is', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had',
+            'detailed', 'comprehensive', 'complete', 'full', 'breakdown', 'report', 'analysis'
+        }
+
+        # Split into words and filter
+        words = first_sentence.lower().split()
+        filtered_words = [w for w in words if w not in stop_words and len(w) > 2]
+
+        # Take up to 6 meaningful words
+        key_words = filtered_words[:6]
+
+        # Title case and join
+        title_text = ' '.join(word.capitalize() for word in key_words)
+
+        # Limit length and add prefix
+        if len(title_text) > 60:
+            title_text = title_text[:57] + "..."
+
+        # If title is too short or empty, use fallback
+        if len(title_text) < 10:
+            title_text = first_sentence[:60] + ("..." if len(first_sentence) > 60 else "")
+
+        return f"Report: {title_text}"
+
     def queue_report(self, report_id: str) -> Dict[str, Any]:
         """Queue a report for processing"""
         try:
@@ -465,12 +509,8 @@ class ReportService:
                     session.add(template)
                     session.flush()
 
-                # Generate report title from user message (first 100 chars)
-                title_preview = user_message[:100]
-                if len(user_message) > 100:
-                    title_preview += "..."
-
-                title = f"Bee Report: {title_preview}"
+                # Generate concise report title from user message
+                title = self._generate_report_title(user_message)
 
                 # Create the service-generated report
                 report = Report(

@@ -473,6 +473,10 @@ class BeeConversationalReportGenerator(BaseReportGenerator):
             # Prepare request for external-ai service
             external_ai_url = os.environ.get('EXTERNAL_AI_SERVICE_URL', 'http://external-ai:8091')
 
+            # Configurable timeout for report generation (default 15 minutes for comprehensive reports)
+            # Can be overridden via REPORT_GENERATION_TIMEOUT_SECONDS env var
+            report_timeout = int(os.environ.get('REPORT_GENERATION_TIMEOUT_SECONDS', '900'))
+
             # Call Bee chat with special report generation context
             response = requests.post(
                 f"{external_ai_url}/bee/chat",
@@ -488,7 +492,7 @@ class BeeConversationalReportGenerator(BaseReportGenerator):
                     },
                     'require_auth': False  # Auth already validated
                 },
-                timeout=180  # Allow up to 3 minutes for report generation
+                timeout=report_timeout  # Allow sufficient time for comprehensive report generation
             )
 
             if response.status_code != 200:
@@ -521,9 +525,12 @@ class BeeConversationalReportGenerator(BaseReportGenerator):
         bee_response = raw_data.get('bee_response', '')
         user_query = raw_data.get('user_query', '')
 
+        # Generate a concise, professional title using LLM
+        generated_title = await self._generate_title(bee_response, user_query)
+
         return {
             'report_type': 'bee_conversational',
-            'title': f"Report: {user_query[:100]}",
+            'title': generated_title,
             'generated_content': bee_response,
             'executive_summary': self._extract_summary(bee_response),
             'metadata': {
@@ -553,6 +560,101 @@ class BeeConversationalReportGenerator(BaseReportGenerator):
             summary += '...'
 
         return summary
+
+    async def _generate_title(self, content: str, original_query: str) -> str:
+        """Generate a concise, professional title using LLM based on report content"""
+        try:
+            # Extract first 1000 chars for title generation (executive summary area)
+            content_preview = content[:1000]
+
+            external_ai_url = os.environ.get('EXTERNAL_AI_SERVICE_URL', 'http://external-ai:8091')
+
+            title_prompt = f"""Based on the following report content, generate a concise, professional title (5-10 words maximum).
+
+Original User Query: {original_query}
+
+Report Content Preview:
+{content_preview}
+
+Respond with ONLY the title, nothing else. Make it descriptive and professional.
+Examples of good titles:
+- "STING Platform Security Analysis"
+- "Enterprise AI Deployment Best Practices"
+- "Healthcare Compliance Framework Overview"
+
+Your title:"""
+
+            response = requests.post(
+                f"{external_ai_url}/bee/chat",
+                json={
+                    'message': title_prompt,
+                    'user_id': self.user_id,
+                    'context': {
+                        'generation_mode': 'title',
+                        'bypass_token_limit': False
+                    },
+                    'require_auth': False
+                },
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                response_data = response.json()
+                generated_title = response_data.get('response', '').strip()
+
+                # Aggressive cleanup to ensure plain text title only
+                import re
+                # Remove quotes
+                generated_title = generated_title.strip('"\'').strip()
+                # Remove markdown formatting (**, *, _, ##, etc.)
+                generated_title = re.sub(r'\*\*([^*]+)\*\*', r'\1', generated_title)  # **bold**
+                generated_title = re.sub(r'\*([^*]+)\*', r'\1', generated_title)  # *italic*
+                generated_title = re.sub(r'_([^_]+)_', r'\1', generated_title)  # _italic_
+                generated_title = re.sub(r'^#+\s*', '', generated_title)  # Remove leading # symbols
+                generated_title = re.sub(r'\s*---+\s*', ' ', generated_title)  # Remove --- separators
+                generated_title = re.sub(r'\s*#{2,}\s*', ' ', generated_title)  # Remove ### symbols
+                # Remove "Title:" prefix if present
+                generated_title = re.sub(r'^Title:\s*', '', generated_title, flags=re.IGNORECASE)
+                generated_title = re.sub(r'^\*\*Title:\*\*\s*', '', generated_title, flags=re.IGNORECASE)
+                # Take only the first line/sentence if model returned multiple
+                generated_title = generated_title.split('\n')[0].strip()
+                # Stop at first period if it looks like a sentence
+                if '. ' in generated_title:
+                    generated_title = generated_title.split('. ')[0].strip()
+                # Clean up extra whitespace
+                generated_title = ' '.join(generated_title.split())
+
+                # Ensure title isn't too long
+                if len(generated_title) > 100:
+                    generated_title = generated_title[:97] + '...'
+
+                # Fallback if title is empty or too short
+                if len(generated_title) < 5:
+                    raise Exception("Generated title too short")
+
+                logger.info(f"Generated report title: {generated_title}")
+                return generated_title
+            else:
+                raise Exception(f"Title generation failed: {response.status_code}")
+
+        except Exception as e:
+            logger.warning(f"Failed to generate title via LLM: {e}, using fallback")
+            # Fallback to extracting first heading or truncated query
+            first_heading = self._extract_first_heading(content)
+            if first_heading:
+                return first_heading
+            return f"Report: {original_query[:80]}{'...' if len(original_query) > 80 else ''}"
+
+    def _extract_first_heading(self, content: str) -> str:
+        """Extract the first markdown heading as a fallback title"""
+        for line in content.split('\n'):
+            line = line.strip()
+            if line.startswith('#'):
+                # Remove markdown heading symbols and clean up
+                title = line.lstrip('#').strip()
+                if len(title) > 5 and len(title) < 100:
+                    return title
+        return ""
 
     def _parse_sections(self, content: str) -> List[Dict[str, str]]:
         """Parse markdown content into sections"""

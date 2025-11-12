@@ -160,17 +160,30 @@ const BeeChat = () => {
     { id: 'analytics', name: 'Analytics', icon: <Analytics />, description: 'Generate reports' },
   ];
 
-  // Improved scroll behavior - only auto-scroll for new messages, not updates
+  // Enhanced auto-scroll behavior - scrolls for new messages and content updates
   const prevMessagesLengthRef = useRef(messages.length);
+  const prevLastMessageContentRef = useRef('');
+
   useEffect(() => {
-    // Only auto-scroll if a new message was added (not just updated)
-    if (messages.length > prevMessagesLengthRef.current) {
-      // Use setTimeout to ensure DOM has updated
+    const shouldScroll = messages.length > 0 && (
+      // Scroll if new message added
+      messages.length > prevMessagesLengthRef.current ||
+      // Scroll if last message content changed (streaming/updates)
+      (messages.length > 0 && messages[messages.length - 1]?.content !== prevLastMessageContentRef.current)
+    );
+
+    if (shouldScroll) {
+      // Use setTimeout with longer delay to ensure DOM has fully updated
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-      }, 100);
+      }, 150);
     }
+
+    // Update refs
     prevMessagesLengthRef.current = messages.length;
+    if (messages.length > 0) {
+      prevLastMessageContentRef.current = messages[messages.length - 1]?.content || '';
+    }
   }, [messages]);
 
   // Persist messages and conversation ID to localStorage

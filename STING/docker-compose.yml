@@ -209,6 +209,7 @@ services:
     - KNOWLEDGE_ENABLED=true
     - KRATOS_PUBLIC_URL=https://kratos:4433
     - KRATOS_ADMIN_URL=https://kratos:4434
+    - REPORT_GENERATION_TIMEOUT_SECONDS=1800
     volumes:
     - ./conf:/app/conf
     - sting_logs:/var/log/sting
