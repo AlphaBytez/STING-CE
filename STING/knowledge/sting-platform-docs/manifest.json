@@ -1,8 +1,8 @@
 {
   "id": "sting-platform-docs",
   "name": "STING Platform Knowledge",
-  "version": "1.0.0",
-  "description": "Official STING platform documentation for AI-powered knowledge retrieval",
+  "version": "1.2.0",
+  "description": "Official STING platform documentation for AI-powered knowledge retrieval with comprehensive guides, API reference, use cases, and integration examples",
   "created": "2025-08-30",
   "author": "AlphaBytez",
   "license": "MIT",
@@ -50,7 +50,7 @@
       {
         "file": "authentication-guide.md",
         "title": "Authentication Guide",
-        "description": "Passwordless authentication system guide", 
+        "description": "Passwordless authentication system guide",
         "type": "guide",
         "references": [
           "docs/features/PASSWORDLESS_AUTHENTICATION.md",
@@ -61,7 +61,7 @@
       },
       {
         "file": "honey-jars-guide.md",
-        "title": "Honey Jars Guide", 
+        "title": "Honey Jars Guide",
         "description": "Knowledge management system guide",
         "type": "guide",
         "references": [
@@ -69,6 +69,64 @@
           "docs/features/HONEY_JAR_TECHNICAL_REFERENCE.md",
           "docs/features/HONEY_JAR_EXPORT_IMPORT_SYSTEM.md",
           "docs/features/HONEY_JAR_ACCESS_CONTROL.md"
+        ]
+      },
+      {
+        "file": "api-reference.md",
+        "title": "API Reference Guide",
+        "description": "Complete REST API documentation with examples",
+        "type": "reference",
+        "references": [
+          "app/routes/",
+          "docs/API_REFERENCE.md"
+        ]
+      },
+      {
+        "file": "report-generation.md",
+        "title": "Report Generation System",
+        "description": "Long-form report generation, PDF export, and queue management",
+        "type": "guide",
+        "references": [
+          "app/services/report_service.py",
+          "app/workers/report_generators.py",
+          "docs/features/REPORT_GENERATION_EXPLAINED.md"
+        ]
+      },
+      {
+        "file": "use-cases-metrics.md",
+        "title": "Use Cases & Real-World Metrics",
+        "description": "Industry-specific use cases with quantifiable ROI and performance metrics",
+        "type": "guide",
+        "references": [
+          "docs/BUSINESS_OVERVIEW.md"
+        ]
+      },
+      {
+        "file": "marketplace-monetization.md",
+        "title": "Marketplace & Knowledge Monetization",
+        "description": "Revenue sharing, pricing strategies, and selling knowledge products",
+        "type": "guide",
+        "references": [
+          "docs/BUSINESS_OVERVIEW.md"
+        ]
+      },
+      {
+        "file": "integration-examples.md",
+        "title": "Integration Examples & Third-Party Connectors",
+        "description": "Healthcare EHR, IoT, financial systems, and OpenAI-compatible API integration",
+        "type": "guide",
+        "references": [
+          "app/routes/",
+          "docs/API_REFERENCE.md"
+        ]
+      },
+      {
+        "file": "pii-detection-specifics.md",
+        "title": "PII Detection & Data Privacy System",
+        "description": "50+ PII entity types, compliance profiles (HIPAA, GDPR, CCPA), and custom patterns",
+        "type": "guide",
+        "references": [
+          "docs/features/PII_DETECTION_SYSTEM.md"
         ]
       }
     ]
@@ -101,9 +159,9 @@
   },
 
   "metadata": {
-    "document_count": 4,
-    "estimated_tokens": 15000,
-    "content_summary": "Curated STING platform documentation for AI knowledge retrieval",
+    "document_count": 9,
+    "estimated_tokens": 95000,
+    "content_summary": "Comprehensive STING platform documentation including guides, API reference, use cases with metrics, marketplace monetization, integration examples, and detailed PII detection specifications",
     "update_frequency": "As needed with platform changes",
     "compatibility": {
       "sting_version": ">=1.0.0",
@@ -114,11 +172,38 @@
 
   "changelog": [
     {
+      "version": "1.2.0",
+      "date": "2024-11-12",
+      "changes": [
+        "Added comprehensive Report Generation System documentation",
+        "Documented long-form report generation, PDF export, queue management, and timeout configuration",
+        "Added Use Cases & Real-World Metrics with quantifiable results across 8 industries",
+        "Documented Marketplace & Knowledge Monetization with 85/15 revenue sharing model",
+        "Added Integration Examples for healthcare EHR (Epic, FHIR), IoT/MQTT, financial systems, and OpenAI-compatible APIs",
+        "Created detailed PII Detection & Data Privacy System documentation covering 50+ entity types",
+        "Documented compliance profiles for HIPAA, GDPR, CCPA, FERPA, and PCI-DSS",
+        "Added practical code examples in Python, JavaScript, and cURL for all integrations",
+        "Included performance benchmarks, accuracy metrics, and troubleshooting guides",
+        "Total document count increased from 5 to 9 comprehensive guides"
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2024-11-12",
+      "changes": [
+        "Added comprehensive API reference documentation",
+        "Documented 30+ REST API endpoints with examples",
+        "Added authentication flow examples (Python, JavaScript, cURL)",
+        "Included report generation API documentation",
+        "Added request/response samples for all endpoints"
+      ]
+    },
+    {
       "version": "1.0.0",
       "date": "2025-08-30",
       "changes": [
         "Initial versioned knowledge package",
-        "Corrected STING acronym definition", 
+        "Corrected STING acronym definition",
         "Added references to comprehensive documentation",
         "Structured for AI-powered knowledge retrieval"
       ]
