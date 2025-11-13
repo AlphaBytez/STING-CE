@@ -209,6 +209,65 @@ class ReportWorker:
             logger.error(f"Failed to process report {report_id}: {e}")
             self.report_service.fail_job(report_id, str(e), retry=True)
 
+    def _sanitize_unicode_for_pdf(self, text: str) -> str:
+        """
+        Sanitize Unicode characters that ReportLab's default fonts can't render.
+        Replaces problematic characters with ASCII equivalents to prevent ■ blocks in PDF.
+        """
+        if not text:
+            return text
+
+        # Common Unicode replacements for PDF-safe ASCII
+        replacements = {
+            # Quotes
+            '\u2018': "'",  # Left single quote
+            '\u2019': "'",  # Right single quote
+            '\u201c': '"',  # Left double quote
+            '\u201d': '"',  # Right double quote
+            '\u2033': '"',  # Double prime
+            # Dashes
+            '\u2013': '-',  # En dash
+            '\u2014': '--', # Em dash
+            '\u2212': '-',  # Minus sign
+            # Bullets and list markers
+            '\u2022': '*',  # Bullet
+            '\u2023': '>',  # Triangular bullet
+            '\u2043': '-',  # Hyphen bullet
+            '\u25e6': 'o',  # White bullet
+            '\u25aa': '*',  # Black small square
+            '\u25ab': 'o',  # White small square
+            # Arrows
+            '\u2192': '->',  # Right arrow
+            '\u2190': '<-',  # Left arrow
+            '\u2194': '<->', # Left-right arrow
+            '\u21d2': '=>',  # Right double arrow
+            # Mathematical symbols
+            '\u00d7': 'x',   # Multiplication sign
+            '\u00f7': '/',   # Division sign
+            '\u2260': '!=',  # Not equal
+            '\u2264': '<=',  # Less than or equal
+            '\u2265': '>=',  # Greater than or equal
+            '\u221e': 'inf', # Infinity
+            # Other common symbols
+            '\u2026': '...', # Ellipsis
+            '\u00a9': '(c)', # Copyright
+            '\u00ae': '(R)', # Registered
+            '\u2122': '(TM)',# Trademark
+            '\u00b0': ' deg',# Degree sign
+            '\u00b1': '+/-', # Plus-minus
+        }
+
+        # Apply replacements
+        for unicode_char, ascii_equiv in replacements.items():
+            text = text.replace(unicode_char, ascii_equiv)
+
+        # Remove any remaining non-ASCII characters that might cause issues
+        # Keep only printable ASCII (32-126) and common whitespace
+        text = ''.join(char if (32 <= ord(char) <= 126) or char in '\n\r\t' else ' '
+                      for char in text)
+
+        return text
+
     def _render_inline_markdown(self, tokens):
         """Helper to render inline markdown tokens (bold, italic, code, etc.) to HTML"""
         if not tokens:
@@ -217,8 +276,9 @@ class ReportWorker:
         result = []
         for token in tokens:
             if token.type == 'text':
-                # Escape XML special characters
-                text = token.content.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                # Sanitize Unicode first, then escape XML special characters
+                text = self._sanitize_unicode_for_pdf(token.content)
+                text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
                 result.append(text)
             elif token.type == 'strong_open':
                 result.append('<b>')
@@ -229,8 +289,9 @@ class ReportWorker:
             elif token.type == 'em_close':
                 result.append('</i>')
             elif token.type == 'code_inline':
-                # Monospace code
-                code_text = token.content.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                # Monospace code - sanitize Unicode first
+                code_text = self._sanitize_unicode_for_pdf(token.content)
+                code_text = code_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
                 result.append(f'<font face="Courier">{code_text}</font>')
             elif token.type == 'link_open':
                 # We can't easily handle links in PDF, just render the text
@@ -240,7 +301,8 @@ class ReportWorker:
             else:
                 # For any other token, try to get content
                 if hasattr(token, 'content') and token.content:
-                    text = token.content.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                    text = self._sanitize_unicode_for_pdf(token.content)
+                    text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
                     result.append(text)
 
         return ''.join(result)
@@ -336,7 +398,7 @@ class ReportWorker:
                     )
 
                     header_table = Table(
-                        [[logo, Paragraph("<b>STING</b> Security Intelligence Platform", banner_style)]],
+                        [[logo, Paragraph("<b>STING</b> Secure Trusted Intelligence & Networking Guardian", banner_style)]],
                         colWidths=[0.5*inch, 5*inch]
                     )
                     header_table.setStyle(TableStyle([
@@ -359,7 +421,7 @@ class ReportWorker:
                         spaceBefore=0,
                         spaceAfter=0
                     )
-                    story.append(Paragraph("<b>STING</b> Security Intelligence Platform", banner_style))
+                    story.append(Paragraph("<b>STING</b> Secure Trusted Intelligence & Networking Guardian", banner_style))
             except Exception as e:
                 logger.warning(f"Could not load logo: {e}")
                 # Fallback to text-only banner
@@ -373,7 +435,7 @@ class ReportWorker:
                     spaceBefore=0,
                     spaceAfter=0
                 )
-                story.append(Paragraph("<b>STING</b> Security Intelligence Platform", banner_style))
+                story.append(Paragraph("<b>STING</b> Secure Trusted Intelligence & Networking Guardian", banner_style))
 
             # Divider line
             divider = Drawing(400, 2)
