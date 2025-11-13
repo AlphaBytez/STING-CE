@@ -231,13 +231,13 @@ log_info "Checking and applying database migrations..."
 # Fix passkey schema first (critical for enrollment)
 fix_passkey_schema
 
-# Apply any migration files if they exist
+# Apply SQL migration files if they exist
 if [ -d "database/migrations" ]; then
     # Get list of migration files in order
     migrations=$(ls database/migrations/*.sql 2>/dev/null | sort)
-    
+
     if [ -z "$migrations" ]; then
-        log_info "No migration files found"
+        log_info "No SQL migration files found"
     else
         for migration in $migrations; do
             # Skip certain migrations that are already in complete_schema.sql
@@ -254,6 +254,31 @@ if [ -d "database/migrations" ]; then
     fi
 else
     log_warning "No migrations directory found"
+fi
+
+# Apply Python migration files if they exist
+if [ -d "app/migrations" ]; then
+    # Get list of Python migration files in order
+    python_migrations=$(ls app/migrations/*.py 2>/dev/null | grep -v "__pycache__\|__init__" | sort)
+
+    if [ -z "$python_migrations" ]; then
+        log_info "No Python migration files found"
+    else
+        log_info "Applying Python migrations..."
+        for migration in $python_migrations; do
+            migration_name=$(basename $migration)
+            log_info "Applying Python migration: ${migration_name}"
+
+            # Execute Python migration via app container
+            if docker compose exec -T app python "$migration" 2>&1; then
+                log_success "Applied ${migration_name}"
+            else
+                log_warning "Migration ${migration_name} had warnings or was already applied"
+            fi
+        done
+    fi
+else
+    log_info "No app/migrations directory found"
 fi
 
 # Verify critical tables exist

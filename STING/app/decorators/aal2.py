@@ -47,16 +47,22 @@ class CustomAAL2Manager:
     def check_passkey_enrollment(self, user_id: int) -> Dict[str, Any]:
         """
         Check if user has passkey enrolled in BOTH STING and Kratos databases
-        
+
         Args:
-            user_id: STING user ID
-            
+            user_id: STING user ID (integer) OR Kratos ID (UUID string)
+
         Returns:
             Dict with enrollment status and metadata
         """
         try:
             # Check user's passkey enrollment status in database
-            user = User.query.get(user_id)
+            # Handle both STING user ID (int) and Kratos ID (UUID string)
+            if isinstance(user_id, str):
+                # Kratos ID (UUID) - query by kratos_id
+                user = User.query.filter_by(kratos_id=user_id).first()
+            else:
+                # STING user ID (int) - query by id
+                user = User.query.get(user_id)
             if not user:
                 return {
                     'enrolled': False,
