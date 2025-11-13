@@ -278,7 +278,7 @@
 
                     <div>
                         <label class="block text-sm font-medium text-slate-300 mb-2">Default Model</label>
-                        <input type="text" id="llm-model" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500" placeholder="phi4:mini" value="phi4:mini">
+                        <input type="text" id="llm-model" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500" placeholder="microsoft/phi-4-mini-reasoning" value="microsoft/phi-4-mini-reasoning">
                     </div>
 
                     <div class="flex gap-3">
@@ -314,8 +314,87 @@
                 </div>
             </div>
 
-            <!-- Step 5: Email/SMTP -->
+            <!-- Step 5: Report Generation LLM (Optional) -->
             <div class="step-content" data-step="5">
+                <h2 class="text-2xl font-bold text-amber-400 mb-4">📊 Report Generation LLM (Optional)</h2>
+                <p class="text-slate-300 mb-6">Configure a separate LLM endpoint for report generation. Useful for using larger models with high token output limits.</p>
+
+                <div class="glass-card-light rounded-lg p-4 mb-6">
+                    <p class="text-sm text-slate-200">
+                        <strong class="text-amber-400">💡 Why use a separate endpoint?</strong><br>
+                        Report generation requires models with large output token limits (16K+). You can configure a separate endpoint running models like <code class="text-amber-400 bg-slate-800/50 px-1 rounded">microsoft/phi-4-reasoning-plus</code> or <code class="text-amber-400 bg-slate-800/50 px-1 rounded">qwen2.5-14b-instruct</code> for comprehensive reports.
+                    </p>
+                </div>
+
+                <div class="mb-4">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" id="report-llm-enabled" class="form-checkbox h-5 w-5 text-amber-500" onchange="toggleReportLLMConfig()">
+                        <span class="ml-2 text-slate-300">Configure Separate Endpoint for Report Generation</span>
+                    </label>
+                </div>
+
+                <div id="report-llm-config" class="space-y-4" style="display: none;">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Report LLM Endpoint URL</label>
+                        <input type="url" id="report-llm-endpoint" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500" placeholder="http://localhost:11434">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Report Generation Model</label>
+                        <input type="text" id="report-llm-model" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500" placeholder="microsoft/phi-4-reasoning-plus" value="microsoft/phi-4-reasoning-plus">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Fallback Model</label>
+                        <input type="text" id="report-llm-fallback-model" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500" placeholder="qwen2.5-14b-instruct" value="qwen2.5-14b-instruct">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Maximum Output Tokens</label>
+                        <select id="report-max-tokens" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500">
+                            <option value="4096">4096 - Concise reports (smaller models)</option>
+                            <option value="8192">8192 - Standard reports (most models)</option>
+                            <option value="16384" selected>16384 - Comprehensive reports (phi-4, qwen)</option>
+                            <option value="32768">32768 - Extended reports (if supported)</option>
+                        </select>
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button onclick="testReportLLMEndpoint()" class="bg-lime-500 text-slate-900 font-medium px-4 py-2 rounded-lg hover:bg-lime-600">
+                            Test Connection
+                        </button>
+
+                        <button
+                            id="save-report-llm-config-btn"
+                            onclick="saveReportLLMConfig()"
+                            class="bg-green-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-green-700 hidden"
+                        >
+                            ✓ Save Tested Configuration
+                        </button>
+                    </div>
+
+                    <div id="report-llm-test-result" class="mt-4"></div>
+
+                    <div id="report-llm-config-saved" class="mt-4 hidden">
+                        <div class="bg-green-900/30 border-2 border-green-600 rounded-lg p-4">
+                            <p class="text-green-400 font-semibold">
+                                ✓ Configuration Saved!
+                            </p>
+                            <p class="text-green-300 text-sm mt-2">
+                                Your tested report LLM endpoint will be used for report generation:
+                            </p>
+                            <ul class="text-xs text-slate-300 mt-2 ml-4">
+                                <li>Endpoint: <code id="saved-report-endpoint" class="text-green-400"></code></li>
+                                <li>Model: <code id="saved-report-model" class="text-green-400"></code></li>
+                                <li>Max tokens: <code id="saved-report-max-tokens" class="text-green-400"></code></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 6: Email/SMTP -->
+            <div class="step-content" data-step="6">
                 <h2 class="text-2xl font-bold text-amber-400 mb-4">📧 Email Configuration (Optional)</h2>
                 <p class="text-slate-300 mb-6">Configure SMTP for notification delivery by carrier bees.</p>
 
@@ -358,8 +437,8 @@
                 </div>
             </div>
 
-            <!-- Step 6: SSL/TLS -->
-            <div class="step-content" data-step="6">
+            <!-- Step 7: SSL/TLS -->
+            <div class="step-content" data-step="7">
                 <h2 class="text-2xl font-bold text-amber-400 mb-4">🔒 SSL/TLS Configuration</h2>
                 <p class="text-slate-300 mb-6">Configure HTTPS certificates to protect the Hive.</p>
 
@@ -392,8 +471,8 @@
                 </div>
             </div>
 
-            <!-- Step 7: Review & Apply -->
-            <div class="step-content" data-step="7">
+            <!-- Step 8: Review & Apply -->
+            <div class="step-content" data-step="8">
                 <h2 class="text-2xl font-bold text-amber-400 mb-4">✅ Review Configuration</h2>
                 <p class="text-slate-300 mb-6">Please review your Hive settings before deploying.</p>
 
@@ -419,8 +498,8 @@
                 </button>
             </div>
 
-            <!-- Step 8: Installation Progress (Hidden until install starts) -->
-            <div class="step-content" data-step="8" style="display: none;">
+            <!-- Step 9: Installation Progress (Hidden until install starts) -->
+            <div class="step-content" data-step="9" style="display: none;">
                 <h2 class="text-2xl font-bold text-amber-400 mb-4">🚀 Installing STING</h2>
                 <p class="text-slate-300 mb-6">Building your Hive... This may take 15-30 minutes.</p>
 
@@ -484,11 +563,11 @@
 
     <script>
         let currentStep = 1;
-        const totalSteps = 7;
+        const totalSteps = 8;
         let configData = {};
 
         const stepLabels = [
-            'System', 'Data Disk', 'Admin', 'LLM', 'Email', 'SSL', 'Review'
+            'System', 'Data Disk', 'Admin', 'LLM', 'Report LLM', 'Email', 'SSL', 'Review'
         ];
 
         // Initialize
@@ -558,7 +637,7 @@
                 updateProgress();
 
                 // Special handling for review step
-                if (currentStep === 7) {
+                if (currentStep === 8) {
                     await renderConfigReview();
                 }
             }
@@ -789,6 +868,89 @@
             });
         }
 
+        function toggleReportLLMConfig() {
+            const checkbox = document.getElementById('report-llm-enabled');
+            const configDiv = document.getElementById('report-llm-config');
+            configDiv.style.display = checkbox.checked ? 'block' : 'none';
+        }
+
+        async function testReportLLMEndpoint() {
+            const endpoint = document.getElementById('report-llm-endpoint').value;
+            const model = document.getElementById('report-llm-model').value;
+            const resultDiv = document.getElementById('report-llm-test-result');
+
+            resultDiv.innerHTML = '<div class="bg-amber-400/90 border border-amber-500 rounded-lg p-4 backdrop-blur-sm"><p class="text-slate-900 font-semibold">Testing connection...</p></div>';
+
+            try {
+                const response = await fetch('/api/test-llm', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({endpoint, model})
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="bg-amber-400/90 border border-amber-500 rounded-lg p-4 backdrop-blur-sm">
+                            <p class="text-black font-semibold"><strong>✓ Success!</strong> ${data.message}</p>
+                            ${data.models.length > 0 ? `<p class="text-sm text-black mt-2">Available models: ${data.models.join(', ')}</p>` : ''}
+                        </div>
+                    `;
+
+                    // Show save button after successful test
+                    document.getElementById('save-report-llm-config-btn').classList.remove('hidden');
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="bg-amber-400/90 border border-amber-600 rounded-lg p-4 backdrop-blur-sm">
+                            <p class="text-black font-semibold"><strong>⚠ Failed:</strong> ${data.message}</p>
+                        </div>
+                    `;
+
+                    // Hide save button on failure
+                    document.getElementById('save-report-llm-config-btn').classList.add('hidden');
+                    document.getElementById('report-llm-config-saved').classList.add('hidden');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="bg-amber-400/90 border border-amber-600 rounded-lg p-4 backdrop-blur-sm">
+                        <p class="text-black font-semibold"><strong>⚠ Connection error:</strong> ${error}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function saveReportLLMConfig() {
+            const endpoint = document.getElementById('report-llm-endpoint').value;
+            const model = document.getElementById('report-llm-model').value;
+            const fallbackModel = document.getElementById('report-llm-fallback-model').value;
+            const maxTokens = document.getElementById('report-max-tokens').value;
+
+            // Save to config data
+            configData.report_llm = {
+                endpoint: endpoint,
+                model: model,
+                fallback_model: fallbackModel,
+                max_tokens: maxTokens
+            };
+
+            // Hide save button
+            document.getElementById('save-report-llm-config-btn').classList.add('hidden');
+
+            // Show confirmation
+            document.getElementById('report-llm-config-saved').classList.remove('hidden');
+            document.getElementById('saved-report-endpoint').textContent = endpoint;
+            document.getElementById('saved-report-model').textContent = model;
+            document.getElementById('saved-report-max-tokens').textContent = maxTokens;
+
+            // Persist to backend
+            fetch('/api/save-step', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({step: 5, data: {report_llm: {endpoint, model, fallback_model: fallbackModel, max_tokens: maxTokens}}})
+            });
+        }
+
         async function saveStepData(step) {
             const stepData = {};
 
@@ -864,9 +1026,9 @@
                 return;
             }
 
-            // Switch to installation progress view (Step 8)
+            // Switch to installation progress view (Step 9)
             document.querySelectorAll('.step-content').forEach(step => step.style.display = 'none');
-            document.querySelector('[data-step="8"]').style.display = 'block';
+            document.querySelector('[data-step="9"]').style.display = 'block';
             document.getElementById('prev-btn').style.display = 'none';
             document.getElementById('next-btn').style.display = 'none';
 

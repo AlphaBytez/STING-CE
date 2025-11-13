@@ -3,8 +3,8 @@
 set -e
 
 CA_FILE="sting-ca.pem"
-DOMAIN="sting.local"
-VM_IP=""
+DOMAIN="captain-den.local"
+VM_IP="192.168.68.78"
 
 echo "🔐 STING-CE Certificate Authority Installer for macOS"
 echo "=================================================="

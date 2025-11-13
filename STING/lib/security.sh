@@ -495,7 +495,8 @@ is_local_domain() {
 
 # Generate SSL certificates
 generate_ssl_certs() {
-    local domain="${DOMAIN_NAME:-localhost}"
+    # Use STING_HOSTNAME (set during installation) or fallback to DOMAIN_NAME or localhost
+    local domain="${STING_HOSTNAME:-${DOMAIN_NAME:-localhost}}"
     local email="${CERTBOT_EMAIL:-your-email@example.com}"
     local temp_cert_dir="/tmp/sting_certs"
 
@@ -628,12 +629,14 @@ generate_ssl_certs() {
 
     # Copy files to Docker volume with proper ownership for Kratos (UID 10000)
     # Use INSTALL_DIR/certs since we already copied files there
+    # Note: Using 644 for server.key since it's in a protected Docker volume
+    # and Kratos may run with different GID than file ownership
     docker run --rm -v sting_certs:/certs -v "${INSTALL_DIR}/certs":/source alpine sh -c \
         "mkdir -p /certs && \
          cp /source/server.crt /certs/ && \
          cp /source/server.key /certs/ && \
          chmod 644 /certs/server.crt && \
-         chmod 640 /certs/server.key && \
+         chmod 644 /certs/server.key && \
          chown -R 10000:10000 /certs/"
     log_message "SSL certificates copied to Docker volume"
 
@@ -860,7 +863,27 @@ export_ca_certificate() {
     
     # Generate installation scripts for different platforms
     create_client_install_scripts "${output_dir}"
-    
+
+    # Copy certificates to install directory for web UI access
+    local install_cert_dir="${INSTALL_DIR}/client-certs"
+    if [ -d "${INSTALL_DIR}" ]; then
+        log_message "📦 Copying certificates to install directory for web UI access..."
+        safe_mkdir "${install_cert_dir}" "true" || {
+            log_message "⚠️  Warning: Could not create ${install_cert_dir}" "WARNING"
+        }
+
+        if [ -d "${install_cert_dir}" ]; then
+            cp -f "${output_dir}"/* "${install_cert_dir}/" 2>/dev/null || {
+                log_message "⚠️  Warning: Could not copy certificates to ${install_cert_dir}" "WARNING"
+            }
+
+            if [ -f "${install_cert_dir}/sting-ca.pem" ]; then
+                log_message "✅ Certificates copied to: ${install_cert_dir}/"
+                log_message "   These are now accessible via the STING web UI"
+            fi
+        fi
+    fi
+
     log_message "✅ CA certificate exported to: ${output_dir}/"
     log_message "📋 Files created:"
     log_message "   - sting-ca.pem (CA certificate)"
@@ -870,7 +893,8 @@ export_ca_certificate() {
     log_message ""
     log_message "💡 Share the ${output_dir} folder with client machines"
     log_message "   Clients can run the appropriate install script for their OS"
-    
+    log_message "   Or download them from the web UI: Certificate Management page"
+
     return 0
 }
 

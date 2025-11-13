@@ -712,6 +712,16 @@ def transform_wizard_data_to_config(wizard_data):
     with open(default_config_path, 'r') as f:
         config = yaml.safe_load(f)
 
+    # Transform system/hostname configuration
+    if 'system' in wizard_data:
+        system_data = wizard_data['system']
+        hostname = system_data.get('hostname', '').strip()
+        if hostname:
+            config['system']['domain'] = hostname
+            # Also update kratos browser_url to match hostname (critical for WebAuthn)
+            config['kratos']['browser_url'] = f'https://{hostname}:8443'
+            config['kratos']['public_url'] = f'https://{hostname}:4433'
+
     # Transform LLM configuration
     if 'llm' in wizard_data:
         llm_data = wizard_data['llm']
@@ -721,6 +731,17 @@ def transform_wizard_data_to_config(wizard_data):
 
         # Also update external_ai endpoint (uses same Ollama endpoint)
         config['llm_service']['external_ai']['ollama_endpoint'] = llm_data.get('endpoint', 'http://localhost:11434')
+
+    # Transform report generation LLM configuration
+    if 'report_llm' in wizard_data:
+        report_llm_data = wizard_data['report_llm']
+        if 'report_generation' not in config['llm_service']:
+            config['llm_service']['report_generation'] = {}
+
+        config['llm_service']['report_generation']['endpoint'] = report_llm_data.get('endpoint', 'http://localhost:11434')
+        config['llm_service']['report_generation']['model'] = report_llm_data.get('model', 'microsoft/phi-4-reasoning-plus')
+        config['llm_service']['report_generation']['fallback_model'] = report_llm_data.get('fallback_model', 'qwen2.5-14b-instruct')
+        config['llm_service']['report_generation']['max_tokens'] = int(report_llm_data.get('max_tokens', 16384))
 
     # Transform admin configuration
     if 'admin' in wizard_data:

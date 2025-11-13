@@ -1043,15 +1043,10 @@ else
 
   # Forward remaining arguments to manage_sting.sh install
   # NOTE: Don't use exec - we need to return here to trigger EXIT trap cleanup
-  if [ $# -eq 0 ]; then
-    log_message "Delegating to manage_sting.sh install..."
-    "$MANAGE_STING" install
-    exit_code=$?
-  else
-    log_message "Delegating to manage_sting.sh $*..."
-    "$MANAGE_STING" "$@"
-    exit_code=$?
-  fi
+  # Always call 'install' command since we're in CLI mode
+  log_message "Delegating to manage_sting.sh install $*..."
+  "$MANAGE_STING" install "$@"
+  exit_code=$?
 
   # Exit with the same code as manage_sting.sh
   # This will trigger the EXIT trap to cleanup sudo keepalive
