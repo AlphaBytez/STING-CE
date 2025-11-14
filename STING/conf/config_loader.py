@@ -10,6 +10,7 @@ import string
 import time
 import sys  # Added sys import
 import base64
+from urllib.parse import quote as url_quote
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, List
 from pathlib import Path
@@ -837,8 +838,14 @@ class ConfigurationManager:
             models_dir = '${INSTALL_DIR}/models'
         self.processed_config['STING_MODELS_DIR'] = models_dir
 
-        # Build database URL without quotes and with SSL mode disabled
-        database_url = f"postgresql://{self._clean_value('postgres')}:{self._clean_value(self.db_password)}@db:5432/sting_app?sslmode=disable"
+        # Build database URL with URL-encoded password (handles special characters like +, /, =)
+        db_user = self._clean_value('postgres')
+        db_pass_raw = self._clean_value(self.db_password)
+        db_pass_encoded = url_quote(db_pass_raw, safe='')
+        print(f"DEBUG CONFIG_LOADER: Raw password: {db_pass_raw[:10]}...", file=sys.stderr)
+        print(f"DEBUG CONFIG_LOADER: Encoded password: {db_pass_encoded[:20]}...", file=sys.stderr)
+        database_url = f"postgresql://{db_user}:{db_pass_encoded}@db:5432/sting_app?sslmode=disable"
+        print(f"DEBUG CONFIG_LOADER: DATABASE_URL: {database_url[:60]}...", file=sys.stderr)
 
         # Set all database-related variables
         db_vars = {
@@ -848,7 +855,7 @@ class ConfigurationManager:
             'POSTGRES_HOST': 'db',
             'POSTGRES_PORT': '5432',
             'POSTGRES_HOST_AUTH_METHOD': 'md5',
-            'DATABASE_URL': self._clean_value(database_url),
+            'DATABASE_URL': database_url,  # Already URL-encoded, don't clean it
             'LANG': 'en_US.utf8',
             'LC_ALL': 'en_US.utf8'
         }
@@ -863,8 +870,8 @@ class ConfigurationManager:
             'POSTGRESQL_DATABASE_NAME': 'sting_app',
             'POSTGRESQL_HOST': 'db',
             'POSTGRESQL_PORT': '5432',
-            'DATABASE_URL': self._clean_value(database_url),
-            'POSTGRESQL_CONNECTION_URI': self._clean_value(database_url),
+            'DATABASE_URL': database_url,  # Already URL-encoded, don't clean it
+            'POSTGRESQL_CONNECTION_URI': database_url,  # Already URL-encoded, don't clean it
             # SuperTokens removed - using Kratos for authentication
             # 'SUPERTOKENS_API_DOMAIN': 'http://localhost:5050',
             # 'SUPERTOKENS_URL': 'http://supertokens:3567',
@@ -931,8 +938,8 @@ class ConfigurationManager:
             'SECRET_KEY': flask_secret,
             'GUNICORN_WORKERS': str(app_config.get('gunicorn_workers', 4)),
             'GUNICORN_TIMEOUT': str(app_config.get('gunicorn_timeout', 120)),
-            'DATABASE_URL': self._clean_value(database_url),
-            'SQLALCHEMY_DATABASE_URI': self._clean_value(database_url),
+            'DATABASE_URL': database_url,  # Already URL-encoded, don't clean it
+            'SQLALCHEMY_DATABASE_URI': database_url,  # Already URL-encoded, don't clean it
             # SuperTokens API keys removed - no longer used
             # 'ST_API_KEY': self._clean_value(self.api_key),
             # 'API_KEY': self._clean_value(self.api_key),
@@ -1460,9 +1467,17 @@ class ConfigurationManager:
             'HONEY_RESERVE_WARNING_THRESHOLD': str(quotas_config.get('warning_threshold_percent', 90)),
             'HONEY_RESERVE_CRITICAL_THRESHOLD': str(quotas_config.get('critical_threshold_percent', 95)),
             'HONEY_RESERVE_RATE_LIMIT_MINUTE': str(file_upload_config.get('rate_limit_per_minute', 10)),
-            'HONEY_RESERVE_RATE_LIMIT_HOUR': str(file_upload_config.get('rate_limit_per_hour', 100))
+            'HONEY_RESERVE_RATE_LIMIT_HOUR': str(file_upload_config.get('rate_limit_per_hour', 100)),
+
+            # Database configuration
+            'POSTGRES_HOST': 'db',
+            'POSTGRES_PORT': '5432',
+            'POSTGRES_DB': 'sting_app',
+            'POSTGRES_USER': 'postgres',
+            'POSTGRES_PASSWORD': self.processed_config.get('POSTGRES_PASSWORD', ''),
+            'DATABASE_URL': self.processed_config.get('DATABASE_URL', '')
         }
-        
+
         # Add development user configuration if in dev mode
         if dev_mode == 'true':
             dev_user = auth_config.get('development_user', {})
@@ -1473,7 +1488,7 @@ class ConfigurationManager:
                 'KNOWLEDGE_DEV_USER_FIRST_NAME': dev_user.get('name', {}).get('first', 'Dev'),
                 'KNOWLEDGE_DEV_USER_LAST_NAME': dev_user.get('name', {}).get('last', 'User')
             })
-        
+
         return env_vars
 
     def _generate_observability_env_vars(self):
@@ -1916,6 +1931,13 @@ class ConfigurationManager:
                     'KNOWLEDGE_ENABLED': 'true',
                     'STING_SERVICE_API_KEY': self.processed_config.get('STING_SERVICE_API_KEY', ''),
                     'BEE_SERVICE_API_KEY': self.bee_service_api_key or '',  # Bee's service API key for agentic operations
+                    # Database configuration
+                    'POSTGRES_HOST': 'db',
+                    'POSTGRES_PORT': '5432',
+                    'POSTGRES_DB': 'sting_app',
+                    'POSTGRES_USER': 'postgres',
+                    'POSTGRES_PASSWORD': self.processed_config.get('POSTGRES_PASSWORD', ''),
+                    'DATABASE_URL': self.processed_config.get('DATABASE_URL', ''),
                     # Conversation management settings
                     'BEE_CONVERSATION_MAX_TOKENS': str(self.raw_config.get('chatbot', {}).get('conversation', {}).get('max_tokens', 4096)),
                     'BEE_CONVERSATION_MAX_MESSAGES': str(self.raw_config.get('chatbot', {}).get('conversation', {}).get('max_messages', 50)),

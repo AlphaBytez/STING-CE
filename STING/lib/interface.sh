@@ -605,9 +605,16 @@ main() {
             fi
             
             if [ -f "${SOURCE_DIR}/conf/config_loader.py" ]; then
+                # Remove config state file to force fresh regeneration
+                # This ensures DATABASE_URL and other values are regenerated with latest logic (e.g., URL encoding)
+                if [ -f "${SOURCE_DIR}/conf/.config_state" ]; then
+                    log_message "Removing cached config state to force fresh generation..." "INFO"
+                    rm -f "${SOURCE_DIR}/conf/.config_state"
+                fi
+
                 # Set INSTALL_DIR environment variable for config_loader.py
                 export INSTALL_DIR="${INSTALL_DIR}"
-                
+
                 if INSTALL_DIR="${INSTALL_DIR}" $python_cmd "${SOURCE_DIR}/conf/config_loader.py" "${SOURCE_DIR}/conf/config.yml" --mode runtime; then
                     log_message "✅ Environment files regenerated successfully" "SUCCESS"
                     log_message "💡 Tip: Restart affected services to apply configuration changes" "INFO"

@@ -5,7 +5,10 @@ echo "Starting Knowledge Service..."
 
 # Wait for database to be ready
 echo "Waiting for database..."
-export DATABASE_URL="postgresql://postgres:postgres@db:5432/sting_app"
+# Only set DATABASE_URL if not already provided
+if [ -z "$DATABASE_URL" ]; then
+    export DATABASE_URL="postgresql://postgres:postgres@db:5432/sting_app"
+fi
 for i in {1..30}; do
     if python -c "from database import engine; engine.connect()" 2>/dev/null; then
         echo "✅ Database is ready"

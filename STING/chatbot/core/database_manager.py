@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 import logging
 from uuid import UUID
 import uuid
+from urllib.parse import quote as url_quote
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +30,27 @@ class DatabaseManager:
     def _get_db_url(self) -> str:
         """
         Construct database URL from environment variables.
+        Uses DATABASE_URL if available, otherwise constructs from individual vars.
         """
+        # Prefer DATABASE_URL if available (already URL-encoded)
+        database_url = os.getenv('DATABASE_URL')
+        if database_url:
+            logger.info(f"Using DATABASE_URL from environment: {database_url[:60]}...")
+            return database_url
+
+        # Fallback: construct from individual components with URL encoding
         host = os.getenv('POSTGRES_HOST', 'db')
         port = os.getenv('POSTGRES_PORT', '5432')
         user = os.getenv('POSTGRES_USER', 'postgres')
         password = os.getenv('POSTGRES_PASSWORD', 'postgres')
         database = os.getenv('POSTGRES_DB', 'sting_app')
-        
-        return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+
+        # URL-encode password to handle special characters (+, /, =, etc.)
+        password_encoded = url_quote(password, safe='')
+
+        constructed_url = f"postgresql://{user}:{password_encoded}@{host}:{port}/{database}"
+        logger.info(f"Constructed DATABASE_URL from env vars: {constructed_url[:60]}...")
+        return constructed_url
     
     async def initialize(self):
         """

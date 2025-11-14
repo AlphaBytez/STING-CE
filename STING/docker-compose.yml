@@ -105,9 +105,8 @@ services:
       dockerfile: Dockerfile-postgres
     image: postgres:16
     environment:
-      POSTGRES_DB: ${POSTGRESQL_DATABASE_NAME:-sting_app}
-      POSTGRES_USER: ${POSTGRESQL_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      # POSTGRES_DB, POSTGRES_USER, and POSTGRES_PASSWORD are loaded from env_file (db.env)
+      # Do not use shell substitution here as it reads from host environment, not env_file
       POSTGRES_SHARED_BUFFERS: 256MB
       POSTGRES_EFFECTIVE_CACHE_SIZE: 512MB
       POSTGRES_WORK_MEM: 8MB

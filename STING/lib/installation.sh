@@ -1354,15 +1354,19 @@ uninstall_msting() {
                 }
             done
         else
-            # Without purge, preserve data volumes but always reset Vault for fresh installs
-            log_message "Removing non-data Docker volumes..."
+            # Without purge, preserve data volumes but always reset Vault and postgres_data for fresh installs
+            log_message "Removing non-data Docker volumes and postgres_data (for password sync)..."
             for vol in $volumes_to_remove; do
-                # Always remove Vault volumes for fresh installs (secrets shouldn't persist)
-                # Skip other data volumes unless purging
-                if [[ "$vol" =~ (vault_data|vault_file) ]] || [[ ! "$vol" =~ (postgres_data|redis_data|chroma_data|mailpit_data|messaging_data|knowledge_data) ]]; then
+                # Always remove Vault and postgres_data volumes for fresh installs
+                # - Vault: secrets shouldn't persist across reinstalls
+                # - postgres_data: password must match newly generated credentials
+                # Skip other data volumes (redis, chroma, mailpit, messaging, knowledge) unless purging
+                if [[ "$vol" =~ (vault_data|vault_file|postgres_data) ]] || [[ ! "$vol" =~ (redis_data|chroma_data|mailpit_data|messaging_data|knowledge_data) ]]; then
                     docker volume rm -f "$vol" >/dev/null 2>&1 || true
                     if [[ "$vol" =~ vault ]]; then
                         log_message "Removed Vault volume for fresh initialization: $vol"
+                    elif [[ "$vol" =~ postgres_data ]]; then
+                        log_message "Removed postgres_data volume to sync with new password: $vol"
                     fi
                 fi
             done
