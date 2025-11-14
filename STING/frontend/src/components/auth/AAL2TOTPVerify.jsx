@@ -57,7 +57,7 @@ const AAL2TOTPVerify = () => {
       console.log('🔐 Starting AAL2 TOTP flow...');
       
       // Initialize AAL2 flow (same pattern as TOTPAuth.jsx)
-      const flowResponse = await fetch(`/.ory/self-service/login/browser?aal=aal2`, {
+      const flowResponse = await fetch(`/.ory/self-service/login/browser?aal=aal2&refresh=true`, {
         headers: { 'Accept': 'application/json' },
         credentials: 'include'
       });

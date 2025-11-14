@@ -697,7 +697,13 @@ def generate_demo_data():
                 report_service = get_report_service()
 
                 for i, (title, description) in enumerate(demo_report_configs):
-                    template = templates[i % len(templates)]  # Cycle through available templates
+                    # Use bee_conversational_report template for all demo reports to leverage AI generation
+                    bee_template = session.query(ReportTemplate).filter(
+                        ReportTemplate.name == 'bee_conversational_report'
+                    ).first()
+
+                    # Fallback to cycling through templates if bee template doesn't exist yet
+                    template = bee_template if bee_template else templates[i % len(templates)]
 
                     # Create report request (starts as 'pending')
                     report = Report(
@@ -706,7 +712,11 @@ def generate_demo_data():
                         title=title,
                         description=description,
                         priority='normal',
-                        parameters={'demo_scenario': scenario, 'demo_category': 'healthcare'},
+                        parameters={
+                            'demo_scenario': scenario,
+                            'demo_category': 'healthcare',
+                            'query': description  # Use the description as the AI query
+                        },
                         output_format='pdf',
                         scrambling_enabled=True,
                         expires_at=datetime.utcnow() + timedelta(days=30),

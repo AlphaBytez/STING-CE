@@ -228,6 +228,31 @@ def create_default_templates(session=None):
             'requires_scrambling': True,
             'scrambling_profile': 'gdpr_compliant',
             'security_level': 'standard'
+        },
+
+        {
+            'name': 'bee_conversational_report',
+            'display_name': 'AI-Generated Analysis Report',
+            'description': 'Comprehensive AI-powered analysis using Bee to generate natural language insights from your data.',
+            'category': 'ai_analysis',
+            'template_config': {
+                'data_sources': ['honey_jars', 'documents', 'ai_context'],
+                'ai_enabled': True,
+                'use_bee_generator': True,
+                'parameters': [
+                    {'name': 'query', 'type': 'text', 'required': True, 'help': 'What would you like the AI to analyze and report on?'},
+                    {'name': 'honey_jar_filter', 'type': 'multiselect', 'required': False, 'help': 'Limit analysis to specific honey jars'},
+                    {'name': 'detail_level', 'type': 'select', 'required': False, 'options': ['Summary', 'Standard', 'Detailed'], 'default': 'Standard', 'help': 'Level of detail in the generated report'},
+                    {'name': 'include_recommendations', 'type': 'boolean', 'required': False, 'default': True, 'help': 'Include AI-generated recommendations'},
+                    {'name': 'executive_summary', 'type': 'boolean', 'required': False, 'default': True, 'help': 'Include executive summary section'}
+                ],
+                'visualizations': []
+            },
+            'output_formats': ['pdf'],
+            'estimated_time_minutes': 10,
+            'requires_scrambling': True,
+            'scrambling_profile': 'gdpr_compliant',
+            'security_level': 'standard'
         }
     ]
     
@@ -263,7 +288,8 @@ def _create_templates_with_session(session, templates):
             'document_processing_report': 'DocumentProcessingReportGenerator',
             'bee_chat_analytics': 'BeeChatAnalyticsGenerator',
             'encryption_status_report': 'EncryptionStatusReportGenerator',
-            'storage_utilization_report': 'StorageUtilizationReportGenerator'
+            'storage_utilization_report': 'StorageUtilizationReportGenerator',
+            'bee_conversational_report': 'BeeConversationalReportGenerator'
         }
         
         # Create new template

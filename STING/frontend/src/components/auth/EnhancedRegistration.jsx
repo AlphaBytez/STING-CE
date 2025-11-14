@@ -88,7 +88,7 @@ const EnhancedRegistration = () => {
 
   const initializeKratosRegistrationFlow = async () => {
     try {
-      const kratosUrl = 'https://localhost:4433';
+      const kratosUrl = window.env?.REACT_APP_KRATOS_PUBLIC_URL || process.env.REACT_APP_KRATOS_PUBLIC_URL || 'https://localhost:4433';
       const response = await axios.get(`${kratosUrl}/self-service/registration/browser`, {
         headers: { 'Accept': 'application/json' },
         withCredentials: true

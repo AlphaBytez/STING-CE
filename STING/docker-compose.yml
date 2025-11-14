@@ -338,8 +338,8 @@ services:
     env_file:
     - ${INSTALL_DIR}/env/frontend.env
     environment:
-      REACT_APP_API_URL: https://${HOSTNAME:-localhost}:5050
-      REACT_APP_KRATOS_PUBLIC_URL: https://${HOSTNAME:-localhost}:4433
+      REACT_APP_API_URL: https://${HOSTNAME:-localhost}:${REACT_PORT:-8443}/api
+      REACT_APP_KRATOS_PUBLIC_URL: https://${HOSTNAME:-localhost}:${REACT_PORT:-8443}/.ory
       PUBLIC_URL: /
       NODE_ENV: production
     volumes:

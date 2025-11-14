@@ -105,9 +105,9 @@ const HybridPasswordlessAuth = ({ mode = 'login' }) => {
    */
   const initializeKratosFlow = useCallback(async () => {
     try {
-      const kratosUrl = 'https://localhost:4433';
-      const flowUrl = isAAL2 
-        ? `${kratosUrl}/self-service/login/browser?aal=aal2`
+      const kratosUrl = window.env?.REACT_APP_KRATOS_PUBLIC_URL || process.env.REACT_APP_KRATOS_PUBLIC_URL || 'https://localhost:4433';
+      const flowUrl = isAAL2
+        ? `${kratosUrl}/self-service/login/browser?aal=aal2&refresh=true`
         : `${kratosUrl}/self-service/login/browser?refresh=true`;
         
       const response = await axios.get(flowUrl, {
@@ -855,8 +855,8 @@ const HybridPasswordlessAuth = ({ mode = 'login' }) => {
     
     try {
       // Initialize TOTP flow
-      const kratosUrl = 'https://localhost:4433';
-      const flowResponse = await axios.get(`${kratosUrl}/self-service/login/browser?aal=aal2`, {
+      const kratosUrl = window.env?.REACT_APP_KRATOS_PUBLIC_URL || process.env.REACT_APP_KRATOS_PUBLIC_URL || 'https://localhost:4433';
+      const flowResponse = await axios.get(`${kratosUrl}/self-service/login/browser?aal=aal2&refresh=true`, {
         headers: { 'Accept': 'application/json' },
         withCredentials: true
       });

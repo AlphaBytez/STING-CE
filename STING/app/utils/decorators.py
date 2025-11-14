@@ -576,11 +576,34 @@ def require_auth_method(required_methods, allowed_scopes=None):
                 # For other methods, require actual usage in session
                 available_methods = session_methods
 
+            # Check Redis for custom AAL2 verification (same as require_admin decorator)
+            # This handles the case where user completed AAL2 step-up via custom AAL2 flow
+            redis_aal2_verified = False
+            redis_aal2_method = None
+            try:
+                import redis
+                redis_client = redis.from_url('redis://redis:6379/0')
+                redis_key = f"sting:custom_aal2:{g.user.id}"
+                redis_data = redis_client.get(redis_key)
+                if redis_data:
+                    import json
+                    verification_data = json.loads(redis_data)
+                    redis_aal2_method = verification_data.get('method', 'webauthn')
+                    redis_aal2_verified = True
+                    logger.info(f"🔐 Found custom AAL2 verification in Redis for {user_email}: method={redis_aal2_method}")
+                    # Add the verified method to available methods
+                    if redis_aal2_method not in available_methods:
+                        available_methods.append(redis_aal2_method)
+            except Exception as redis_error:
+                logger.debug(f"Redis AAL2 check failed (non-critical): {redis_error}")
+                redis_aal2_verified = False
+
             # ENHANCED DEBUG: Full authentication method analysis
             logger.info(f"🔐 [AUTH DEBUG] Method check for {user_email}:")
             logger.info(f"🔐 [AUTH DEBUG] - Required methods: {required_methods}")
             logger.info(f"🔐 [AUTH DEBUG] - Session methods: {session_methods}")
             logger.info(f"🔐 [AUTH DEBUG] - Configured methods: {configured_methods}")
+            logger.info(f"🔐 [AUTH DEBUG] - Redis AAL2: {redis_aal2_verified} (method: {redis_aal2_method})")
             logger.info(f"🔐 [AUTH DEBUG] - Available methods: {available_methods}")
             logger.info(f"🔐 [AUTH DEBUG] - Has session_data: {hasattr(g, 'session_data')}")
             if hasattr(g, 'session_data'):

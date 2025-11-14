@@ -219,10 +219,10 @@ const AAL2PasskeyVerify = () => {
     console.log('🔐 Starting AAL2 passkey authentication...');
 
     try {
-      // MATCHING TOTP APPROACH: Use ?aal=aal2 directly like TOTP does
+      // MATCHING TOTP APPROACH: Use ?aal=aal2&refresh=true directly like TOTP does
       // TOTP successfully elevates Kratos to AAL2, let's try the same for passkey
       console.log('🔐 Initializing AAL2 flow (matching TOTP approach)...');
-      const flowResponse = await fetch(`/.ory/self-service/login/browser?aal=aal2`, {
+      const flowResponse = await fetch(`/.ory/self-service/login/browser?aal=aal2&refresh=true`, {
         headers: { 'Accept': 'application/json' },
         credentials: 'include'
       });
@@ -328,7 +328,29 @@ const AAL2PasskeyVerify = () => {
               if (!scriptContent || typeof scriptContent !== 'string') {
                 throw new Error('Invalid script content for WebAuthn');
               }
+
+              // Add temporary error handler for eval execution to catch DOM errors
+              const originalError = window.onerror;
+              window.onerror = function(msg, url, line, col, error) {
+                if (msg && msg.includes('Cannot set properties of null')) {
+                  console.warn('⚠️ Caught webauthn.js DOM error during eval (non-critical):', msg);
+                  // Don't reject - this is a non-critical error from Kratos script
+                  return true; // Prevent default error handling
+                }
+                // Call original handler for other errors
+                if (originalError) {
+                  return originalError(msg, url, line, col, error);
+                }
+                return false;
+              };
+
+              // Execute the script
               eval(scriptContent);
+
+              // Restore original error handler after a brief delay
+              setTimeout(() => {
+                window.onerror = originalError;
+              }, 100);
 
               // Only set a timeout if ceremony actually starts
               setTimeout(() => {

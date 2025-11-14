@@ -395,8 +395,27 @@ const EmailFirstLogin = () => {
       
       if (webauthnTrigger && webauthnTrigger.attributes?.onclick) {
         console.log('🔐 Found WebAuthn trigger, executing...');
+
+        // Add temporary error handler for eval execution to catch DOM errors
+        const originalError = window.onerror;
+        window.onerror = function(msg, url, line, col, error) {
+          if (msg && msg.includes('Cannot set properties of null')) {
+            console.warn('⚠️ Caught webauthn.js DOM error during eval (non-critical):', msg);
+            return true; // Prevent default error handling
+          }
+          if (originalError) {
+            return originalError(msg, url, line, col, error);
+          }
+          return false;
+        };
+
         // Execute the WebAuthn trigger
         eval(webauthnTrigger.attributes.onclick);
+
+        // Restore original error handler after a brief delay
+        setTimeout(() => {
+          window.onerror = originalError;
+        }, 100);
       } else {
         console.log('🔐 No WebAuthn trigger found in flow, checking for method...');
         

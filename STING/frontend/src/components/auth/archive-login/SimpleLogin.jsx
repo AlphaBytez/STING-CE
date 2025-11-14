@@ -142,7 +142,7 @@ const SimpleLogin = () => {
     
     // For password login, redirect to Kratos login page with pre-filled email
     // This is simpler than trying to manage the Kratos flow directly
-    const kratosUrl = 'https://localhost:4433';
+    const kratosUrl = window.env?.REACT_APP_KRATOS_PUBLIC_URL || process.env.REACT_APP_KRATOS_PUBLIC_URL || 'https://localhost:4433';
     const returnTo = encodeURIComponent(window.location.origin + '/dashboard');
     window.location.href = `${kratosUrl}/self-service/login/browser?return_to=${returnTo}`;
   };

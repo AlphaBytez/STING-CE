@@ -107,7 +107,7 @@ class FileAsset(Base):
             'file_type': self.file_type,
             'file_size': self.file_size,
             'mime_type': self.mime_type,
-            'content_hash': self.content_hash,
+            'content_hash': self.checksum,  # Use checksum column for content_hash
             'storage_backend': self.storage_backend,
             'access_level': self.access_level,
             'owner_id': str(self.owner_id),
