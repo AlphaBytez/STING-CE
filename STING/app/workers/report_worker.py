@@ -378,104 +378,94 @@ class ReportWorker:
             STING_ACCENT = colors.HexColor('#f59e0b')    # Honey accent (subtle)
             STING_LIGHT = colors.HexColor('#f8fafc')     # Light background
 
-            # Prominent STING Header Banner with Logo
+            # Modern centered STING Report header
             try:
                 # Try to load the STING logo
                 logo_path = '/opt/sting-ce/app/static/sting-logo.png'
                 if os.path.exists(logo_path):
-                    logo = Image(logo_path, width=0.4*inch, height=0.4*inch)
-
-                    # Create a table to align logo and text
-                    banner_style = ParagraphStyle(
-                        'STINGBanner',
-                        parent=styles['Normal'],
-                        fontSize=18,
-                        textColor=STING_BLUE,
-                        alignment=0,
-                        leftIndent=0,
-                        spaceBefore=0,
-                        spaceAfter=0
-                    )
-
-                    header_table = Table(
-                        [[logo, Paragraph("<b>STING</b> Secure Trusted Intelligence & Networking Guardian", banner_style)]],
-                        colWidths=[0.5*inch, 5*inch]
-                    )
-                    header_table.setStyle(TableStyle([
-                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                        ('TOPPADDING', (0, 0), (-1, -1), 0),
-                        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-                    ]))
-                    story.append(header_table)
-                else:
-                    # Fallback to text-only banner without emoji
-                    banner_style = ParagraphStyle(
-                        'STINGBanner',
-                        parent=styles['Normal'],
-                        fontSize=20,
-                        textColor=STING_BLUE,
-                        alignment=0,
-                        leftIndent=0,
-                        spaceBefore=0,
-                        spaceAfter=0
-                    )
-                    story.append(Paragraph("<b>STING</b> Secure Trusted Intelligence & Networking Guardian", banner_style))
+                    logo = Image(logo_path, width=0.6*inch, height=0.6*inch)
+                    # Center the logo
+                    logo.hAlign = 'CENTER'
+                    story.append(logo)
+                    story.append(Spacer(1, 0.1*inch))
             except Exception as e:
                 logger.warning(f"Could not load logo: {e}")
-                # Fallback to text-only banner
-                banner_style = ParagraphStyle(
-                    'STINGBanner',
-                    parent=styles['Normal'],
-                    fontSize=20,
-                    textColor=STING_BLUE,
-                    alignment=0,
-                    leftIndent=0,
-                    spaceBefore=0,
-                    spaceAfter=0
-                )
-                story.append(Paragraph("<b>STING</b> Secure Trusted Intelligence & Networking Guardian", banner_style))
 
-            # Divider line
-            divider = Drawing(400, 2)
-            divider.add(Rect(0, 0, 600, 2, fillColor=STING_BLUE, strokeColor=STING_BLUE))
-            story.append(Spacer(1, 0.1*inch))
+            # STING Report title - centered, bold
+            sting_report_style = ParagraphStyle(
+                'STINGReportTitle',
+                parent=styles['Normal'],
+                fontSize=24,
+                textColor=STING_BLUE,
+                alignment=1,  # Center
+                spaceBefore=0,
+                spaceAfter=0.05*inch,
+                leading=28
+            )
+            story.append(Paragraph("<b>STING REPORT</b>", sting_report_style))
+
+            # Acronym definition - smaller, centered, gray
+            sting_acronym_style = ParagraphStyle(
+                'STINGAcronym',
+                parent=styles['Normal'],
+                fontSize=9,
+                textColor=colors.HexColor('#6b7280'),  # Lighter gray
+                alignment=1,  # Center
+                spaceBefore=0,
+                spaceAfter=0.3*inch,
+                leading=11
+            )
+            story.append(Paragraph("Secure Trusted Intelligence &amp; Networking Guardian", sting_acronym_style))
+
+            # Single consistent divider line - full width
+            divider = Drawing(6.5*inch, 1)
+            divider.add(Rect(0, 0, 6.5*inch, 1, fillColor=STING_BLUE, strokeColor=STING_BLUE))
             story.append(divider)
-            story.append(Spacer(1, 0.3*inch))
+            story.append(Spacer(1, 0.4*inch))
 
-            # Branded Title Section
+            # Branded Title Section with improved spacing
             title_style = ParagraphStyle(
                 'STINGTitle',
                 parent=styles['Title'],
                 fontSize=28,
                 textColor=STING_BLUE,
-                spaceAfter=0.2*inch,
-                alignment=1  # Center align
+                spaceBefore=0.3*inch,  # Add space before title
+                spaceAfter=0.15*inch,  # Reduce space after for tighter grouping
+                alignment=1,  # Center align
+                leading=34  # Line height for better spacing
             )
             story.append(Paragraph(f"<b>{report_title}</b>", title_style))
 
-            # Professional subtitle
+            # Professional subtitle with better separation
             subtitle_style = ParagraphStyle(
                 'STINGSubtitle',
                 parent=styles['Normal'],
                 fontSize=12,
                 textColor=STING_DARK,
                 alignment=1,  # Center align
-                spaceAfter=0.3*inch
+                spaceAfter=0.4*inch,  # More space after subtitle before divider
+                leading=16  # Line height for subtitle
             )
             story.append(Paragraph(f"<i>{template_name}</i>", subtitle_style))
 
-            # Professional divider line
-            divider = Drawing(400, 1)
-            divider.add(Rect(0, 0, 400, 1, fillColor=STING_BLUE, strokeColor=STING_BLUE))
+            # Consistent divider line - full width
+            divider = Drawing(6.5*inch, 1)
+            divider.add(Rect(0, 0, 6.5*inch, 1, fillColor=STING_BLUE, strokeColor=STING_BLUE))
             story.append(divider)
-            story.append(Spacer(1, 0.3*inch))
-            
-            # Metadata
-            story.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
-            story.append(Paragraph(f"Template: {template_name}", styles['Normal']))
-            story.append(Spacer(1, 0.3*inch))
+            story.append(Spacer(1, 0.4*inch))
+
+            # Metadata with improved spacing
+            metadata_style = ParagraphStyle(
+                'STINGMetadata',
+                parent=styles['Normal'],
+                fontSize=10,
+                textColor=STING_DARK,
+                spaceAfter=0.08*inch,  # Add consistent spacing between metadata lines
+                leading=14
+            )
+            story.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", metadata_style))
+            story.append(Paragraph(f"Template: {template_name}", metadata_style))
+            story.append(Spacer(1, 0.4*inch))
             
             # Professional Summary Section
             if 'summary' in report_data:

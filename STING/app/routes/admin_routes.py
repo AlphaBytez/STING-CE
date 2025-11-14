@@ -507,17 +507,85 @@ def generate_demo_data():
             response_data['message'] = f'Generated {documents_created} realistic demo documents ready for honey jar upload'
 
         elif step == 3:
-            # Step 3: Create ACTUAL honey jars using the working service
-            honey_jar_service = get_honey_jar_service()
+            # Step 3: Create ACTUAL honey jars OR nectar bots depending on scenario
+            # Get user_id for ownership
+            if hasattr(g, 'api_key') and g.api_key:
+                user_id = g.api_key.user_id
+            else:
+                auth_user = get_current_auth_user()
+                user_id = auth_user['id']
 
-            # Create scenario-specific honey jars using proven working code
-            created_jars = honey_jar_service.create_demo_honey_jars(scenario)
+            if scenario == 'nectar-bot':
+                # Create demo nectar bots instead of honey jars
+                from app.models.nectar_bot_models import NectarBot
+                import secrets
 
-            response_data['honeyJars'] = len(created_jars)
-            response_data['honey_jar_names'] = [jar['name'] for jar in created_jars]
-            response_data['honey_jar_ids'] = [jar['id'] for jar in created_jars]
-            response_data['created_jars'] = created_jars  # Store for next step
-            response_data['message'] = f'Created {len(created_jars)} real honey jars via knowledge service API'
+                bot_configs = [
+                    {
+                        'name': 'Customer Support Bot',
+                        'slug': 'customer-support',
+                        'description': 'AI-powered customer support assistant that handles common inquiries and escalates complex issues',
+                        'system_prompt': 'You are a helpful customer support assistant. Help users with their questions and escalate complex issues to human agents when needed.'
+                    },
+                    {
+                        'name': 'Sales Assistant Bot',
+                        'slug': 'sales-assistant',
+                        'description': 'Intelligent sales bot that qualifies leads and provides product information',
+                        'system_prompt': 'You are a sales assistant. Help qualify leads, provide product information, and assist with appointment scheduling.'
+                    },
+                    {
+                        'name': 'Technical Support Bot',
+                        'slug': 'tech-support',
+                        'description': 'Technical support specialist for troubleshooting and IT assistance',
+                        'system_prompt': 'You are a technical support specialist. Help users troubleshoot issues, provide technical documentation, and perform system diagnostics.'
+                    }
+                ]
+
+                # Get user email for owner_email field
+                auth_user = get_current_auth_user()
+                owner_email = auth_user.get('email', 'demo@example.com')
+
+                created_bots = []
+                with get_db_session() as session:
+                    for bot_config in bot_configs:
+                        # Generate API key
+                        api_key = f"nb_{secrets.token_urlsafe(32)}"
+
+                        bot = NectarBot(
+                            name=bot_config['name'],
+                            slug=bot_config['slug'],
+                            description=bot_config['description'],
+                            owner_id=user_id,
+                            owner_email=owner_email,
+                            api_key=api_key,
+                            system_prompt=bot_config['system_prompt'],
+                            status='active'
+                        )
+                        session.add(bot)
+                        session.commit()
+
+                        created_bots.append({
+                            'id': str(bot.id),
+                            'name': bot.name,
+                            'slug': bot.slug,
+                            'api_key': api_key
+                        })
+                        logger.info(f"✅ Created nectar bot: {bot.name} (ID: {bot.id})")
+
+                response_data['nectarBots'] = len(created_bots)
+                response_data['bot_names'] = [bot['name'] for bot in created_bots]
+                response_data['created_bots'] = created_bots
+                response_data['message'] = f'Created {len(created_bots)} demo nectar bots'
+            else:
+                # Create honey jars for other scenarios
+                honey_jar_service = get_honey_jar_service()
+                created_jars = honey_jar_service.create_demo_honey_jars(scenario)
+
+                response_data['honeyJars'] = len(created_jars)
+                response_data['honey_jar_names'] = [jar['name'] for jar in created_jars]
+                response_data['honey_jar_ids'] = [jar['id'] for jar in created_jars]
+                response_data['created_jars'] = created_jars  # Store for next step
+                response_data['message'] = f'Created {len(created_jars)} real honey jars via knowledge service API'
             
         elif step == 4:
             # Step 4: Upload demo documents to honey jars (real data flow)

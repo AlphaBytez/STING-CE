@@ -36,7 +36,7 @@ def list_nectar_bots():
         # Check if NectarBot table exists
         from sqlalchemy import inspect
         inspector = inspect(db.engine)
-        if 'nectar_bot' not in inspector.get_table_names():
+        if 'nectar_bots' not in inspector.get_table_names():
             # Table doesn't exist yet - return empty list gracefully
             logger.info("NectarBot table doesn't exist yet - returning empty list")
             return jsonify({
@@ -549,9 +549,9 @@ def get_overview_analytics():
         from sqlalchemy import inspect
         inspector = inspect(db.engine)
         tables_exist = (
-            'nectar_bot' in inspector.get_table_names() and
+            'nectar_bots' in inspector.get_table_names() and
             'nectar_bot_usage' in inspector.get_table_names() and
-            'nectar_bot_handoff' in inspector.get_table_names()
+            'nectar_bot_handoffs' in inspector.get_table_names()
         )
 
         if not tables_exist:
