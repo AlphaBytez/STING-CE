@@ -14,6 +14,7 @@ const AAL2PasskeyVerify = () => {
   const [userEmail, setUserEmail] = useState('');
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [flowId, setFlowId] = useState(null);
+  const [flowData, setFlowData] = useState(null);
   const [verificationStarted, setVerificationStarted] = useState(false);
   const ceremonyCompleteRef = useRef(false);
 
@@ -144,13 +145,18 @@ const AAL2PasskeyVerify = () => {
   }, [verificationStarted]);
 
 
-  const completeAAL2Verification = async () => {
+  const completeAAL2Verification = async (encodedCredential) => {
     try {
       ceremonyCompleteRef.current = true; // Mark ceremony as complete
 
       const returnTo = searchParams.get('return_to') || '/dashboard';
 
+      // DEBUG: Log the return_to URL
+      console.log('🔍 AAL2 Passkey - return_to parameter:', returnTo);
+      console.log('🔍 AAL2 Passkey - All search params:', Object.fromEntries(searchParams.entries()));
+
       // Verify AAL2 elevation with Flask backend
+      // Send the WebAuthn credential so backend can verify with Kratos
       const completeResponse = await fetch('/api/aal2/challenge/complete', {
         method: 'POST',
         headers: {
@@ -161,6 +167,7 @@ const AAL2PasskeyVerify = () => {
         body: JSON.stringify({
           verification_method: 'webauthn',
           flow_id: flowId,
+          webauthn_credential: encodedCredential,
           // Include a timestamp to prevent replay attacks
           timestamp: new Date().toISOString()
         })
@@ -249,6 +256,7 @@ const AAL2PasskeyVerify = () => {
       console.log('🔐 AAL2 flow initialized (like TOTP):', flowData.id);
       console.log('🔐 Flow state:', flowData.state);
       setFlowId(flowData.id);
+      setFlowData(flowData);  // Store flow data for form rendering
 
       // Continue with flow data processing
       await handleFlowData(flowData);
@@ -267,130 +275,96 @@ const AAL2PasskeyVerify = () => {
       console.log('🔐 Processing AAL2 flow data...');
       console.log('🔐 Flow nodes:', flowData.ui?.nodes?.length);
 
-      // Check for WebAuthn triggers in the AAL2 flow
-      const webauthnTrigger = flowData.ui?.nodes?.find(n =>
-        n.attributes?.onclick?.includes('window.oryWebAuthnLogin')
-      );
-
+      // Find the webauthn_login_trigger node which contains the challenge data
       const webauthnLoginTrigger = flowData.ui?.nodes?.find(n =>
         n.attributes?.name === 'webauthn_login_trigger'
       );
 
-      if (webauthnTrigger || webauthnLoginTrigger) {
+      if (webauthnLoginTrigger) {
         console.log('✅ Found WebAuthn trigger in AAL2 flow!');
 
-        const trigger = webauthnTrigger || webauthnLoginTrigger;
-        const scriptContent = trigger?.attributes?.onclick;
+        // Parse the WebAuthn options from the trigger value
+        let webauthnOptions;
+        try {
+          webauthnOptions = JSON.parse(webauthnLoginTrigger.attributes.value);
+          console.log('🔐 WebAuthn options parsed:', webauthnOptions);
+        } catch (e) {
+          console.error('❌ Failed to parse WebAuthn options:', e);
+          throw new Error('Invalid WebAuthn challenge data');
+        }
 
-        if (scriptContent && typeof scriptContent === 'string' && scriptContent.trim()) {
-          console.log('🔐 Executing WebAuthn ceremony script...');
+        // Decode the challenge and credential IDs (base64url to Uint8Array)
+        const __oryWebAuthnBufferDecode = (value) => {
+          return Uint8Array.from(
+            atob(value.replaceAll("-", "+").replaceAll("_", "/")),
+            (c) => c.charCodeAt(0)
+          );
+        };
 
-          // Create a promise to track the ceremony completion
-          const ceremonyPromise = new Promise((resolve, reject) => {
-            let ceremonyStarted = false;
+        const __oryWebAuthnBufferEncode = (value) => {
+          return btoa(String.fromCharCode.apply(null, new Uint8Array(value)))
+            .replaceAll("+", "-")
+            .replaceAll("/", "_")
+            .replaceAll("=", "");
+        };
 
-            // Listen for WebAuthn credential request to know ceremony started
-            const originalGet = navigator.credentials.get;
-            navigator.credentials.get = async function(options) {
-              console.log('🔐 WebAuthn ceremony started - Touch ID/biometric requested');
-              ceremonyStarted = true;
+        // Prepare the options for navigator.credentials.get()
+        webauthnOptions.publicKey.challenge = __oryWebAuthnBufferDecode(
+          webauthnOptions.publicKey.challenge
+        );
 
-              try {
-                // Call the original get and wait for user to complete biometric
-                const credential = await originalGet.call(this, options);
+        if (webauthnOptions.publicKey.allowCredentials) {
+          webauthnOptions.publicKey.allowCredentials = webauthnOptions.publicKey.allowCredentials.map(
+            (cred) => ({
+              ...cred,
+              id: __oryWebAuthnBufferDecode(cred.id),
+            })
+          );
+        }
 
-                // Validate credential before processing
-                if (!credential || !credential.id || !credential.rawId || !credential.response) {
-                  console.error('❌ Invalid credential received from authenticator:', credential);
-                  throw new Error('Invalid credential received from authenticator');
-                }
+        console.log('🔐 Starting WebAuthn ceremony with user interaction...');
 
-                console.log('✅ Biometric authentication completed!');
-                ceremonyCompleteRef.current = true;
+        try {
+          // Call navigator.credentials.get() directly - this will prompt for biometric
+          const credential = await navigator.credentials.get(webauthnOptions);
 
-                // Restore original function
-                navigator.credentials.get = originalGet;
-
-                // Give Kratos time to process the credential
-                setTimeout(() => resolve(credential), 1500);
-
-                return credential;
-              } catch (error) {
-                console.error('❌ Biometric authentication failed:', error);
-                navigator.credentials.get = originalGet;
-                reject(error);
-              }
-            };
-
-            // Execute the WebAuthn script
-            try {
-              // Validate script content before evaluation
-              if (!scriptContent || typeof scriptContent !== 'string') {
-                throw new Error('Invalid script content for WebAuthn');
-              }
-
-              // Add temporary error handler for eval execution to catch DOM errors
-              const originalError = window.onerror;
-              window.onerror = function(msg, url, line, col, error) {
-                if (msg && msg.includes('Cannot set properties of null')) {
-                  console.warn('⚠️ Caught webauthn.js DOM error during eval (non-critical):', msg);
-                  // Don't reject - this is a non-critical error from Kratos script
-                  return true; // Prevent default error handling
-                }
-                // Call original handler for other errors
-                if (originalError) {
-                  return originalError(msg, url, line, col, error);
-                }
-                return false;
-              };
-
-              // Execute the script
-              eval(scriptContent);
-
-              // Restore original error handler after a brief delay
-              setTimeout(() => {
-                window.onerror = originalError;
-              }, 100);
-
-              // Only set a timeout if ceremony actually starts
-              setTimeout(() => {
-                if (!ceremonyStarted) {
-                  console.log('⚠️ WebAuthn ceremony never started');
-                  navigator.credentials.get = originalGet;
-                  reject(new Error('WebAuthn ceremony failed to start'));
-                }
-              }, 5000);
-
-              // Extended timeout for actual biometric completion
-              setTimeout(() => {
-                if (ceremonyStarted && !ceremonyCompleteRef.current) {
-                  console.log('⏰ Biometric authentication timed out');
-                  navigator.credentials.get = originalGet;
-                  reject(new Error('Biometric authentication timed out'));
-                }
-              }, 60000); // 60 seconds for user to complete Touch ID
-
-            } catch (e) {
-              console.error('❌ Script execution failed:', e);
-              navigator.credentials.get = originalGet;
-              reject(e);
-            }
-          });
-
-          // Wait for ceremony completion
-          try {
-            await ceremonyPromise;
-            console.log('✅ WebAuthn biometric ceremony completed successfully!');
-
-            // Biometric authentication completed successfully
-            console.log('✅ Biometric authentication completed - notifying backend');
-            await completeAAL2Verification();
-          } catch (error) {
-            console.error('❌ Biometric ceremony failed:', error);
-            throw error;
+          // Validate credential
+          if (!credential || !credential.id || !credential.rawId || !credential.response) {
+            console.error('❌ Invalid credential received from authenticator:', credential);
+            throw new Error('Invalid credential received from authenticator');
           }
-        } else {
-          throw new Error('No WebAuthn script found');
+
+          console.log('✅ Biometric authentication completed!');
+          ceremonyCompleteRef.current = true;
+
+          // Encode the credential response for Kratos
+          const encodedCredential = {
+            id: credential.id,
+            rawId: __oryWebAuthnBufferEncode(credential.rawId),
+            type: credential.type,
+            response: {
+              authenticatorData: __oryWebAuthnBufferEncode(
+                credential.response.authenticatorData
+              ),
+              clientDataJSON: __oryWebAuthnBufferEncode(
+                credential.response.clientDataJSON
+              ),
+              signature: __oryWebAuthnBufferEncode(credential.response.signature),
+              userHandle: __oryWebAuthnBufferEncode(
+                credential.response.userHandle
+              ),
+            },
+          };
+
+          console.log('🔐 Credential encoded, sending to backend...');
+
+          // Send the credential to our backend instead of submitting to Kratos
+          // Our backend will verify with Kratos AND handle the correct redirect
+          await completeAAL2Verification(encodedCredential);
+
+        } catch (error) {
+          console.error('❌ Biometric ceremony failed:', error);
+          throw error;
         }
       } else {
         // Check if this is a fresh auth request (Kratos demands new login)
@@ -479,6 +453,32 @@ const AAL2PasskeyVerify = () => {
           <div className="sting-glass-subtle border border-red-500/50 text-red-200 px-4 py-3 rounded-lg mb-6">
             {error}
           </div>
+        )}
+
+        {/* Hidden Kratos form - required for WebAuthn script */}
+        {flowData && flowId && (
+          <form
+            id="kratos-webauthn-form"
+            method="POST"
+            action={`${window.location.origin}/.ory/self-service/login?flow=${flowId}`}
+            style={{ display: 'none' }}
+          >
+            {flowData.ui?.nodes?.map((node, idx) => {
+              const attrs = node.attributes || {};
+              if (attrs.type === 'hidden' || attrs.type === 'submit' || attrs.name) {
+                return (
+                  <input
+                    key={idx}
+                    type={attrs.type || 'hidden'}
+                    name={attrs.name}
+                    value={attrs.value || ''}
+                    readOnly
+                  />
+                );
+              }
+              return null;
+            })}
+          </form>
         )}
 
         {/* Passkey Authentication */}

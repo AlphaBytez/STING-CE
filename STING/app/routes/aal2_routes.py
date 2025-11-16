@@ -125,16 +125,22 @@ def begin_aal2_challenge():
 def complete_aal2_challenge():
     """
     Complete AAL2 biometric challenge
-    
+
     This should be called after successful WebAuthn authentication
     to mark the user as AAL2 verified
-    
+
     Expected JSON:
         {
             "verification_method": "webauthn",
-            "webauthn_response": "optional_webauthn_response_data"
+            "flow_id": "kratos_flow_id",
+            "webauthn_credential": {
+                "id": "...",
+                "rawId": "...",
+                "type": "public-key",
+                "response": {...}
+            }
         }
-    
+
     Returns:
         AAL2 verification confirmation
     """
@@ -145,23 +151,91 @@ def complete_aal2_challenge():
                 'error': 'Authentication required',
                 'code': 'NOT_AUTHENTICATED'
             }), 401
-        
+
         data = request.get_json() or {}
         user_id = g.user.id
         user_email = g.user.email
         verification_method = data.get('verification_method', 'webauthn')
-        
+        flow_id = data.get('flow_id')
+        webauthn_credential = data.get('webauthn_credential')
+
         logger.info(f"🔐 Completing AAL2 challenge for {user_email} using {verification_method}")
-        
-        # Mark user as AAL2 verified
+
+        # If WebAuthn credential provided, validate it with Kratos first
+        if verification_method == 'webauthn' and webauthn_credential and flow_id:
+            import requests
+            import json
+            from flask import session
+
+            logger.info(f"🔐 Submitting WebAuthn credential to Kratos for validation...")
+
+            try:
+                # Get the Kratos session cookie from the user's session
+                kratos_cookie = request.cookies.get('ory_kratos_session')
+
+                if not kratos_cookie:
+                    logger.error("❌ No Kratos session cookie found")
+                    return jsonify({
+                        'error': 'No active session',
+                        'code': 'NO_SESSION'
+                    }), 401
+
+                # Submit the WebAuthn credential to Kratos
+                kratos_url = f"/.ory/self-service/login?flow={flow_id}"
+                kratos_headers = {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Accept': 'application/json',
+                    'Cookie': f'ory_kratos_session={kratos_cookie}'
+                }
+
+                kratos_data = {
+                    'webauthn_login': json.dumps(webauthn_credential),
+                    'method': 'webauthn'
+                }
+
+                # Use internal Kratos URL (kratos:4433) for backend-to-backend communication
+                internal_kratos_url = f"https://kratos:4433/self-service/login?flow={flow_id}"
+
+                logger.info(f"🔐 Submitting to Kratos: {internal_kratos_url}")
+
+                kratos_response = requests.post(
+                    internal_kratos_url,
+                    data=kratos_data,
+                    headers=kratos_headers,
+                    verify=False,  # Kratos uses self-signed cert internally
+                    allow_redirects=False
+                )
+
+                logger.info(f"🔐 Kratos response status: {kratos_response.status_code}")
+
+                # Check if Kratos accepted the credential
+                if kratos_response.status_code not in [200, 303]:
+                    logger.error(f"❌ Kratos rejected WebAuthn credential: {kratos_response.status_code}")
+                    logger.error(f"❌ Kratos response: {kratos_response.text[:500]}")
+                    return jsonify({
+                        'error': 'WebAuthn credential validation failed',
+                        'code': 'KRATOS_VALIDATION_FAILED'
+                    }), 401
+
+                logger.info(f"✅ Kratos validated WebAuthn credential successfully!")
+
+            except Exception as kratos_error:
+                logger.error(f"❌ Error validating with Kratos: {str(kratos_error)}")
+                return jsonify({
+                    'error': 'Failed to validate with Kratos',
+                    'code': 'KRATOS_ERROR',
+                    'details': str(kratos_error)
+                }), 500
+
+        # Mark user as AAL2 verified in our system
         success = verify_aal2_challenge(user_id, verification_method)
-        
+
         if success:
             logger.info(f"✅ AAL2 verification successful for {user_email}")
-            
+
             # Get updated status
             status = get_aal2_status(user_id)
-            
+
             return jsonify({
                 'success': True,
                 'verified': True,
@@ -175,7 +249,7 @@ def complete_aal2_challenge():
                 'error': 'AAL2 verification failed',
                 'code': 'VERIFICATION_FAILED'
             }), 500
-        
+
     except Exception as e:
         logger.error(f"Error completing AAL2 challenge: {str(e)}")
         return jsonify({

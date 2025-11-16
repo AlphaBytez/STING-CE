@@ -385,6 +385,7 @@ services:
     - MP_DATABASE=/data/mailpit.db
     - MP_SMTP_AUTH_ACCEPT_ANY=1
     - MP_SMTP_AUTH_ALLOW_INSECURE=1
+    - MP_WEBROOT=/mailpit
     - TZ=UTC
     mem_limit: 128M
     cpus: 0.1
