@@ -1228,10 +1228,12 @@ def apply_config():
     state = load_setup_state()
     config_data = state['config_data']
 
-    # Get admin email, default to admin@sting.local if not provided or empty
+    # Get admin email, default to admin@<hostname> if not provided or empty
     admin_email = config_data.get('admin', {}).get('email', '').strip()
     if not admin_email:
-        admin_email = 'admin@sting.local'
+        # Fallback: use configured hostname for admin email
+        hostname = config_data.get('system', {}).get('hostname', 'sting.local')
+        admin_email = f'admin@{hostname}'
 
     # Final validation
     valid, errors = validate_config_with_loader(config_data)

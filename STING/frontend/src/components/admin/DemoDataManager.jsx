@@ -119,7 +119,7 @@ const DemoDataManager = () => {
       estimatedTime: '5-8 minutes',
       includes: [
         '20 honey jars across different categories',
-        '50 sample reports with realistic data',
+        '5 sample reports with realistic data',
         'Compliance templates with test data',
         'Advanced PII patterns and scenarios',
         'Sample team collaboration data',

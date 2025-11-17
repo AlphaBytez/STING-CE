@@ -953,7 +953,8 @@ def _send_chat_request(message, conversation_id, user_id, user_email, bot_contex
         'conversation_id': conversation_id,
         'user_id': user_id,
         'user_email': user_email,
-        'bot_id': bot_context.get('bot_id')
+        'bot_id': bot_context.get('bot_id'),
+        'bot_context': bot_context  # Include full bot context with system_prompt
     }
 
     # Try Nectar Worker service first (primary for Nectar Bots)

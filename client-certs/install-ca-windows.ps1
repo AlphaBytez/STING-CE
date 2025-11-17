@@ -4,7 +4,7 @@
 param(
     [string]$CAFile = "sting-ca.pem",
     [string]$Domain = "captain-den.local",
-    [string]$VMIP = "192.168.68.78"
+    [string]$VMIP = "192.168.68.101"
 )
 
 Write-Host "🔐 STING-CE Certificate Authority Installer for Windows" -ForegroundColor Green

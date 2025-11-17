@@ -138,3 +138,6 @@ client-certs/install-ca-linux.sh
 client-certs/install-ca-mac.sh
 client-certs/install-ca-windows.ps1
 client-certs/install-ca-linux.sh
+client-certs/install-ca-mac.sh
+client-certs/install-ca-linux.sh
+client-certs/install-ca-windows.ps1

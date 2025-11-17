@@ -860,13 +860,21 @@ Begin the report now. Remember: This must be thorough and comprehensive with sub
             }
         else:
             # Handle as regular conversation
+            # Check if this is a Nectar Bot request with custom system prompt
+            bot_context = request.context.get('bot_context') if request.context else None
+            nectar_bot_system_prompt = None
+            if bot_context and bot_context.get('is_nectar_bot'):
+                nectar_bot_system_prompt = bot_context.get('system_prompt')
+                logger.info(f"Using Nectar Bot system prompt for bot: {bot_context.get('bot_name')}")
+
             # Use the BeeContextManager to build enhanced prompt with honey jar context AND conversation history
             enhanced_prompt = await bee_context_manager.build_enhanced_prompt(
                 request.message,
                 request.user_id,
                 conversation_id=request.conversation_id,  # Pass conversation_id to load history from Redis
                 conversation_history=None,  # Will be loaded from Redis automatically
-                honey_jar_id=request.honey_jar_id
+                honey_jar_id=request.honey_jar_id,
+                custom_system_prompt=nectar_bot_system_prompt  # Pass custom prompt for Nectar Bots
             )
 
             # Save user message to conversation history

@@ -320,10 +320,10 @@ class ReportService:
                 
                 if retry and report.can_retry:
                     # Queue for retry
-                    report.status = 'pending'
+                    report.status = 'queued'
                     report.progress_percentage = 0
                     session.commit()
-                    
+
                     # Re-queue the job
                     self.queue_report(report_id)
                     

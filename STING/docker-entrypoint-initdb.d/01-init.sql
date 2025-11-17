@@ -298,7 +298,10 @@ CREATE TABLE IF NOT EXISTS reports (
     scrambling_enabled BOOLEAN DEFAULT FALSE,
     scrambling_mapping_id VARCHAR(255),
     pii_detected BOOLEAN DEFAULT FALSE,
-    risk_level VARCHAR(50),
+    risk_level VARCHAR(50) DEFAULT 'low',
+    generated_by VARCHAR(255),
+    access_grants JSON DEFAULT '[]',
+    access_type VARCHAR(50) DEFAULT 'user-owned',
     result_file_id VARCHAR(255),
     result_summary JSONB DEFAULT '{}'::jsonb,
     result_size_bytes BIGINT,
@@ -334,6 +337,7 @@ CREATE TABLE IF NOT EXISTS report_queue (
 CREATE TABLE IF NOT EXISTS nectar_bots (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255),
     description TEXT,
     owner_id UUID,
     owner_email VARCHAR(255),
@@ -564,11 +568,14 @@ CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
 CREATE INDEX IF NOT EXISTS idx_reports_user_id ON reports(user_id);
 CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
 CREATE INDEX IF NOT EXISTS idx_reports_created_at ON reports(created_at);
+CREATE INDEX IF NOT EXISTS idx_reports_generated_by ON reports(generated_by);
+CREATE INDEX IF NOT EXISTS idx_reports_access_type ON reports(access_type);
 CREATE INDEX IF NOT EXISTS idx_report_queue_status ON report_queue(assigned_at);
 
 -- Nectar bot indexes
 CREATE INDEX IF NOT EXISTS idx_nectar_bots_owner_id ON nectar_bots(owner_id);
 CREATE INDEX IF NOT EXISTS idx_nectar_bots_api_key ON nectar_bots(api_key);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_nectar_bots_slug ON nectar_bots(slug);
 CREATE INDEX IF NOT EXISTS idx_nectar_bot_usage_bot_id ON nectar_bot_usage(bot_id);
 CREATE INDEX IF NOT EXISTS idx_nectar_bot_handoffs_bot_id ON nectar_bot_handoffs(bot_id);
 

@@ -845,7 +845,7 @@ llm_service:
   # Modern Ollama-based configuration (recommended)
   ollama:
     enabled: true
-    endpoint: "http://100.103.191.31:11434/"  # External LM Studio on tailnet (OpenAI-compatible API)
+    endpoint: "http://100.98.41.18:11434/"  # External LM Studio on tailnet (OpenAI-compatible API)
     default_model: "microsoft/phi-4-mini-reasoning"  # Default model
     models_to_install:
       - "phi3:mini"           # Compact and fast model
@@ -861,7 +861,17 @@ llm_service:
   external_ai:
     enabled: true
     port: 8091
-    ollama_endpoint: "http://100.103.191.31:11434/"
+    ollama_endpoint: "http://100.98.41.18:11434/"
+
+  # Nectar Worker - Lightweight LLM service for Nectar Bots
+  nectar_worker:
+    enabled: true
+    port: 9002
+    redis_db: 2  # Separate Redis DB for nectar worker
+    conversation_ttl: 3600  # 1 hour conversation history TTL
+    llm_provider: "openai-compatible"  # ollama, openai, openai-compatible, anthropic, etc.
+    llm_model: "microsoft/phi-4-mini-reasoning"
+    llm_endpoint: "http://100.98.41.18:11434"  # LM Studio endpoint (OpenAI-compatible API)
 
   # Report Generation Configuration
   # Configure which model to use for generating long-form reports
@@ -1134,7 +1144,7 @@ nectar_worker:
 
   # Ollama Configuration
   ollama:
-    url: "http://100.103.191.31:11434"  # External LM Studio on tailnet (OpenAI-compatible API)
+    url: "http://100.98.41.18:11434"  # External LM Studio on tailnet (OpenAI-compatible API)
     default_model: "microsoft/phi-4-mini-reasoning"  # Lightweight reasoning model for Nectar Bots
     keep_alive: "30m"  # Keep model in memory for 30 minutes
 

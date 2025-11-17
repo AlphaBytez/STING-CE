@@ -430,9 +430,14 @@ class BeeContextManager:
         user_id: str,
         conversation_id: Optional[str] = None,
         conversation_history: Optional[List[Dict[str, str]]] = None,
-        honey_jar_id: Optional[str] = None
+        honey_jar_id: Optional[str] = None,
+        custom_system_prompt: Optional[str] = None
     ) -> str:
-        """Build an enhanced prompt that preserves Bee's personality while adding context"""
+        """Build an enhanced prompt that preserves Bee's personality while adding context
+
+        Args:
+            custom_system_prompt: If provided (e.g., for Nectar Bots), use this instead of Bee's prompt
+        """
 
         # PRIORITY 0: Load conversation history from Redis cache (NEW!)
         if self.conversation_cache and conversation_id:
@@ -447,8 +452,12 @@ class BeeContextManager:
             except Exception as e:
                 logger.warning(f"Failed to load conversation history from cache: {e}")
 
-        # PRIORITY 1: Load the actual Bee system prompt
-        system_prompt = await self.load_bee_system_prompt()
+        # PRIORITY 1: Load the actual system prompt (Bee or custom Nectar Bot)
+        if custom_system_prompt:
+            system_prompt = custom_system_prompt
+            logger.info("Using custom system prompt (Nectar Bot)")
+        else:
+            system_prompt = await self.load_bee_system_prompt()
 
         # PRIORITY 2: Get honey jar context (user's knowledge, most relevant)
         honey_jar_results = await self.get_honey_jar_context(user_message, user_id, honey_jar_id)

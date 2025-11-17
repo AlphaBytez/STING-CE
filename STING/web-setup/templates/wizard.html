@@ -239,7 +239,7 @@
                         <input type="checkbox" id="create-default-admin" checked class="mt-1 w-5 h-5 bg-slate-700 border-slate-600 text-amber-500 rounded focus:ring-2 focus:ring-amber-500">
                         <div class="flex-1">
                             <label for="create-default-admin" class="block text-sm font-medium text-slate-300 mb-2 cursor-pointer">
-                                Create default admin account (<code class="text-amber-400 bg-slate-800/50 px-1 rounded">admin@sting.local</code>)
+                                Create default admin account (<code class="text-amber-400 bg-slate-800/50 px-1 rounded" id="admin-email-display">admin@sting.local</code>)
                             </label>
                             <p class="text-xs text-slate-300">
                                 💡 Recommended for testing with Mailpit. Kratos will create this account after installation completes.
@@ -709,6 +709,7 @@
                 if (recommendedOption) {
                     document.getElementById('hostname').value = recommendedOption.value;
                     document.getElementById('hostname-display').textContent = recommendedOption.value;
+                    updateAdminEmail(recommendedOption.value);
                 }
 
             } catch (error) {
@@ -735,6 +736,7 @@
                 customValueInput.addEventListener('input', function(e) {
                     hostnameField.value = e.target.value;
                     hostnameDisplay.textContent = e.target.value || 'custom';
+                    updateAdminEmail(e.target.value);
                 });
 
                 // Set focus to custom input
@@ -744,6 +746,15 @@
                 customInput.classList.add('hidden');
                 hostnameField.value = value;
                 hostnameDisplay.textContent = value;
+                updateAdminEmail(value);
+            }
+        }
+
+        function updateAdminEmail(hostname) {
+            // Update the admin email display to match the selected hostname
+            const adminEmailDisplay = document.getElementById('admin-email-display');
+            if (adminEmailDisplay && hostname) {
+                adminEmailDisplay.textContent = `admin@${hostname}`;
             }
         }
 
@@ -963,10 +974,11 @@
                     };
                     break;
                 case 3:
-                    // Use admin@sting.local if checkbox is checked, otherwise null (manual creation)
+                    // Use admin@<hostname> if checkbox is checked, otherwise null (manual creation)
                     const createDefaultAdmin = document.getElementById('create-default-admin').checked;
+                    const hostname = document.getElementById('hostname').value || 'sting.local';
                     stepData.admin = {
-                        email: createDefaultAdmin ? 'admin@sting.local' : null
+                        email: createDefaultAdmin ? `admin@${hostname}` : null
                     };
                     break;
                 case 4:

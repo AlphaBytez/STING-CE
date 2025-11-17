@@ -390,7 +390,7 @@ def list_reports():
             # Apply status filter if provided
             if status_filter:
                 # Use string values instead of enum to avoid database compatibility issues
-                if status_filter in ['pending', 'queued', 'processing', 'completed', 'failed', 'cancelled']:
+                if status_filter in ['queued', 'processing', 'completed', 'failed', 'cancelled']:
                     query = query.filter(Report.status == status_filter)
                 else:
                     return jsonify({'error': f'Invalid status: {status_filter}'}), 400
@@ -709,7 +709,7 @@ def retry_report(report_id: str):
                 return jsonify({'error': 'Report cannot be retried'}), 400
             
             # Reset report status and queue it again
-            report.status = 'pending'
+            report.status = 'queued'
             report.progress_percentage = 0
             report.error_message = None
             report.retry_count += 1
@@ -756,7 +756,7 @@ def get_queue_status_api():
             user_processing = session.query(Report)\
                 .filter(
                     Report.user_id == user_id,
-                    Report.status.in_(['pending', 'queued', 'processing'])
+                    Report.status.in_(['queued', 'processing'])
                 )\
                 .count()
             
@@ -953,7 +953,7 @@ def delete_template(template_id: str):
             # Check if template is in use
             active_reports = session.query(Report).filter(
                 Report.template_id == template_id,
-                Report.status.in_(['pending', 'queued', 'processing'])
+                Report.status.in_(['queued', 'processing'])
             ).count()
             
             if active_reports > 0:

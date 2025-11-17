@@ -360,7 +360,7 @@ def get_report_templates(session: Session, category: str = None, user_role: str 
 def get_queue_status(session: Session, queue_name: str = 'default') -> Dict[str, Any]:
     """Get current queue status and statistics"""
     total_pending = session.query(Report)\
-        .filter(Report.status.in_(['pending', 'queued']))\
+        .filter(Report.status == 'queued')\
         .count()
 
     currently_processing = session.query(Report)\

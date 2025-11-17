@@ -1728,50 +1728,48 @@ class ConfigurationManager:
     def _generate_nectar_worker_env_vars(self):
         """Generate nectar-worker environment variables from configuration"""
         try:
+            # Get nectar_worker config from top-level section
             nectar_config = self.raw_config.get('nectar_worker', {})
-            ollama_config = nectar_config.get('ollama', {})
-            limits_config = nectar_config.get('limits', {})
-            performance_config = nectar_config.get('performance', {})
-            security_config = nectar_config.get('security', {})
-            logging_config = nectar_config.get('logging', {})
+
+            if not nectar_config:
+                logger.warning("No nectar_worker config found, using defaults")
+                nectar_config = {}
 
             logger.info(f"Generating nectar-worker.env with enabled={nectar_config.get('enabled', False)}")
 
-            # Generate STING API key for internal service communication
-            sting_api_key = self._generate_secret(32)
+            # Support both flat structure and nested structure
+            # Flat: nectar_worker.llm_provider, nectar_worker.llm_endpoint, nectar_worker.llm_model
+            # Nested: nectar_worker.ollama.url, nectar_worker.ollama.default_model
 
-            # Get Ollama URL with platform-aware host gateway
-            # Try nectar_worker.ollama.url first, fall back to llm_service.ollama.endpoint
-            ollama_url = ollama_config.get('url') or self.raw_config.get('llm_service', {}).get('ollama', {}).get('endpoint', 'http://localhost:11434')
-            # Replace host.docker.internal with platform-specific gateway
-            ollama_url = ollama_url.replace('host.docker.internal', self.docker_host_gateway)
+            # Try flat structure first
+            llm_provider = nectar_config.get('llm_provider')
+            llm_endpoint = nectar_config.get('llm_endpoint')
+            llm_model = nectar_config.get('llm_model')
+
+            # Fall back to nested structure
+            if not llm_endpoint:
+                ollama_config = nectar_config.get('ollama', {})
+                llm_endpoint = ollama_config.get('url', 'http://localhost:11434')
+                llm_model = llm_model or ollama_config.get('default_model', 'phi3:mini')
+                llm_provider = llm_provider or 'openai-compatible'  # LM Studio default
 
             return {
-                # STING API Configuration
-                'STING_API_URL': 'https://app:5050',
-                'STING_API_KEY': sting_api_key,
+                # Redis Configuration (using defaults or from config)
+                'REDIS_HOST': 'redis',
+                'REDIS_PORT': '6379',
+                'REDIS_DB': str(nectar_config.get('redis_db', 2)),
+                'CONVERSATION_TTL': str(nectar_config.get('conversation_ttl', 3600)),
 
-                # Ollama Configuration
-                'OLLAMA_URL': ollama_url,
-                'DEFAULT_MODEL': ollama_config.get('default_model', 'phi3:mini'),
-                'OLLAMA_KEEP_ALIVE': ollama_config.get('keep_alive', '30m'),
-
-                # Nectar Bot Limits
-                'MAX_HONEY_JARS_PER_BOT': str(limits_config.get('max_honey_jars_per_bot', 3)),
-                'MAX_CONTEXT_TOKENS': str(limits_config.get('max_context_tokens', 2000)),
-                'MAX_CONCURRENT_REQUESTS': str(limits_config.get('max_concurrent_requests', 10)),
-                'REQUEST_TIMEOUT': str(limits_config.get('request_timeout', 60)),
-
-                # Performance & Caching
-                'HONEY_JAR_CACHE_SIZE': str(performance_config.get('honey_jar_cache_size', 100)),
-                'HONEY_JAR_CACHE_TTL': str(performance_config.get('honey_jar_cache_ttl', 300)),
-                'BOT_CONFIG_CACHE_TTL': str(performance_config.get('bot_config_cache_ttl', 300)),
-
-                # Logging
-                'LOG_LEVEL': logging_config.get('level', 'INFO'),
+                # LLM Configuration (LLM-agnostic from config)
+                'LLM_PROVIDER': llm_provider or 'openai-compatible',
+                'LLM_ENDPOINT': llm_endpoint.rstrip('/'),  # Remove trailing slash
+                'LLM_MODEL': llm_model or 'phi3:mini',
+                'LLM_API_KEY': '',  # For OpenAI, Anthropic, etc. (empty for local endpoints)
 
                 # Service metadata
-                'NECTAR_WORKER_ENABLED': str(nectar_config.get('enabled', True)).lower()
+                'NECTAR_WORKER_ENABLED': str(nectar_config.get('enabled', True)).lower(),
+                'NECTAR_WORKER_PORT': str(nectar_config.get('port', 9002)),
+                'LOG_LEVEL': nectar_config.get('logging', {}).get('level', 'INFO')
             }
 
         except Exception as e:
