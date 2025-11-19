@@ -80,15 +80,41 @@ selfservice:
           - hook: session
         default_browser_return_url: https://__STING_HOSTNAME__:8443/post-registration
     verification:
-      enabled: false
+      enabled: true
       ui_url: https://__STING_HOSTNAME__:8443/verification
       lifespan: 1h
       after:
+        hooks:
+        - hook: web_hook
+          config:
+            url: http://app:5050/api/kratos/webhooks/email-verified
+            method: POST
+            body: base64://eyAiaWRlbnRpdHkiOiAie0AgLmlkZW50aXR5IH0iIH0=
+            auth:
+              type: api_key
+              config:
+                name: X-Webhook-Token
+                value: ${KRATOS_WEBHOOK_TOKEN}
+                in: header
         default_browser_return_url: https://__STING_HOSTNAME__:8443/dashboard
     recovery:
       enabled: true
       ui_url: https://__STING_HOSTNAME__:8443/recovery
       lifespan: 1h
+      after:
+        hooks:
+        - hook: web_hook
+          config:
+            url: http://app:5050/api/kratos/webhooks/account-recovery
+            method: POST
+            body: base64://eyAiaWRlbnRpdHkiOiAie0AgLmlkZW50aXR5IH0iIH0=
+            auth:
+              type: api_key
+              config:
+                name: X-Webhook-Token
+                value: ${KRATOS_WEBHOOK_TOKEN}
+                in: header
+        default_browser_return_url: https://__STING_HOSTNAME__:8443/dashboard
     logout:
       after:
         default_browser_return_url: https://__STING_HOSTNAME__:8443/login

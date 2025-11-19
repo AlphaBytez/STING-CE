@@ -67,7 +67,7 @@ const UniversalSearch = ({ isModal = false, onClose, initialQuery = '' }) => {
     try {
       const searchData = {
         query: searchQuery,
-        limit: 20,
+        top_k: 20,  // Changed from 'limit' to match backend parameter
         honey_jar_ids: filters.honeyJars.length > 0 ? filters.honeyJars : undefined,
         filters: {
           document_types: filters.documentTypes,

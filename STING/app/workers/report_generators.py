@@ -160,7 +160,7 @@ class HoneyJarSummaryGenerator(BaseReportGenerator):
                         SELECT h.id, h.name, h.type, h.owner, h.created_date, h.document_count,
                                h.total_size_bytes, h.last_updated, h.tags,
                                COUNT(d.id) as actual_doc_count,
-                               SUM(d.size_bytes) as actual_total_size,
+                               COALESCE(SUM(d.size_bytes), 0) as actual_total_size,
                                COUNT(CASE WHEN d.doc_metadata->'pii_analysis'->>'pii_detected' = 'true' THEN 1 END) as pii_document_count
                         FROM honey_jars h
                         LEFT JOIN documents d ON h.id = d.honey_jar_id AND d.status != 'deleted'

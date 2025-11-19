@@ -2,9 +2,11 @@
 Kratos webhook handlers following best practices
 """
 from flask import Blueprint, request, jsonify
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import os
+import redis
+import json
 from app.database import db
 from app.models.user_models import User
 
@@ -25,7 +27,11 @@ def verify_webhook_token():
 
 @kratos_webhooks_bp.before_request
 def check_webhook_auth():
-    """Check webhook authentication"""
+    """Check webhook authentication (skip for health endpoint)"""
+    # Skip auth check for health endpoint
+    if request.endpoint and 'health' in request.endpoint:
+        return None
+
     if not verify_webhook_token():
         return jsonify({"error": "Unauthorized"}), 401
 
@@ -137,6 +143,109 @@ def session_created():
     except Exception as e:
         logger.error(f"Error in session_created webhook: {e}")
         return jsonify({"error": str(e)}), 500
+
+@kratos_webhooks_bp.route('/account-recovery', methods=['POST'])
+def account_recovery():
+    """
+    Called by Kratos after successful account recovery.
+    Sets a Redis flag to block credential addition until email is re-verified.
+
+    Security: Prevents attackers from adding credentials immediately after
+    account takeover via recovery flow.
+    """
+    try:
+        data = request.json
+        identity = data.get('identity', {})
+        identity_id = identity.get('id')
+        user_email = identity.get('traits', {}).get('email', 'unknown')
+
+        if not identity_id:
+            logger.error("Missing identity ID in recovery webhook")
+            return jsonify({"error": "Invalid payload"}), 400
+
+        logger.info(f"Account recovery completed for: {user_email} (ID: {identity_id})")
+
+        # Set Redis flag to block credential addition
+        redis_client = redis.from_url(os.environ.get('REDIS_URL', 'redis://redis:6379/0'))
+
+        flag_data = {
+            'user_id': identity_id,
+            'email': user_email,
+            'recovery_time': datetime.utcnow().isoformat(),
+            'reason': 'account_recovery',
+            'expires_at': (datetime.utcnow() + timedelta(days=7)).isoformat()
+        }
+
+        # Store flag with 7-day TTL (604800 seconds)
+        redis_client.setex(
+            f"sting:block_credentials:{identity_id}",
+            604800,  # 7 days in seconds
+            json.dumps(flag_data)
+        )
+
+        logger.info(f"Credential block flag set for {user_email} (7 day TTL)")
+        logger.info(f"User must verify email before adding passkeys/TOTP")
+
+        return jsonify({
+            "success": True,
+            "user_id": identity_id,
+            "blocked_until_verification": True
+        })
+
+    except Exception as e:
+        logger.error(f"Error in account recovery webhook: {e}", exc_info=True)
+        # Still return success to Kratos - don't block recovery flow
+        # But log error for monitoring
+        return jsonify({"error": str(e)}), 500
+
+
+@kratos_webhooks_bp.route('/email-verified', methods=['POST'])
+def email_verified():
+    """
+    Called by Kratos after email verification.
+    Clears the credential block flag set by account recovery.
+    """
+    try:
+        data = request.json
+        identity = data.get('identity', {})
+        identity_id = identity.get('id')
+        user_email = identity.get('traits', {}).get('email', 'unknown')
+
+        if not identity_id:
+            logger.error("Missing identity ID in verification webhook")
+            return jsonify({"error": "Invalid payload"}), 400
+
+        logger.info(f"Email verified for: {user_email} (ID: {identity_id})")
+
+        # Clear the credential block flag
+        redis_client = redis.from_url(os.environ.get('REDIS_URL', 'redis://redis:6379/0'))
+        block_key = f"sting:block_credentials:{identity_id}"
+
+        if redis_client.exists(block_key):
+            # Get flag data for logging
+            flag_data_raw = redis_client.get(block_key)
+            if flag_data_raw:
+                flag_data = json.loads(flag_data_raw.decode('utf-8'))
+                recovery_time = flag_data.get('recovery_time', 'unknown')
+                logger.info(f"Clearing credential block from recovery at {recovery_time}")
+
+            redis_client.delete(block_key)
+            logger.info(f"Credential block flag cleared for {user_email}")
+            logger.info(f"User can now add passkeys/TOTP")
+        else:
+            logger.debug(f"No credential block flag found for {user_email} (already cleared or never set)")
+
+        return jsonify({
+            "success": True,
+            "user_id": identity_id,
+            "credentials_unblocked": True
+        })
+
+    except Exception as e:
+        logger.error(f"Error in email verification webhook: {e}", exc_info=True)
+        # Still return success to Kratos - don't block verification flow
+        return jsonify({"error": str(e)}), 500
+
 
 @kratos_webhooks_bp.route('/health', methods=['GET'])
 def webhook_health():

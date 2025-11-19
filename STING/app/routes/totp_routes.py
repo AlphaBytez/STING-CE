@@ -8,6 +8,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 import qrcode
 import io
 import base64
+import json
 from urllib.parse import quote
 import logging
 from ..decorators.aal2 import verify_aal2_challenge
@@ -309,15 +310,54 @@ def get_totp_status():
 def setup_totp_json():
     """Generate TOTP secret and QR code for enrollment (JSON API)"""
     try:
-        
+
         import pyotp
-        
+        import redis
+        import os
+
+        # Get user info
+        user_email = g.user_email if hasattr(g, 'user_email') else 'user@sting.local'
+        identity_id = session.get('identity_id') or getattr(g.user, 'kratos_id', None) if hasattr(g, 'user') else None
+
+        # Check if credentials are blocked due to recent account recovery
+        if identity_id:
+            try:
+                redis_client = redis.from_url(os.environ.get('REDIS_URL', 'redis://redis:6379/0'))
+                block_key = f"sting:block_credentials:{identity_id}"
+
+                if redis_client.exists(block_key):
+                    block_data_raw = redis_client.get(block_key)
+                    block_data = json.loads(block_data_raw.decode('utf-8')) if block_data_raw else {}
+
+                    logger.warning(f"TOTP setup blocked for {user_email} - email verification required")
+
+                    return jsonify({
+                        'error': 'EMAIL_VERIFICATION_REQUIRED',
+                        'message': 'For your security, please verify your email address before adding TOTP',
+                        'code': 'POST_RECOVERY_BLOCK',
+                        'details': {
+                            'reason': 'Recent account recovery detected',
+                            'action_required': 'Verify your email address',
+                            'verification_url': '/verification'
+                        },
+                        'user_email': user_email,
+                        'recovery_time': block_data.get('recovery_time', 'unknown')
+                    }), 403
+
+            except Exception as redis_error:
+                logger.error(f"Redis error during credential block check: {redis_error}")
+                # Fail closed - block when Redis is unavailable
+                return jsonify({
+                    'error': 'SECURITY_CHECK_FAILED',
+                    'message': 'Unable to verify security status. Please try again later.',
+                    'code': 'REDIS_UNAVAILABLE'
+                }), 503
+
         # Generate a new TOTP secret
         secret = pyotp.random_base32()
-        
+
         # Create TOTP URL
         issuer = "STING CE"
-        user_email = g.user_email if hasattr(g, 'user_email') else 'user@sting.local'
         totp_url = pyotp.totp.TOTP(secret).provisioning_uri(
             name=user_email,
             issuer_name=issuer

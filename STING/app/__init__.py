@@ -59,6 +59,7 @@ from app.routes.config_routes import config_bp
 from app.routes.aal_routes import aal_bp as original_aal_bp
 from app.routes.enhanced_webauthn_routes import enhanced_webauthn_bp
 from app.routes.nectar_bot_routes import nectar_bot_bp
+from app.routes.kratos_webhooks import kratos_webhooks_bp
 # from app.routes.file_routes import file_bp  # Import moved to create_app to avoid early initialization
 from app.database import init_db, db
 from sqlalchemy import text
@@ -595,7 +596,11 @@ def create_app(config=None):
         # Register admin management routes
         flask_app.register_blueprint(admin_bp)
         logger.info("Admin management blueprint registered successfully")
-        
+
+        # Register Kratos webhooks
+        flask_app.register_blueprint(kratos_webhooks_bp, url_prefix='/api/kratos/webhooks')
+        logger.info("Kratos webhooks blueprint registered successfully")
+
         # Register PII configuration routes
         flask_app.register_blueprint(pii_bp, url_prefix='/api/pii')
         logger.info("PII configuration blueprint registered successfully")

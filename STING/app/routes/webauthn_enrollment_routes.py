@@ -6,6 +6,8 @@ Handles all WebAuthn complexity server-side for reliable passkey registration
 import logging
 import time
 import json
+import os
+import redis
 from datetime import datetime
 from flask import Blueprint, request, jsonify, session
 from app.middleware.api_key_middleware import api_key_optional
@@ -31,10 +33,43 @@ def setup_webauthn_begin():
         # Get user info from session
         user_email = session.get('user_email')
         identity_id = session.get('identity_id')
-        
+
         if not user_email or not identity_id:
             return jsonify({'error': 'Not authenticated'}), 401
-        
+
+        # Check if credentials are blocked due to recent account recovery
+        try:
+            redis_client = redis.from_url(os.environ.get('REDIS_URL', 'redis://redis:6379/0'))
+            block_key = f"sting:block_credentials:{identity_id}"
+
+            if redis_client.exists(block_key):
+                block_data_raw = redis_client.get(block_key)
+                block_data = json.loads(block_data_raw.decode('utf-8')) if block_data_raw else {}
+
+                logger.warning(f"Passkey setup blocked for {user_email} - email verification required")
+
+                return jsonify({
+                    'error': 'EMAIL_VERIFICATION_REQUIRED',
+                    'message': 'For your security, please verify your email address before adding passkeys',
+                    'code': 'POST_RECOVERY_BLOCK',
+                    'details': {
+                        'reason': 'Recent account recovery detected',
+                        'action_required': 'Verify your email address',
+                        'verification_url': '/verification'
+                    },
+                    'user_email': user_email,
+                    'recovery_time': block_data.get('recovery_time', 'unknown')
+                }), 403
+
+        except Exception as redis_error:
+            logger.error(f"Redis error during credential block check: {redis_error}")
+            # Fail closed - block when Redis is unavailable
+            return jsonify({
+                'error': 'SECURITY_CHECK_FAILED',
+                'message': 'Unable to verify security status. Please try again later.',
+                'code': 'REDIS_UNAVAILABLE'
+            }), 503
+
         logger.info(f"🔐 Starting WebAuthn registration for: {user_email}")
         
         # Get device name from request

@@ -633,8 +633,25 @@ def require_auth_method(required_methods, allowed_scopes=None):
                 # except Exception as e:
                 #     logger.warning(f"Session caching failed: {e}")
 
-                logger.info(f"✅ Authentication method satisfied for {user_email}: {available_methods} (no caching)")
+                logger.info(f"✅ Authentication method satisfied for {user_email}: {available_methods}")
                 g.verified_methods = available_methods
+
+                # Cache AAL2 verification in Redis (5-minute TTL to match frontend)
+                try:
+                    import redis
+                    import json
+                    redis_client = redis.from_url(os.environ.get('REDIS_URL', 'redis://redis:6379/0'))
+                    redis_key = f"sting:custom_aal2:{g.user.id}"
+                    verification_data = {
+                        'verified': True,
+                        'method': available_methods[0] if available_methods else 'webauthn',
+                        'timestamp': time.time()
+                    }
+                    redis_client.setex(redis_key, 300, json.dumps(verification_data))  # 5 min = 300 sec
+                    logger.info(f"✅ Cached AAL2 verification in Redis for {user_email} (expires in 5 minutes)")
+                except Exception as e:
+                    logger.warning(f"Failed to cache AAL2 in Redis (non-critical): {e}")
+
                 return f(*args, **kwargs)
 
             # Method not satisfied - require specific method confirmation

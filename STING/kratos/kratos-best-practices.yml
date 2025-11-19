@@ -85,6 +85,8 @@ selfservice:
       ui_url: https://localhost:8443/recovery
       use: code
       after:
+        hooks:
+          - hook: require_verified_address
         default_browser_return_url: https://localhost:8443/dashboard
 
     verification:
