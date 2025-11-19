@@ -98,6 +98,11 @@ const BeeChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState(savedConversationId);
   const [beeStatus, setBeeStatus] = useState('checking');
+
+  // Nectar Bot selection state
+  const [selectedNectarBot, setSelectedNectarBot] = useState(null);
+  const [availableNectarBots, setAvailableNectarBots] = useState([]);
+  const [showBotSelector, setShowBotSelector] = useState(false);
   const [showTools, setShowTools] = useState(false);
   const [selectedTools, setSelectedTools] = useState([]);
   const [requireAuth, setRequireAuth] = useState(false);
@@ -213,12 +218,12 @@ const BeeChat = () => {
     if (location.state?.honeyJarContext) {
       const context = location.state.honeyJarContext;
       setHoneyJarContext(context);
-      
+
       // If there's an initial message, set it as input
       if (location.state.initialMessage) {
         setInput(location.state.initialMessage);
       }
-      
+
       // Add a system message about the honey jar context
       const contextMessage = {
         id: `context_${context.id}_${Date.now()}`,
@@ -235,11 +240,75 @@ const BeeChat = () => {
         }
         return prev;
       });
-      
+
       // Clear the location state to prevent re-triggering
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
+
+  // Load available nectar bots on mount
+  useEffect(() => {
+    loadNectarBots();
+  }, []);
+
+  // Handle nectar bot selection from URL parameters
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const botId = searchParams.get('botId');
+    const botName = searchParams.get('botName');
+
+    if (botId && botName) {
+      // Set the bot from URL parameters
+      const bot = { id: botId, name: decodeURIComponent(botName) };
+      handleSelectNectarBot(bot);
+
+      // Add system message about bot selection
+      const botMessage = {
+        id: `bot_select_${botId}_${Date.now()}`,
+        sender: 'system',
+        content: `🤖 Testing Nectar Bot: **${decodeURIComponent(botName)}** (Sandbox Mode)`,
+        timestamp: new Date().toISOString(),
+        isAction: true
+      };
+      setMessages(prev => {
+        const exists = prev.some(msg => msg.id === botMessage.id);
+        if (!exists) {
+          return [...prev, botMessage];
+        }
+        return prev;
+      });
+    }
+  }, [location.search]);
+
+  const loadNectarBots = async () => {
+    try {
+      const data = await resilientGet('/api/nectar-bots');
+      // Filter to show only user's own bots (private bots)
+      setAvailableNectarBots(data.bots || []);
+    } catch (error) {
+      console.error('Failed to load nectar bots:', error);
+    }
+  };
+
+  const handleSelectNectarBot = (bot) => {
+    if (bot === null) {
+      // Returning to default Bee
+      setSelectedNectarBot(null);
+      setShowBotSelector(false);
+      // Add system message
+      const message = {
+        id: `bot_deselect_${Date.now()}`,
+        sender: 'system',
+        content: `🐝 Switched back to Default Bee`,
+        timestamp: new Date().toISOString(),
+        isAction: true
+      };
+      setMessages(prev => [...prev, message]);
+    } else {
+      setSelectedNectarBot(bot);
+      setShowBotSelector(false);
+    }
+  };
 
   // Check Bee service status with page visibility optimization
   const checkBeeStatus = async () => {
@@ -425,27 +494,47 @@ const BeeChat = () => {
     setIsLoading(true);
 
     try {
-      // Try unified external AI endpoint first, fallback to legacy
       let data;
-      try {
-        data = await externalAiApi.beeChatUnified({
-          message: userMessage.content,
-          user_id: getUserId(),
-          conversation_id: conversationId,
-          tools_enabled: selectedTools,
-          require_auth: requireAuth,
-          encryption_required: false,
-          honey_jar_id: honeyJarContext?.id || null
-        });
-      } catch (externalError) {
-        console.warn('External AI endpoint failed, falling back to legacy:', externalError);
-        // Fallback to legacy endpoint
-        const response = await fetch('/api/bee/chat', {
+
+      // If a Nectar Bot is selected, route to nectar bot endpoint
+      if (selectedNectarBot) {
+        const response = await fetch(`/api/nectar-bots/${selectedNectarBot.id}/chat`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            message: userMessage.content,
+            conversation_id: conversationId
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to communicate with Nectar Bot');
+        }
+        data = await response.json();
+
+        // Update conversation ID
+        if (!conversationId && data.conversation_id) {
+          setConversationId(data.conversation_id);
+        }
+
+        // Add bot's response
+        const botMessage = {
+          id: `nectarbot_${Date.now()}`,
+          sender: 'nectarbot',
+          botName: selectedNectarBot.name,
+          content: data.response,
+          timestamp: data.timestamp || new Date().toISOString(),
+          confidence_score: data.confidence_score,
+          processing_time: data.processing_time
+        };
+
+        setMessages(prev => [...prev, botMessage]);
+      } else {
+        // Default Bee behavior
+        try {
+          data = await externalAiApi.beeChatUnified({
             message: userMessage.content,
             user_id: getUserId(),
             conversation_id: conversationId,
@@ -453,41 +542,59 @@ const BeeChat = () => {
             require_auth: requireAuth,
             encryption_required: false,
             honey_jar_id: honeyJarContext?.id || null
-          }),
-        });
-        
-        if (!response.ok) {
-          throw new Error('Both external AI and legacy endpoints failed');
+          });
+        } catch (externalError) {
+          console.warn('External AI endpoint failed, falling back to legacy:', externalError);
+          // Fallback to legacy endpoint
+          const response = await fetch('/api/bee/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: userMessage.content,
+              user_id: getUserId(),
+              conversation_id: conversationId,
+              tools_enabled: selectedTools,
+              require_auth: requireAuth,
+              encryption_required: false,
+              honey_jar_id: honeyJarContext?.id || null
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Both external AI and legacy endpoints failed');
+          }
+          data = await response.json();
         }
-        data = await response.json();
+
+        // Update conversation ID
+        if (!conversationId && data.conversation_id) {
+          setConversationId(data.conversation_id);
+        }
+
+        // Add Bee's response with enhanced metadata
+        const beeMessage = {
+          id: `bee_${Date.now()}`,
+          sender: 'bee',
+          content: data.response,
+          timestamp: data.timestamp,
+          sentiment: data.sentiment,
+          tools_used: data.tools_used,
+          personality: data.bee_personality,
+          encrypted: data.encrypted,
+          processing_time: data.processing_time,
+          isReport: data.report_generated || false,
+          reportMetadata: data.report_metadata || null,
+          pii_protection: data.pii_protection || null  // PII protection metadata
+        };
+
+        setMessages(prev => [...prev, beeMessage]);
+
+        // Save both user and bee messages to chat history
+        await saveChatMessage(userMessage);
+        await saveChatMessage(beeMessage);
       }
-
-      // Update conversation ID
-      if (!conversationId && data.conversation_id) {
-        setConversationId(data.conversation_id);
-      }
-
-      // Add Bee's response with enhanced metadata
-      const beeMessage = {
-        id: `bee_${Date.now()}`,
-        sender: 'bee',
-        content: data.response,
-        timestamp: data.timestamp,
-        sentiment: data.sentiment,
-        tools_used: data.tools_used,
-        personality: data.bee_personality,
-        encrypted: data.encrypted,
-        processing_time: data.processing_time,
-        isReport: data.report_generated || false,
-        reportMetadata: data.report_metadata || null,
-        pii_protection: data.pii_protection || null  // PII protection metadata
-      };
-
-      setMessages(prev => [...prev, beeMessage]);
-
-      // Save both user and bee messages to chat history
-      await saveChatMessage(userMessage);
-      await saveChatMessage(beeMessage);
 
       // Clear selected tools after use
       setSelectedTools([]);
@@ -847,12 +954,30 @@ const BeeChat = () => {
               <SimpleHeader />
             ) : (
               <div className="sticky top-0 z-20 p-4 border-b border-gray-600 rounded-t-2xl bg-gradient-to-br from-gray-800/95 to-gray-900/95 backdrop-blur-md shadow-lg">
+                {/* Sandbox Mode Indicator */}
+                {selectedNectarBot && (
+                  <div className="mb-3 p-3 bg-gradient-to-r from-purple-900/40 to-pink-900/40 border border-purple-500/30 rounded-xl flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Bot className="w-4 h-4 text-purple-400" />
+                      <span className="text-sm text-white font-medium">
+                        🧪 Sandbox Mode: Testing "{selectedNectarBot.name}"
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleSelectNectarBot(null)}
+                      className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors"
+                    >
+                      Exit Sandbox
+                    </button>
+                  </div>
+                )}
+
                 {/* Main Header Row */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <BeeIcon size={24} color="rgb(251 191 36)" className="text-yellow-400" />
                     <h2 className="text-lg font-semibold text-white">
-                      Bee Chat
+                      {selectedNectarBot ? selectedNectarBot.name : 'Bee Chat'}
                     </h2>
                     <span className={`px-2.5 py-1 text-xs rounded-full font-medium shadow-sm ${
                       beeStatus === 'online' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
@@ -861,6 +986,19 @@ const BeeChat = () => {
                     }`}>
                       {beeStatus}
                     </span>
+
+                    {/* Bot Selector Dropdown Trigger */}
+                    {!selectedNectarBot && availableNectarBots.length > 0 && (
+                      <button
+                        onClick={() => setShowBotSelector(!showBotSelector)}
+                        className="relative px-3 py-1 text-xs bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-600/30 rounded-lg transition-colors flex items-center gap-1"
+                        title="Test a Nectar Bot"
+                      >
+                        <Bot className="w-3 h-3" />
+                        Test Bot
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
 
                   {/* Primary Actions - Cleaner layout */}
@@ -926,6 +1064,47 @@ const BeeChat = () => {
                     </button>
                   </div>
                 )}
+
+                {/* Bot Selector Dropdown */}
+                {showBotSelector && (
+                  <div className="mt-3 p-3 bg-gray-900/80 border border-purple-600/30 rounded-xl animate-fade-in">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Bot className="w-4 h-4 text-purple-400" />
+                      <span className="text-sm text-white font-medium">Select a Nectar Bot to Test</span>
+                    </div>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {availableNectarBots.map(bot => (
+                        <button
+                          key={bot.id}
+                          onClick={() => handleSelectNectarBot(bot)}
+                          className="w-full text-left p-2 bg-gray-800 hover:bg-purple-900/30 border border-gray-700 hover:border-purple-600/50 rounded-lg transition-all"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-sm font-medium text-white">{bot.name}</div>
+                              {bot.description && (
+                                <div className="text-xs text-gray-400 mt-1">{bot.description}</div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {bot.is_public && (
+                                <span className="px-2 py-0.5 text-xs bg-blue-600/20 text-blue-400 rounded">Public</span>
+                              )}
+                              {!bot.is_public && (
+                                <span className="px-2 py-0.5 text-xs bg-purple-600/20 text-purple-400 rounded">Private</span>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                      {availableNectarBots.length === 0 && (
+                        <div className="text-center py-4 text-gray-400 text-sm">
+                          No nectar bots available. Create one in the Nectar Bots page.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -948,16 +1127,29 @@ const BeeChat = () => {
                   className={`p-4 max-w-[65%] rounded-2xl ${
                     message.sender === 'user'
                       ? 'bg-gradient-to-br from-yellow-500/90 to-amber-600/90 backdrop-blur-md border-2 border-yellow-400/50 text-white shadow-lg shadow-yellow-500/30'
-                      : message.isError
-                        ? 'bg-red-600 text-white'
-                        : 'bg-gradient-to-br from-emerald-600/90 to-teal-700/90 backdrop-blur-md text-white border-2 border-emerald-400/70 shadow-lg shadow-emerald-400/30'
+                      : message.sender === 'nectarbot'
+                        ? 'bg-gradient-to-br from-purple-600/90 to-pink-700/90 backdrop-blur-md text-white border-2 border-purple-400/70 shadow-lg shadow-purple-400/30'
+                        : message.isError
+                          ? 'bg-red-600 text-white'
+                          : 'bg-gradient-to-br from-emerald-600/90 to-teal-700/90 backdrop-blur-md text-white border-2 border-emerald-400/70 shadow-lg shadow-emerald-400/30'
                   }`}
                 >
                   {/* Message Header */}
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-xs font-bold opacity-80">
-                      {message.sender === 'user' ? 'You' : message.sender === 'bee' ? '🐝 Bee' : 'System'}
+                      {message.sender === 'user'
+                        ? 'You'
+                        : message.sender === 'nectarbot'
+                          ? `🤖 ${message.botName || 'Bot'}`
+                          : message.sender === 'bee'
+                            ? '🐝 Bee'
+                            : 'System'}
                     </span>
+                    {message.sender === 'nectarbot' && message.confidence_score !== undefined && (
+                      <span className="px-2 py-0.5 text-xs bg-purple-900/50 text-purple-200 rounded-full">
+                        {Math.round(message.confidence_score * 100)}% confidence
+                      </span>
+                    )}
                     {/* Removed sentiment and personality tags for cleaner UI */}
                     {message.encrypted && (
                       <span className="px-2 py-1 text-xs bg-green-600 text-white rounded-full flex items-center gap-1">

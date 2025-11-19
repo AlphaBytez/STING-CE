@@ -20,7 +20,8 @@ import {
   ExternalLink,
   Activity,
   Globe,
-  TestTube
+  TestTube,
+  Shield
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ResponsiveModal, { ResponsiveModalFooter, ResponsiveModalButton } from '../common/ResponsiveModal';
@@ -220,13 +221,12 @@ const NectarBotManager = () => {
   };
 
   const handleTestBot = (bot) => {
-    // Navigate to BeeChat with bot selected
-    // For now, just open in new tab
     if (bot.is_public) {
+      // Open public bot in new tab
       window.open(bot.public_url, '_blank');
     } else {
-      // TODO: Implement private bot testing in Bee Chat
-      alert('Private bot testing: Navigate to Bee Chat and select this bot from the dropdown');
+      // Navigate to BeeChat with bot pre-selected via URL parameter
+      navigate(`/dashboard/bee-chat?botId=${bot.id}&botName=${encodeURIComponent(bot.name)}`);
     }
   };
 
@@ -462,15 +462,15 @@ const NectarBotManager = () => {
 
                     {/* Public URL Section - Show for public bots */}
                     {bot.is_public && bot.public_url && (
-                      <div className="mt-4 p-3 bg-gradient-to-br from-blue-900/20 to-purple-900/20 border border-blue-700/30 rounded-lg">
-                        <div className="flex items-center gap-2 mb-2">
+                      <div className="mt-4 p-4 bg-gradient-to-br from-blue-900/20 to-purple-900/20 border border-blue-700/30 rounded-lg">
+                        <div className="flex items-center gap-2 mb-3">
                           <Globe className="w-4 h-4 text-blue-400" />
                           <span className="text-slate-300 text-sm font-semibold">Public URL</span>
                           <span className="px-2 py-0.5 bg-green-600/20 text-green-400 text-xs rounded-full border border-green-600/30">
                             Public
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 mb-3">
                           <code className="flex-1 text-sm text-blue-300 font-mono bg-black/20 px-3 py-1.5 rounded truncate">
                             {window.location.origin}{bot.public_url}
                           </code>
@@ -489,21 +489,45 @@ const NectarBotManager = () => {
                             <ExternalLink className="w-4 h-4" />
                           </button>
                         </div>
+                        {/* Prominent Test Button for Public Bots */}
+                        <button
+                          onClick={() => handleTestBot(bot)}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg transition-all shadow-lg"
+                        >
+                          <TestTube className="w-4 h-4" />
+                          <span className="font-medium">Test Public Bot</span>
+                        </button>
                         <p className="text-xs text-slate-500 mt-2">
                           💡 This bot is publicly accessible. Anyone with this URL can chat with it!
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Private Bot Test Section */}
+                    {!bot.is_public && (
+                      <div className="mt-4 p-4 bg-gradient-to-br from-purple-900/20 to-pink-900/20 border border-purple-700/30 rounded-lg">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Shield className="w-4 h-4 text-purple-400" />
+                          <span className="text-slate-300 text-sm font-semibold">Private Bot</span>
+                          <span className="px-2 py-0.5 bg-purple-600/20 text-purple-400 text-xs rounded-full border border-purple-600/30">
+                            Private
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleTestBot(bot)}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-lg transition-all shadow-lg"
+                        >
+                          <TestTube className="w-4 h-4" />
+                          <span className="font-medium">Test in Bee Chat Sandbox</span>
+                        </button>
+                        <p className="text-xs text-slate-500 mt-2">
+                          🔒 Test this bot in a private sandbox environment within Bee Chat
                         </p>
                       </div>
                     )}
                   </div>
 
                   <div className="flex gap-2 ml-4">
-                    <button
-                      onClick={() => handleTestBot(bot)}
-                      className="p-2 text-slate-400 hover:text-green-400 transition-colors"
-                      title="Test bot"
-                    >
-                      <TestTube className="w-4 h-4" />
-                    </button>
                     <button
                       onClick={() => handleEditBot(bot)}
                       className="p-2 text-slate-400 hover:text-yellow-400 transition-colors"
