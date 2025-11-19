@@ -43,7 +43,7 @@ def chat_with_bee():
         # Generate conversation_id if not provided (for conversation history caching)
         if not conversation_id:
             import uuid
-            conversation_id = f"conv_{uuid.uuid4().hex[:12]}"
+            conversation_id = str(uuid.uuid4())
             logger.info(f"Generated new conversation_id: {conversation_id}")
 
         # Add user information to context (handle both session and API key auth)

@@ -1891,7 +1891,27 @@ check_and_install_dependencies() {
         optional_deps+=("jq")
         log_message "jq not found - optional dependency" "INFO"
     fi
-    
+
+    # Check for Avahi on Linux (CRITICAL for WebAuthn with .local domains)
+    # WebAuthn requires either localhost or proper domain names - IP addresses don't work
+    # mDNS via Avahi enables .local domains to work across the network
+    if [[ "$(uname)" != "Darwin" ]]; then  # Not macOS (has Bonjour built-in)
+        # Source hostname detection to use platform check
+        local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        if [ -f "${script_dir}/hostname_detection.sh" ]; then
+            source "${script_dir}/hostname_detection.sh"
+            local platform=$(detect_platform)
+
+            # For VMs and bare metal Linux, Avahi is critical for WebAuthn to work properly
+            if [ "$platform" = "vm" ] || [ "$platform" = "linux" ]; then
+                if ! check_mdns_support; then
+                    log_message "Avahi not detected - required for WebAuthn with .local domains" "WARNING"
+                    critical_deps+=("avahi-daemon")
+                fi
+            fi
+        fi
+    fi
+
     # Check Docker
     if ! command -v docker >/dev/null 2>&1; then
         log_message "Docker is not installed. Installing Docker..."
@@ -2005,10 +2025,52 @@ check_and_install_dependencies() {
             fi
 
             log_message "Critical dependencies installed successfully" "SUCCESS"
+
+            # If Avahi was just installed, ensure the service is enabled and started
+            if [[ " ${critical_deps[*]} " =~ " avahi-daemon " ]]; then
+                log_message "Enabling and starting Avahi service for mDNS support..."
+
+                # Enable service to start on boot
+                if sudo systemctl enable avahi-daemon >/dev/null 2>&1; then
+                    log_message "Avahi service enabled to start on boot" "SUCCESS"
+                else
+                    log_message "Could not enable Avahi service (may already be enabled)" "INFO"
+                fi
+
+                # Start service immediately
+                if sudo systemctl start avahi-daemon >/dev/null 2>&1; then
+                    log_message "Avahi service started successfully" "SUCCESS"
+                elif sudo systemctl restart avahi-daemon >/dev/null 2>&1; then
+                    log_message "Avahi service restarted successfully" "SUCCESS"
+                else
+                    log_message "Could not start Avahi service - .local domains may not work" "WARNING"
+                fi
+
+                # Verify it's running
+                if sudo systemctl is-active --quiet avahi-daemon; then
+                    log_message "✅ Avahi is running - .local hostname resolution is available" "SUCCESS"
+                else
+                    log_message "⚠️  Avahi service is not running - WebAuthn may not work properly" "WARNING"
+                fi
+            fi
+
         elif command -v yum >/dev/null 2>&1; then
             if ! sudo yum install -y "${critical_deps[@]}"; then
                 log_message "Failed to install critical dependencies" "ERROR"
                 return 1
+            fi
+
+            # If Avahi was just installed on RHEL/CentOS, enable and start it
+            if [[ " ${critical_deps[*]} " =~ " avahi-daemon " ]]; then
+                log_message "Enabling and starting Avahi service..."
+                sudo systemctl enable avahi-daemon >/dev/null 2>&1 || true
+                sudo systemctl start avahi-daemon >/dev/null 2>&1 || sudo systemctl restart avahi-daemon >/dev/null 2>&1 || true
+
+                if sudo systemctl is-active --quiet avahi-daemon; then
+                    log_message "✅ Avahi is running" "SUCCESS"
+                else
+                    log_message "⚠️  Avahi service is not running" "WARNING"
+                fi
             fi
         else
             log_message "Unable to install dependencies automatically. Please install: ${critical_deps[*]}" "ERROR"

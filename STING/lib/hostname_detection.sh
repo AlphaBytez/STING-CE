@@ -214,21 +214,30 @@ get_sting_hostname() {
             vm)
                 echo "💻 Platform: Virtual Machine" >&2
                 if check_mdns_support; then
+                    # mDNS available - use actual hostname.local
                     echo "   Recommendation: Use detected hostname (option 3)" >&2
                     echo "   Note: .local domains work great for remote VM access with mDNS/Avahi" >&2
-                    echo "   Alternative: IP address also works (shown in option 3 if detected hostname is IP)" >&2
+                    default_option="3"
                 else
-                    echo "   Recommendation: Use IP address (option 3)" >&2
-                    echo "   Note: mDNS/Avahi not detected - IP is more reliable" >&2
-                    echo "   Tip: Install avahi-daemon for .local hostname support" >&2
+                    # mDNS not available - recommend sting.local and note Avahi installation
+                    echo "   Recommendation: Use sting.local (option 1)" >&2
+                    echo "   Note: Avahi will be installed automatically for .local hostname support" >&2
+                    echo "   ⚠️  IP addresses are NOT compatible with WebAuthn/passkeys (except localhost)" >&2
+                    default_option="1"
                 fi
-                default_option="3"
                 ;;
             linux)
                 echo "🐧 Platform: Linux (Bare Metal)" >&2
-                echo "   Recommendation: Use IP address (option 3)" >&2
-                echo "   Note: IP addresses work everywhere without DNS/hosts file setup" >&2
-                default_option="3"
+                if check_mdns_support; then
+                    echo "   Recommendation: Use detected hostname (option 3)" >&2
+                    echo "   Note: .local domains work with mDNS/Avahi" >&2
+                    default_option="3"
+                else
+                    echo "   Recommendation: Use sting.local (option 1)" >&2
+                    echo "   Note: Avahi will be installed for .local hostname support" >&2
+                    echo "   ⚠️  IP addresses are NOT compatible with WebAuthn/passkeys (except localhost)" >&2
+                    default_option="1"
+                fi
                 ;;
         esac
 
@@ -265,7 +274,7 @@ get_sting_hostname() {
         if [ -n "$detected_hostname" ]; then
             # Show different label if detected hostname is an IP vs domain
             if is_ip_address "$detected_hostname"; then
-                echo "  3) $detected_hostname  - IP address (no DNS needed)${star3}" >&2
+                echo "  3) $detected_hostname  - IP address ⚠️  WebAuthn incompatible${star3}" >&2
             else
                 echo "  3) $detected_hostname  - Detected hostname${star3}" >&2
             fi
