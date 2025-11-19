@@ -70,6 +70,39 @@ def setup_webauthn_begin():
                 'code': 'REDIS_UNAVAILABLE'
             }), 503
 
+        # Check if AAL2 verification is required for credential modification
+        # CHICKEN-AND-EGG HANDLING: First credential allowed without AAL2
+        try:
+            from app.decorators.aal2 import aal2_manager
+            from app.models.user_models import User
+
+            # Get user ID for AAL2 check
+            user = User.query.filter_by(kratos_id=identity_id).first()
+            if user:
+                aal2_check = aal2_manager.require_aal2_for_credential_modification(
+                    user_id=user.id,
+                    operation="passkey enrollment"
+                )
+
+                if aal2_check is not None:
+                    # AAL2 verification required but not provided
+                    logger.warning(f"AAL2 verification required for passkey enrollment: {user_email}")
+                    return jsonify(aal2_check), 403
+
+                logger.info(f"✅ AAL2 check passed for passkey enrollment: {user_email}")
+            else:
+                logger.warning(f"User not found in STING database for AAL2 check: {user_email}")
+                # Allow if user not found in STING DB (edge case during first login)
+
+        except Exception as aal2_error:
+            logger.error(f"AAL2 check error during passkey enrollment: {aal2_error}")
+            # Fail closed - block when AAL2 check fails
+            return jsonify({
+                'error': 'SECURITY_CHECK_FAILED',
+                'message': 'Unable to verify security level. Please try again.',
+                'code': 'AAL2_CHECK_FAILED'
+            }), 503
+
         logger.info(f"🔐 Starting WebAuthn registration for: {user_email}")
         
         # Get device name from request

@@ -731,9 +731,36 @@ def delete_user_passkey(credential_id):
         user_id, username = get_authenticated_user()
         if not user_id:
             return jsonify({'error': 'User not authenticated'}), 401
-        
+
+        # Check if AAL2 verification is required for credential modification
+        # IMPORTANT: Passkey deletion ALWAYS requires AAL2 (even if deleting last passkey)
+        # because user has ≥1 credential at deletion time
+        try:
+            from app.decorators.aal2 import aal2_manager
+
+            aal2_check = aal2_manager.require_aal2_for_credential_modification(
+                user_id=user_id,
+                operation="passkey deletion"
+            )
+
+            if aal2_check is not None:
+                # AAL2 verification required but not provided
+                logger.warning(f"AAL2 verification required for passkey deletion: user_id={user_id}")
+                return jsonify(aal2_check), 403
+
+            logger.info(f"✅ AAL2 check passed for passkey deletion: user_id={user_id}")
+
+        except Exception as aal2_error:
+            logger.error(f"AAL2 check error during passkey deletion: {aal2_error}")
+            # Fail closed - block when AAL2 check fails
+            return jsonify({
+                'error': 'SECURITY_CHECK_FAILED',
+                'message': 'Unable to verify security level. Please try again.',
+                'code': 'AAL2_CHECK_FAILED'
+            }), 503
+
         from app.models.passkey_models import Passkey
-        
+
         # Find the passkey by credential ID and verify it belongs to the user
         passkey = Passkey.find_by_credential_id(credential_id)
         

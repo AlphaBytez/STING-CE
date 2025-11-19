@@ -311,6 +311,76 @@ class CustomAAL2Manager:
                 'fallback_to_aal2': True
             }
 
+    def require_aal2_for_credential_modification(self, user_id: int, operation: str = "credential modification") -> Optional[Dict[str, Any]]:
+        """
+        Check if AAL2 verification is required for credential modification.
+
+        CRITICAL CHICKEN-AND-EGG HANDLING:
+        - If user has 0 credentials → Allow without AAL2 (first-time setup)
+        - If user has ≥1 credentials → Require AAL2 verification
+
+        This prevents the impossible scenario where a user needs to verify with a credential
+        to add their first credential.
+
+        Args:
+            user_id: STING user ID
+            operation: Description of the operation being performed
+
+        Returns:
+            None if operation is allowed, Dict with error details if blocked
+        """
+        try:
+            # Check if user has any existing credentials
+            enrollment_status = self.check_passkey_enrollment(user_id)
+            has_credentials = enrollment_status['enrolled']
+
+            logger.info(f"🔐 Credential modification check for user {user_id}: has_credentials={has_credentials}, operation={operation}")
+
+            # CHICKEN-AND-EGG EXCEPTION: Allow first credential without AAL2
+            if not has_credentials:
+                logger.info(f"✅ First credential setup - allowing {operation} without AAL2 for user {user_id}")
+                return None  # Allow operation
+
+            # User has existing credentials - require AAL2 verification
+            aal2_status = self.check_aal2_verified(user_id)
+
+            if aal2_status['verified']:
+                logger.info(f"✅ AAL2 verified - allowing {operation} for user {user_id}")
+                return None  # Allow operation
+
+            # AAL2 not verified - block the operation
+            logger.warning(f"❌ AAL2 verification required for {operation} (user {user_id} has existing credentials)")
+
+            # Provide step-up URL for frontend to redirect user to AAL2 verification
+            return {
+                'error': 'AAL2_VERIFICATION_REQUIRED',
+                'message': 'For security, please verify with your existing passkey or TOTP before modifying credentials',
+                'code': 'AAL2_REQUIRED',
+                'step_up_url': '/security-upgrade',  # Frontend route for AAL2 step-up
+                'return_to': None,  # Frontend should store current location before redirecting
+                'details': {
+                    'reason': 'User has existing credentials - AAL2 verification required for modifications',
+                    'action_required': 'Verify with existing passkey/TOTP',
+                    'has_existing_credentials': True,
+                    'enrollment_details': enrollment_status.get('details', {}),
+                    'operation_blocked': operation
+                },
+                'aal2_status': {
+                    'verified': False,
+                    'reason': aal2_status.get('reason', 'Not verified')
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Error checking AAL2 requirement for credential modification: {e}")
+            # Fail closed - require AAL2 on error
+            return {
+                'error': 'SECURITY_CHECK_FAILED',
+                'message': 'Unable to verify security status. Please try again.',
+                'code': 'SYSTEM_ERROR',
+                'details': str(e)
+            }
+
 
 # Global AAL2 manager instance
 aal2_manager = CustomAAL2Manager()
@@ -496,20 +566,24 @@ def require_biometric_or_aal2(f):
 def get_aal2_status(user_id: int) -> Dict[str, Any]:
     """
     Get comprehensive AAL2 status for a user
-    
+
     Args:
         user_id: STING user ID
-        
+
     Returns:
         Dict with enrollment and verification status
     """
     enrollment = aal2_manager.check_passkey_enrollment(user_id)
     # Always check AAL2 verification regardless of passkey enrollment (TOTP is also valid AAL2)
     verification = aal2_manager.check_aal2_verified(user_id)
-    
+
+    # Extract TOTP enrollment from enrollment details
+    totp_enrolled = enrollment.get('details', {}).get('kratos_totp', False)
+
     return {
         'user_id': user_id,
         'passkey_enrolled': enrollment['enrolled'],
+        'totp_enrolled': totp_enrolled,  # Add TOTP enrollment status
         'enrollment_url': enrollment.get('enrollment_url'),
         'aal2_verified': verification['verified'],
         'verification_method': verification.get('method'),

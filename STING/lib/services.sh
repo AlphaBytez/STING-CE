@@ -59,6 +59,42 @@ docker_compose() {
     return $result
 }
 
+# Sync PostgreSQL password with environment configuration
+# This function ensures the database password matches what's in the env files
+# Call this after regenerating env files to avoid authentication failures
+sync_database_password() {
+    log_message "🔐 Syncing database password with environment configuration..."
+
+    # Source the database environment to get the current password
+    if [ -f "${INSTALL_DIR}/env/db.env" ]; then
+        source "${INSTALL_DIR}/env/db.env"
+    else
+        log_message "⚠️  Database env file not found, skipping password sync" "WARNING"
+        return 0
+    fi
+
+    # Check if database container is running
+    if ! docker ps --format "{{.Names}}" | grep -q "sting-ce-db"; then
+        log_message "ℹ️  Database container not running, password will sync on next start" "INFO"
+        return 0
+    fi
+
+    # Check if database is accepting connections (using local docker exec)
+    if ! docker exec sting-ce-db psql -U postgres -c "SELECT 1;" >/dev/null 2>&1; then
+        log_message "ℹ️  Database not ready for password sync, will retry when accessible" "INFO"
+        return 0
+    fi
+
+    # Update the postgres user password to match the env file
+    if docker exec sting-ce-db psql -U postgres -c "ALTER USER postgres WITH PASSWORD '${POSTGRES_PASSWORD}';" >/dev/null 2>&1; then
+        log_message "✅ Database password synced successfully" "SUCCESS"
+        return 0
+    else
+        log_message "⚠️  Failed to sync database password - may need manual intervention" "WARNING"
+        return 1
+    fi
+}
+
 # Ensure SSL certificates exist for HTTPS operation
 ensure_ssl_certificates() {
     local cert_dir="${INSTALL_DIR}/certs"

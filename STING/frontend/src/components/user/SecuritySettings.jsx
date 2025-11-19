@@ -69,10 +69,54 @@ const SecuritySettings = () => {
     const loadSecuritySettings = async () => {
       try {
         if (identity) {
+          // ✅ SECURITY GATE: Check if user needs AAL2 verification for credential modifications
+          // This prevents users with existing credentials from modifying them without re-auth
+          try {
+            const aal2StatusResponse = await axios.get('/api/aal2/status', {
+              withCredentials: true
+            });
+
+            const aal2Data = aal2StatusResponse.data;
+            const hasExistingCredentials = aal2Data?.status?.passkey_enrolled ||
+                                          aal2Data?.status?.totp_enrolled;
+            const isAAL2Verified = aal2Data?.status?.aal2_verified;
+
+            console.log('🔐 Security Settings AAL2 Gate Check:', {
+              hasExistingCredentials,
+              isAAL2Verified,
+              fullStatus: aal2Data
+            });
+
+            // If user has credentials but not AAL2 verified → redirect to step-up
+            if (hasExistingCredentials && !isAAL2Verified) {
+              console.log('🔐 User has existing credentials but not AAL2 verified - redirecting to security upgrade');
+
+              // Store return URL
+              sessionStorage.setItem('aal2_return_to', window.location.pathname + window.location.search);
+              sessionStorage.setItem('aal2_return_reason', 'credential_modification');
+
+              // Redirect to AAL2 step-up page
+              navigate('/security-upgrade', {
+                replace: true,
+                state: {
+                  reason: 'credential_modification',
+                  message: 'Please verify with your existing passkey or TOTP to modify security settings'
+                }
+              });
+              return; // Stop loading the page
+            }
+
+            console.log('✅ AAL2 gate passed - user authorized to view security settings');
+
+          } catch (aal2Error) {
+            console.error('❌ AAL2 gate check failed:', aal2Error);
+            // On error, allow access (fail open for usability, backend will still enforce)
+          }
+
           // Check if we came from AAL2 setup
           const fromAAL2Setup = sessionStorage.getItem('aal2_passkey_setup');
           const aal2ReturnTo = sessionStorage.getItem('aal2_return_to');
-          
+
           if (fromAAL2Setup) {
             console.log('🔐 Detected AAL2 passkey setup flow, monitoring for completion...');
             

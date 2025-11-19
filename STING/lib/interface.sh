@@ -617,8 +617,13 @@ main() {
 
                 if INSTALL_DIR="${INSTALL_DIR}" $python_cmd "${SOURCE_DIR}/conf/config_loader.py" "${SOURCE_DIR}/conf/config.yml" --mode runtime; then
                     log_message "✅ Environment files regenerated successfully" "SUCCESS"
+
+                    # Sync database password with newly generated env files
+                    # This prevents authentication failures when password changes
+                    sync_database_password || log_message "⚠️  Database password sync had warnings - check logs" "WARNING"
+
                     log_message "💡 Tip: Restart affected services to apply configuration changes" "INFO"
-                    
+
                     # List the generated files for confirmation
                     if [ -d "${INSTALL_DIR}/env" ]; then
                         local env_count
@@ -852,7 +857,11 @@ main() {
                         log_message "Configuration validation failed" "ERROR"
                         return 1
                     fi
-                    
+
+                    # Sync database password with newly generated env files
+                    # This prevents authentication failures when password changes during updates
+                    sync_database_password || log_message "⚠️  Database password sync had warnings - check logs" "WARNING"
+
                     source_service_envs
                 fi
                 
