@@ -578,22 +578,35 @@ def require_auth_method(required_methods, allowed_scopes=None):
 
             # Check Redis for custom AAL2 verification (same as require_admin decorator)
             # This handles the case where user completed AAL2 step-up via custom AAL2 flow
+            # SECURITY: AAL2 is SESSION-SPECIFIC (user_id:session_id), not user-wide
             redis_aal2_verified = False
             redis_aal2_method = None
             try:
                 import redis
                 redis_client = redis.from_url('redis://redis:6379/0')
-                redis_key = f"sting:custom_aal2:{g.user.id}"
-                redis_data = redis_client.get(redis_key)
-                if redis_data:
-                    import json
-                    verification_data = json.loads(redis_data)
-                    redis_aal2_method = verification_data.get('method', 'webauthn')
-                    redis_aal2_verified = True
-                    logger.info(f"🔐 Found custom AAL2 verification in Redis for {user_email}: method={redis_aal2_method}")
-                    # Add the verified method to available methods
-                    if redis_aal2_method not in available_methods:
-                        available_methods.append(redis_aal2_method)
+
+                # Get session ID from g.session_data for session-specific verification
+                session_id = None
+                if hasattr(g, 'session_data') and g.session_data:
+                    session_id = g.session_data.get('id')
+
+                if session_id:
+                    # Use session-specific key format
+                    redis_key = f"sting:custom_aal2:{g.user.id}:{session_id}"
+                    redis_data = redis_client.get(redis_key)
+                    if redis_data:
+                        import json
+                        verification_data = json.loads(redis_data)
+                        redis_aal2_method = verification_data.get('method', 'webauthn')
+                        redis_aal2_verified = True
+                        logger.info(f"🔐 Found session-specific custom AAL2 verification in Redis for {user_email}: method={redis_aal2_method}, session={session_id[:8]}...")
+                        # Add the verified method to available methods
+                        if redis_aal2_method not in available_methods:
+                            available_methods.append(redis_aal2_method)
+                    else:
+                        logger.debug(f"No session-specific AAL2 verification found for {user_email} session {session_id[:8]}...")
+                else:
+                    logger.warning(f"Cannot check session-specific AAL2: no session_id available for {user_email}")
             except Exception as redis_error:
                 logger.debug(f"Redis AAL2 check failed (non-critical): {redis_error}")
                 redis_aal2_verified = False

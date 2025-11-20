@@ -23,14 +23,21 @@ const CredentialSetup = () => {
         const hasPasskey = status?.passkey_enrolled || false;
         const hasTotp = status?.totp_enrolled || false;
 
-        if (hasPasskey || hasTotp) {
-          console.log('✅ User already has credentials - redirecting to dashboard');
+        // STING requires BOTH Passkey AND TOTP for 3FA
+        if (hasPasskey && hasTotp) {
+          console.log('✅ User has both credentials (3FA complete) - redirecting to dashboard');
           setHasCredentials(true);
-          // User has credentials, redirect to dashboard
+          // User has both credentials, redirect to dashboard
           setTimeout(() => {
             navigate('/dashboard');
           }, 1000);
         } else {
+          console.log('⚠️ User missing credentials:', {
+            hasPasskey,
+            hasTotp,
+            needsPasskey: !hasPasskey,
+            needsTotp: !hasTotp
+          });
           setIsLoading(false);
         }
       } catch (error) {
@@ -104,10 +111,10 @@ const CredentialSetup = () => {
         <div className="text-center mb-8">
           <img src="/sting-logo.png" alt="STING" className="w-20 h-20 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-white mb-2">
-            🔒 Secure Your Account
+            🔒 3-Factor Security Setup
           </h1>
           <p className="text-gray-300">
-            Welcome! Before accessing STING, you need to set up two-factor authentication (2FA). This protects your account and sensitive data.
+            Welcome! STING uses 3-factor authentication (Email + Passkey + TOTP) to ensure you never get locked out while maintaining maximum security.
           </p>
         </div>
 
@@ -123,9 +130,11 @@ const CredentialSetup = () => {
           <div className="flex items-start space-x-2">
             <span className="text-xl">ℹ️</span>
             <div className="text-sm">
-              <div className="font-semibold mb-1">Why 2FA is Required</div>
-              <div className="text-blue-300">
-                STING handles sensitive data and requires all users to have two-factor authentication. Choose your preferred method below.
+              <div className="font-semibold mb-1">How 3-Factor Authentication Works</div>
+              <div className="text-blue-300 space-y-2">
+                <p><strong>Setup:</strong> You'll configure BOTH Passkey and TOTP (takes 2-3 minutes)</p>
+                <p><strong>Daily Use:</strong> Only verify with ONE method (Passkey OR TOTP)</p>
+                <p><strong>Benefit:</strong> Never get locked out - if one method fails, use the other!</p>
               </div>
             </div>
           </div>
@@ -141,14 +150,14 @@ const CredentialSetup = () => {
               <div className="text-3xl">🔑</div>
               <div className="text-left flex-1">
                 <div className="font-semibold text-white group-hover:text-blue-200">
-                  Set Up Passkey (Recommended)
+                  Step 1: Set Up Passkey
                 </div>
                 <div className="text-sm text-gray-400">
-                  Quick biometric login with Face ID, Touch ID, or security key
+                  Face ID, Touch ID, or security key (start here)
                 </div>
               </div>
               <div className="text-blue-400 text-sm font-semibold">
-                Fastest →
+                Start →
               </div>
             </div>
           </button>
@@ -161,14 +170,14 @@ const CredentialSetup = () => {
               <div className="text-3xl">📱</div>
               <div className="text-left flex-1">
                 <div className="font-semibold text-white group-hover:text-green-200">
-                  Set Up Authenticator App
+                  Or Step 1: Set Up TOTP First
                 </div>
                 <div className="text-sm text-gray-400">
-                  Use Google Authenticator, Authy, or similar TOTP app
+                  Google Authenticator, Authy (you'll add the other next)
                 </div>
               </div>
               <div className="text-green-400 text-sm">
-                →
+                Start →
               </div>
             </div>
           </button>
@@ -184,8 +193,9 @@ const CredentialSetup = () => {
         {/* Footer Info */}
         <div className="border-t border-gray-700 pt-6">
           <div className="text-xs text-gray-500 text-center space-y-2">
-            <p>🛡️ <strong>Security Note:</strong> You must complete this setup to access STING</p>
-            <p>You can add additional 2FA methods later in Settings</p>
+            <p>🛡️ <strong>Important:</strong> You must set up BOTH methods to access STING</p>
+            <p>After setup, you only need ONE method for daily login</p>
+            <p>Choose either method to start - you'll add the other one next</p>
           </div>
         </div>
 

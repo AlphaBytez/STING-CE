@@ -94,6 +94,7 @@ const SimpleProtectedRoute = ({ children }) => {
       // Skip check if already on credential setup page or settings page (where they set up credentials)
       if (location.pathname === '/credential-setup' || location.pathname.includes('/dashboard/settings')) {
         setCredentialCheckComplete(true);
+        setNeedsCredentialSetup(false); // Don't redirect when on these pages
         return;
       }
 
@@ -108,12 +109,19 @@ const SimpleProtectedRoute = ({ children }) => {
           const hasPasskey = status?.passkey_enrolled || false;
           const hasTotp = status?.totp_enrolled || false;
 
-          // User needs credential setup if they have NO 2FA methods
-          if (!hasPasskey && !hasTotp) {
-            console.log('⚠️ User has no 2FA credentials - redirecting to credential setup');
+          // User needs credential setup if they don't have BOTH Passkey AND TOTP
+          // STING requires 3-factor enrollment (Email + Passkey + TOTP)
+          // Users only need to verify with ONE for AAL2, but must have BOTH enrolled
+          if (!hasPasskey || !hasTotp) {
+            console.log('⚠️ User missing credentials - redirecting to credential setup', {
+              hasPasskey,
+              hasTotp,
+              needsPasskey: !hasPasskey,
+              needsTotp: !hasTotp
+            });
             setNeedsCredentialSetup(true);
           } else {
-            console.log('✅ User has 2FA credentials configured');
+            console.log('✅ User has both Passkey and TOTP configured (3FA complete)');
             setNeedsCredentialSetup(false);
           }
         }

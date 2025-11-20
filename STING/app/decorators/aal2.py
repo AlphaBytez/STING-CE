@@ -139,7 +139,12 @@ class CustomAAL2Manager:
                             kratos_has_passkey = len(webauthn_creds) > 0
                         
                         # Also check for TOTP (valid for AAL2)
-                        kratos_has_totp = 'totp' in credentials and bool(credentials.get('totp', {}).get('config', {}))
+                        # TOTP structure: {'type': 'totp', 'identifiers': [...], 'version': 0}
+                        totp_data = credentials.get('totp', {})
+                        kratos_has_totp = 'totp' in credentials and (
+                            bool(totp_data.get('config', {})) or  # Old format
+                            bool(totp_data.get('identifiers', []))  # New format - check for identifiers
+                        )
                         
                         logger.info(f"✅ Kratos credentials final result for {user.email}: passkey={kratos_has_passkey}, totp={kratos_has_totp}")
                 except Exception as e:
