@@ -55,6 +55,9 @@ const SecuritySettings = () => {
   const missingMethods = location.state?.missingMethods || [];
   const setupMessage = location.state?.message || null;
 
+  // Check if setup is required (from credential-setup flow)
+  const isRequiredSetup = searchParams.get('required') === 'true';
+
   // Store current tab for post-credential navigation
   useEffect(() => {
     const currentTab = searchParams.get('tab');

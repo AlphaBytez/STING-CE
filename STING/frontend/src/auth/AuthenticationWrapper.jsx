@@ -20,6 +20,7 @@ import AuthFlowRouter from '../components/auth/refactored/components/AuthFlowRou
 import SecurityUpgrade from '../components/auth/GracefulAAL2StepUp'; // TODO: Rename file to SecurityUpgrade.jsx
 import TOTPVerify from '../components/auth/AAL2TOTPVerify'; // TODO: Rename file to TOTPVerify.jsx
 import PasskeyVerify from '../components/auth/AAL2PasskeyVerify'; // TODO: Rename file to PasskeyVerify.jsx
+import CredentialSetup from '../components/auth/CredentialSetup';
 import PostRegistration from './PostRegistration';
 import LogoutPage from '../components/auth/LogoutPage';
 import PasskeyDebugCheck from '../components/auth/PasskeyDebugCheck';
@@ -64,7 +65,10 @@ const AuthenticationWrapper = () => {
           
           {/* Security upgrade route (replaces AAL2) */}
           <Route path="/security-upgrade" element={<SecurityUpgrade />} />
-          
+
+          {/* Forced credential setup for new users */}
+          <Route path="/credential-setup" element={<CredentialSetup />} />
+
           {/* Auth Flow Routes */}
           <Route path="/verification" element={<VerificationPage />} />
           <Route path="/error" element={<ErrorPage />} />

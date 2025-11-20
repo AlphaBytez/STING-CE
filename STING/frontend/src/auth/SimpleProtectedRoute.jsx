@@ -36,6 +36,10 @@ const SimpleProtectedRoute = ({ children }) => {
   // Authentication state check completion
   const [authCheckComplete, setAuthCheckComplete] = useState(false);
 
+  // Credential setup check
+  const [credentialCheckComplete, setCredentialCheckComplete] = useState(false);
+  const [needsCredentialSetup, setNeedsCredentialSetup] = useState(false);
+
   // IMPROVED: More accurate authentication state detection
   // Check for valid authentication cookies (not just presence)
   // Cookie values will be empty strings if deleted, so check for actual values
@@ -77,6 +81,52 @@ const SimpleProtectedRoute = ({ children }) => {
       setAuthCheckComplete(true);
     }
   }, [isLoading]);
+
+  // Check if user needs to set up credentials (2FA required for all users)
+  useEffect(() => {
+    const checkCredentials = async () => {
+      // Skip check if not authenticated or still loading
+      if (!isAuthenticated || isLoading) {
+        setCredentialCheckComplete(true);
+        return;
+      }
+
+      // Skip check if already on credential setup page or settings page (where they set up credentials)
+      if (location.pathname === '/credential-setup' || location.pathname.includes('/dashboard/settings')) {
+        setCredentialCheckComplete(true);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/aal2/status', {
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const status = data?.status;
+          const hasPasskey = status?.passkey_enrolled || false;
+          const hasTotp = status?.totp_enrolled || false;
+
+          // User needs credential setup if they have NO 2FA methods
+          if (!hasPasskey && !hasTotp) {
+            console.log('⚠️ User has no 2FA credentials - redirecting to credential setup');
+            setNeedsCredentialSetup(true);
+          } else {
+            console.log('✅ User has 2FA credentials configured');
+            setNeedsCredentialSetup(false);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check credential status:', error);
+        // On error, allow access (fail open for usability)
+      } finally {
+        setCredentialCheckComplete(true);
+      }
+    };
+
+    checkCredentials();
+  }, [isAuthenticated, isLoading, location.pathname]);
 
   // Session sync timeout management - MUST be called before any returns
   useEffect(() => {
@@ -162,9 +212,29 @@ const SimpleProtectedRoute = ({ children }) => {
     );
   }
 
+  // Wait for credential check to complete
+  if (!credentialCheckComplete) {
+    return (
+      <ColonyLoadingScreen
+        isVisible={true}
+        message="Verifying security configuration"
+        subMessage="Checking 2FA status..."
+      />
+    );
+  }
+
+  // Redirect to credential setup if user has no 2FA methods
+  // BUT allow access to settings page (where they actually set up credentials)
+  if (needsCredentialSetup &&
+      location.pathname !== '/credential-setup' &&
+      !location.pathname.includes('/dashboard/settings')) {
+    console.log('🔒 Redirecting to credential setup - user needs 2FA');
+    return <Navigate to="/credential-setup" replace />;
+  }
+
   // Authentication verified - render protected content
   // Note: Tiered authentication will be handled by individual operations
-  
+
   return children;
 };
 
