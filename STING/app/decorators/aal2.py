@@ -179,51 +179,73 @@ class CustomAAL2Manager:
                 'enrollment_url': '/dashboard/settings/security'
             }
     
-    def set_aal2_verified(self, user_id: int, verification_method: str = 'webauthn') -> bool:
+    def set_aal2_verified(self, user_id: int, verification_method: str = 'webauthn', session_id: str = None) -> bool:
         """
         Mark user as AAL2 verified for the session duration
-        
+
+        SECURITY: AAL2 verification is SESSION-SPECIFIC, not user-wide.
+        Each Kratos session requires its own AAL2 verification for enhanced security.
+        This prevents cross-device/cross-session AAL2 leakage.
+
         Args:
             user_id: STING user ID
             verification_method: Method used for verification (webauthn, totp, etc.)
-            
+            session_id: Kratos session ID (REQUIRED for session-specific verification)
+
         Returns:
             bool: True if successfully stored
         """
         if not self.redis_client:
             logger.error("Redis not available for AAL2 session storage")
             return False
-            
+
+        # Get session ID from Flask g context if not provided
+        if not session_id:
+            from flask import g
+            if hasattr(g, 'session_data') and g.session_data:
+                session_id = g.session_data.get('id')
+                logger.debug(f"Retrieved session_id from g.session_data: {session_id}")
+
+        if not session_id:
+            logger.error(f"Cannot set AAL2 verification: session_id is required for session-specific verification")
+            return False
+
         try:
-            key = f"{self.aal2_prefix}{user_id}"
+            # Use session-specific key: user_id:session_id
+            key = f"{self.aal2_prefix}{user_id}:{session_id}"
             verification_data = {
                 'user_id': user_id,
+                'session_id': session_id,
                 'method': verification_method,
                 'verified_at': datetime.utcnow().isoformat(),
                 'expires_at': (datetime.utcnow() + timedelta(seconds=self.aal2_duration)).isoformat()
             }
-            
+
             # Store with TTL
             self.redis_client.setex(
-                key, 
-                self.aal2_duration, 
+                key,
+                self.aal2_duration,
                 json.dumps(verification_data)
             )
-            
-            logger.info(f"✅ Custom AAL2 verified for user {user_id} using {verification_method}")
+
+            logger.info(f"✅ Custom AAL2 verified for user {user_id} session {session_id[:8]}... using {verification_method}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error setting AAL2 verification for user {user_id}: {e}")
             return False
     
-    def check_aal2_verified(self, user_id: int) -> Dict[str, Any]:
+    def check_aal2_verified(self, user_id: int, session_id: str = None) -> Dict[str, Any]:
         """
-        Check if user has current AAL2 verification
-        
+        Check if user has current AAL2 verification for their session
+
+        SECURITY: Checks SESSION-SPECIFIC AAL2 verification, not user-wide.
+        Each Kratos session must have its own AAL2 verification.
+
         Args:
             user_id: STING user ID
-            
+            session_id: Kratos session ID (auto-retrieved from g.session_data if not provided)
+
         Returns:
             Dict with verification status and details
         """
@@ -232,19 +254,34 @@ class CustomAAL2Manager:
                 'verified': False,
                 'reason': 'Redis not available'
             }
-            
+
+        # Get session ID from Flask g context if not provided
+        if not session_id:
+            from flask import g
+            if hasattr(g, 'session_data') and g.session_data:
+                session_id = g.session_data.get('id')
+                logger.debug(f"Retrieved session_id from g.session_data for verification check: {session_id}")
+
+        if not session_id:
+            logger.warning(f"Cannot check AAL2 verification: session_id is required for session-specific verification")
+            return {
+                'verified': False,
+                'reason': 'No session_id available'
+            }
+
         try:
-            key = f"{self.aal2_prefix}{user_id}"
+            # Use session-specific key: user_id:session_id
+            key = f"{self.aal2_prefix}{user_id}:{session_id}"
             data = self.redis_client.get(key)
-            
+
             if not data:
                 return {
                     'verified': False,
-                    'reason': 'No AAL2 verification found'
+                    'reason': 'No AAL2 verification found for this session'
                 }
-            
+
             verification_data = json.loads(data.decode('utf-8'))
-            
+
             # Check if still valid (Redis TTL should handle this, but double-check)
             expires_at = datetime.fromisoformat(verification_data['expires_at'])
             if datetime.utcnow() > expires_at:
@@ -254,14 +291,15 @@ class CustomAAL2Manager:
                     'verified': False,
                     'reason': 'AAL2 verification expired'
                 }
-            
+
             return {
                 'verified': True,
                 'method': verification_data['method'],
                 'verified_at': verification_data['verified_at'],
-                'expires_at': verification_data['expires_at']
+                'expires_at': verification_data['expires_at'],
+                'session_id': session_id
             }
-            
+
         except Exception as e:
             logger.error(f"Error checking AAL2 verification for user {user_id}: {e}")
             return {

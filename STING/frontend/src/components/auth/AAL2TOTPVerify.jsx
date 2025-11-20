@@ -14,6 +14,12 @@ const AAL2TOTPVerify = () => {
   const storedReturnTo = sessionStorage.getItem('aal2_return_to');
   const returnTo = storedReturnTo || searchParams.get('return_to') || '/dashboard';
 
+  console.log('🔐 AAL2TOTPVerify - Return URL resolution:', {
+    storedReturnTo,
+    paramReturnTo: searchParams.get('return_to'),
+    finalReturnTo: returnTo
+  });
+
   // Get user email on component mount
   useEffect(() => {
     const fetchUserEmail = async () => {
@@ -130,13 +136,22 @@ const AAL2TOTPVerify = () => {
         
         // Redis AAL2 verification handled automatically by Flask backend
 
+        // Double-check return URL before cleanup (in case it changed)
+        const finalReturnTo = sessionStorage.getItem('aal2_return_to') || returnTo;
+
+        console.log('🔐 TOTP authentication complete - Final return URL check:', {
+          originalReturnTo: returnTo,
+          sessionStorageNow: sessionStorage.getItem('aal2_return_to'),
+          finalReturnTo: finalReturnTo
+        });
+
         // Clean up sessionStorage
         sessionStorage.removeItem('aal2_return_to');
         sessionStorage.removeItem('aal2_return_reason');
 
         // Redirect to return URL (dashboard by default)
-        console.log('🔐 TOTP authentication complete, redirecting to:', returnTo);
-        window.location.href = returnTo;
+        console.log('🔐 Redirecting to:', finalReturnTo);
+        window.location.href = finalReturnTo;
       } else {
         // Extract error from Kratos response
         const errorMsg = responseData?.ui?.messages?.find(m => m.type === 'error')?.text;

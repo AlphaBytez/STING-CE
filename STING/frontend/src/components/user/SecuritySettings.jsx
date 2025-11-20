@@ -91,18 +91,18 @@ const SecuritySettings = () => {
             if (hasExistingCredentials && !isAAL2Verified) {
               console.log('🔐 User has existing credentials but not AAL2 verified - redirecting to security upgrade');
 
-              // Store return URL
-              sessionStorage.setItem('aal2_return_to', window.location.pathname + window.location.search);
-              sessionStorage.setItem('aal2_return_reason', 'credential_modification');
+              // Build return URL with preauth marker (matches tieredAuth.js pattern)
+              const currentUrl = window.location.pathname + window.location.search;
+              const separator = currentUrl.includes('?') ? '&' : '?';
+              const returnUrl = `${currentUrl}${separator}preauth=complete`;
 
-              // Redirect to AAL2 step-up page
-              navigate('/security-upgrade', {
-                replace: true,
-                state: {
-                  reason: 'credential_modification',
-                  message: 'Please verify with your existing passkey or TOTP to modify security settings'
-                }
-              });
+              console.log('🔐 SecuritySettings - Setting return URL:', returnUrl);
+
+              // Redirect to AAL2 step-up page with return_to in URL params
+              const redirectUrl = `/security-upgrade?reason=credential_modification&return_to=${encodeURIComponent(returnUrl)}`;
+
+              console.log('🔐 SecuritySettings - Redirecting to:', redirectUrl);
+              window.location.href = redirectUrl;
               return; // Stop loading the page
             }
 

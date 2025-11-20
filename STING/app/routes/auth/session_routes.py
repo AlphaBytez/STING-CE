@@ -138,16 +138,17 @@ def logout():
         logger.info("Starting logout process")
 
         # Clear custom AAL2 verification from Redis if user is authenticated
-        if hasattr(g, 'user') and g.user:
+        if hasattr(g, 'user') and g.user and hasattr(g, 'session_data') and g.session_data:
             try:
                 from app.decorators.aal2 import aal2_manager
                 user_id = g.user.id
+                session_id = g.session_data.get('id')
 
-                # Delete AAL2 verification from Redis
-                if aal2_manager.redis_client:
-                    key = f"{aal2_manager.aal2_prefix}{user_id}"
+                # Delete session-specific AAL2 verification from Redis
+                if aal2_manager.redis_client and session_id:
+                    key = f"{aal2_manager.aal2_prefix}{user_id}:{session_id}"
                     aal2_manager.redis_client.delete(key)
-                    logger.info(f"Cleared AAL2 verification for user {user_id} during logout")
+                    logger.info(f"Cleared AAL2 verification for user {user_id} session {session_id[:8]}... during logout")
             except Exception as e:
                 logger.warning(f"Failed to clear AAL2 verification during logout: {e}")
 

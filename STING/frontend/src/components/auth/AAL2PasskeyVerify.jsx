@@ -13,7 +13,15 @@ const AAL2PasskeyVerify = () => {
   const returnTo = useMemo(() => {
     const storedReturnTo = sessionStorage.getItem('aal2_return_to');
     const paramReturnTo = searchParams.get('return_to');
-    return storedReturnTo || paramReturnTo || '/dashboard';
+    const finalUrl = storedReturnTo || paramReturnTo || '/dashboard';
+
+    console.log('🔐 AAL2PasskeyVerify - Return URL resolution:', {
+      storedReturnTo,
+      paramReturnTo,
+      finalReturnTo: finalUrl
+    });
+
+    return finalUrl;
   }, [searchParams]);
 
   // Colony loading screen
@@ -198,12 +206,21 @@ const AAL2PasskeyVerify = () => {
       localStorage.setItem('sting_aal2_timestamp', new Date().toISOString());
 
       // Navigate to the protected resource only after successful AAL2
+      // Double-check return URL before cleanup (in case it changed)
+      const finalReturnTo = sessionStorage.getItem('aal2_return_to') || returnTo;
+
+      console.log('🔐 AAL2 verification complete - Final return URL check:', {
+        originalReturnTo: returnTo,
+        sessionStorageNow: sessionStorage.getItem('aal2_return_to'),
+        finalReturnTo: finalReturnTo
+      });
+
       // Clean up sessionStorage
       sessionStorage.removeItem('aal2_return_to');
       sessionStorage.removeItem('aal2_return_reason');
 
-      console.log('🔐 AAL2 verification complete, redirecting to:', returnTo);
-      window.location.href = returnTo;
+      console.log('🔐 Redirecting to:', finalReturnTo);
+      window.location.href = finalReturnTo;
 
     } catch (error) {
       console.error('❌ AAL2 completion failed:', error);
