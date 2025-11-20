@@ -33,9 +33,11 @@ const EmailFirstLogin = () => {
   const isAAL2 = searchParams.get('aal') === 'aal2';
   const returnTo = searchParams.get('return_to') || '/dashboard';
 
-  // Dev mode detection and Mailpit URL
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  const mailpitUrl = `http://${window.location.hostname}:8025`;
+  // Environment detection (from backend API)
+  const [envConfig, setEnvConfig] = useState(null);
+  const isDevelopment = envConfig?.is_development || false;
+  const mailpitEnabled = envConfig?.mailpit?.enabled || false;
+  const mailpitUrl = envConfig?.mailpit?.url || `http://${window.location.hostname}:8025`;
 
   // Define functions before useEffect to avoid hoisting issues
   const initializeKratosFlow = useCallback(async () => {
@@ -133,6 +135,21 @@ const EmailFirstLogin = () => {
       console.log('🔐 Assuming users exist to avoid blocking legitimate access');
       setHasUsers(true);  // Fail-safe: assume users exist to prevent blocking real users
     }
+  }, []);
+
+  // Fetch environment config on mount
+  useEffect(() => {
+    const fetchEnvConfig = async () => {
+      try {
+        const response = await axios.get('/api/config/environment');
+        if (response.data?.success) {
+          setEnvConfig(response.data);
+        }
+      } catch (error) {
+        console.log('Could not fetch environment config:', error);
+      }
+    };
+    fetchEnvConfig();
   }, []);
 
   // Check for existing passkey on mount and handle AAL2 flow
@@ -472,6 +489,32 @@ const EmailFirstLogin = () => {
           {error && (
             <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg mb-6">
               {error}
+            </div>
+          )}
+
+          {/* Development Mode Banner with Mailpit Link */}
+          {isDevelopment && mailpitEnabled && !isAAL2 && (
+            <div className="mb-6 p-4 bg-orange-500/20 border border-orange-500/50 rounded-lg">
+              <div className="flex items-start gap-3">
+                <div className="text-orange-300 text-2xl">🔧</div>
+                <div className="flex-1">
+                  <h3 className="text-orange-300 font-medium mb-1">Development Mode</h3>
+                  <p className="text-orange-200 text-sm mb-2">
+                    Email codes are sent to Mailpit (test inbox)
+                  </p>
+                  <a
+                    href={mailpitUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded text-sm font-medium transition-colors"
+                  >
+                    📬 Open Mailpit
+                  </a>
+                  <p className="text-orange-300 text-xs mt-2">
+                    Configure production SMTP in config.yml to disable this
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 

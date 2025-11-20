@@ -16,6 +16,47 @@ logger = logging.getLogger(__name__)
 config_bp = Blueprint('config', __name__, url_prefix='/api/config')
 CORS(config_bp, supports_credentials=True)
 
+@config_bp.route('/environment', methods=['GET'])
+def get_environment():
+    """Get environment information (dev/prod mode, mailpit status)"""
+    try:
+        from flask import current_app
+
+        # Get config
+        config = current_app.config.get('CONFIG', {})
+
+        # Check environment mode from config
+        environment = config.get('environment', 'development')
+        is_development = environment == 'development'
+
+        # Get email config to detect Mailpit
+        email_config = config.get('email', {})
+        smtp_host = email_config.get('smtp_host', '')
+        is_mailpit = 'mailpit' in smtp_host.lower() or smtp_host == 'localhost'
+
+        return jsonify({
+            'success': True,
+            'environment': environment,
+            'is_development': is_development,
+            'mailpit': {
+                'enabled': is_mailpit,
+                'url': f"http://{os.environ.get('HOSTNAME', 'localhost')}:8025"
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting environment config: {str(e)}")
+        # Return safe defaults
+        return jsonify({
+            'success': True,
+            'environment': 'production',
+            'is_development': False,
+            'mailpit': {
+                'enabled': False,
+                'url': None
+            }
+        })
+
 @config_bp.route('/theme', methods=['GET'])
 def get_theme_config():
     """Get theme configuration from config.yml"""
@@ -243,11 +284,17 @@ def download_ca_cert():
                 break
 
         if ca_path and os.path.exists(ca_path):
+            # Get hostname for dynamic filename
+            hostname = os.environ.get('HOSTNAME', 'localhost')
+            # Remove .local suffix if present for cleaner filename
+            hostname_clean = hostname.replace('.local', '')
+            dynamic_filename = f"{hostname_clean}-sting-ca.pem"
+
             return send_file(
                 ca_path,
                 mimetype='application/x-pem-file',
                 as_attachment=True,
-                download_name='sting-ca.pem'
+                download_name=dynamic_filename
             )
         else:
             logger.warning(f"CA certificate not found. Checked paths: {cert_paths}")

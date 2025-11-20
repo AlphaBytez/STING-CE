@@ -23,6 +23,7 @@ const PasskeyManagerDirect = ({ isEnrollmentMode = false, onSetupComplete = null
   const [checkingAAL, setCheckingAAL] = useState(true);
   const formRef = useRef(null);
   const checkIntervalRef = useRef(null);
+  const isRegisteringRef = useRef(false); // Ref for beforeunload check to avoid stale closure
 
   // Check if user has 2FA enabled and current AAL
   const check2FAStatus = async () => {
@@ -269,8 +270,9 @@ const PasskeyManagerDirect = ({ isEnrollmentMode = false, onSetupComplete = null
     
     // Also intercept beforeunload to prevent navigation
     // BUT: Skip this in enrollment mode to avoid interfering with the enrollment flow
+    // Use ref instead of state to avoid stale closure issue
     const preventNavigation = (e) => {
-      if (isRegistering && !isEnrollmentMode) {
+      if (isRegisteringRef.current && !isEnrollmentMode) {
         console.log('🔐 Preventing navigation during registration');
         e.preventDefault();
         e.returnValue = '';
@@ -316,6 +318,7 @@ const PasskeyManagerDirect = ({ isEnrollmentMode = false, onSetupComplete = null
     setError('');
     setSuccess('');
     setIsRegistering(true);
+    isRegisteringRef.current = true; // Update ref immediately
     setRegistrationStatus('Initializing...');
 
     try {
@@ -460,6 +463,7 @@ const PasskeyManagerDirect = ({ isEnrollmentMode = false, onSetupComplete = null
             setSuccess('Passkey registered successfully!');
             setPasskeyName('');
             setIsRegistering(false);
+            isRegisteringRef.current = false; // Clear ref immediately to prevent leave warning
             setRegistrationStatus('');
             
             if (formRef.current && document.body.contains(formRef.current)) {
@@ -522,6 +526,7 @@ const PasskeyManagerDirect = ({ isEnrollmentMode = false, onSetupComplete = null
           checkIntervalRef.current = null;
           setError('Passkey registration timed out. Please try again.');
           setIsRegistering(false);
+          isRegisteringRef.current = false; // Clear ref on timeout
           setRegistrationStatus('');
           
           if (formRef.current && document.body.contains(formRef.current)) {
@@ -689,6 +694,7 @@ const PasskeyManagerDirect = ({ isEnrollmentMode = false, onSetupComplete = null
       console.error('Registration error:', err);
       setError(err.message || 'Failed to register passkey');
       setIsRegistering(false);
+      isRegisteringRef.current = false; // Clear ref on error
       setRegistrationStatus('');
       
       if (formRef.current && document.body.contains(formRef.current)) {

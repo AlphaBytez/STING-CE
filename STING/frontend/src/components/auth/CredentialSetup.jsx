@@ -125,6 +125,29 @@ const CredentialSetup = () => {
           </div>
         )}
 
+        {/* Certificate Download Banner - For Cross-Device Passkey Setup */}
+        <div className="sting-glass-subtle border border-purple-500/50 text-purple-200 px-4 py-3 rounded-lg mb-4">
+          <div className="flex items-start space-x-2">
+            <span className="text-xl">🔐</span>
+            <div className="text-sm">
+              <div className="font-semibold mb-1">New Device? Download Certificate First</div>
+              <div className="text-purple-300 space-y-2">
+                <p>If this is a NEW device or browser, install the STING certificate before setting up Passkey:</p>
+                <a
+                  href="/api/config/cert/download"
+                  className="inline-block px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded text-sm font-medium transition-colors mt-1"
+                  download
+                >
+                  📥 Download Certificate ({window.location.hostname}-sting-ca.pem)
+                </a>
+                <p className="text-xs text-purple-400 mt-2">
+                  After downloading: Double-click the file → Trust it → Return here to continue
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Info Banner */}
         <div className="sting-glass-subtle border border-blue-500/50 text-blue-200 px-4 py-3 rounded-lg mb-6">
           <div className="flex items-start space-x-2">
