@@ -68,14 +68,23 @@ def get_current_user():
         aal2_method = flask_session.get('aal2_method')
         aal2_verified_at = flask_session.get('aal2_verified_at')
         
-        # Auto-sync: If Kratos session is already AAL2, sync that to Flask session
-        if session_data.get('authenticator_assurance_level') == 'aal2' and not aal2_verified:
-            flask_session['aal2_verified'] = True
-            flask_session['aal2_method'] = 'kratos_native'
-            flask_session['aal2_verified_at'] = datetime.now(timezone.utc).isoformat()
-            aal2_verified = True
-            aal2_method = 'kratos_native'
-            logger.info(f"Auto-synced Kratos AAL2 session to Flask for user: {traits.get('email')}")
+        # DISABLED: Auto-sync from Kratos AAL2
+        # STING uses a custom AAL2 tier system stored in Redis, not Kratos native AAL2.
+        # Kratos may report AAL2 after email+TOTP or email+WebAuthn login, but that should
+        # NOT automatically grant custom AAL2 status which is reserved for step-up verification.
+        #
+        # The custom AAL2 system requires explicit verification via:
+        # - /api/aal2/challenge/complete (after TOTP/WebAuthn step-up)
+        # - aal2_manager.set_aal2_verified() in Redis
+        #
+        # Commenting out auto-sync to prevent bypassing custom AAL2 requirements:
+        # if session_data.get('authenticator_assurance_level') == 'aal2' and not aal2_verified:
+        #     flask_session['aal2_verified'] = True
+        #     flask_session['aal2_method'] = 'kratos_native'
+        #     flask_session['aal2_verified_at'] = datetime.now(timezone.utc).isoformat()
+        #     aal2_verified = True
+        #     aal2_method = 'kratos_native'
+        #     logger.info(f"Auto-synced Kratos AAL2 session to Flask for user: {traits.get('email')}")
         
         # If AAL2 is verified in Flask session, use that as effective AAL
         if aal2_verified:
@@ -123,13 +132,28 @@ def get_current_user():
 def logout():
     """
     Handles user logout by initiating the Kratos logout flow and clearing session cookies.
+    Also clears custom AAL2 verification from Redis.
     """
     try:
         logger.info("Starting logout process")
-        
+
+        # Clear custom AAL2 verification from Redis if user is authenticated
+        if hasattr(g, 'user') and g.user:
+            try:
+                from app.decorators.aal2 import aal2_manager
+                user_id = g.user.id
+
+                # Delete AAL2 verification from Redis
+                if aal2_manager.redis_client:
+                    key = f"{aal2_manager.aal2_prefix}{user_id}"
+                    aal2_manager.redis_client.delete(key)
+                    logger.info(f"Cleared AAL2 verification for user {user_id} during logout")
+            except Exception as e:
+                logger.warning(f"Failed to clear AAL2 verification during logout: {e}")
+
         # Get the Kratos session cookie to initiate the logout flow
         cookies = {key: value for key, value in request.cookies.items()}
-        
+
         # Initiate the Kratos self-service logout flow
         flow_response = requests.get(
             f"{KRATOS_PUBLIC_URL}/self-service/logout/browser",
@@ -137,7 +161,7 @@ def logout():
             allow_redirects=False, # We want to handle the flow ourselves
             verify=False
         )
-        
+
         logout_token = ""
         if flow_response.status_code == 200:
             logout_token = flow_response.json().get('logout_token')

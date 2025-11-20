@@ -61,10 +61,12 @@ const GracefulAAL2StepUp = () => {
     setSelectedMethod(method);
     setError('');
     setSuccessMessage('');
-    
-    // Get current return_to parameter to pass along
-    const currentReturnTo = new URLSearchParams(window.location.search).get('return_to') || '/dashboard';
-    
+
+    // Get return URL - check sessionStorage first (set by SecuritySettings), then URL params, then default
+    const storedReturnTo = sessionStorage.getItem('aal2_return_to');
+    const urlReturnTo = new URLSearchParams(window.location.search).get('return_to');
+    const currentReturnTo = storedReturnTo || urlReturnTo || '/dashboard';
+
     if (method === 'totp') {
       // Navigate to dedicated AAL2 TOTP verification page
       navigate(`/verify-totp?return_to=${encodeURIComponent(currentReturnTo)}`);
@@ -75,8 +77,17 @@ const GracefulAAL2StepUp = () => {
   };
 
   const handleSkipForNow = () => {
-    const currentReturnTo = new URLSearchParams(window.location.search).get('return_to') || '/dashboard';
+    // Get return URL - check sessionStorage first, then URL params, then default
+    const storedReturnTo = sessionStorage.getItem('aal2_return_to');
+    const urlReturnTo = new URLSearchParams(window.location.search).get('return_to');
+    const currentReturnTo = storedReturnTo || urlReturnTo || '/dashboard';
+
     setSuccessMessage('Dashboard access granted. Enhanced security can be configured later.');
+
+    // Clean up sessionStorage
+    sessionStorage.removeItem('aal2_return_to');
+    sessionStorage.removeItem('aal2_return_reason');
+
     setTimeout(() => {
       navigate(currentReturnTo);
     }, 1500);

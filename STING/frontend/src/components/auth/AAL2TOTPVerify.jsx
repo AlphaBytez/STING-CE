@@ -10,8 +10,9 @@ const AAL2TOTPVerify = () => {
   const [userEmail, setUserEmail] = useState('');
   const totpInputRef = useRef(null);
 
-  // Get return URL from params or default to dashboard
-  const returnTo = searchParams.get('return_to') || '/dashboard';
+  // Get return URL - check sessionStorage first (set by SecuritySettings), then params, then default
+  const storedReturnTo = sessionStorage.getItem('aal2_return_to');
+  const returnTo = storedReturnTo || searchParams.get('return_to') || '/dashboard';
 
   // Get user email on component mount
   useEffect(() => {
@@ -128,7 +129,11 @@ const AAL2TOTPVerify = () => {
         }
         
         // Redis AAL2 verification handled automatically by Flask backend
-        
+
+        // Clean up sessionStorage
+        sessionStorage.removeItem('aal2_return_to');
+        sessionStorage.removeItem('aal2_return_reason');
+
         // Redirect to return URL (dashboard by default)
         console.log('🔐 TOTP authentication complete, redirecting to:', returnTo);
         window.location.href = returnTo;

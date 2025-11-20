@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ColonyLoadingScreen from '../common/ColonyLoadingScreen';
 import { useColonyLoading } from '../../hooks/useColonyLoading';
@@ -8,6 +8,13 @@ const AAL2PasskeyVerify = () => {
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Get return URL - check sessionStorage first (set by SecuritySettings), then params, then default
+  const returnTo = useMemo(() => {
+    const storedReturnTo = sessionStorage.getItem('aal2_return_to');
+    const paramReturnTo = searchParams.get('return_to');
+    return storedReturnTo || paramReturnTo || '/dashboard';
+  }, [searchParams]);
 
   // Colony loading screen
   const { showAAL2Loading, hideLoading } = useColonyLoading();
@@ -191,6 +198,10 @@ const AAL2PasskeyVerify = () => {
       localStorage.setItem('sting_aal2_timestamp', new Date().toISOString());
 
       // Navigate to the protected resource only after successful AAL2
+      // Clean up sessionStorage
+      sessionStorage.removeItem('aal2_return_to');
+      sessionStorage.removeItem('aal2_return_reason');
+
       console.log('🔐 AAL2 verification complete, redirecting to:', returnTo);
       window.location.href = returnTo;
 
@@ -403,7 +414,6 @@ const AAL2PasskeyVerify = () => {
       // If passkey fails due to Kratos bug, offer TOTP as alternative
       if (error.message.includes('TOTP')) {
         setTimeout(() => {
-          const returnTo = searchParams.get('return_to') || '/dashboard';
           navigate(`/verify-totp?return_to=${encodeURIComponent(returnTo)}`);
         }, 2000);
       }
