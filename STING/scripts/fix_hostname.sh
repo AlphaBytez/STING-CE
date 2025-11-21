@@ -58,10 +58,10 @@ else
     log_error "No hostname specified!"
     echo ""
     echo "Usage: $0 <hostname>"
-    echo "Example: $0 captain-den.local"
+    echo "Example: $0 CONFIGURE_YOUR_DOMAIN.local"
     echo ""
     echo "Or set STING_HOSTNAME environment variable:"
-    echo "  export STING_HOSTNAME=captain-den.local"
+    echo "  export STING_HOSTNAME=CONFIGURE_YOUR_DOMAIN.local"
     echo "  $0"
     exit 1
 fi

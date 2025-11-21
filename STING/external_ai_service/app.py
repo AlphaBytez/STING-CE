@@ -123,7 +123,7 @@ AI_PROVIDERS = {
         "estimatedCost": 0.0,
         "maxTokens": 32000,
         "type": "local",
-        "defaultModel": "phi3:mini",
+        "defaultModel": "qwen2.5-14b-instruct",
         "endpoint": OLLAMA_BASE_URL,
         "features": {
             "knowledgeSync": True,
@@ -316,8 +316,8 @@ if PIIMiddleware is not None:
                 llm_service_config = app_config.get('llm_service', {})
                 report_gen_config = llm_service_config.get('report_generation', {})
                 llm_config.update({
-                    'report_model': report_gen_config.get('model', 'microsoft/phi-4-mini-reasoning'),
-                    'report_fallback_model': report_gen_config.get('fallback_model', 'microsoft/phi-4-mini-reasoning'),
+                    'report_model': report_gen_config.get('model', 'qwen2.5-14b-instruct'),
+                    'report_fallback_model': report_gen_config.get('fallback_model', 'qwen2.5-14b-instruct'),
                     'report_max_tokens': report_gen_config.get('max_tokens', 8192),
                     'report_min_output_tokens': report_gen_config.get('min_output_tokens', 4500),
                 })

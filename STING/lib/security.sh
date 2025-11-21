@@ -901,7 +901,7 @@ export_ca_certificate() {
 # Create installation scripts for client platforms
 create_client_install_scripts() {
     local output_dir="$1"
-    local domain="${DOMAIN_NAME:-$(cat ${INSTALL_DIR}/.sting_domain 2>/dev/null || echo 'captain-den.local')}"
+    local domain="${DOMAIN_NAME:-$(cat ${INSTALL_DIR}/.sting_domain 2>/dev/null || echo 'CONFIGURE_YOUR_DOMAIN.local')}"
     local vm_ip="${VM_IP:-$(ip route get 1 | awk '{print $7; exit}' 2>/dev/null || echo '192.168.1.100')}"
     
     # macOS installation script

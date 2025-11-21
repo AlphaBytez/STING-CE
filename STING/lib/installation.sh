@@ -404,6 +404,14 @@ prompt_report_llm_configuration() {
     log_message "STING can use a separate LLM endpoint for report generation."
     log_message "This is useful for using larger models with high token output limits."
     log_message ""
+    log_message "💡 TIP: Using a different model for reports is only recommended when:"
+    log_message "   • You have limited VRAM (<24GB) and need a lightweight model for chat"
+    log_message "   • You want specialized models (e.g., code-focused for reports)"
+    log_message "   • You're managing 100+ concurrent users and need efficiency"
+    log_message ""
+    log_message "   For most setups with 24GB+ VRAM, using the SAME model for both"
+    log_message "   chat and reports provides consistent quality and simpler config."
+    log_message ""
 
     # Ask if they want to configure a separate endpoint for reports
     local configure_report_llm
@@ -492,7 +500,7 @@ prompt_report_llm_configuration() {
 
     # Query using OpenAI-compatible API
     local available_models
-    local report_model="microsoft/phi-4-reasoning-plus"
+    local report_model="microsoft/phi-4-mini-reasoning"
     local fallback_model="qwen2.5-14b-instruct"
 
     if available_models=$(curl -s "$report_llm_endpoint/v1/models" 2>/dev/null | jq -r '.data[]?.id' 2>/dev/null | sort); then
@@ -555,7 +563,7 @@ prompt_report_llm_configuration() {
     log_message ""
     log_message "Recommended settings:"
     log_message "  • 16384 tokens - Comprehensive reports (phi-4-reasoning-plus)"
-    log_message "  • 8192 tokens  - Standard reports (most models)"
+    log_message "  • 8192 tokens  - Standard reports (phi-4-mini-reasoning, most models)"
     log_message "  • 4096 tokens  - Concise reports (smaller models)"
     echo ""
 
@@ -659,7 +667,7 @@ OLLAMA_AUTO_INSTALL=${OLLAMA_AUTO_INSTALL:-false}
 # Report Generation LLM Configuration
 REPORT_LLM_ENABLED=${REPORT_LLM_ENABLED:-false}
 REPORT_LLM_ENDPOINT=${REPORT_LLM_ENDPOINT:-}
-REPORT_LLM_MODEL=${REPORT_LLM_MODEL:-microsoft/phi-4-reasoning-plus}
+REPORT_LLM_MODEL=${REPORT_LLM_MODEL:-microsoft/phi-4-mini-reasoning}
 REPORT_LLM_FALLBACK_MODEL=${REPORT_LLM_FALLBACK_MODEL:-qwen2.5-14b-instruct}
 REPORT_MAX_TOKENS=${REPORT_MAX_TOKENS:-16384}
 
