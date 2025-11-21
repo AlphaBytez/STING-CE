@@ -185,12 +185,100 @@ class ConversationCache:
             logger.error(f"Failed to extend conversation TTL: {e}")
             return False
 
+    async def filter_by_relevance(
+        self,
+        messages: List[Dict[str, Any]],
+        current_query: str,
+        keep_recent: int = 5,
+        max_total: int = 12
+    ) -> List[Dict[str, Any]]:
+        """Filter conversation history by relevance to current query.
+
+        Strategy:
+        1. Always keep the most recent N messages (maintain immediate context)
+        2. For older messages, score by keyword overlap with current query
+        3. Return top messages by combined recency + relevance
+
+        Args:
+            messages: List of conversation messages
+            current_query: The user's current message
+            keep_recent: Number of recent messages to always include
+            max_total: Maximum messages to return
+
+        Returns:
+            Filtered and prioritized message list
+        """
+        if not messages or len(messages) <= keep_recent:
+            return messages
+
+        # Extract keywords from current query (simple word tokenization)
+        query_words = set(
+            word.lower().strip('.,!?;:')
+            for word in current_query.split()
+            if len(word) > 2  # Skip short words
+        )
+
+        # Always keep the most recent messages
+        recent_messages = messages[-keep_recent:]
+        older_messages = messages[:-keep_recent]
+
+        if not older_messages:
+            return recent_messages
+
+        # Score older messages by relevance
+        scored_messages = []
+        for msg in older_messages:
+            content = msg.get("content", "").lower()
+            content_words = set(
+                word.strip('.,!?;:')
+                for word in content.split()
+                if len(word) > 2
+            )
+
+            # Calculate keyword overlap score
+            overlap = len(query_words & content_words)
+            # Bonus for exact phrase matches
+            phrase_bonus = 1.0 if current_query.lower()[:20] in content else 0
+
+            score = overlap + phrase_bonus
+            scored_messages.append((msg, score))
+
+        # Sort by relevance score (descending)
+        scored_messages.sort(key=lambda x: x[1], reverse=True)
+
+        # Take top relevant older messages
+        slots_for_older = max(0, max_total - keep_recent)
+        relevant_older = [msg for msg, score in scored_messages[:slots_for_older] if score > 0]
+
+        # Combine: relevant older (chronological) + recent
+        # Sort relevant older back to chronological order
+        relevant_older_sorted = sorted(
+            relevant_older,
+            key=lambda m: m.get("timestamp", "")
+        )
+
+        result = relevant_older_sorted + recent_messages
+
+        logger.debug(
+            f"Relevance filter: {len(messages)} msgs → {len(result)} "
+            f"(kept {len(relevant_older)} relevant older + {len(recent_messages)} recent)"
+        )
+        return result
+
     def format_history_for_prompt(
         self,
         messages: List[Dict[str, Any]],
-        max_tokens: int = 2000
+        max_tokens: int = 3000  # Increased from 2000 for better context
     ) -> str:
-        """Format conversation history for inclusion in LLM prompt"""
+        """Format conversation history for inclusion in LLM prompt.
+
+        Args:
+            messages: List of conversation messages (already filtered for relevance)
+            max_tokens: Maximum tokens to allocate for history (default 3000)
+
+        Returns:
+            Formatted string for inclusion in prompt
+        """
         if not messages:
             return ""
 
@@ -200,16 +288,20 @@ class ConversationCache:
         total_chars = 0
         max_chars = max_tokens * 4  # Rough estimate: 1 token ≈ 4 chars
 
+        # Process messages in chronological order
         for msg in messages:
             role = msg["role"].capitalize()
             content = msg["content"]
 
-            # Format message
+            # Format message - truncate very long individual messages
+            if len(content) > 1000:
+                content = content[:1000] + "...[truncated]"
+
             formatted = f"{role}: {content}"
 
             # Check if adding this message would exceed limit
             if total_chars + len(formatted) > max_chars:
-                history_parts.append("...[Earlier messages truncated]")
+                history_parts.append("...[Earlier messages truncated for context window]")
                 break
 
             history_parts.append(formatted)

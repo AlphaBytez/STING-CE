@@ -2004,7 +2004,13 @@ class ConfigurationManager:
                     'CORS_ORIGINS': 'https://localhost:3000,http://localhost:3000,https://localhost:3010,http://localhost:3010',
                     'LOG_LEVEL': 'INFO',
                     'BEE_SERVICE_API_KEY': self.bee_service_api_key or '',  # Service API key for report generation
-                    'STING_API_URL': 'https://app:5050'  # For API calls back to main app
+                    'STING_API_URL': 'https://app:5050',  # For API calls back to main app
+                    # PostgreSQL credentials for conversation persistence (sting_messaging database)
+                    'POSTGRES_HOST': 'db',
+                    'POSTGRES_PORT': '5432',
+                    'POSTGRES_USER': self.processed_config.get('POSTGRES_USER', 'app_user'),
+                    'POSTGRES_PASSWORD': self.processed_config.get('POSTGRES_PASSWORD', ''),
+                    'MESSAGING_DATABASE_URL': f"postgresql://{self.processed_config.get('POSTGRES_USER', 'app_user')}:{self.processed_config.get('POSTGRES_PASSWORD', '')}@db:5432/sting_messaging"
                 },
                 'observability.env': self._generate_observability_env_vars(),
                 'headscale.env': self._generate_headscale_env_vars(),

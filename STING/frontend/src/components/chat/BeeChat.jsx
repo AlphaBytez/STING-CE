@@ -99,6 +99,11 @@ const BeeChat = () => {
   const [conversationId, setConversationId] = useState(savedConversationId);
   const [beeStatus, setBeeStatus] = useState('checking');
 
+  // Message queue for allowing typing while processing
+  const [messageQueue, setMessageQueue] = useState([]);
+  const [processingStatus, setProcessingStatus] = useState('idle'); // idle, connecting, thinking, generating
+  const isProcessingRef = useRef(false); // Use ref to avoid re-render loops
+
   // Nectar Bot selection state
   const [selectedNectarBot, setSelectedNectarBot] = useState(null);
   const [availableNectarBots, setAvailableNectarBots] = useState([]);
@@ -478,27 +483,17 @@ const BeeChat = () => {
   // Export this function so Bee can request authentication
   window.beeRequestAuth = requestAuthentication;
 
-  const handleSendMessage = async () => {
-    if (!input.trim() || isLoading) return;
-
-    const userMessage = {
-      id: Date.now(),
-      sender: 'user',
-      content: input,
-      timestamp: new Date().toISOString(),
-      tools: selectedTools.length > 0 ? selectedTools : undefined
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
+  // Process a single message from the queue
+  const processMessage = async (queuedMessage) => {
+    const { userMessage, tools, nectarBot, honeyJar } = queuedMessage;
 
     try {
       let data;
 
       // If a Nectar Bot is selected, route to nectar bot endpoint
-      if (selectedNectarBot) {
-        const response = await fetch(`/api/nectar-bots/${selectedNectarBot.id}/chat`, {
+      if (nectarBot) {
+        setProcessingStatus('connecting');
+        const response = await fetch(`/api/nectar-bots/${nectarBot.id}/chat`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -508,6 +503,8 @@ const BeeChat = () => {
             conversation_id: conversationId
           }),
         });
+
+        setProcessingStatus('generating');
 
         if (!response.ok) {
           throw new Error('Failed to communicate with Nectar Bot');
@@ -523,7 +520,7 @@ const BeeChat = () => {
         const botMessage = {
           id: `nectarbot_${Date.now()}`,
           sender: 'nectarbot',
-          botName: selectedNectarBot.name,
+          botName: nectarBot.name,
           content: data.response,
           timestamp: data.timestamp || new Date().toISOString(),
           confidence_score: data.confidence_score,
@@ -533,18 +530,23 @@ const BeeChat = () => {
         setMessages(prev => [...prev, botMessage]);
       } else {
         // Default Bee behavior
+        setProcessingStatus('connecting');
+
         try {
+          setProcessingStatus('thinking');
           data = await externalAiApi.beeChatUnified({
             message: userMessage.content,
             user_id: getUserId(),
             conversation_id: conversationId,
-            tools_enabled: selectedTools,
+            tools_enabled: tools,
             require_auth: requireAuth,
             encryption_required: false,
-            honey_jar_id: honeyJarContext?.id || null
+            honey_jar_id: honeyJar?.id || null
           });
+          setProcessingStatus('generating');
         } catch (externalError) {
           console.warn('External AI endpoint failed, falling back to legacy:', externalError);
+          setProcessingStatus('connecting');
           // Fallback to legacy endpoint
           const response = await fetch('/api/bee/chat', {
             method: 'POST',
@@ -555,12 +557,14 @@ const BeeChat = () => {
               message: userMessage.content,
               user_id: getUserId(),
               conversation_id: conversationId,
-              tools_enabled: selectedTools,
+              tools_enabled: tools,
               require_auth: requireAuth,
               encryption_required: false,
-              honey_jar_id: honeyJarContext?.id || null
+              honey_jar_id: honeyJar?.id || null
             }),
           });
+
+          setProcessingStatus('generating');
 
           if (!response.ok) {
             throw new Error('Both external AI and legacy endpoints failed');
@@ -596,10 +600,9 @@ const BeeChat = () => {
         await saveChatMessage(beeMessage);
       }
 
-      // Clear selected tools after use
-      setSelectedTools([]);
+      return true;
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error processing message:', error);
 
       // Try to parse error response for better messaging
       let errorMessage = 'Failed to connect to Bee. Please check if the service is running.';
@@ -630,9 +633,71 @@ const BeeChat = () => {
         isError: true,
         helpUrl: helpUrl
       }]);
-    } finally {
-      setIsLoading(false);
+
+      return false;
     }
+  };
+
+  // Process queue - runs when queue has items and not already processing
+  useEffect(() => {
+    const processNextMessage = async () => {
+      // Use ref to prevent race conditions
+      if (messageQueue.length === 0 || isProcessingRef.current) return;
+
+      isProcessingRef.current = true;
+      setIsLoading(true);
+
+      // Get the first message from the queue
+      const nextMessage = messageQueue[0];
+      await processMessage(nextMessage);
+
+      // Remove processed message from queue and clear tools
+      setMessageQueue(prev => prev.slice(1));
+      setSelectedTools([]);
+
+      // Reset processing flag - the effect will re-run if more messages are queued
+      isProcessingRef.current = false;
+
+      // Only set loading/status to idle if queue is now empty
+      // (the effect will re-trigger if there are more messages)
+    };
+
+    processNextMessage();
+  }, [messageQueue]); // Re-run when queue changes
+
+  // Update loading state based on queue
+  useEffect(() => {
+    if (messageQueue.length === 0 && !isProcessingRef.current) {
+      setIsLoading(false);
+      setProcessingStatus('idle');
+    }
+  }, [messageQueue.length]);
+
+  // Add message to queue (allows typing while processing)
+  const handleSendMessage = async () => {
+    if (!input.trim()) return;
+    // Don't block sending - allow queuing even while processing
+    if (beeStatus === 'offline') return;
+
+    const userMessage = {
+      id: Date.now(),
+      sender: 'user',
+      content: input,
+      timestamp: new Date().toISOString(),
+      tools: selectedTools.length > 0 ? selectedTools : undefined
+    };
+
+    // Add user message to display immediately
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+
+    // Queue the message for processing (with current context captured)
+    setMessageQueue(prev => [...prev, {
+      userMessage,
+      tools: [...selectedTools],
+      nectarBot: selectedNectarBot,
+      honeyJar: honeyJarContext
+    }]);
   };
 
   const toggleTool = (toolId) => {
@@ -1309,8 +1374,16 @@ const BeeChat = () => {
               <div className="flex items-center gap-2">
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-500"></div>
                 <p className="text-sm text-gray-400">
-                  Bee is thinking...
+                  {processingStatus === 'connecting' && 'Connecting to Bee...'}
+                  {processingStatus === 'thinking' && 'Bee is thinking...'}
+                  {processingStatus === 'generating' && 'Generating response...'}
+                  {(processingStatus === 'idle' || !processingStatus) && 'Processing...'}
                 </p>
+                {messageQueue.length > 0 && (
+                  <span className="text-xs text-yellow-500 ml-2">
+                    +{messageQueue.length} queued
+                  </span>
+                )}
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -1338,7 +1411,7 @@ const BeeChat = () => {
           <textarea
             ref={inputRef}
             className="flex-1 px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-yellow-500 focus:border-transparent resize-none"
-            placeholder="Type your message..."
+            placeholder={isLoading ? "Type your next message (will be queued)..." : "Type your message..."}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => {
@@ -1348,15 +1421,15 @@ const BeeChat = () => {
               }
             }}
             rows={1}
-            disabled={isLoading || beeStatus === 'offline'}
+            disabled={beeStatus === 'offline'}
           />
           <button
             className="floating-button bg-yellow-500 hover:bg-yellow-600 text-black px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[80px] sm:min-w-0"
             onClick={handleSendMessage}
-            disabled={!input.trim() || isLoading || beeStatus === 'offline'}
+            disabled={!input.trim() || beeStatus === 'offline'}
           >
             <SendIcon className="w-4 h-4" />
-            <span className="hidden sm:inline">Send</span>
+            <span className="hidden sm:inline">{isLoading ? 'Queue' : 'Send'}</span>
           </button>
         </div>
               {beeStatus === 'offline' && (

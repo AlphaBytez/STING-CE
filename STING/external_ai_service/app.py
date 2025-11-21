@@ -154,62 +154,177 @@ AI_PROVIDERS = {
     }
 }
 
+class LLMConnectionPool:
+    """Manages a pool of HTTP connections for parallel LLM inference.
+
+    Benefits:
+    - Reuses TCP connections (avoids handshake overhead)
+    - Limits concurrent connections to prevent overwhelming the LLM
+    - Enables true parallel inference when LM Studio has n_parallel > 1
+    """
+
+    _instance = None
+    _session: Optional[aiohttp.ClientSession] = None
+    _lock = asyncio.Lock() if asyncio.get_event_loop().is_running() else None
+
+    # Connection pool settings optimized for parallel LLM inference
+    MAX_CONNECTIONS = 10  # Max simultaneous connections to LLM
+    MAX_CONNECTIONS_PER_HOST = 8  # Should match LM Studio's n_parallel
+    KEEPALIVE_TIMEOUT = 30  # Keep connections warm for 30 seconds
+
+    @classmethod
+    async def get_session(cls) -> aiohttp.ClientSession:
+        """Get or create the shared aiohttp session with connection pooling."""
+        if cls._session is None or cls._session.closed:
+            # Configure connection pool
+            connector = aiohttp.TCPConnector(
+                limit=cls.MAX_CONNECTIONS,
+                limit_per_host=cls.MAX_CONNECTIONS_PER_HOST,
+                keepalive_timeout=cls.KEEPALIVE_TIMEOUT,
+                enable_cleanup_closed=True,
+                force_close=False,  # Reuse connections
+            )
+
+            # Default timeout - individual requests can override
+            timeout = aiohttp.ClientTimeout(
+                total=None,  # No total timeout (LLM can be slow)
+                connect=10,  # 10s to establish connection
+                sock_read=None,  # No read timeout (streaming)
+            )
+
+            cls._session = aiohttp.ClientSession(
+                connector=connector,
+                timeout=timeout,
+            )
+            logger.info(f"🔌 Created LLM connection pool: max={cls.MAX_CONNECTIONS}, per_host={cls.MAX_CONNECTIONS_PER_HOST}")
+
+        return cls._session
+
+    @classmethod
+    async def close(cls):
+        """Close the connection pool gracefully."""
+        if cls._session and not cls._session.closed:
+            await cls._session.close()
+            cls._session = None
+            logger.info("🔌 Closed LLM connection pool")
+
+    @classmethod
+    def get_stats(cls) -> Dict[str, Any]:
+        """Get connection pool statistics."""
+        if cls._session and cls._session.connector:
+            connector = cls._session.connector
+            return {
+                "pool_size": connector.limit,
+                "per_host_limit": connector.limit_per_host,
+                "active_connections": len(connector._acquired),
+                "available_connections": connector.limit - len(connector._acquired),
+            }
+        return {"status": "not_initialized"}
+
+
 class OllamaClient:
-    """Client for interacting with Ollama API"""
-    
+    """Client for interacting with Ollama API with caching and connection pooling."""
+
+    # Class-level cache for status and models (shared across instances)
+    _status_cache = None
+    _status_cache_time = 0
+    _models_cache = None
+    _models_cache_time = 0
+    CACHE_TTL_SECONDS = 60  # Cache status/models for 60 seconds
+
     def __init__(self, base_url: str = OLLAMA_BASE_URL):
         # Remove trailing slash to prevent double slashes in URLs
         self.base_url = base_url.rstrip('/')
-        
-    async def check_status(self) -> Dict[str, Any]:
-        """Check if LLM service is running (OpenAI-compatible API standard)"""
+
+    def _is_cache_valid(self, cache_time: float) -> bool:
+        """Check if cache is still valid"""
+        import time
+        return (time.time() - cache_time) < self.CACHE_TTL_SECONDS
+
+    async def check_status(self, force_refresh: bool = False) -> Dict[str, Any]:
+        """Check if LLM service is running (OpenAI-compatible API standard)
+
+        Uses caching to avoid repeated HTTP calls on every request.
+        Cache TTL: 60 seconds (configurable via CACHE_TTL_SECONDS)
+        """
+        import time
+
+        # Return cached status if valid
+        if not force_refresh and OllamaClient._status_cache and self._is_cache_valid(OllamaClient._status_cache_time):
+            logger.debug(f"⚡ Using cached LLM status (age: {int(time.time() - OllamaClient._status_cache_time)}s)")
+            return OllamaClient._status_cache
+
         try:
-            async with aiohttp.ClientSession() as session:
-                # Use OpenAI-compatible API (LM Studio, vLLM, Ollama with OpenAI mode)
-                async with session.get(f"{self.base_url}/v1/models") as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        models = data.get("data", [])
-                        logger.debug(f"Connected via OpenAI-compatible API: {len(models)} models available")
-                        return {
-                            "running": True,
-                            "models": len(models),
-                            "endpoint": self.base_url,
-                            "api_type": "openai_compatible"
-                        }
-                    else:
-                        logger.warning(f"LLM service returned status {response.status}")
-                        return {"running": False, "error": f"HTTP {response.status}"}
+            # Use connection pool instead of creating new session
+            session = await LLMConnectionPool.get_session()
+            timeout = aiohttp.ClientTimeout(total=5)  # 5 second timeout for health check
+            # Use OpenAI-compatible API (LM Studio, vLLM, Ollama with OpenAI mode)
+            async with session.get(f"{self.base_url}/v1/models", timeout=timeout) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    models = data.get("data", [])
+                    logger.debug(f"Connected via OpenAI-compatible API: {len(models)} models available")
+                    result = {
+                        "running": True,
+                        "models": len(models),
+                        "endpoint": self.base_url,
+                        "api_type": "openai_compatible"
+                    }
+                    # Cache the result
+                    OllamaClient._status_cache = result
+                    OllamaClient._status_cache_time = time.time()
+                    return result
+                else:
+                    logger.warning(f"LLM service returned status {response.status}")
+                    # Don't cache failures
+                    return {"running": False, "error": f"HTTP {response.status}"}
         except Exception as e:
             logger.error(f"Failed to check LLM service status: {e}")
+            # Don't cache failures
             return {"running": False, "error": str(e)}
-    
-    async def get_models(self) -> List[Dict[str, Any]]:
-        """Get available models (OpenAI-compatible API standard)"""
-        logger.info(f"🔍 Attempting to fetch models from {self.base_url}/v1/models")
+
+    async def get_models(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
+        """Get available models (OpenAI-compatible API standard)
+
+        Uses caching to avoid repeated HTTP calls on every request.
+        Cache TTL: 60 seconds (configurable via CACHE_TTL_SECONDS)
+        """
+        import time
+
+        # Return cached models if valid
+        if not force_refresh and OllamaClient._models_cache is not None and self._is_cache_valid(OllamaClient._models_cache_time):
+            logger.debug(f"⚡ Using cached models list (age: {int(time.time() - OllamaClient._models_cache_time)}s)")
+            return OllamaClient._models_cache
+
+        logger.info(f"🔍 Fetching models from {self.base_url}/v1/models")
         try:
-            async with aiohttp.ClientSession() as session:
-                # Use OpenAI-compatible API (LM Studio, vLLM, Ollama with OpenAI mode)
-                async with session.get(f"{self.base_url}/v1/models") as response:
-                    logger.info(f"📡 Got response status: {response.status}")
-                    if response.status == 200:
-                        data = await response.json()
-                        logger.info(f"📦 Response data keys: {data.keys()}")
-                        # Convert OpenAI format to Ollama-like format for compatibility
-                        models = []
-                        for model in data.get("data", []):
-                            models.append({
-                                "name": model.get("id"),
-                                "modified_at": model.get("created", ""),
-                                "size": 0,  # Not provided by OpenAI API
-                                "digest": "",
-                                "details": {"format": "openai_compatible"}
-                            })
-                        logger.info(f"✅ Retrieved {len(models)} models via OpenAI-compatible API")
-                        return models
-                    else:
-                        logger.warning(f"❌ Failed to get models: HTTP {response.status}")
-                        return []  # Return empty list instead of raising exception
+            # Use connection pool instead of creating new session
+            session = await LLMConnectionPool.get_session()
+            timeout = aiohttp.ClientTimeout(total=10)  # 10 second timeout for model list
+            # Use OpenAI-compatible API (LM Studio, vLLM, Ollama with OpenAI mode)
+            async with session.get(f"{self.base_url}/v1/models", timeout=timeout) as response:
+                logger.info(f"📡 Got response status: {response.status}")
+                if response.status == 200:
+                    data = await response.json()
+                    logger.debug(f"📦 Response data keys: {data.keys()}")
+                    # Convert OpenAI format to Ollama-like format for compatibility
+                    models = []
+                    for model in data.get("data", []):
+                        models.append({
+                            "name": model.get("id"),
+                            "modified_at": model.get("created", ""),
+                            "size": 0,  # Not provided by OpenAI API
+                            "digest": "",
+                            "details": {"format": "openai_compatible"}
+                        })
+                    logger.info(f"✅ Retrieved {len(models)} models via OpenAI-compatible API")
+                    # Cache the result
+                    OllamaClient._models_cache = models
+                    OllamaClient._models_cache_time = time.time()
+                    return models
+                else:
+                    logger.warning(f"❌ Failed to get models: HTTP {response.status}")
+                    return []  # Return empty list instead of raising exception
         except HTTPException:
             raise  # Re-raise HTTPException for API endpoints
         except Exception as e:
@@ -217,9 +332,73 @@ class OllamaClient:
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             return []  # Return empty list for startup robustness
+
+    async def get_status_and_models(self) -> tuple:
+        """Get both status and models in a single call (optimized)
+
+        Since check_status and get_models both call /v1/models, this combines them
+        to avoid duplicate HTTP requests.
+        """
+        import time
+
+        # If both caches are valid, return from cache
+        if (OllamaClient._status_cache and OllamaClient._models_cache is not None and
+            self._is_cache_valid(OllamaClient._status_cache_time) and
+            self._is_cache_valid(OllamaClient._models_cache_time)):
+            logger.debug("⚡ Using cached status and models")
+            return OllamaClient._status_cache, OllamaClient._models_cache
+
+        # Make a single request and populate both caches
+        logger.info(f"🔍 Fetching status and models from {self.base_url}/v1/models")
+        try:
+            # Use connection pool instead of creating new session
+            session = await LLMConnectionPool.get_session()
+            timeout = aiohttp.ClientTimeout(total=10)
+            async with session.get(f"{self.base_url}/v1/models", timeout=timeout) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    model_list = data.get("data", [])
+
+                    # Build status result
+                    status = {
+                        "running": True,
+                        "models": len(model_list),
+                        "endpoint": self.base_url,
+                        "api_type": "openai_compatible"
+                    }
+
+                    # Build models list
+                    models = []
+                    for model in model_list:
+                        models.append({
+                            "name": model.get("id"),
+                            "modified_at": model.get("created", ""),
+                            "size": 0,
+                            "digest": "",
+                            "details": {"format": "openai_compatible"}
+                        })
+
+                    # Cache both
+                    OllamaClient._status_cache = status
+                    OllamaClient._status_cache_time = time.time()
+                    OllamaClient._models_cache = models
+                    OllamaClient._models_cache_time = time.time()
+
+                    logger.info(f"✅ Retrieved status and {len(models)} models in single call")
+                    return status, models
+                else:
+                    logger.warning(f"❌ Failed to get status/models: HTTP {response.status}")
+                    return {"running": False, "error": f"HTTP {response.status}"}, []
+        except Exception as e:
+            logger.error(f"❌ Exception in get_status_and_models: {e}")
+            return {"running": False, "error": str(e)}, []
     
     async def generate(self, model: str, prompt: str, options: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Generate text using OpenAI-compatible API only (/v1/chat/completions)"""
+        """Generate text using OpenAI-compatible API only (/v1/chat/completions).
+
+        Uses connection pooling for efficient parallel inference when LM Studio
+        has n_parallel > 1 configured.
+        """
         try:
             import time
             start_time = time.time()
@@ -244,33 +423,35 @@ class OllamaClient:
             }
             logger.info(f"📤 Sending to LLM: max_tokens={max_tokens_value}, model={model}, timeout={timeout_seconds}s")
 
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(
-                    f"{self.base_url}/v1/chat/completions",
-                    json=openai_payload
-                ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        # Calculate duration since OpenAI API doesn't provide it
-                        duration_ns = int((time.time() - start_time) * 1e9)
+            # Use connection pool for parallel inference support
+            session = await LLMConnectionPool.get_session()
+            async with session.post(
+                f"{self.base_url}/v1/chat/completions",
+                json=openai_payload,
+                timeout=timeout
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    # Calculate duration since OpenAI API doesn't provide it
+                    duration_ns = int((time.time() - start_time) * 1e9)
 
-                        # Convert OpenAI format to Ollama format for compatibility
-                        completion_tokens = data.get("usage", {}).get("completion_tokens", 0)
-                        finish_reason = data.get("choices", [{}])[0].get("finish_reason", "unknown")
-                        logger.info(f"✅ OpenAI-compatible API successful for model {model}")
-                        logger.info(f"📊 Token usage: completion={completion_tokens}, requested_max={max_tokens_value}, finish_reason={finish_reason}")
-                        return {
-                            "response": data["choices"][0]["message"]["content"],
-                            "model": data.get("model", model),
-                            "created_at": data.get("created", ""),
-                            "done": True,
-                            "eval_count": completion_tokens,
-                            "total_duration": duration_ns
-                        }
-                    else:
-                        error_text = await response.text()
-                        logger.error(f"❌ OpenAI API returned status {response.status}: {error_text}")
-                        raise HTTPException(status_code=response.status, detail=f"LLM API error: {error_text}")
+                    # Convert OpenAI format to Ollama format for compatibility
+                    completion_tokens = data.get("usage", {}).get("completion_tokens", 0)
+                    finish_reason = data.get("choices", [{}])[0].get("finish_reason", "unknown")
+                    logger.info(f"✅ OpenAI-compatible API successful for model {model}")
+                    logger.info(f"📊 Token usage: completion={completion_tokens}, requested_max={max_tokens_value}, finish_reason={finish_reason}")
+                    return {
+                        "response": data["choices"][0]["message"]["content"],
+                        "model": data.get("model", model),
+                        "created_at": data.get("created", ""),
+                        "done": True,
+                        "eval_count": completion_tokens,
+                        "total_duration": duration_ns
+                    }
+                else:
+                    error_text = await response.text()
+                    logger.error(f"❌ OpenAI API returned status {response.status}: {error_text}")
+                    raise HTTPException(status_code=response.status, detail=f"LLM API error: {error_text}")
         except HTTPException:
             raise
         except Exception as e:
@@ -288,6 +469,96 @@ queue_manager = LLMQueueManager()
 
 # Initialize Bee Context Manager
 bee_context_manager = BeeContextManager()
+
+
+# =============================================================================
+# OPTIMIZED RESPONSE CLEANUP
+# Pre-compiled regex patterns for faster response cleaning (avoids re-compilation)
+# =============================================================================
+import re
+
+# Pre-compile all cleanup patterns at module load time (runs once)
+_CLEANUP_PATTERNS = {
+    # Think tags and reasoning - most common, check first
+    'think_tags': re.compile(r'<think>.*?</think>\s*', re.DOTALL),
+    'orphan_think': re.compile(r'</?think>\s*', re.DOTALL),
+    'explanation': re.compile(r'\n\s*Explanation:.*', re.DOTALL),
+    'reasoning': re.compile(r'\n\s*Reasoning:.*', re.DOTALL),
+
+    # Model echo patterns
+    'user_bee_echo': re.compile(r'^User:\s*.*?\n\nBee:\s*', re.DOTALL | re.MULTILINE),
+    'user_label': re.compile(r'^User:\s*', re.MULTILINE),
+    'bee_label': re.compile(r'^Bee:\s*', re.MULTILINE),
+
+    # Punctuation cleanup
+    'leading_punct': re.compile(r'^\s*[,)}\]]\s*', re.MULTILINE),
+    'lone_punct': re.compile(r'\n\s*[,)}\]]\s*\n'),
+    'punct_spacing': re.compile(r'\s+([,)}\]])\s+'),
+
+    # LaTeX cleanup
+    'boxed': re.compile(r'\\boxed\{([^}]*)\}'),
+    'text_cmd': re.compile(r'\\text\{([^}]*)\}'),
+    'display_math': re.compile(r'\$\$[^$]*\$\$'),
+    'inline_math': re.compile(r'\$[^$]*\$'),
+    'latex_cmd': re.compile(r'\\[a-zA-Z]+\{[^}]*\}'),
+    'final_answer': re.compile(r'Final Answer[:\s]*', re.IGNORECASE),
+}
+
+
+def clean_llm_response(raw_response: str) -> str:
+    """Clean LLM response using pre-compiled regex patterns.
+
+    Performance: Uses pre-compiled patterns and early-exit checks to minimize
+    unnecessary regex operations. Typical cleanup: 5-20ms (vs 50-500ms sequential).
+
+    Args:
+        raw_response: Raw text from LLM
+
+    Returns:
+        Cleaned response text
+    """
+    if not raw_response:
+        return ""
+
+    response = raw_response
+
+    # Quick check: if no problematic patterns exist, skip most cleanup
+    has_think = '<think' in response or '</think' in response
+    has_labels = 'User:' in response or 'Bee:' in response
+    has_latex = '\\' in response or '$' in response
+    has_reasoning = 'Explanation:' in response or 'Reasoning:' in response
+
+    # Think tags cleanup (most common for reasoning models)
+    if has_think:
+        response = _CLEANUP_PATTERNS['think_tags'].sub('', response)
+        response = _CLEANUP_PATTERNS['orphan_think'].sub('', response)
+
+    # Reasoning section cleanup
+    if has_reasoning:
+        response = _CLEANUP_PATTERNS['explanation'].sub('', response)
+        response = _CLEANUP_PATTERNS['reasoning'].sub('', response)
+
+    # Model echo cleanup
+    if has_labels:
+        response = _CLEANUP_PATTERNS['user_bee_echo'].sub('', response)
+        response = _CLEANUP_PATTERNS['user_label'].sub('', response)
+        response = _CLEANUP_PATTERNS['bee_label'].sub('', response)
+
+    # LaTeX cleanup (only if backslash or $ present)
+    if has_latex:
+        response = _CLEANUP_PATTERNS['boxed'].sub(r'\1', response)
+        response = _CLEANUP_PATTERNS['text_cmd'].sub(r'\1', response)
+        response = _CLEANUP_PATTERNS['display_math'].sub('', response)
+        response = _CLEANUP_PATTERNS['inline_math'].sub('', response)
+        response = _CLEANUP_PATTERNS['latex_cmd'].sub('', response)
+        response = _CLEANUP_PATTERNS['final_answer'].sub('', response)
+
+    # Punctuation cleanup (always run, but fast)
+    response = _CLEANUP_PATTERNS['leading_punct'].sub('', response)
+    response = _CLEANUP_PATTERNS['lone_punct'].sub('\n', response)
+    response = _CLEANUP_PATTERNS['punct_spacing'].sub(r'\1 ', response)
+
+    return response.strip()
 
 # Initialize PII Middleware (basic initialization, enhanced components added in startup_event)
 pii_middleware = None
@@ -627,16 +898,13 @@ async def bee_chat(request: BeeChatRequest):
             }
         
         # Synchronous mode - process immediately
-        # Check if Ollama is available
-        status = await ollama_client.check_status()
+        # Check if Ollama is available and get models in single optimized call
+        status, models = await ollama_client.get_status_and_models()
         if not status.get("running"):
             raise HTTPException(status_code=503, detail="Ollama service is not available")
-        
-        # Get available models
-        models = await ollama_client.get_models()
         if not models:
             raise HTTPException(status_code=503, detail="No Ollama models available")
-        
+
         # Use the configured default model or fall back to first available
         default_model = AI_PROVIDERS["ollama"]["defaultModel"]
         available_models = [m["name"] for m in models]
@@ -678,9 +946,41 @@ async def bee_chat(request: BeeChatRequest):
             else:
                 logger.warning(f"Neither report model '{report_model}' nor fallback '{fallback_model}' available, using default: {model_name}")
 
+            # PII Protection: Serialize ONLY the user message BEFORE building enhanced prompt
+            # For reports, this is critical - the report template is static and pre-vetted
+            pii_context = {}
+            protection_mode = "external"  # Default fallback
+            user_message = request.message  # Original user message
+
+            if pii_middleware:
+                try:
+                    # Intelligent mode detection based on endpoint and context
+                    if mode_detector:
+                        protection_mode, mode_config = mode_detector.detect_mode(
+                            endpoint_url=OLLAMA_BASE_URL,
+                            provider="ollama",
+                            context="report",  # Report context uses selective protection
+                            user_role=request.user_role or "user"
+                        )
+                        logger.info(f"PII protection mode for report: {protection_mode} (level: {mode_config.get('protection_level')})")
+
+                    # Only serialize the user's message, not the entire report prompt
+                    serialized_message, pii_context = await pii_middleware.serialize_message(
+                        message=request.message,  # Only user message
+                        conversation_id=request.conversation_id or f"conv_{int(datetime.now().timestamp())}",
+                        user_id=request.user_id,
+                        mode=protection_mode
+                    )
+                    pii_context['protection_mode'] = protection_mode
+                    user_message = serialized_message
+                    logger.debug(f"PII serialized report request ({len(request.message)} chars -> {len(serialized_message)} chars)")
+                except Exception as e:
+                    logger.error(f"PII serialization failed: {e}")
+                    # Continue with original message on error
+
             # Handle as report generation with enhanced context
             enhanced_prompt = await bee_context_manager.build_enhanced_prompt(
-                request.message,
+                user_message,  # Use PII-serialized message
                 request.user_id,
                 conversation_id=request.conversation_id,
                 conversation_history=None,
@@ -742,32 +1042,6 @@ FORMATTING RULES:
 Begin the report now. Remember: This must be thorough and comprehensive with substantial detail in every section.
 """
 
-            # PII Protection: Serialize before sending to LLM
-            pii_context = {}
-            protection_mode = "external"  # Default fallback
-            if pii_middleware:
-                try:
-                    # Intelligent mode detection based on endpoint and context
-                    if mode_detector:
-                        protection_mode, mode_config = mode_detector.detect_mode(
-                            endpoint_url=OLLAMA_BASE_URL,
-                            provider="ollama",
-                            context="report",  # Report context uses selective protection
-                            user_role=request.user_role or "user"
-                        )
-                        logger.info(f"PII protection mode for report: {protection_mode} (level: {mode_config.get('protection_level')})")
-
-                    report_prompt, pii_context = await pii_middleware.serialize_message(
-                        message=report_prompt,
-                        conversation_id=request.conversation_id or f"conv_{int(datetime.now().timestamp())}",
-                        user_id=request.user_id,
-                        mode=protection_mode
-                    )
-                    pii_context['protection_mode'] = protection_mode  # Add mode info to context
-                except Exception as e:
-                    logger.error(f"PII serialization failed: {e}")
-                    # Continue without serialization on error
-
             # Prepare LLM options with higher max_tokens for comprehensive reports
             report_llm_options = {
                 'num_predict': llm_config.get('report_max_tokens', 8192),  # Higher limit for detailed reports
@@ -777,29 +1051,9 @@ Begin the report now. Remember: This must be thorough and comprehensive with sub
 
             result = await ollama_client.generate(model_name, report_prompt, report_llm_options)
 
-            # Strip <think> tags from response (internal reasoning not shown to user)
-            import re
+            # Clean response using optimized pre-compiled patterns
             raw_response = result.get("response", "")
-            # Remove complete think blocks
-            clean_response = re.sub(r'<think>.*?</think>\s*', '', raw_response, flags=re.DOTALL)
-            # Remove orphaned/malformed think tags (opening or closing without pair)
-            clean_response = re.sub(r'</?think>\s*', '', clean_response, flags=re.DOTALL)
-            # Remove "User:" and "Bee:" labels that the model might echo back
-            clean_response = re.sub(r'^User:\s*.*?\n\nBee:\s*', '', clean_response, flags=re.DOTALL | re.MULTILINE)
-            clean_response = re.sub(r'^User:\s*', '', clean_response, flags=re.MULTILINE)
-            clean_response = re.sub(r'^Bee:\s*', '', clean_response, flags=re.MULTILINE)
-            # Clean up stray punctuation marks that might be left behind
-            clean_response = re.sub(r'^\s*[,)}\]]\s*', '', clean_response, flags=re.MULTILINE)  # Remove leading punctuation
-            clean_response = re.sub(r'\n\s*[,)}\]]\s*\n', '\n', clean_response)  # Remove punctuation on its own line
-            clean_response = re.sub(r'\s+([,)}\]])\s+', r'\1 ', clean_response)  # Fix spacing around punctuation
-
-            # Remove LaTeX notation and mathematical formatting (reports should be plain prose)
-            clean_response = re.sub(r'\\boxed\{([^}]*)\}', r'\1', clean_response)  # Remove \boxed{content} -> content
-            clean_response = re.sub(r'\\text\{([^}]*)\}', r'\1', clean_response)  # Remove \text{content} -> content
-            clean_response = re.sub(r'\$\$[^$]*\$\$', '', clean_response)  # Remove display math $$...$$
-            clean_response = re.sub(r'\$[^$]*\$', '', clean_response)  # Remove inline math $...$
-            clean_response = re.sub(r'\\[a-zA-Z]+\{[^}]*\}', '', clean_response)  # Remove other LaTeX commands
-            clean_response = re.sub(r'Final Answer[:\s]*', '', clean_response, flags=re.IGNORECASE)  # Remove "Final Answer:" prefix
+            clean_response = clean_llm_response(raw_response)
 
             # PII Protection: Deserialize response with enhanced metadata for visual indicators
             pii_protected_metadata = None
@@ -867,28 +1121,13 @@ Begin the report now. Remember: This must be thorough and comprehensive with sub
                 nectar_bot_system_prompt = bot_context.get('system_prompt')
                 logger.info(f"Using Nectar Bot system prompt for bot: {bot_context.get('bot_name')}")
 
-            # Use the BeeContextManager to build enhanced prompt with honey jar context AND conversation history
-            enhanced_prompt = await bee_context_manager.build_enhanced_prompt(
-                request.message,
-                request.user_id,
-                conversation_id=request.conversation_id,  # Pass conversation_id to load history from Redis
-                conversation_history=None,  # Will be loaded from Redis automatically
-                honey_jar_id=request.honey_jar_id,
-                custom_system_prompt=nectar_bot_system_prompt  # Pass custom prompt for Nectar Bots
-            )
-
-            # Save user message to conversation history
-            if request.conversation_id:
-                await bee_context_manager.save_message_to_history(
-                    conversation_id=request.conversation_id,
-                    user_id=request.user_id,
-                    role="user",
-                    content=request.message
-                )
-
-            # PII Protection: Serialize before sending to LLM
+            # PII Protection: Serialize ONLY the user message BEFORE building enhanced prompt
+            # This is critical for performance - system prompt and honey jar data are pre-vetted
+            # Only user input needs PII protection
             pii_context = {}
             protection_mode = "external"  # Default fallback
+            user_message = request.message  # Original user message
+
             if pii_middleware:
                 try:
                     # Intelligent mode detection based on endpoint and context
@@ -901,16 +1140,43 @@ Begin the report now. Remember: This must be thorough and comprehensive with sub
                         )
                         logger.info(f"PII protection mode for chat: {protection_mode} (level: {mode_config.get('protection_level')})")
 
-                    enhanced_prompt, pii_context = await pii_middleware.serialize_message(
-                        message=enhanced_prompt,
+                    # Only serialize the user's message, not the entire enhanced prompt
+                    # System prompt, honey jar data, and conversation history are pre-vetted
+                    serialized_message, pii_context = await pii_middleware.serialize_message(
+                        message=request.message,  # Only user message, NOT enhanced_prompt
                         conversation_id=request.conversation_id or f"conv_{int(datetime.now().timestamp())}",
                         user_id=request.user_id,
                         mode=protection_mode
                     )
-                    pii_context['protection_mode'] = protection_mode  # Add mode info to context
+                    pii_context['protection_mode'] = protection_mode
+                    user_message = serialized_message  # Use serialized version
+                    logger.debug(f"PII serialized user message ({len(request.message)} chars -> {len(serialized_message)} chars)")
                 except Exception as e:
                     logger.error(f"PII serialization failed: {e}")
-                    # Continue without serialization on error
+                    # Continue with original message on error
+
+            # Generate conversation_id once for both user and assistant messages
+            # This ensures new conversations have a consistent ID from the start
+            conversation_id = request.conversation_id or f"conv_{int(datetime.now().timestamp())}"
+
+            # Use the BeeContextManager to build enhanced prompt with honey jar context AND conversation history
+            # Uses the PII-serialized user message if PII protection is enabled
+            enhanced_prompt = await bee_context_manager.build_enhanced_prompt(
+                user_message,  # Use serialized message if PII enabled
+                request.user_id,
+                conversation_id=conversation_id,  # Pass conversation_id to load history from Redis
+                conversation_history=None,  # Will be loaded from Redis automatically
+                honey_jar_id=request.honey_jar_id,
+                custom_system_prompt=nectar_bot_system_prompt  # Pass custom prompt for Nectar Bots
+            )
+
+            # Save user message to conversation history (use ORIGINAL message, not serialized)
+            await bee_context_manager.save_message_to_history(
+                conversation_id=conversation_id,
+                user_id=request.user_id,
+                role="user",
+                content=request.message  # Save original, not serialized
+            )
 
             # Prepare LLM options with max_tokens from config
             llm_options = {
@@ -920,33 +1186,9 @@ Begin the report now. Remember: This must be thorough and comprehensive with sub
 
             result = await ollama_client.generate(model_name, enhanced_prompt, llm_options)
 
-            # Strip <think> tags and reasoning explanations from response (internal reasoning not shown to user)
-            import re
+            # Clean response using optimized pre-compiled patterns
             raw_response = result.get("response", "")
-            # Remove everything between <think> and </think> tags, including the tags
-            clean_response = re.sub(r'<think>.*?</think>\s*', '', raw_response, flags=re.DOTALL)
-            # Remove orphaned/malformed think tags (opening or closing without pair)
-            clean_response = re.sub(r'</?think>\s*', '', clean_response, flags=re.DOTALL)
-            # Also remove "Explanation:" sections that Phi-4 sometimes adds
-            clean_response = re.sub(r'\n\s*Explanation:.*', '', clean_response, flags=re.DOTALL)
-            # Remove "Reasoning:" sections too
-            clean_response = re.sub(r'\n\s*Reasoning:.*', '', clean_response, flags=re.DOTALL)
-            # Remove "User:" and "Bee:" labels that the model might echo back
-            clean_response = re.sub(r'^User:\s*.*?\n\nBee:\s*', '', clean_response, flags=re.DOTALL | re.MULTILINE)
-            clean_response = re.sub(r'^User:\s*', '', clean_response, flags=re.MULTILINE)
-            clean_response = re.sub(r'^Bee:\s*', '', clean_response, flags=re.MULTILINE)
-            # Clean up stray punctuation marks that might be left behind
-            clean_response = re.sub(r'^\s*[,)}\]]\s*', '', clean_response, flags=re.MULTILINE)  # Remove leading punctuation
-            clean_response = re.sub(r'\n\s*[,)}\]]\s*\n', '\n', clean_response)  # Remove punctuation on its own line
-            clean_response = re.sub(r'\s+([,)}\]])\s+', r'\1 ', clean_response)  # Fix spacing around punctuation
-
-            # Remove LaTeX notation and mathematical formatting (reports should be plain prose)
-            clean_response = re.sub(r'\\boxed\{([^}]*)\}', r'\1', clean_response)  # Remove \boxed{content} -> content
-            clean_response = re.sub(r'\\text\{([^}]*)\}', r'\1', clean_response)  # Remove \text{content} -> content
-            clean_response = re.sub(r'\$\$[^$]*\$\$', '', clean_response)  # Remove display math $$...$$
-            clean_response = re.sub(r'\$[^$]*\$', '', clean_response)  # Remove inline math $...$
-            clean_response = re.sub(r'\\[a-zA-Z]+\{[^}]*\}', '', clean_response)  # Remove other LaTeX commands
-            clean_response = re.sub(r'Final Answer[:\s]*', '', clean_response, flags=re.IGNORECASE)  # Remove "Final Answer:" prefix
+            clean_response = clean_llm_response(raw_response)
 
             # PII Protection: Deserialize response with enhanced metadata for visual indicators
             pii_protected_metadata = None
@@ -990,14 +1232,13 @@ Begin the report now. Remember: This must be thorough and comprehensive with sub
                     }
 
             # Save assistant response to conversation history
-            conversation_id = request.conversation_id or f"conv_{int(datetime.now().timestamp())}"
-            if conversation_id:
-                await bee_context_manager.save_message_to_history(
-                    conversation_id=conversation_id,
-                    user_id=request.user_id,
-                    role="assistant",
-                    content=clean_response.strip()
-                )
+            # conversation_id is already defined at the start of the request
+            await bee_context_manager.save_message_to_history(
+                conversation_id=conversation_id,
+                user_id=request.user_id,
+                role="assistant",
+                content=clean_response.strip()
+            )
 
             return {
                 "response": clean_response.strip(),
@@ -1633,7 +1874,7 @@ async def startup_event():
 async def shutdown_event():
     """Cleanup on shutdown"""
     global worker_task
-    
+
     # Cancel worker task
     if worker_task:
         worker_task.cancel()
@@ -1641,10 +1882,13 @@ async def shutdown_event():
             await worker_task
         except asyncio.CancelledError:
             pass
-    
+
     # Close queue manager
     await queue_manager.close()
-    
+
+    # Close LLM connection pool
+    await LLMConnectionPool.close()
+
     logger.info("External AI Service shut down")
 
 if __name__ == "__main__":

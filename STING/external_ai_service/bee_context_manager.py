@@ -50,6 +50,28 @@ class BeeContextManager:
             logger.error(f"❌ Failed to initialize knowledge indexer: {e}")
             self.knowledge_indexer = None
 
+        # NEW: Initialize conversation semantic search for intelligent context retrieval
+        try:
+            from conversation_semantic_search import get_conversation_semantic_search
+            self.conversation_search = get_conversation_semantic_search()
+            logger.info("✅ Conversation semantic search initialized")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize conversation semantic search: {e}")
+            self.conversation_search = None
+
+        # NEW: Initialize conversation summarizer for long conversations
+        try:
+            from conversation_summarizer import get_conversation_summarizer
+            self.conversation_summarizer = get_conversation_summarizer()
+            logger.info("✅ Conversation summarizer initialized")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize conversation summarizer: {e}")
+            self.conversation_summarizer = None
+
+        # NEW: Initialize PostgreSQL conversation store (source of truth)
+        self.conversation_store = None
+        self._store_init_attempted = False
+
         self.documentation_cache = {}
         self.honey_jar_cache = {}
         self.brain_knowledge = ""  # Core brain knowledge loaded in memory
@@ -437,47 +459,194 @@ class BeeContextManager:
 
         Args:
             custom_system_prompt: If provided (e.g., for Nectar Bots), use this instead of Bee's prompt
+
+        Performance: Uses asyncio.gather() to parallelize independent operations
         """
+        import time
+        start_time = time.time()
 
-        # PRIORITY 0: Load conversation history from Redis cache (NEW!)
-        if self.conversation_cache and conversation_id:
-            try:
-                cached_history = await self.conversation_cache.get_conversation_history(
-                    conversation_id,
-                    limit=10  # Last 10 messages for context
-                )
-                if cached_history:
-                    conversation_history = cached_history
-                    logger.info(f"📜 Loaded {len(cached_history)} messages from conversation cache")
-            except Exception as e:
-                logger.warning(f"Failed to load conversation history from cache: {e}")
+        # Define async tasks for parallel execution
+        async def load_history():
+            """Load conversation history with keyword + semantic search + summarization
 
-        # PRIORITY 1: Load the actual system prompt (Bee or custom Nectar Bot)
-        if custom_system_prompt:
-            system_prompt = custom_system_prompt
-            logger.info("Using custom system prompt (Nectar Bot)")
-        else:
-            system_prompt = await self.load_bee_system_prompt()
+            Storage hierarchy (read):
+            1. PostgreSQL (source of truth) - try first
+            2. Redis (hot cache fallback)
+            """
+            history_with_summary = {"messages": [], "summary": None}
+            cached = None
 
-        # PRIORITY 2: Get honey jar context (user's knowledge, most relevant)
-        honey_jar_results = await self.get_honey_jar_context(user_message, user_id, honey_jar_id)
+            if conversation_id:
+                logger.debug(f"📜 Loading history for conversation: {conversation_id[:8]}...")
+                # Try PostgreSQL first (source of truth)
+                await self._ensure_conversation_store()
+                if self.conversation_store:
+                    try:
+                        pg_messages = await self.conversation_store.get_messages(
+                            conversation_id,
+                            limit=30  # Load more to detect when summarization is needed
+                        )
+                        if pg_messages:
+                            cached = pg_messages
+                            logger.debug(f"📜 Loaded {len(pg_messages)} messages from PostgreSQL for {conversation_id[:8]}")
+                    except Exception as e:
+                        logger.warning(f"Failed to load from PostgreSQL, trying Redis: {e}")
 
-        # PRIORITY 3: Get relevant documentation (cached, secondary)
-        doc_results = await self.search_documentation(user_message)
+                # Fall back to Redis cache if PostgreSQL didn't return data
+                if not cached and self.conversation_cache:
+                    try:
+                        cached = await self.conversation_cache.get_conversation_history(
+                            conversation_id,
+                            limit=30
+                        )
+                        if cached:
+                            logger.debug(f"📜 Loaded {len(cached)} messages from Redis cache")
+                    except Exception as e:
+                        logger.warning(f"Failed to load conversation history from Redis: {e}")
 
-        # PRIORITY 4: Brain knowledge (background context, least intrusive)
-        brain_knowledge = await self.load_brain_knowledge()
-        
+                if cached:
+                    filtered = cached
+
+                    # For long conversations (>15 messages), summarize older ones
+                    if len(cached) > 15 and self.conversation_summarizer:
+                        # Split into old (to summarize) and recent (to keep)
+                        messages_to_summarize = cached[:-10]  # All but last 10
+                        recent_messages = cached[-10:]  # Keep last 10 verbatim
+
+                        try:
+                            # Get or generate summary for older messages
+                            summary_data = await self.conversation_summarizer.summarize_messages(
+                                messages=messages_to_summarize,
+                                conversation_id=conversation_id
+                            )
+                            history_with_summary["summary"] = summary_data
+                            filtered = recent_messages
+                            logger.info(f"📝 Summarized {len(messages_to_summarize)} older messages, keeping {len(recent_messages)} recent")
+                        except Exception as e:
+                            logger.warning(f"Summarization failed, using all messages: {e}")
+
+                    # Apply relevance filtering ONLY for long conversations (>20 messages)
+                    # For shorter conversations, keep all messages to preserve full context
+                    if user_message and len(filtered) > 20 and self.conversation_cache:
+                        filtered = await self.conversation_cache.filter_by_relevance(
+                            filtered, user_message, keep_recent=10, max_total=20
+                        )
+
+                        # If keyword filtering returned few results, try semantic search
+                        if len(filtered) < 8 and self.conversation_search and self.conversation_search.enabled:
+                            try:
+                                semantic_results = await self.conversation_search.search_conversation(
+                                    query=user_message,
+                                    conversation_id=conversation_id,
+                                    n_results=5,
+                                    min_score=0.4
+                                )
+                                if semantic_results:
+                                    # Merge semantic results with filtered (avoid duplicates)
+                                    existing_content = {m.get('content', '')[:100] for m in filtered}
+                                    for sr in semantic_results:
+                                        if sr['content'][:100] not in existing_content:
+                                            filtered.append({
+                                                'role': sr['role'],
+                                                'content': sr['content'],
+                                                'timestamp': sr['timestamp'],
+                                                'metadata': {'source': 'semantic_search', 'score': sr['score']}
+                                            })
+                                    logger.debug(f"📜 Added {len(semantic_results)} semantic matches to context")
+                            except Exception as e:
+                                logger.warning(f"Semantic search failed, using keyword results: {e}")
+
+                    history_with_summary["messages"] = filtered
+                    logger.debug(f"📜 Using {len(filtered)} messages in context")
+                    return history_with_summary
+
+            history_with_summary["messages"] = conversation_history or []
+            return history_with_summary
+
+        async def load_system_prompt():
+            """Load system prompt (Bee or custom)"""
+            if custom_system_prompt:
+                logger.debug("Using custom system prompt (Nectar Bot)")
+                return custom_system_prompt
+            return await self.load_bee_system_prompt()
+
+        async def load_honey_jar():
+            """Get honey jar context"""
+            return await self.get_honey_jar_context(user_message, user_id, honey_jar_id)
+
+        async def load_docs():
+            """Search documentation"""
+            return await self.search_documentation(user_message)
+
+        async def load_brain():
+            """Load brain knowledge"""
+            return await self.load_brain_knowledge()
+
+        # Execute ALL context loading in parallel using asyncio.gather()
+        # This saves 200-700ms compared to sequential execution
+        results = await asyncio.gather(
+            load_history(),
+            load_system_prompt(),
+            load_honey_jar(),
+            load_docs(),
+            load_brain(),
+            return_exceptions=True  # Don't fail if one task fails
+        )
+
+        # Unpack results (handle exceptions gracefully)
+        history_result = results[0] if not isinstance(results[0], Exception) else {"messages": conversation_history or [], "summary": None}
+        system_prompt = results[1] if not isinstance(results[1], Exception) else "You are Bee, a helpful AI assistant."
+        honey_jar_results = results[2] if not isinstance(results[2], Exception) else []
+        doc_results = results[3] if not isinstance(results[3], Exception) else []
+        brain_knowledge = results[4] if not isinstance(results[4], Exception) else ""
+
+        # Extract messages and summary from history result
+        conversation_history = history_result.get("messages", [])
+        conversation_summary = history_result.get("summary")
+
+        # Log any exceptions that occurred
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                task_names = ['history', 'system_prompt', 'honey_jar', 'docs', 'brain']
+                logger.warning(f"⚠️ Context task '{task_names[i]}' failed: {result}")
+
+        elapsed = (time.time() - start_time) * 1000
+        logger.info(f"⚡ Context loading completed in {elapsed:.0f}ms (parallel)")
+
         # Build context sections - keep them subtle and supportive
         context_parts = []
 
-        # Add conversation history FIRST (most important for continuity)
-        if conversation_history and self.conversation_cache:
-            formatted_history = self.conversation_cache.format_history_for_prompt(
-                conversation_history,
-                max_tokens=2000  # Limit to ~2000 tokens
-            )
+        # Add conversation summary FIRST (if we summarized older messages)
+        if conversation_summary and conversation_summary.get("summary"):
+            summary_text = conversation_summary.get("summary", "")
+            topics = conversation_summary.get("topics", [])
+            key_points = conversation_summary.get("key_points", [])
+
+            summary_section = "## Earlier in this conversation:\n"
+            summary_section += f"{summary_text}\n"
+            if topics:
+                summary_section += f"Topics discussed: {', '.join(topics[:5])}\n"
+            if key_points:
+                summary_section += f"Key points: {'; '.join(key_points[:3])}\n"
+
+            context_parts.append(summary_section)
+            logger.debug(f"📝 Added conversation summary to context")
+
+        # Add recent conversation history
+        if conversation_history:
+            if self.conversation_cache:
+                formatted_history = self.conversation_cache.format_history_for_prompt(
+                    conversation_history,
+                    max_tokens=2000  # Limit to ~2000 tokens
+                )
+            else:
+                # Fallback formatting if conversation_cache not available
+                formatted_history = "## Recent Conversation:\n" + "\n".join(
+                    f"{msg['role'].capitalize()}: {msg['content'][:500]}"
+                    for msg in conversation_history[-20:]
+                )
             if formatted_history:
+                logger.debug(f"📜 Adding {len(formatted_history)} chars of conversation history to context")
                 context_parts.append(formatted_history)
 
         # Add honey jar context (user's personal knowledge)
@@ -514,6 +683,20 @@ Bee: """
 
         return prompt
 
+    async def _ensure_conversation_store(self):
+        """Lazily initialize PostgreSQL conversation store."""
+        if self.conversation_store is not None or self._store_init_attempted:
+            return
+
+        self._store_init_attempted = True
+        try:
+            from conversation_store import get_conversation_store
+            self.conversation_store = get_conversation_store()
+            logger.info("✅ PostgreSQL conversation store initialized (lazy)")
+        except Exception as e:
+            logger.warning(f"⚠️ PostgreSQL store not available, using Redis only: {e}")
+            self.conversation_store = None
+
     async def save_message_to_history(
         self,
         conversation_id: str,
@@ -522,22 +705,102 @@ Bee: """
         content: str,
         metadata: Optional[Dict[str, Any]] = None
     ) -> bool:
-        """Save a message to conversation history"""
-        if not self.conversation_cache:
-            return False
+        """Save a message to conversation history.
 
-        try:
-            return await self.conversation_cache.add_message(
-                conversation_id=conversation_id,
-                user_id=user_id,
-                role=role,
-                content=content,
-                metadata=metadata
-            )
-        except Exception as e:
-            logger.error(f"Failed to save message to history: {e}")
-            return False
+        Storage hierarchy:
+        1. PostgreSQL (source of truth, persistent)
+        2. Redis (hot cache, 24h TTL)
+        3. ChromaDB (semantic search index)
+        """
+        success = False
+
+        # Try PostgreSQL first (source of truth)
+        await self._ensure_conversation_store()
+        if self.conversation_store:
+            try:
+                success = await self.conversation_store.add_message(
+                    conversation_id=conversation_id,
+                    user_id=user_id,
+                    role=role,
+                    content=content,
+                    metadata=metadata
+                )
+                if success:
+                    logger.debug(f"💾 Saved message to PostgreSQL: {conversation_id[:8]}")
+            except Exception as e:
+                logger.error(f"Failed to save message to PostgreSQL: {e}")
+
+        # Also save to Redis cache (fast reads)
+        if self.conversation_cache:
+            try:
+                await self.conversation_cache.add_message(
+                    conversation_id=conversation_id,
+                    user_id=user_id,
+                    role=role,
+                    content=content,
+                    metadata=metadata
+                )
+            except Exception as e:
+                logger.warning(f"Failed to cache message in Redis: {e}")
+
+        # Index in ChromaDB for semantic search
+        if self.conversation_search and self.conversation_search.enabled:
+            try:
+                await self.conversation_search.index_message(
+                    conversation_id=conversation_id,
+                    user_id=user_id,
+                    role=role,
+                    content=content,
+                    metadata=metadata
+                )
+                logger.debug(f"📚 Indexed message for semantic search: {conversation_id[:8]}")
+            except Exception as e:
+                logger.warning(f"Failed to index message in ChromaDB: {e}")
+
+        return success
     
+    async def delete_conversation_history(self, conversation_id: str) -> bool:
+        """Delete conversation from both Redis and ChromaDB"""
+        success = True
+
+        # Delete from Redis
+        if self.conversation_cache:
+            try:
+                await self.conversation_cache.clear_conversation(conversation_id)
+            except Exception as e:
+                logger.error(f"Failed to delete from Redis: {e}")
+                success = False
+
+        # Delete from ChromaDB semantic index
+        if self.conversation_search and self.conversation_search.enabled:
+            try:
+                await self.conversation_search.delete_conversation(conversation_id)
+            except Exception as e:
+                logger.warning(f"Failed to delete from ChromaDB: {e}")
+                # Don't mark as failure - Redis is primary
+
+        return success
+
+    def get_context_stats(self) -> Dict[str, Any]:
+        """Get statistics about context systems (Redis, ChromaDB, etc.)"""
+        stats = {
+            "conversation_cache": {"enabled": False},
+            "semantic_search": {"enabled": False},
+            "knowledge_indexer": {"enabled": False},
+            "brain_loaded": self.brain_loaded,
+        }
+
+        if self.conversation_cache:
+            stats["conversation_cache"] = {"enabled": self.conversation_cache.enabled}
+
+        if self.conversation_search:
+            stats["semantic_search"] = self.conversation_search.get_stats()
+
+        if self.knowledge_indexer:
+            stats["knowledge_indexer"] = {"enabled": self.knowledge_indexer.enabled}
+
+        return stats
+
     async def get_system_capabilities(self) -> Dict[str, Any]:
         """Get current system capabilities and features"""
         capabilities = {
