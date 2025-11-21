@@ -6,6 +6,7 @@ Indexes brain knowledge and documentation for fast semantic search
 
 import os
 import logging
+import asyncio
 import chromadb
 from chromadb.config import Settings
 from pathlib import Path
@@ -106,10 +107,10 @@ class KnowledgeIndexer:
 
         return chunks
 
-    def _generate_id(self, text: str, prefix: str = "") -> str:
-        """Generate unique ID for a document"""
+    def _generate_id(self, text: str, prefix: str = "", section_idx: int = 0, chunk_idx: int = 0) -> str:
+        """Generate unique ID for a document - includes section and chunk indices for uniqueness"""
         hash_obj = hashlib.md5(text.encode())
-        return f"{prefix}_{hash_obj.hexdigest()[:12]}"
+        return f"{prefix}_s{section_idx}_c{chunk_idx}_{hash_obj.hexdigest()[:8]}"
 
     def index_brain_knowledge(self, brain_text: str) -> bool:
         """Index Bee's brain knowledge into ChromaDB"""
@@ -179,7 +180,7 @@ class KnowledgeIndexer:
 
                 for i, chunk in enumerate(chunks):
                     try:
-                        doc_id = self._generate_id(chunk, f"brain_{section['header']}")
+                        doc_id = self._generate_id(chunk, f"brain", section_idx=idx, chunk_idx=i)
                         documents.append(chunk)
                         metadatas.append({
                             'source': 'bee_brain',
@@ -418,6 +419,7 @@ class KnowledgeIndexer:
 
 # Global instance
 _knowledge_indexer = None
+_auto_index_task = None
 
 def get_knowledge_indexer() -> KnowledgeIndexer:
     """Get or create global knowledge indexer instance"""
@@ -425,6 +427,167 @@ def get_knowledge_indexer() -> KnowledgeIndexer:
     if _knowledge_indexer is None:
         _knowledge_indexer = KnowledgeIndexer()
     return _knowledge_indexer
+
+
+class BrainAutoIndexer:
+    """
+    Automatically indexes Bee Brain files when they change.
+    Uses hash-based change detection to avoid unnecessary re-indexing.
+    """
+
+    def __init__(
+        self,
+        brain_dir: str = "/app",
+        brain_pattern: str = "bee_brain*.md",
+        check_interval: int = 60  # Check every 60 seconds
+    ):
+        self.brain_dir = Path(brain_dir)
+        self.brain_pattern = brain_pattern
+        self.check_interval = check_interval
+        self.indexed_hashes: Dict[str, str] = {}  # filename -> content hash
+        self.indexer = get_knowledge_indexer()
+        self._running = False
+        self._last_index_time = 0
+        self._debounce_seconds = 5  # Wait 5 seconds after change before indexing
+
+    def _compute_file_hash(self, filepath: Path) -> str:
+        """Compute SHA256 hash of file content"""
+        try:
+            content = filepath.read_text(encoding='utf-8')
+            return hashlib.sha256(content.encode()).hexdigest()
+        except Exception as e:
+            logger.error(f"Failed to hash {filepath}: {e}")
+            return ""
+
+    def _get_brain_files(self) -> List[Path]:
+        """Find all brain files matching pattern"""
+        try:
+            import glob
+            pattern = str(self.brain_dir / self.brain_pattern)
+            files = [Path(f) for f in glob.glob(pattern)]
+            return sorted(files)
+        except Exception as e:
+            logger.error(f"Failed to find brain files: {e}")
+            return []
+
+    def check_and_index(self) -> Dict[str, Any]:
+        """
+        Check for brain file changes and re-index if needed.
+        Returns status dict.
+        """
+        import time
+
+        if not self.indexer.enabled:
+            return {"status": "disabled", "message": "ChromaDB not available"}
+
+        brain_files = self._get_brain_files()
+        if not brain_files:
+            return {"status": "no_files", "message": "No brain files found"}
+
+        changes_detected = []
+        current_hashes = {}
+
+        for brain_file in brain_files:
+            file_hash = self._compute_file_hash(brain_file)
+            current_hashes[brain_file.name] = file_hash
+
+            # Check if this file is new or changed
+            if brain_file.name not in self.indexed_hashes:
+                changes_detected.append({"file": brain_file.name, "reason": "new"})
+            elif self.indexed_hashes[brain_file.name] != file_hash:
+                changes_detected.append({"file": brain_file.name, "reason": "modified"})
+
+        if not changes_detected:
+            return {"status": "current", "message": "Brain index is up to date", "files": list(current_hashes.keys())}
+
+        # Debounce - wait a bit in case more changes are coming
+        time_since_last = time.time() - self._last_index_time
+        if time_since_last < self._debounce_seconds:
+            return {"status": "debouncing", "message": f"Waiting for changes to settle ({self._debounce_seconds - time_since_last:.1f}s)"}
+
+        logger.info(f"🔄 Brain changes detected: {changes_detected}")
+
+        # Re-index all brain files
+        try:
+            # Clear old index first
+            logger.info("🗑️ Clearing old brain index...")
+            self.indexer.clear_collection()
+
+            # Index all brain files
+            total_indexed = 0
+            for brain_file in brain_files:
+                logger.info(f"📚 Indexing {brain_file.name}...")
+                try:
+                    content = brain_file.read_text(encoding='utf-8')
+                    if self.indexer.index_brain_knowledge(content):
+                        total_indexed += 1
+                        self.indexed_hashes[brain_file.name] = current_hashes[brain_file.name]
+                except Exception as e:
+                    logger.error(f"Failed to index {brain_file.name}: {e}")
+
+            self._last_index_time = time.time()
+
+            return {
+                "status": "reindexed",
+                "message": f"Re-indexed {total_indexed} brain files",
+                "changes": changes_detected,
+                "files_indexed": total_indexed
+            }
+
+        except Exception as e:
+            logger.error(f"Auto-indexing failed: {e}")
+            return {"status": "error", "message": str(e)}
+
+    async def start_background_watcher(self):
+        """Start background task to watch for brain file changes"""
+        import asyncio
+
+        if self._running:
+            logger.warning("Auto-indexer already running")
+            return
+
+        self._running = True
+        logger.info(f"🔍 Starting brain auto-indexer (checking every {self.check_interval}s)")
+
+        # Initial index check
+        result = self.check_and_index()
+        logger.info(f"Initial brain index check: {result.get('status')} - {result.get('message')}")
+
+        while self._running:
+            try:
+                await asyncio.sleep(self.check_interval)
+                result = self.check_and_index()
+                if result.get('status') == 'reindexed':
+                    logger.info(f"🔄 Brain auto-reindex: {result.get('message')}")
+            except asyncio.CancelledError:
+                logger.info("Brain auto-indexer stopped")
+                break
+            except Exception as e:
+                logger.error(f"Auto-indexer error: {e}")
+                await asyncio.sleep(self.check_interval)
+
+    def stop(self):
+        """Stop the background watcher"""
+        self._running = False
+
+
+# Global auto-indexer instance
+_brain_auto_indexer: Optional[BrainAutoIndexer] = None
+
+def get_brain_auto_indexer() -> BrainAutoIndexer:
+    """Get or create global brain auto-indexer instance"""
+    global _brain_auto_indexer
+    if _brain_auto_indexer is None:
+        _brain_auto_indexer = BrainAutoIndexer()
+    return _brain_auto_indexer
+
+
+async def start_auto_indexer():
+    """Start the brain auto-indexer background task"""
+    global _auto_index_task
+    auto_indexer = get_brain_auto_indexer()
+    _auto_index_task = asyncio.create_task(auto_indexer.start_background_watcher())
+    return _auto_index_task
 
 
 # Test the knowledge indexer

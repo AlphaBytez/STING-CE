@@ -328,6 +328,44 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+  qe-bee-worker:
+    container_name: sting-ce-qe-bee-worker
+    build:
+      context: .
+      dockerfile: Dockerfile.qe-bee-worker
+    image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-qe-bee-worker:${STING_VERSION:-latest}
+    environment:
+    - APP_SERVICE_URL=https://app:5050
+    - LLM_SERVICE_URL=http://external-ai:8091
+    - QE_BEE_LLM_ENABLED=${QE_BEE_LLM_ENABLED:-true}
+    - QE_BEE_MODEL=${QE_BEE_MODEL:-phi4}
+    - QE_BEE_TIMEOUT=${QE_BEE_TIMEOUT:-30}
+    - QE_BEE_POLL_INTERVAL=${QE_BEE_POLL_INTERVAL:-5}
+    volumes:
+    - sting_certs:/app/certs
+    networks:
+    - sting_local
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
+        reservations:
+          memory: 32M
+    depends_on:
+    - app
+    - external-ai
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD
+      - python3
+      - -c
+      - from qe_bee_worker import health_check_main; health_check_main()
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
   frontend:
     container_name: sting-ce-frontend
     build:

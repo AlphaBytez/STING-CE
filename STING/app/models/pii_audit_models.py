@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 import uuid
 import json
 
-from app import db
+from app.database import db
 
 class PIIDetectionRecord(db.Model):
     """
@@ -57,7 +57,19 @@ class PIIDetectionRecord(db.Model):
     # Processing status
     processed = Column(Boolean, default=False)         # Whether this detection was processed
     notified = Column(Boolean, default=False)          # Whether notifications were sent
-    
+
+    # Admin flagging for review
+    flagged_for_review = Column(Boolean, default=False)  # Whether flagged by admin/system
+    flagged_by = Column(String(100), nullable=True)      # User ID who flagged it
+    flagged_at = Column(DateTime, nullable=True)         # When it was flagged
+    flag_reason = Column(Text, nullable=True)            # Reason for flagging
+    admin_notes = Column(Text, nullable=True)            # Admin notes/comments
+    severity_override = Column(String(20), nullable=True)  # Admin can override risk_level
+    action_required = Column(String(50), nullable=True)    # none, investigate, delete, escalate, redact
+    review_status = Column(String(20), default='pending')  # pending, in_review, resolved, dismissed
+    reviewed_by = Column(String(100), nullable=True)       # User ID who resolved
+    reviewed_at = Column(DateTime, nullable=True)          # When it was resolved
+
     # Indexes for performance
     __table_args__ = (
         Index('idx_pii_user_detected', 'user_id', 'detected_at'),
@@ -65,11 +77,17 @@ class PIIDetectionRecord(db.Model):
         Index('idx_pii_expires', 'expires_at'),
         Index('idx_pii_compliance', 'compliance_frameworks'),
         Index('idx_pii_honey_jar', 'honey_jar_id'),
+        Index('idx_pii_flagged', 'flagged_for_review', 'review_status'),
+        Index('idx_pii_action_required', 'action_required'),
     )
     
-    def to_dict(self):
-        """Convert to dictionary for API responses"""
-        return {
+    def to_dict(self, include_admin_fields=False):
+        """Convert to dictionary for API responses
+
+        Args:
+            include_admin_fields: If True, include admin flagging fields (for admin API)
+        """
+        result = {
             'id': str(self.id),
             'detection_id': self.detection_id,
             'pii_type': self.pii_type,
@@ -82,6 +100,23 @@ class PIIDetectionRecord(db.Model):
             'document_id': self.document_id,
             'honey_jar_id': self.honey_jar_id
         }
+
+        if include_admin_fields:
+            result.update({
+                'flagged_for_review': self.flagged_for_review,
+                'flagged_by': self.flagged_by,
+                'flagged_at': self.flagged_at.isoformat() if self.flagged_at else None,
+                'flag_reason': self.flag_reason,
+                'admin_notes': self.admin_notes,
+                'severity_override': self.severity_override,
+                'action_required': self.action_required,
+                'review_status': self.review_status,
+                'reviewed_by': self.reviewed_by,
+                'reviewed_at': self.reviewed_at.isoformat() if self.reviewed_at else None,
+                'effective_risk_level': self.severity_override or self.risk_level
+            })
+
+        return result
 
 class PIIRetentionPolicy(db.Model):
     """

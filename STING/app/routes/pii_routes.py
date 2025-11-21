@@ -14,6 +14,8 @@ from functools import wraps
 
 from app.services.hive_scrambler import HiveScrambler, PIIType, ComplianceFramework, DetectionMode
 from app.utils.decorators import require_auth
+from app.models.pii_audit_models import PIIDetectionRecord, PIIAuditLog
+from app.database import db
 
 pii_bp = Blueprint('pii', __name__)
 logger = logging.getLogger(__name__)
@@ -733,3 +735,349 @@ def _analyze_profile_configuration(settings: dict) -> dict:
             'recommendations': ['Configuration analysis failed - using default estimates'],
             'analysis_timestamp': datetime.utcnow().isoformat() + 'Z'
         }
+
+
+# ============================================================================
+# Admin Flagging Endpoints
+# ============================================================================
+
+@pii_bp.route('/detections', methods=['GET'])
+@require_auth
+@require_admin
+def list_pii_detections():
+    """List all PII detections with filtering options
+
+    Query Parameters:
+        - flagged: Filter by flagged status (true/false)
+        - review_status: Filter by review status (pending, in_review, resolved, dismissed)
+        - risk_level: Filter by risk level (high, medium, low)
+        - action_required: Filter by action required (investigate, delete, escalate, redact)
+        - honey_jar_id: Filter by honey jar
+        - pii_type: Filter by PII type
+        - limit: Number of results (default 50, max 200)
+        - offset: Pagination offset
+    """
+    try:
+        # Parse query parameters
+        flagged = request.args.get('flagged')
+        review_status = request.args.get('review_status')
+        risk_level = request.args.get('risk_level')
+        action_required = request.args.get('action_required')
+        honey_jar_id = request.args.get('honey_jar_id')
+        pii_type = request.args.get('pii_type')
+        limit = min(int(request.args.get('limit', 50)), 200)
+        offset = int(request.args.get('offset', 0))
+
+        # Build query
+        query = PIIDetectionRecord.query.filter(PIIDetectionRecord.deleted_at.is_(None))
+
+        if flagged is not None:
+            query = query.filter(PIIDetectionRecord.flagged_for_review == (flagged.lower() == 'true'))
+
+        if review_status:
+            query = query.filter(PIIDetectionRecord.review_status == review_status)
+
+        if risk_level:
+            query = query.filter(PIIDetectionRecord.risk_level == risk_level)
+
+        if action_required:
+            query = query.filter(PIIDetectionRecord.action_required == action_required)
+
+        if honey_jar_id:
+            query = query.filter(PIIDetectionRecord.honey_jar_id == honey_jar_id)
+
+        if pii_type:
+            query = query.filter(PIIDetectionRecord.pii_type == pii_type)
+
+        # Get total count before pagination
+        total_count = query.count()
+
+        # Order by flagged first, then by detected_at descending
+        query = query.order_by(
+            PIIDetectionRecord.flagged_for_review.desc(),
+            PIIDetectionRecord.detected_at.desc()
+        )
+
+        # Apply pagination
+        detections = query.offset(offset).limit(limit).all()
+
+        return jsonify({
+            'detections': [d.to_dict(include_admin_fields=True) for d in detections],
+            'total_count': total_count,
+            'limit': limit,
+            'offset': offset,
+            'has_more': (offset + limit) < total_count
+        })
+
+    except Exception as e:
+        logger.error(f"Error listing PII detections: {str(e)}")
+        return jsonify({'error': 'Failed to list PII detections'}), 500
+
+
+@pii_bp.route('/detections/<detection_id>', methods=['GET'])
+@require_auth
+@require_admin
+def get_pii_detection(detection_id):
+    """Get a specific PII detection by ID"""
+    try:
+        record = PIIDetectionRecord.query.filter_by(detection_id=detection_id).first()
+
+        if not record:
+            return jsonify({'error': 'Detection not found'}), 404
+
+        return jsonify({
+            'detection': record.to_dict(include_admin_fields=True)
+        })
+
+    except Exception as e:
+        logger.error(f"Error retrieving PII detection: {str(e)}")
+        return jsonify({'error': 'Failed to retrieve PII detection'}), 500
+
+
+@pii_bp.route('/detections/<detection_id>/flag', methods=['POST'])
+@require_auth
+@require_admin
+def flag_pii_detection(detection_id):
+    """Flag a PII detection for admin review
+
+    Request Body:
+        - reason: (required) Reason for flagging
+        - severity_override: (optional) Override risk level (high, medium, low)
+        - action_required: (optional) Required action (investigate, delete, escalate, redact, none)
+        - notes: (optional) Admin notes
+    """
+    try:
+        data = request.get_json() or {}
+
+        record = PIIDetectionRecord.query.filter_by(detection_id=detection_id).first()
+        if not record:
+            return jsonify({'error': 'Detection not found'}), 404
+
+        if not data.get('reason'):
+            return jsonify({'error': 'Flag reason is required'}), 400
+
+        # Validate severity_override if provided
+        if data.get('severity_override') and data['severity_override'] not in ['high', 'medium', 'low']:
+            return jsonify({'error': 'Invalid severity_override value'}), 400
+
+        # Validate action_required if provided
+        valid_actions = ['investigate', 'delete', 'escalate', 'redact', 'none']
+        if data.get('action_required') and data['action_required'] not in valid_actions:
+            return jsonify({'error': f'Invalid action_required value. Must be one of: {valid_actions}'}), 400
+
+        # Update the record
+        record.flagged_for_review = True
+        record.flagged_by = g.user.id if hasattr(g, 'user') else 'system'
+        record.flagged_at = datetime.utcnow()
+        record.flag_reason = data['reason']
+        record.admin_notes = data.get('notes')
+        record.severity_override = data.get('severity_override')
+        record.action_required = data.get('action_required', 'investigate')
+        record.review_status = 'pending'
+
+        db.session.commit()
+
+        # Log the flag action
+        audit_log = PIIAuditLog(
+            event_type='pii_admin_flag',
+            event_description=f"PII detection flagged for review: {data['reason']}",
+            detection_record_id=record.id,
+            user_id=g.user.id if hasattr(g, 'user') else 'system',
+            system_component='pii_admin',
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent'),
+            event_data={
+                'reason': data['reason'],
+                'action_required': record.action_required,
+                'severity_override': record.severity_override
+            },
+            compliance_impact='high' if record.severity_override == 'high' or record.risk_level == 'high' else 'medium'
+        )
+        db.session.add(audit_log)
+        db.session.commit()
+
+        logger.info(f"PII detection {detection_id} flagged by {record.flagged_by}")
+
+        return jsonify({
+            'success': True,
+            'message': 'Detection flagged successfully',
+            'detection': record.to_dict(include_admin_fields=True)
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error flagging PII detection: {str(e)}")
+        return jsonify({'error': 'Failed to flag PII detection'}), 500
+
+
+@pii_bp.route('/detections/<detection_id>/resolve', methods=['PUT'])
+@require_auth
+@require_admin
+def resolve_pii_detection(detection_id):
+    """Resolve/close a flagged PII detection
+
+    Request Body:
+        - status: (required) Resolution status (resolved, dismissed)
+        - notes: (optional) Resolution notes
+    """
+    try:
+        data = request.get_json() or {}
+
+        record = PIIDetectionRecord.query.filter_by(detection_id=detection_id).first()
+        if not record:
+            return jsonify({'error': 'Detection not found'}), 404
+
+        if not record.flagged_for_review:
+            return jsonify({'error': 'Detection is not flagged for review'}), 400
+
+        status = data.get('status')
+        if status not in ['resolved', 'dismissed']:
+            return jsonify({'error': 'Status must be "resolved" or "dismissed"'}), 400
+
+        # Update the record
+        record.review_status = status
+        record.reviewed_by = g.user.id if hasattr(g, 'user') else 'system'
+        record.reviewed_at = datetime.utcnow()
+
+        if data.get('notes'):
+            record.admin_notes = (record.admin_notes or '') + f"\n\n[{status.upper()}] {data['notes']}"
+
+        db.session.commit()
+
+        # Log the resolution
+        audit_log = PIIAuditLog(
+            event_type='pii_admin_resolve',
+            event_description=f"PII detection {status}: {data.get('notes', 'No notes provided')}",
+            detection_record_id=record.id,
+            user_id=g.user.id if hasattr(g, 'user') else 'system',
+            system_component='pii_admin',
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent'),
+            event_data={
+                'status': status,
+                'notes': data.get('notes')
+            },
+            compliance_impact='medium'
+        )
+        db.session.add(audit_log)
+        db.session.commit()
+
+        logger.info(f"PII detection {detection_id} {status} by {record.reviewed_by}")
+
+        return jsonify({
+            'success': True,
+            'message': f'Detection {status} successfully',
+            'detection': record.to_dict(include_admin_fields=True)
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error resolving PII detection: {str(e)}")
+        return jsonify({'error': 'Failed to resolve PII detection'}), 500
+
+
+@pii_bp.route('/flagged', methods=['GET'])
+@require_auth
+@require_admin
+def list_flagged_detections():
+    """List all flagged PII detections pending review
+
+    Query Parameters:
+        - status: Filter by review status (pending, in_review) - defaults to pending
+        - limit: Number of results (default 50, max 200)
+    """
+    try:
+        status = request.args.get('status', 'pending')
+        limit = min(int(request.args.get('limit', 50)), 200)
+
+        query = PIIDetectionRecord.query.filter(
+            PIIDetectionRecord.flagged_for_review == True,
+            PIIDetectionRecord.review_status == status,
+            PIIDetectionRecord.deleted_at.is_(None)
+        ).order_by(
+            PIIDetectionRecord.flagged_at.desc()
+        )
+
+        flagged = query.limit(limit).all()
+        total_count = query.count()
+
+        return jsonify({
+            'flagged_detections': [d.to_dict(include_admin_fields=True) for d in flagged],
+            'total_count': total_count,
+            'status_filter': status
+        })
+
+    except Exception as e:
+        logger.error(f"Error listing flagged detections: {str(e)}")
+        return jsonify({'error': 'Failed to list flagged detections'}), 500
+
+
+@pii_bp.route('/admin/dashboard', methods=['GET'])
+@require_auth
+@require_admin
+def get_pii_admin_dashboard():
+    """Get PII admin dashboard statistics"""
+    try:
+        # Count detections by status
+        total_detections = PIIDetectionRecord.query.filter(
+            PIIDetectionRecord.deleted_at.is_(None)
+        ).count()
+
+        flagged_pending = PIIDetectionRecord.query.filter(
+            PIIDetectionRecord.flagged_for_review == True,
+            PIIDetectionRecord.review_status == 'pending',
+            PIIDetectionRecord.deleted_at.is_(None)
+        ).count()
+
+        flagged_in_review = PIIDetectionRecord.query.filter(
+            PIIDetectionRecord.flagged_for_review == True,
+            PIIDetectionRecord.review_status == 'in_review',
+            PIIDetectionRecord.deleted_at.is_(None)
+        ).count()
+
+        high_risk = PIIDetectionRecord.query.filter(
+            PIIDetectionRecord.risk_level == 'high',
+            PIIDetectionRecord.deleted_at.is_(None)
+        ).count()
+
+        action_required = PIIDetectionRecord.query.filter(
+            PIIDetectionRecord.action_required.isnot(None),
+            PIIDetectionRecord.action_required != 'none',
+            PIIDetectionRecord.review_status != 'resolved',
+            PIIDetectionRecord.deleted_at.is_(None)
+        ).count()
+
+        # Get recent flagged detections
+        recent_flagged = PIIDetectionRecord.query.filter(
+            PIIDetectionRecord.flagged_for_review == True,
+            PIIDetectionRecord.deleted_at.is_(None)
+        ).order_by(
+            PIIDetectionRecord.flagged_at.desc()
+        ).limit(5).all()
+
+        # Get counts by PII type
+        pii_type_counts = db.session.query(
+            PIIDetectionRecord.pii_type,
+            db.func.count(PIIDetectionRecord.id).label('count')
+        ).filter(
+            PIIDetectionRecord.deleted_at.is_(None)
+        ).group_by(
+            PIIDetectionRecord.pii_type
+        ).all()
+
+        return jsonify({
+            'statistics': {
+                'total_detections': total_detections,
+                'flagged_pending': flagged_pending,
+                'flagged_in_review': flagged_in_review,
+                'high_risk': high_risk,
+                'action_required': action_required
+            },
+            'recent_flagged': [d.to_dict(include_admin_fields=True) for d in recent_flagged],
+            'by_pii_type': [{'pii_type': pt, 'count': c} for pt, c in pii_type_counts],
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting PII admin dashboard: {str(e)}")
+        return jsonify({'error': 'Failed to get dashboard data'}), 500

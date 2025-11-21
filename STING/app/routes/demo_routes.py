@@ -12,18 +12,57 @@ from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 from app.middleware.auth_middleware import require_admin
 from app.utils.decorators import require_auth_method
-# Simplified imports for working demo routes
+# Core imports
 from app.extensions import db
 from app.models import User
 from app.models.nectar_bot_models import NectarBot, NectarBotHandoff, NectarBotUsage, BotStatus, HandoffStatus, HandoffUrgency
-# Note: These model imports will need to be added if they don't exist
-# from app.models.honey_jar_models import HoneyJar
-# from app.models.document_models import Document
-# from app.models.report_models import Report
-# from app.models.honey_reserve import HoneyReserve
-# from app.models.demo_generators import MedicalDemoGenerator, LegalDemoGenerator, FinancialDemoGenerator
+# Report models - use correct model structure
+from app.models.report_models import Report, ReportTemplate, ReportStatus
+# Honey Jar operations via knowledge service API
+from app.services.honey_jar_service import HoneyJarService, get_honey_jar_service
+# Demo data generators
+from app.services.demo_data_generator import MedicalDemoGenerator, LegalDemoGenerator, FinancialDemoGenerator
+# PostgreSQL JSONB support
+from sqlalchemy import cast, text
+from sqlalchemy.dialects.postgresql import JSONB
 import json
 import uuid
+
+
+def get_admin_user():
+    """
+    Get the admin user dynamically instead of hardcoding owner_id=1.
+    Returns tuple of (user_id, kratos_id, email) or (None, None, None) if not found.
+    """
+    try:
+        # Try to find admin by role first
+        admin = User.query.filter(
+            (User.role == 'admin') | (User.email == 'admin@sting.local')
+        ).first()
+
+        if admin:
+            return admin.id, admin.kratos_id, admin.email
+
+        # Fallback: get the first user (usually admin in fresh installs)
+        first_user = User.query.order_by(User.id).first()
+        if first_user:
+            current_app.logger.warning(f"No admin user found, using first user: {first_user.email}")
+            return first_user.id, first_user.kratos_id, first_user.email
+
+        current_app.logger.error("No users found in database for demo data generation")
+        return None, None, None
+    except Exception as e:
+        current_app.logger.error(f"Error getting admin user: {str(e)}")
+        return None, None, None
+
+
+def filter_by_demo_metadata(model):
+    """
+    Create proper PostgreSQL JSONB filter for demo_data flag.
+    Works correctly with SQLAlchemy and PostgreSQL JSONB columns.
+    """
+    # Use JSONB containment operator @> for PostgreSQL
+    return model.metadata.op('@>')(cast({'demo_data': True}, JSONB))
 
 demo_bp = Blueprint('demo', __name__, url_prefix='/api/admin')
 
@@ -231,159 +270,134 @@ def _generate_nectar_bot_demo_step(step):
     return generated
 
 def _create_basic_honey_jars():
-    """Create basic set of honey jars"""
+    """Create basic set of honey jars via knowledge service API"""
     basic_jars = [
-        {'name': 'Medical Records Demo', 'description': 'Sample medical documents for HIPAA compliance testing', 'category': 'Healthcare'},
-        {'name': 'Legal Documents Demo', 'description': 'Sample legal documents with attorney-client privilege', 'category': 'Legal'},
-        {'name': 'Financial Data Demo', 'description': 'Sample financial documents for PCI compliance', 'category': 'Financial'},
-        {'name': 'HR Records Demo', 'description': 'Sample employee records with PII', 'category': 'Human Resources'},
-        {'name': 'Customer Data Demo', 'description': 'Sample customer information and transactions', 'category': 'Customer Service'}
+        {'name': 'Medical Records Demo', 'description': 'Sample medical documents for HIPAA compliance testing', 'tags': ['healthcare', 'hipaa', 'demo']},
+        {'name': 'Legal Documents Demo', 'description': 'Sample legal documents with attorney-client privilege', 'tags': ['legal', 'privileged', 'demo']},
+        {'name': 'Financial Data Demo', 'description': 'Sample financial documents for PCI compliance', 'tags': ['financial', 'pci', 'demo']},
+        {'name': 'HR Records Demo', 'description': 'Sample employee records with PII', 'tags': ['hr', 'pii', 'demo']},
+        {'name': 'Customer Data Demo', 'description': 'Sample customer information and transactions', 'tags': ['customer', 'pii', 'demo']}
     ]
-    
+
     created = 0
+    honey_jar_service = get_honey_jar_service()
+
     for jar_config in basic_jars:
         try:
-            # Check if jar already exists
-            existing = HoneyJar.query.filter_by(name=jar_config['name']).first()
-            if not existing:
-                jar = HoneyJar(
-                    name=jar_config['name'],
-                    description=jar_config['description'],
-                    owner_id=1,  # Admin user
-                    is_public=True,
-                    metadata={'category': jar_config['category'], 'demo_data': True}
-                )
-                db.session.add(jar)
+            jar_id = honey_jar_service.create_honey_jar(
+                name=jar_config['name'],
+                description=jar_config['description'],
+                jar_type='public',
+                tags=jar_config['tags']
+            )
+            if jar_id:
                 created += 1
+                current_app.logger.info(f"Created demo honey jar: {jar_config['name']} (ID: {jar_id})")
         except Exception as e:
             current_app.logger.error(f"Error creating honey jar {jar_config['name']}: {str(e)}")
-    
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error committing honey jars: {str(e)}")
-        
+
     return created
 
 def _create_comprehensive_honey_jars():
-    """Create comprehensive set of honey jars"""
+    """Create comprehensive set of honey jars via knowledge service API"""
     comprehensive_jars = [
-        {'name': 'Enterprise Security Policies', 'description': 'Complete security policy documentation', 'category': 'Security'},
-        {'name': 'Incident Response Playbooks', 'description': 'Security incident response procedures', 'category': 'Security'},
-        {'name': 'Compliance Audit Reports', 'description': 'Historical compliance audit documentation', 'category': 'Compliance'},
-        {'name': 'Vendor Management', 'description': 'Third-party vendor contracts and assessments', 'category': 'Procurement'},
-        {'name': 'Employee Training Materials', 'description': 'Security awareness and training content', 'category': 'Training'},
-        {'name': 'Risk Assessment Archive', 'description': 'Historical risk assessments and mitigation plans', 'category': 'Risk Management'},
-        {'name': 'Business Continuity Plans', 'description': 'Disaster recovery and continuity procedures', 'category': 'Business Continuity'},
-        {'name': 'Technical Documentation', 'description': 'System architecture and technical specifications', 'category': 'Technical'},
-        {'name': 'Legal Contracts Archive', 'description': 'Historical legal agreements and contracts', 'category': 'Legal'},
-        {'name': 'Financial Audit Trail', 'description': 'Financial records and audit documentation', 'category': 'Financial'}
+        {'name': 'Enterprise Security Policies', 'description': 'Complete security policy documentation', 'tags': ['security', 'policies', 'demo']},
+        {'name': 'Incident Response Playbooks', 'description': 'Security incident response procedures', 'tags': ['security', 'incident-response', 'demo']},
+        {'name': 'Compliance Audit Reports', 'description': 'Historical compliance audit documentation', 'tags': ['compliance', 'audit', 'demo']},
+        {'name': 'Vendor Management', 'description': 'Third-party vendor contracts and assessments', 'tags': ['procurement', 'vendor', 'demo']},
+        {'name': 'Employee Training Materials', 'description': 'Security awareness and training content', 'tags': ['training', 'security', 'demo']},
+        {'name': 'Risk Assessment Archive', 'description': 'Historical risk assessments and mitigation plans', 'tags': ['risk', 'assessment', 'demo']},
+        {'name': 'Business Continuity Plans', 'description': 'Disaster recovery and continuity procedures', 'tags': ['bcp', 'disaster-recovery', 'demo']},
+        {'name': 'Technical Documentation', 'description': 'System architecture and technical specifications', 'tags': ['technical', 'architecture', 'demo']},
+        {'name': 'Legal Contracts Archive', 'description': 'Historical legal agreements and contracts', 'tags': ['legal', 'contracts', 'demo']},
+        {'name': 'Financial Audit Trail', 'description': 'Financial records and audit documentation', 'tags': ['financial', 'audit', 'demo']}
     ]
-    
+
     created = 0
+    honey_jar_service = get_honey_jar_service()
+
     for jar_config in comprehensive_jars:
         try:
-            existing = HoneyJar.query.filter_by(name=jar_config['name']).first()
-            if not existing:
-                jar = HoneyJar(
-                    name=jar_config['name'],
-                    description=jar_config['description'],
-                    owner_id=1,
-                    is_public=True,
-                    metadata={'category': jar_config['category'], 'demo_data': True, 'scenario': 'comprehensive'}
-                )
-                db.session.add(jar)
+            jar_id = honey_jar_service.create_honey_jar(
+                name=jar_config['name'],
+                description=jar_config['description'],
+                jar_type='public',
+                tags=jar_config['tags']
+            )
+            if jar_id:
                 created += 1
+                current_app.logger.info(f"Created comprehensive demo honey jar: {jar_config['name']} (ID: {jar_id})")
         except Exception as e:
             current_app.logger.error(f"Error creating comprehensive honey jar {jar_config['name']}: {str(e)}")
-    
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error committing comprehensive honey jars: {str(e)}")
-        
+
     return created
 
 def _create_security_honey_jars():
-    """Create security-focused honey jars"""
+    """Create security-focused honey jars via knowledge service API"""
     security_jars = [
-        {'name': 'Security Incident Reports', 'description': 'Historical security incidents and responses', 'category': 'Security'},
-        {'name': 'Vulnerability Assessments', 'description': 'Security vulnerability scan results', 'category': 'Security'},
-        {'name': 'Penetration Test Reports', 'description': 'Third-party security assessment reports', 'category': 'Security'},
-        {'name': 'Compliance Frameworks', 'description': 'SOC2, ISO27001, and other compliance documentation', 'category': 'Compliance'},
-        {'name': 'Access Control Policies', 'description': 'Identity and access management procedures', 'category': 'Security'}
+        {'name': 'Security Incident Reports', 'description': 'Historical security incidents and responses', 'tags': ['security', 'incidents', 'demo']},
+        {'name': 'Vulnerability Assessments', 'description': 'Security vulnerability scan results', 'tags': ['security', 'vulnerability', 'demo']},
+        {'name': 'Penetration Test Reports', 'description': 'Third-party security assessment reports', 'tags': ['security', 'pentest', 'demo']},
+        {'name': 'Compliance Frameworks', 'description': 'SOC2, ISO27001, and other compliance documentation', 'tags': ['compliance', 'soc2', 'iso27001', 'demo']},
+        {'name': 'Access Control Policies', 'description': 'Identity and access management procedures', 'tags': ['security', 'iam', 'demo']}
     ]
-    
+
     created = 0
+    honey_jar_service = get_honey_jar_service()
+
     for jar_config in security_jars:
         try:
-            existing = HoneyJar.query.filter_by(name=jar_config['name']).first()
-            if not existing:
-                jar = HoneyJar(
-                    name=jar_config['name'],
-                    description=jar_config['description'],
-                    owner_id=1,
-                    is_public=True,
-                    metadata={'category': jar_config['category'], 'demo_data': True, 'scenario': 'security'}
-                )
-                db.session.add(jar)
+            jar_id = honey_jar_service.create_honey_jar(
+                name=jar_config['name'],
+                description=jar_config['description'],
+                jar_type='public',
+                tags=jar_config['tags']
+            )
+            if jar_id:
                 created += 1
+                current_app.logger.info(f"Created security demo honey jar: {jar_config['name']} (ID: {jar_id})")
         except Exception as e:
             current_app.logger.error(f"Error creating security honey jar {jar_config['name']}: {str(e)}")
-    
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error committing security honey jars: {str(e)}")
-        
+
     return created
 
 def _create_pii_honey_jars():
-    """Create PII-focused honey jars"""
+    """Create PII-focused honey jars via knowledge service API"""
     pii_jars = [
-        {'name': 'PII Detection Samples', 'description': 'Documents with various PII types for testing', 'category': 'PII Testing'},
-        {'name': 'HIPAA Test Documents', 'description': 'Medical records for HIPAA compliance testing', 'category': 'Healthcare'},
-        {'name': 'Financial PII Samples', 'description': 'Financial documents for PCI testing', 'category': 'Financial'}
+        {'name': 'PII Detection Samples', 'description': 'Documents with various PII types for testing', 'tags': ['pii', 'testing', 'demo']},
+        {'name': 'HIPAA Test Documents', 'description': 'Medical records for HIPAA compliance testing', 'tags': ['healthcare', 'hipaa', 'pii', 'demo']},
+        {'name': 'Financial PII Samples', 'description': 'Financial documents for PCI testing', 'tags': ['financial', 'pci', 'pii', 'demo']}
     ]
-    
+
     created = 0
+    honey_jar_service = get_honey_jar_service()
+
     for jar_config in pii_jars:
         try:
-            existing = HoneyJar.query.filter_by(name=jar_config['name']).first()
-            if not existing:
-                jar = HoneyJar(
-                    name=jar_config['name'],
-                    description=jar_config['description'],
-                    owner_id=1,
-                    is_public=True,
-                    metadata={'category': jar_config['category'], 'demo_data': True, 'scenario': 'pii'}
-                )
-                db.session.add(jar)
+            jar_id = honey_jar_service.create_honey_jar(
+                name=jar_config['name'],
+                description=jar_config['description'],
+                jar_type='public',
+                tags=jar_config['tags']
+            )
+            if jar_id:
                 created += 1
+                current_app.logger.info(f"Created PII demo honey jar: {jar_config['name']} (ID: {jar_id})")
         except Exception as e:
             current_app.logger.error(f"Error creating PII honey jar {jar_config['name']}: {str(e)}")
-    
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error committing PII honey jars: {str(e)}")
-        
+
     return created
 
 def _create_sample_documents(scenario_type):
-    """Create sample documents based on scenario"""
+    """Create sample documents based on scenario using knowledge service API"""
     documents_created = 0
-    
+
     try:
         # Get demo data from generators
         medical_gen = MedicalDemoGenerator()
         legal_gen = LegalDemoGenerator()
         financial_gen = FinancialDemoGenerator()
-        
+
         # Number of documents based on scenario
         doc_counts = {
             'basic': {'medical': 2, 'legal': 2, 'financial': 1},
@@ -391,9 +405,9 @@ def _create_sample_documents(scenario_type):
             'security': {'medical': 3, 'legal': 3, 'financial': 2},
             'pii': {'medical': 4, 'legal': 2, 'financial': 2}
         }
-        
+
         counts = doc_counts.get(scenario_type, doc_counts['basic'])
-        
+
         # Create medical documents
         for i in range(counts['medical']):
             doc_content = random.choice([
@@ -401,184 +415,214 @@ def _create_sample_documents(scenario_type):
                 medical_gen.generate_lab_results(),
                 medical_gen.generate_prescription()
             ])
-            _save_demo_document('Medical Records Demo', f'medical_sample_{i+1}.txt', doc_content)
-            documents_created += 1
-        
+            if _save_demo_document('Medical Records Demo', f'medical_sample_{i+1}.txt', doc_content, ['healthcare', 'phi', 'demo']):
+                documents_created += 1
+
         # Create legal documents
         for i in range(counts['legal']):
             doc_content = random.choice([
                 legal_gen.generate_case_file(),
                 legal_gen.generate_contract()
             ])
-            _save_demo_document('Legal Documents Demo', f'legal_sample_{i+1}.txt', doc_content)
-            documents_created += 1
-        
+            if _save_demo_document('Legal Documents Demo', f'legal_sample_{i+1}.txt', doc_content, ['legal', 'privileged', 'demo']):
+                documents_created += 1
+
         # Create financial documents
         for i in range(counts['financial']):
             doc_content = financial_gen.generate_loan_application()
-            _save_demo_document('Financial Data Demo', f'financial_sample_{i+1}.txt', doc_content)
-            documents_created += 1
-            
+            if _save_demo_document('Financial Data Demo', f'financial_sample_{i+1}.txt', doc_content, ['financial', 'pci', 'demo']):
+                documents_created += 1
+
     except Exception as e:
         current_app.logger.error(f"Error creating sample documents: {str(e)}")
-    
+
     return documents_created
 
 def _create_pii_documents():
     """Create specific PII testing documents"""
     documents_created = 0
-    
+
     try:
         medical_gen = MedicalDemoGenerator()
         legal_gen = LegalDemoGenerator()
         financial_gen = FinancialDemoGenerator()
-        
-        # Create diverse PII samples
+
+        # Create diverse PII samples with their tags
         pii_samples = [
-            medical_gen.generate_patient_intake_form(),
-            medical_gen.generate_lab_results(),
-            legal_gen.generate_case_file(),
-            financial_gen.generate_loan_application()
+            (medical_gen.generate_patient_intake_form(), ['healthcare', 'phi', 'pii', 'demo']),
+            (medical_gen.generate_lab_results(), ['healthcare', 'lab', 'pii', 'demo']),
+            (legal_gen.generate_case_file(), ['legal', 'privileged', 'pii', 'demo']),
+            (financial_gen.generate_loan_application(), ['financial', 'pci', 'pii', 'demo'])
         ]
-        
-        for i, sample in enumerate(pii_samples):
-            _save_demo_document('PII Detection Samples', f'pii_sample_{i+1}.txt', sample)
-            documents_created += 1
-            
+
+        for i, (sample, tags) in enumerate(pii_samples):
+            if _save_demo_document('PII Detection Samples', f'pii_sample_{i+1}.txt', sample, tags):
+                documents_created += 1
+
     except Exception as e:
         current_app.logger.error(f"Error creating PII documents: {str(e)}")
-    
+
     return documents_created
 
-def _save_demo_document(jar_name, filename, content):
-    """Save a demo document to a honey jar"""
+
+def _save_demo_document(jar_name, filename, content, tags=None):
+    """
+    Save a demo document to a honey jar via knowledge service API.
+    Uses the HoneyJarService to upload documents to the knowledge service.
+    """
     try:
-        # Find the honey jar
-        jar = HoneyJar.query.filter_by(name=jar_name).first()
-        if not jar:
+        import requests
+
+        honey_jar_service = get_honey_jar_service()
+
+        # First, we need to find the jar ID by name via the knowledge service
+        # Query knowledge service for honey jars
+        headers = {"X-API-Key": honey_jar_service.api_key}
+        response = requests.get(
+            f"{honey_jar_service.knowledge_url}/honey-jars",
+            headers=headers,
+            timeout=10
+        )
+
+        if response.status_code != 200:
+            current_app.logger.warning(f"Could not list honey jars: {response.status_code}")
+            return False
+
+        jars = response.json()
+        jar_id = None
+
+        # Find the jar by name
+        for jar in jars:
+            if jar.get('name') == jar_name:
+                jar_id = jar.get('id')
+                break
+
+        if not jar_id:
             current_app.logger.warning(f"Honey jar '{jar_name}' not found for document {filename}")
             return False
-        
-        # Create temporary file
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
-            temp_file.write(content)
-            temp_file_path = temp_file.name
-        
-        try:
-            # Use HoneyReserve to store the document
-            honey_reserve = HoneyReserve()
-            file_id = honey_reserve.store_file(
-                user_id=1,  # Admin user
-                file_path=temp_file_path,
-                filename=filename,
-                metadata={'demo_data': True, 'jar_id': jar.id}
-            )
-            
-            # Add document record
-            document = Document(
-                filename=filename,
-                honey_jar_id=jar.id,
-                uploader_id=1,
-                file_path=f"honey_reserve/{file_id}",
-                file_size=len(content),
-                mime_type='text/plain',
-                status='approved',  # Auto-approve demo documents
-                metadata={'demo_data': True, 'file_id': file_id}
-            )
-            
-            db.session.add(document)
-            db.session.commit()
-            
+
+        # Upload the document content
+        if tags is None:
+            tags = ['demo']
+
+        success = honey_jar_service.upload_text_content(
+            jar_id=jar_id,
+            filename=filename,
+            content=content,
+            tags=tags
+        )
+
+        if success:
+            current_app.logger.info(f"Uploaded demo document: {filename} to {jar_name}")
             return True
-            
-        finally:
-            # Clean up temp file
-            if os.path.exists(temp_file_path):
-                os.unlink(temp_file_path)
-                
+        else:
+            current_app.logger.warning(f"Failed to upload demo document: {filename}")
+            return False
+
     except Exception as e:
         current_app.logger.error(f"Error saving demo document {filename}: {str(e)}")
         return False
 
 def _create_sample_reports(scenario_type):
-    """Create sample reports"""
+    """
+    Create sample reports using the correct Report model structure.
+    Reports are created with 'completed' status as demo placeholders.
+    """
     reports_created = 0
-    
+
     try:
+        # Get admin user dynamically
+        admin_id, admin_kratos_id, admin_email = get_admin_user()
+        if not admin_kratos_id:
+            current_app.logger.error("Cannot create reports: no admin user found")
+            return 0
+
+        # First, ensure we have a demo report template
+        demo_template = ReportTemplate.query.filter_by(name='demo_report').first()
+        if not demo_template:
+            demo_template = ReportTemplate(
+                id=str(uuid.uuid4()),
+                name='demo_report',
+                display_name='Demo Report',
+                description='Template for demonstration reports',
+                category='demo',
+                generator_class='DemoReportGenerator',
+                parameters={},
+                template_config={},
+                output_formats=['pdf'],
+                is_active=True
+            )
+            db.session.add(demo_template)
+            db.session.flush()
+
         report_configs = {
             'basic': [
-                {'name': 'Basic PII Scan Report', 'type': 'pii_scan'},
-                {'name': 'Security Overview Report', 'type': 'security_overview'},
-                {'name': 'Compliance Status Report', 'type': 'compliance_status'}
+                {'title': 'Basic PII Scan Report', 'description': 'Automated PII detection scan results'},
+                {'title': 'Security Overview Report', 'description': 'Security posture summary'},
+                {'title': 'Compliance Status Report', 'description': 'Current compliance status overview'}
             ],
             'comprehensive': [
-                {'name': 'Comprehensive PII Audit', 'type': 'pii_audit'},
-                {'name': 'Security Risk Assessment', 'type': 'security_assessment'},
-                {'name': 'HIPAA Compliance Report', 'type': 'hipaa_compliance'},
-                {'name': 'GDPR Compliance Report', 'type': 'gdpr_compliance'},
-                {'name': 'Financial Audit Report', 'type': 'financial_audit'}
+                {'title': 'Comprehensive PII Audit', 'description': 'Full PII audit with detailed findings'},
+                {'title': 'Security Risk Assessment', 'description': 'Enterprise security risk analysis'},
+                {'title': 'HIPAA Compliance Report', 'description': 'HIPAA compliance verification results'},
+                {'title': 'GDPR Compliance Report', 'description': 'GDPR compliance assessment'},
+                {'title': 'Financial Audit Report', 'description': 'Financial data handling audit'}
             ],
             'security': [
-                {'name': 'Security Incident Analysis', 'type': 'incident_analysis'},
-                {'name': 'Vulnerability Assessment Report', 'type': 'vulnerability_assessment'},
-                {'name': 'SOC2 Compliance Report', 'type': 'soc2_compliance'}
+                {'title': 'Security Incident Analysis', 'description': 'Analysis of security incidents'},
+                {'title': 'Vulnerability Assessment Report', 'description': 'System vulnerability scan results'},
+                {'title': 'SOC2 Compliance Report', 'description': 'SOC2 compliance verification'}
             ],
             'pii': [
-                {'name': 'PII Detection Analysis', 'type': 'pii_detection'},
-                {'name': 'Data Classification Report', 'type': 'data_classification'}
+                {'title': 'PII Detection Analysis', 'description': 'Detailed PII detection analysis'},
+                {'title': 'Data Classification Report', 'description': 'Data classification and sensitivity report'}
             ]
         }
-        
+
         configs = report_configs.get(scenario_type, report_configs['basic'])
-        
+
         for config in configs:
             try:
-                # Attempt to create actual report file (simulation)
-                file_creation_successful = False
-                failure_reason = None
-
-                try:
-                    # Simulate file creation process
-                    # In real implementation, this would create actual PDF/Excel files
-                    # For demo, we'll simulate failure based on the config
-                    if config.get('simulate_failure', True):  # Most demos fail file creation
-                        failure_reason = "DEMO DATA - FILE CREATION FAILED"
-                        file_creation_successful = False
-                    else:
-                        file_creation_successful = True
-                except Exception as file_error:
-                    failure_reason = f"File creation error: {str(file_error)}"
-                    file_creation_successful = False
-
-                # Set status based on actual file creation success
-                report_status = 'completed' if file_creation_successful else 'failed'
-                report_description = config.get('description', '')
-
-                # Add failure reason to description if needed
-                if not file_creation_successful and failure_reason:
-                    report_description = f"{report_description} [{failure_reason}]"
-
+                # Create report with correct model structure
                 report = Report(
-                    name=config['name'],
-                    report_type=config['type'],
-                    generated_by=1,  # Admin user
-                    status=report_status,  # Now reflects actual success/failure
-                    metadata={'demo_data': True, 'scenario': scenario_type, 'file_creation_attempted': True, 'file_creation_successful': file_creation_successful},
-                    results={'demo': True, 'generated_at': datetime.utcnow().isoformat(), 'file_creation_successful': file_creation_successful}
+                    id=str(uuid.uuid4()),
+                    template_id=demo_template.id,
+                    user_id=admin_kratos_id,
+                    title=config['title'],
+                    description=config['description'],
+                    status='completed',  # Demo reports show as completed
+                    priority='normal',
+                    progress_percentage=100,
+                    output_format='pdf',
+                    scrambling_enabled=True,
+                    pii_detected=True if 'PII' in config['title'] else False,
+                    risk_level='low',
+                    generated_by=admin_kratos_id,
+                    access_type='user-owned',
+                    parameters={'demo_data': True, 'scenario': scenario_type},
+                    result_summary={
+                        'demo': True,
+                        'generated_at': datetime.utcnow().isoformat(),
+                        'scenario': scenario_type,
+                        'findings_count': random.randint(5, 25),
+                        'risk_items': random.randint(0, 10)
+                    },
+                    completed_at=datetime.utcnow()
                 )
-                
+
                 db.session.add(report)
                 reports_created += 1
-                
+                current_app.logger.info(f"Created demo report: {config['title']}")
+
             except Exception as e:
-                current_app.logger.error(f"Error creating report {config['name']}: {str(e)}")
-        
+                current_app.logger.error(f"Error creating report {config['title']}: {str(e)}")
+
         db.session.commit()
-        
+
     except Exception as e:
         current_app.logger.error(f"Error creating sample reports: {str(e)}")
         db.session.rollback()
-    
+
     return reports_created
 
 def _create_pii_samples(scenario_type):
@@ -636,13 +680,35 @@ def _create_custom_pii_rules():
     pass
 
 def _create_demo_nectar_bots(scenario_type):
-    """Create demo Nectar Bots based on scenario"""
+    """Create demo Nectar Bots based on scenario with proper admin ownership"""
     bots_created = 0
 
     try:
-        # Get available honey jars for bot configuration
-        honey_jars = HoneyJar.query.filter_by(is_public=True).all()
-        jar_ids = [str(jar.id) for jar in honey_jars[:3]]  # Use first 3 jars
+        # Get admin user dynamically
+        admin_id, admin_kratos_id, admin_email = get_admin_user()
+        if not admin_kratos_id:
+            current_app.logger.error("Cannot create nectar bots: no admin user found")
+            return 0
+
+        # Get available honey jars via knowledge service
+        import requests
+        honey_jar_service = get_honey_jar_service()
+        headers = {"X-API-Key": honey_jar_service.api_key}
+
+        try:
+            response = requests.get(
+                f"{honey_jar_service.knowledge_url}/honey-jars",
+                headers=headers,
+                timeout=10
+            )
+            if response.status_code == 200:
+                jars = response.json()
+                jar_ids = [jar.get('id') for jar in jars[:3] if jar.get('id')]  # Use first 3 jars
+            else:
+                jar_ids = []
+        except Exception as e:
+            current_app.logger.warning(f"Could not fetch honey jars for bot config: {e}")
+            jar_ids = []
 
         # Define bot configurations based on scenario
         if scenario_type == 'basic':
@@ -719,7 +785,7 @@ def _create_demo_nectar_bots(scenario_type):
                 }
             ]
 
-        # Create bots
+        # Create bots with proper admin ownership and demo metadata
         for config in bot_configs:
             try:
                 # Check if bot already exists
@@ -728,8 +794,8 @@ def _create_demo_nectar_bots(scenario_type):
                     bot = NectarBot(
                         name=config['name'],
                         description=config['description'],
-                        owner_id=str(uuid.uuid4()),  # Use admin user ID in real implementation
-                        owner_email='admin@sting.local',
+                        owner_id=admin_kratos_id,  # Use actual admin user
+                        owner_email=admin_email or 'admin@sting.local',
                         honey_jar_ids=jar_ids,
                         system_prompt=config['system_prompt'],
                         max_conversation_length=20,
@@ -740,10 +806,13 @@ def _create_demo_nectar_bots(scenario_type):
                         is_public=True,
                         handoff_enabled=True,
                         handoff_keywords=config['handoff_keywords'],
-                        handoff_confidence_threshold=0.6
+                        handoff_confidence_threshold=0.6,
+                        # Add demo_data flag for proper cleanup
+                        metadata={'demo_data': True, 'scenario': scenario_type}
                     )
                     db.session.add(bot)
                     bots_created += 1
+                    current_app.logger.info(f"Created demo nectar bot: {config['name']}")
             except Exception as e:
                 current_app.logger.error(f"Error creating nectar bot {config['name']}: {str(e)}")
 
@@ -756,67 +825,93 @@ def _create_demo_nectar_bots(scenario_type):
     return bots_created
 
 def _create_demo_bot_usage(scenario_type):
-    """Create demo bot usage data"""
+    """
+    Create demo bot usage data using bulk insertion for better performance.
+    """
     try:
-        # Get all demo bots
-        demo_bots = NectarBot.query.filter_by(is_public=True).all()
+        # Get demo bots (those with 'Demo' in description or standard demo names)
+        demo_bots = NectarBot.query.filter(
+            NectarBot.description.ilike('%demo%') |
+            NectarBot.name.in_([
+                'Customer Support Bot', 'FAQ Assistant', 'Documentation Helper',
+                'Enterprise Support Bot', 'Technical Documentation Bot',
+                'Security Incident Bot', 'HR Assistant Bot', 'Training Bot',
+                'General Assistant Bot'
+            ])
+        ).all()
+
+        if not demo_bots:
+            current_app.logger.warning("No demo bots found for usage data generation")
+            return
+
+        usage_count = 50 if scenario_type == 'basic' else 150
+        handoff_count = 5 if scenario_type == 'basic' else 15
+
+        # Collect all usage records for bulk insert
+        usage_records = []
+        handoff_records = []
 
         for bot in demo_bots:
-            # Create usage records for the past 30 days
-            from datetime import datetime, timedelta
-
-            usage_count = 50 if scenario_type == 'basic' else 150
-            handoff_count = 5 if scenario_type == 'basic' else 15
-
-            # Create usage records
+            # Generate usage records
             for i in range(usage_count):
-                usage = NectarBotUsage(
-                    bot_id=bot.id,
-                    conversation_id=f"conv_{random.randint(10000, 99999)}",
-                    message_id=f"msg_{random.randint(10000, 99999)}",
-                    user_id=f"user_{random.randint(100, 999)}",
-                    user_ip=f"192.168.1.{random.randint(1, 254)}",
-                    user_agent="Demo User Agent",
-                    user_message=f"Demo user question {i+1}",
-                    bot_response=f"Demo bot response {i+1}",
-                    confidence_score=random.uniform(0.5, 0.95),
-                    response_time_ms=random.randint(200, 2000),
-                    honey_jars_queried=bot.honey_jar_ids[:2],
-                    knowledge_matches=random.randint(1, 5),
-                    rate_limit_hit=False,
-                    created_at=datetime.utcnow() - timedelta(days=random.randint(1, 30))
-                )
-                db.session.add(usage)
+                created_at = datetime.utcnow() - timedelta(days=random.randint(1, 30))
+                usage_records.append({
+                    'bot_id': bot.id,
+                    'conversation_id': f"demo_conv_{bot.id}_{random.randint(10000, 99999)}",
+                    'message_id': f"demo_msg_{random.randint(10000, 99999)}",
+                    'user_id': f"demo_user_{random.randint(100, 999)}",
+                    'user_ip': f"192.168.1.{random.randint(1, 254)}",
+                    'user_agent': "Demo User Agent",
+                    'user_message': f"Demo user question {i+1}",
+                    'bot_response': f"Demo bot response {i+1}",
+                    'confidence_score': random.uniform(0.5, 0.95),
+                    'response_time_ms': random.randint(200, 2000),
+                    'honey_jars_queried': bot.honey_jar_ids[:2] if bot.honey_jar_ids else [],
+                    'knowledge_matches': random.randint(1, 5),
+                    'rate_limit_hit': False,
+                    'created_at': created_at
+                })
 
-            # Create handoff records
+            # Generate handoff records
             for i in range(handoff_count):
-                handoff = NectarBotHandoff(
-                    bot_id=bot.id,
-                    conversation_id=f"conv_{random.randint(10000, 99999)}",
-                    user_id=f"user_{random.randint(100, 999)}",
-                    user_info={'name': f'Demo User {i+1}', 'email': f'user{i+1}@demo.local'},
-                    reason='low_confidence' if random.random() > 0.5 else 'keyword_detected',
-                    urgency=random.choice([HandoffUrgency.LOW.value, HandoffUrgency.MEDIUM.value, HandoffUrgency.HIGH.value]),
-                    status=HandoffStatus.RESOLVED.value if random.random() > 0.3 else HandoffStatus.PENDING.value,
-                    conversation_history=[
-                        {'user': f'Demo question {i+1}', 'bot': f'Demo response {i+1}'}
-                    ],
-                    honey_jars_used=bot.honey_jar_ids[:1],
-                    trigger_message=f"Demo trigger message {i+1}",
-                    bot_response=f"Demo bot response {i+1}",
-                    confidence_score=random.uniform(0.3, 0.6),
-                    created_at=datetime.utcnow() - timedelta(days=random.randint(1, 30))
-                )
+                created_at = datetime.utcnow() - timedelta(days=random.randint(1, 30))
+                is_resolved = random.random() > 0.3
+                resolved_at = created_at + timedelta(hours=random.randint(1, 24)) if is_resolved else None
 
-                if handoff.status == HandoffStatus.RESOLVED.value:
-                    handoff.resolved_at = handoff.created_at + timedelta(hours=random.randint(1, 24))
-                    handoff.resolution_notes = f"Demo resolution notes {i+1}"
-                    handoff.calculate_resolution_time()
+                handoff_records.append({
+                    'bot_id': bot.id,
+                    'conversation_id': f"demo_handoff_{bot.id}_{random.randint(10000, 99999)}",
+                    'user_id': f"demo_user_{random.randint(100, 999)}",
+                    'user_info': {'name': f'Demo User {i+1}', 'email': f'user{i+1}@demo.local', 'demo_data': True},
+                    'reason': 'low_confidence' if random.random() > 0.5 else 'keyword_detected',
+                    'urgency': random.choice([HandoffUrgency.LOW.value, HandoffUrgency.MEDIUM.value, HandoffUrgency.HIGH.value]),
+                    'status': HandoffStatus.RESOLVED.value if is_resolved else HandoffStatus.PENDING.value,
+                    'conversation_history': [{'user': f'Demo question {i+1}', 'bot': f'Demo response {i+1}'}],
+                    'honey_jars_used': bot.honey_jar_ids[:1] if bot.honey_jar_ids else [],
+                    'trigger_message': f"Demo trigger message {i+1}",
+                    'bot_response': f"Demo bot response {i+1}",
+                    'confidence_score': random.uniform(0.3, 0.6),
+                    'created_at': created_at,
+                    'resolved_at': resolved_at,
+                    'resolution_notes': f"Demo resolution notes {i+1}" if is_resolved else None
+                })
 
-                db.session.add(handoff)
+        # Bulk insert usage records
+        if usage_records:
+            db.session.bulk_insert_mappings(NectarBotUsage, usage_records)
+            current_app.logger.info(f"Bulk inserted {len(usage_records)} usage records")
 
-            # Update bot statistics
-            bot.update_stats()
+        # Bulk insert handoff records
+        if handoff_records:
+            db.session.bulk_insert_mappings(NectarBotHandoff, handoff_records)
+            current_app.logger.info(f"Bulk inserted {len(handoff_records)} handoff records")
+
+        # Update bot statistics
+        for bot in demo_bots:
+            try:
+                bot.update_stats()
+            except Exception as e:
+                current_app.logger.warning(f"Could not update stats for bot {bot.name}: {e}")
 
         db.session.commit()
         current_app.logger.info(f"Created demo bot usage data for {scenario_type} scenario")
@@ -832,50 +927,45 @@ def _finalize_demo_setup(scenario_type):
     pass
 
 def _create_bot_knowledge_honey_jars():
-    """Create honey jars optimized for bot knowledge bases"""
+    """Create honey jars optimized for bot knowledge bases via knowledge service API"""
     bot_jars = [
-        {'name': 'Customer Support Knowledge Base', 'description': 'FAQs, troubleshooting guides, and customer service procedures', 'category': 'Support'},
-        {'name': 'Product Documentation Hub', 'description': 'User manuals, feature guides, and product specifications', 'category': 'Documentation'},
-        {'name': 'Technical Support Library', 'description': 'API docs, integration guides, and technical troubleshooting', 'category': 'Technical'},
-        {'name': 'Company Policy Center', 'description': 'HR policies, procedures, and employee handbook information', 'category': 'Policies'},
-        {'name': 'Training Materials Archive', 'description': 'Training guides, tutorials, and educational content', 'category': 'Training'}
+        {'name': 'Customer Support Knowledge Base', 'description': 'FAQs, troubleshooting guides, and customer service procedures', 'tags': ['support', 'faq', 'demo', 'bot-knowledge']},
+        {'name': 'Product Documentation Hub', 'description': 'User manuals, feature guides, and product specifications', 'tags': ['documentation', 'product', 'demo', 'bot-knowledge']},
+        {'name': 'Technical Support Library', 'description': 'API docs, integration guides, and technical troubleshooting', 'tags': ['technical', 'api', 'demo', 'bot-knowledge']},
+        {'name': 'Company Policy Center', 'description': 'HR policies, procedures, and employee handbook information', 'tags': ['policies', 'hr', 'demo', 'bot-knowledge']},
+        {'name': 'Training Materials Archive', 'description': 'Training guides, tutorials, and educational content', 'tags': ['training', 'education', 'demo', 'bot-knowledge']}
     ]
 
     created = 0
+    honey_jar_service = get_honey_jar_service()
+
     for jar_config in bot_jars:
         try:
-            existing = HoneyJar.query.filter_by(name=jar_config['name']).first()
-            if not existing:
-                jar = HoneyJar(
-                    name=jar_config['name'],
-                    description=jar_config['description'],
-                    owner_id=1,
-                    is_public=True,
-                    metadata={'category': jar_config['category'], 'demo_data': True, 'scenario': 'nectar-bot', 'optimized_for_bots': True}
-                )
-                db.session.add(jar)
+            jar_id = honey_jar_service.create_honey_jar(
+                name=jar_config['name'],
+                description=jar_config['description'],
+                jar_type='public',
+                tags=jar_config['tags']
+            )
+            if jar_id:
                 created += 1
+                current_app.logger.info(f"Created bot knowledge honey jar: {jar_config['name']} (ID: {jar_id})")
         except Exception as e:
             current_app.logger.error(f"Error creating bot knowledge honey jar {jar_config['name']}: {str(e)}")
-
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error committing bot knowledge honey jars: {str(e)}")
 
     return created
 
 def _create_bot_training_documents():
-    """Create documents specifically for training nectar bots"""
+    """Create documents specifically for training nectar bots via knowledge service API"""
     documents_created = 0
 
     try:
-        # Bot training content
+        # Bot training content with tags
         training_docs = [
             {
                 'jar': 'Customer Support Knowledge Base',
                 'filename': 'customer_service_faqs.txt',
+                'tags': ['support', 'faq', 'demo', 'bot-training'],
                 'content': '''CUSTOMER SERVICE FREQUENTLY ASKED QUESTIONS
 
 Q: How do I reset my password?
@@ -899,6 +989,7 @@ ESCALATION KEYWORDS: refund, billing issue, technical problem, urgent, superviso
             {
                 'jar': 'Product Documentation Hub',
                 'filename': 'getting_started_guide.txt',
+                'tags': ['documentation', 'getting-started', 'demo', 'bot-training'],
                 'content': '''GETTING STARTED GUIDE
 
 Welcome to our platform! This guide will help you get started quickly.
@@ -927,6 +1018,7 @@ For technical assistance, contact our support team.
             {
                 'jar': 'Technical Support Library',
                 'filename': 'api_documentation.txt',
+                'tags': ['technical', 'api', 'demo', 'bot-training'],
                 'content': '''API DOCUMENTATION
 
 AUTHENTICATION:
@@ -959,6 +1051,7 @@ TROUBLESHOOTING:
             {
                 'jar': 'Company Policy Center',
                 'filename': 'employee_handbook.txt',
+                'tags': ['policies', 'hr', 'demo', 'bot-training'],
                 'content': '''EMPLOYEE HANDBOOK EXCERPTS
 
 WORK SCHEDULE:
@@ -990,8 +1083,8 @@ For HR questions, contact hr@company.com or ext. 1234
 
         for doc_config in training_docs:
             try:
-                _save_demo_document(doc_config['jar'], doc_config['filename'], doc_config['content'])
-                documents_created += 1
+                if _save_demo_document(doc_config['jar'], doc_config['filename'], doc_config['content'], doc_config['tags']):
+                    documents_created += 1
             except Exception as e:
                 current_app.logger.error(f"Error creating training document {doc_config['filename']}: {str(e)}")
 
@@ -1102,78 +1195,144 @@ def _create_demo_bot_handoffs():
 @require_auth_method(['webauthn', 'totp'])
 def clear_demo_data():
     """
-    Clear all demo data from the system
+    Clear all demo data from the system.
+    Uses proper JSONB filtering and knowledge service API for honey jars.
     """
     try:
+        import requests
         current_app.logger.info("Starting demo data cleanup")
-        
-        # Clear demo documents
-        demo_documents = Document.query.filter(
-            Document.metadata.contains({'demo_data': True})
-        ).all()
-        
-        for doc in demo_documents:
-            try:
-                # Remove from Honey Reserve if applicable
-                if 'file_id' in doc.metadata:
-                    honey_reserve = HoneyReserve()
-                    honey_reserve.delete_file(doc.metadata['file_id'])
-                
-                db.session.delete(doc)
-            except Exception as e:
-                current_app.logger.error(f"Error deleting demo document {doc.id}: {str(e)}")
-        
-        # Clear demo honey jars
-        demo_jars = HoneyJar.query.filter(
-            HoneyJar.metadata.contains({'demo_data': True})
-        ).all()
-        
-        for jar in demo_jars:
-            db.session.delete(jar)
-        
-        # Clear demo reports
-        demo_reports = Report.query.filter(
-            Report.metadata.contains({'demo_data': True})
-        ).all()
-        
-        for report in demo_reports:
-            db.session.delete(report)
-        
+
+        cleared_counts = {
+            'documents': 0,
+            'honeyJars': 0,
+            'reports': 0,
+            'users': 0,
+            'nectarBots': 0,
+            'botUsage': 0,
+            'botHandoffs': 0
+        }
+
+        # Clear demo reports using proper JSONB filter
+        try:
+            demo_reports = Report.query.filter(
+                Report.parameters.op('@>')(cast({'demo_data': True}, JSONB))
+            ).all()
+
+            for report in demo_reports:
+                db.session.delete(report)
+                cleared_counts['reports'] += 1
+        except Exception as e:
+            current_app.logger.error(f"Error clearing demo reports: {str(e)}")
+
+        # Clear demo report template
+        try:
+            demo_template = ReportTemplate.query.filter_by(name='demo_report').first()
+            if demo_template:
+                db.session.delete(demo_template)
+        except Exception as e:
+            current_app.logger.warning(f"Could not delete demo template: {e}")
+
         # Clear demo users (be careful with this)
-        demo_users = User.query.filter(
-            User.metadata.contains({'demo_data': True})
-        ).all()
+        try:
+            demo_users = User.query.filter(
+                User.metadata.op('@>')(cast({'demo_data': True}, JSONB))
+            ).all()
 
-        for user in demo_users:
-            db.session.delete(user)
+            for user in demo_users:
+                db.session.delete(user)
+                cleared_counts['users'] += 1
+        except Exception as e:
+            current_app.logger.error(f"Error clearing demo users: {str(e)}")
 
-        # Clear demo nectar bots (this will cascade to handoffs and usage)
-        demo_bots = NectarBot.query.filter_by(is_public=True).all()
-        demo_bot_count = 0
+        # Clear demo nectar bots and related data
+        # First, delete usage records for demo conversations
+        try:
+            demo_usage = NectarBotUsage.query.filter(
+                NectarBotUsage.conversation_id.like('demo_%')
+            ).all()
+            for usage in demo_usage:
+                db.session.delete(usage)
+                cleared_counts['botUsage'] += 1
+        except Exception as e:
+            current_app.logger.error(f"Error clearing demo bot usage: {str(e)}")
 
-        for bot in demo_bots:
-            # Only delete if it looks like demo data (check name patterns)
-            if any(keyword in bot.name for keyword in ['Demo', 'Customer Support Bot', 'FAQ Assistant', 'Documentation Helper', 'Enterprise Support Bot', 'Technical Documentation Bot', 'Security Incident Bot', 'HR Assistant Bot', 'Training Bot', 'General Assistant Bot']):
+        # Delete demo handoffs
+        try:
+            demo_handoffs = NectarBotHandoff.query.filter(
+                NectarBotHandoff.conversation_id.like('demo_%')
+            ).all()
+            for handoff in demo_handoffs:
+                db.session.delete(handoff)
+                cleared_counts['botHandoffs'] += 1
+        except Exception as e:
+            current_app.logger.error(f"Error clearing demo handoffs: {str(e)}")
+
+        # Delete demo bots by known names
+        demo_bot_names = [
+            'Customer Support Bot', 'FAQ Assistant', 'Documentation Helper',
+            'Enterprise Support Bot', 'Technical Documentation Bot',
+            'Security Incident Bot', 'HR Assistant Bot', 'Training Bot',
+            'General Assistant Bot'
+        ]
+
+        try:
+            demo_bots = NectarBot.query.filter(
+                NectarBot.name.in_(demo_bot_names) |
+                NectarBot.description.ilike('%demo%')
+            ).all()
+
+            for bot in demo_bots:
                 db.session.delete(bot)
-                demo_bot_count += 1
+                cleared_counts['nectarBots'] += 1
+        except Exception as e:
+            current_app.logger.error(f"Error clearing demo bots: {str(e)}")
 
-        # Commit all deletions
+        # Clear demo honey jars via knowledge service API
+        try:
+            honey_jar_service = get_honey_jar_service()
+            headers = {"X-API-Key": honey_jar_service.api_key}
+
+            response = requests.get(
+                f"{honey_jar_service.knowledge_url}/honey-jars",
+                headers=headers,
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                jars = response.json()
+                for jar in jars:
+                    # Check if jar has 'demo' tag or demo name pattern
+                    tags = jar.get('tags', [])
+                    name = jar.get('name', '')
+
+                    if 'demo' in tags or 'Demo' in name:
+                        jar_id = jar.get('id')
+                        if jar_id:
+                            delete_response = requests.delete(
+                                f"{honey_jar_service.knowledge_url}/honey-jars/{jar_id}",
+                                headers=headers,
+                                timeout=10
+                            )
+                            if delete_response.status_code in [200, 204]:
+                                cleared_counts['honeyJars'] += 1
+                                cleared_counts['documents'] += jar.get('document_count', 0)
+                                current_app.logger.info(f"Deleted demo honey jar: {name}")
+                            else:
+                                current_app.logger.warning(f"Failed to delete jar {name}: {delete_response.status_code}")
+        except Exception as e:
+            current_app.logger.error(f"Error clearing demo honey jars: {str(e)}")
+
+        # Commit all database deletions
         db.session.commit()
-        
-        current_app.logger.info("Demo data cleanup completed successfully")
-        
+
+        current_app.logger.info(f"Demo data cleanup completed: {cleared_counts}")
+
         return jsonify({
             'success': True,
             'message': 'All demo data cleared successfully',
-            'cleared': {
-                'documents': len(demo_documents),
-                'honeyJars': len(demo_jars),
-                'reports': len(demo_reports),
-                'users': len(demo_users),
-                'nectarBots': demo_bot_count
-            }
+            'cleared': cleared_counts
         })
-        
+
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Demo data cleanup error: {str(e)}")
@@ -1186,45 +1345,98 @@ def clear_demo_data():
 @require_admin
 def get_demo_status():
     """
-    Get current demo data status and counts
+    Get current demo data status and counts.
+    Uses proper JSONB filtering and knowledge service API.
     """
     try:
-        # Count demo data
-        demo_documents = Document.query.filter(
-            Document.metadata.contains({'demo_data': True})
-        ).count()
-        
-        demo_jars = HoneyJar.query.filter(
-            HoneyJar.metadata.contains({'demo_data': True})
-        ).count()
-        
-        demo_reports = Report.query.filter(
-            Report.metadata.contains({'demo_data': True})
-        ).count()
-        
-        demo_users = User.query.filter(
-            User.metadata.contains({'demo_data': True})
-        ).count()
+        import requests
+        counts = {
+            'documents': 0,
+            'honeyJars': 0,
+            'reports': 0,
+            'users': 0,
+            'nectarBots': 0,
+            'botUsage': 0,
+            'botHandoffs': 0
+        }
 
-        # Count demo nectar bots (approximate by checking public bots with common demo names)
-        demo_bots_count = NectarBot.query.filter_by(is_public=True).filter(
-            NectarBot.name.contains('Bot') |
-            NectarBot.name.contains('Assistant') |
-            NectarBot.name.contains('Support')
-        ).count()
+        # Count demo reports using proper JSONB filter
+        try:
+            counts['reports'] = Report.query.filter(
+                Report.parameters.op('@>')(cast({'demo_data': True}, JSONB))
+            ).count()
+        except Exception as e:
+            current_app.logger.warning(f"Could not count demo reports: {e}")
+
+        # Count demo users
+        try:
+            counts['users'] = User.query.filter(
+                User.metadata.op('@>')(cast({'demo_data': True}, JSONB))
+            ).count()
+        except Exception as e:
+            current_app.logger.warning(f"Could not count demo users: {e}")
+
+        # Count demo nectar bots
+        demo_bot_names = [
+            'Customer Support Bot', 'FAQ Assistant', 'Documentation Helper',
+            'Enterprise Support Bot', 'Technical Documentation Bot',
+            'Security Incident Bot', 'HR Assistant Bot', 'Training Bot',
+            'General Assistant Bot'
+        ]
+        try:
+            counts['nectarBots'] = NectarBot.query.filter(
+                NectarBot.name.in_(demo_bot_names) |
+                NectarBot.description.ilike('%demo%')
+            ).count()
+        except Exception as e:
+            current_app.logger.warning(f"Could not count demo bots: {e}")
+
+        # Count demo bot usage
+        try:
+            counts['botUsage'] = NectarBotUsage.query.filter(
+                NectarBotUsage.conversation_id.like('demo_%')
+            ).count()
+        except Exception as e:
+            current_app.logger.warning(f"Could not count demo bot usage: {e}")
+
+        # Count demo handoffs
+        try:
+            counts['botHandoffs'] = NectarBotHandoff.query.filter(
+                NectarBotHandoff.conversation_id.like('demo_%')
+            ).count()
+        except Exception as e:
+            current_app.logger.warning(f"Could not count demo handoffs: {e}")
+
+        # Count demo honey jars via knowledge service
+        try:
+            honey_jar_service = get_honey_jar_service()
+            headers = {"X-API-Key": honey_jar_service.api_key}
+
+            response = requests.get(
+                f"{honey_jar_service.knowledge_url}/honey-jars",
+                headers=headers,
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                jars = response.json()
+                for jar in jars:
+                    tags = jar.get('tags', [])
+                    name = jar.get('name', '')
+                    if 'demo' in tags or 'Demo' in name:
+                        counts['honeyJars'] += 1
+                        counts['documents'] += jar.get('document_count', 0)
+        except Exception as e:
+            current_app.logger.warning(f"Could not count demo honey jars: {e}")
+
+        has_demo_data = any(counts.values())
 
         return jsonify({
             'success': True,
-            'demo_data': {
-                'documents': demo_documents,
-                'honeyJars': demo_jars,
-                'reports': demo_reports,
-                'users': demo_users,
-                'nectarBots': demo_bots_count
-            },
-            'has_demo_data': any([demo_documents, demo_jars, demo_reports, demo_users, demo_bots_count])
+            'demo_data': counts,
+            'has_demo_data': has_demo_data
         })
-        
+
     except Exception as e:
         current_app.logger.error(f"Demo status error: {str(e)}")
         return jsonify({

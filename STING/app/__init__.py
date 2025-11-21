@@ -864,6 +864,15 @@ def create_app(config=None):
         except Exception as e:
             logger.error(f"❌ Failed to register preferences routes: {str(e)}")
             logger.info("Database-backed preferences features will be unavailable")
+
+        # QE Bee (Quality Engineering Bee) Review Agent Routes
+        try:
+            from app.routes.qe_bee_routes import qe_bee_bp
+            flask_app.register_blueprint(qe_bee_bp)
+            logger.info("🐝 QE Bee review agent blueprint registered successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to register QE Bee routes: {str(e)}")
+            logger.info("QE Bee review agent features will be unavailable")
     except Exception as e:
         logger.error(f"Failed to register blueprints: {str(e)}")
         raise

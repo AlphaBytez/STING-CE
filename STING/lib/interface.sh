@@ -700,11 +700,38 @@ main() {
             # Replace arguments with filtered list
             set -- "${new_args[@]}"
 
-            # Set PROJECT_DIR to the current working directory (where user runs the command)
-            # This ensures we sync FROM the project directory TO the install directory
-            PROJECT_DIR="$(pwd)"
-            log_message_verbose "🔍 Debug: PROJECT_DIR set to: $PROJECT_DIR" "INFO"
-            
+            # Determine PROJECT_DIR (source of code changes) vs INSTALL_DIR (running system)
+            # Priority: 1) Explicit PROJECT_DIR env var (if different from INSTALL_DIR)
+            #           2) SOURCE_DIR (where script lives, if different from INSTALL_DIR)
+            #           3) Current working directory (if different from INSTALL_DIR)
+            #           4) Error - cannot update from install directory
+            local current_dir="$(pwd)"
+
+            if [ -n "${PROJECT_DIR:-}" ] && [ "$PROJECT_DIR" != "$INSTALL_DIR" ]; then
+                # Use explicitly set PROJECT_DIR if it's not the install directory
+                log_message_verbose "🔍 Debug: Using explicit PROJECT_DIR: $PROJECT_DIR" "INFO"
+            elif [ "${SOURCE_DIR:-}" != "$INSTALL_DIR" ] && [ -d "${SOURCE_DIR:-}/app" ]; then
+                # Use SOURCE_DIR (where the script was invoked from) if it's a valid project dir
+                PROJECT_DIR="$SOURCE_DIR"
+                log_message_verbose "🔍 Debug: Using SOURCE_DIR as PROJECT_DIR: $PROJECT_DIR" "INFO"
+            elif [ "$current_dir" != "$INSTALL_DIR" ] && [ -d "$current_dir/app" ]; then
+                # Use current directory if it looks like a project directory
+                PROJECT_DIR="$current_dir"
+                log_message_verbose "🔍 Debug: Using current dir as PROJECT_DIR: $PROJECT_DIR" "INFO"
+            else
+                # Running from install dir without a source - cannot sync to itself
+                log_message "❌ Cannot update: Running from install directory ($INSTALL_DIR)" "ERROR"
+                log_message "   Updates require syncing from a PROJECT directory to the INSTALL directory." "ERROR"
+                log_message "" "INFO"
+                log_message "   Options:" "INFO"
+                log_message "   1. Run from project directory: cd /path/to/STING-CE/STING && ./manage_sting.sh update app" "INFO"
+                log_message "   2. Set PROJECT_DIR explicitly: PROJECT_DIR=/path/to/STING-CE/STING msting update app" "INFO"
+                log_message "   3. Use --force to rebuild without syncing (keeps existing code): msting update app --force" "INFO"
+                return 1
+            fi
+
+            log_message_verbose "🔍 Debug: PROJECT_DIR=$PROJECT_DIR, INSTALL_DIR=$INSTALL_DIR" "INFO"
+
             # Load file operations module for config checking and syncing
             load_required_module "file_operations"
             

@@ -273,33 +273,38 @@ class ReportService:
             return None
     
     def complete_job(self, report_id: str, result_file_id: str, result_summary: Dict[str, Any] = None) -> bool:
-        """Mark job as completed"""
+        """Mark job as completed and queue for QE Bee review"""
         try:
             with get_db_session() as session:
                 report = get_report_by_id(session, report_id)
                 if not report:
                     logger.error(f"Report {report_id} not found for completion")
                     return False
-                
+
                 # Update report
                 report.status = 'completed'
                 report.completed_at = datetime.utcnow()
                 report.progress_percentage = 100
                 report.result_file_id = result_file_id
                 report.result_summary = result_summary
-                
+
                 # Get file size if available
                 if result_file_id:
                     file_metadata = self.file_service.get_file_metadata(result_file_id, report.user_id)
                     if file_metadata:
                         report.result_size_bytes = file_metadata.get('file_size', 0)
-                
+
+                user_id = report.user_id
                 session.commit()
-            
+
             # Remove from processing queue
             self.redis_client.hdel(self.processing_queue, report_id)
-            
+
             logger.info(f"Completed report {report_id}")
+
+            # Queue for QE Bee review (output validation)
+            self._queue_for_qe_bee_review(report_id, user_id)
+
             return True
             
         except Exception as e:
@@ -570,21 +575,65 @@ class ReportService:
                 'error': f'Failed to create report: {str(e)}'
             }
 
+    def _queue_for_qe_bee_review(self, report_id: str, user_id: str) -> Optional[str]:
+        """
+        Queue a completed report for QE Bee review.
+
+        This ensures all generated outputs are validated for:
+        - Incomplete PII deserialization
+        - Output quality/completeness
+        - Format validation
+
+        Args:
+            report_id: ID of the completed report
+            user_id: ID of the report owner
+
+        Returns:
+            Review queue ID if successful, None otherwise
+        """
+        try:
+            from app.services.review_service import get_review_service
+
+            review_service = get_review_service()
+            review_id = review_service.queue_review(
+                target_type='report',
+                target_id=report_id,
+                review_type='output_validation',
+                priority=5,  # Normal priority
+                user_id=user_id,
+                webhook_url=None  # Will use user's configured webhooks if any
+            )
+
+            if review_id:
+                logger.info(f"🐝 Queued report {report_id[:8]}... for QE Bee review")
+            else:
+                logger.warning(f"Failed to queue report {report_id} for QE Bee review")
+
+            return review_id
+
+        except ImportError:
+            logger.debug("QE Bee review service not available - skipping review queue")
+            return None
+        except Exception as e:
+            # Don't fail the report completion if QE Bee queueing fails
+            logger.warning(f"Failed to queue report for QE Bee review: {e}")
+            return None
+
     def health_check(self) -> bool:
         """Check if report service is healthy"""
         try:
             # Test Redis connection
             self.redis_client.ping()
-            
+
             # Test database connection
             with get_db_session() as session:
                 session.query(Report).limit(1).all()
-            
+
             # Test HiveScrambler
             test_result = self.scrambler.detect_pii("test@example.com")
-            
+
             return True
-            
+
         except Exception as e:
             logger.error(f"Report service health check failed: {e}")
             return False

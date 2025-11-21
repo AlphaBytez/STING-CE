@@ -263,6 +263,24 @@ ai:
     description: "Bee Enhanced Entity - Your AI Security Assistant"
     personality: "helpful"
 
+  # QE Bee (Quality Engineering Bee) - Output Validation Agent
+  qe_bee:
+    enabled: "${QE_BEE_ENABLED:-true}"
+    # Model for quality reviews (fast model recommended: phi4, llama3.2, etc.)
+    model: "${QE_BEE_MODEL:-phi4}"
+    # Enable LLM-powered quality checks (can be disabled for faster reviews)
+    llm_enabled: "${QE_BEE_LLM_ENABLED:-true}"
+    # Review timeout in seconds
+    timeout: "${QE_BEE_TIMEOUT:-30}"
+    # Poll interval for new reviews in seconds
+    poll_interval: "${QE_BEE_POLL_INTERVAL:-5}"
+    # Webhook notifications
+    webhooks:
+      # Enable webhook notifications on review completion
+      enabled: "${QE_BEE_WEBHOOKS_ENABLED:-true}"
+      # Maximum webhooks per user (CE edition)
+      max_per_user: 5
+
 # Feature Flags
 features:
   passwordless: true

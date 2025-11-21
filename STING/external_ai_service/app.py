@@ -987,67 +987,222 @@ async def bee_chat(request: BeeChatRequest):
                 honey_jar_id=request.honey_jar_id
             )
 
-            report_prompt = f"""{enhanced_prompt}
+            # Detect report type from user's request to provide appropriate guidance
+            user_msg_lower = user_message.lower()
+
+            # Detect use case / business scenario requests
+            is_use_case_request = any(kw in user_msg_lower for kw in [
+                'use case', 'use-case', 'usecase', 'how can', 'how would', 'how could',
+                'business scenario', 'real world', 'real-world', 'practical example',
+                'application', 'implement', 'deploy', 'leverage', 'utilize'
+            ])
+
+            # Detect comparison/evaluation requests
+            is_comparison_request = any(kw in user_msg_lower for kw in [
+                'compare', 'versus', 'vs', 'difference', 'better', 'pros and cons',
+                'advantages', 'disadvantages', 'alternative'
+            ])
+
+            # Detect summary/overview requests
+            is_summary_request = any(kw in user_msg_lower for kw in [
+                'summary', 'overview', 'summarize', 'brief', 'quick', 'tldr', 'highlights'
+            ])
+
+            # Build appropriate report prompt based on request type
+            if is_use_case_request:
+                report_prompt = f"""{enhanced_prompt}
+
+You are generating a **business use case and practical applications report**. Create original, realistic business scenarios that demonstrate practical value.
+
+GUIDELINES:
+
+1. **Be honest about metrics** - Avoid inventing specific percentages or dollar figures. Use qualitative descriptions ("significantly reduces", "streamlines") or realistic ranges ("could reduce from hours to minutes"). Only cite specific numbers if from documentation.
+
+2. **Make each industry unique** - Different companies, personas, workflows, and challenges for each section.
+
+3. **Cover these 5 industries** with detailed scenarios:
+   - Healthcare (hospitals, clinics, research)
+   - Financial Services (banks, investment firms, insurance)
+   - Legal (law firms, corporate legal)
+   - Manufacturing/Engineering (factories, R&D)
+   - Technology/Startups (software, SaaS, consulting)
+
+4. **Be specific and vivid** - Include realistic company sizes, actual job titles, concrete daily tasks, and specific pain points. Paint a picture the reader can relate to.
+
+5. **Ground in actual platform capabilities**:
+   - Honey Jars (secure knowledge repositories)
+   - Bee AI assistant for intelligent document Q&A
+   - PII detection and automatic protection
+   - End-to-end encryption
+   - Multi-factor authentication (passkeys, TOTP)
+   - Comprehensive audit logging
+
+Feel free to be creative with scenarios while staying grounded in what the platform actually does.
+
+REQUIRED STRUCTURE:
+
+## Executive Summary
+2-3 paragraphs: What problems does this solve? Who benefits most? Why does it matter?
+
+## Industry Use Cases
+
+### Healthcare
+**The Challenge**: What specific problems do healthcare organizations face with document management and security?
+**The Solution**: How does STING address these? Be specific about which features help.
+**Who Uses It**: Describe 2-3 different user personas and their daily workflows.
+**Real-World Scenario**: Walk through a specific situation (e.g., preparing for a compliance audit).
+
+### Financial Services
+[Same structure - completely different content]
+
+### Legal
+[Same structure - completely different content]
+
+### Manufacturing & Engineering
+[Same structure - completely different content]
+
+### Technology & Startups
+[Same structure - completely different content]
+
+## Cross-Industry Value
+What benefits apply regardless of industry? Focus on universal challenges like:
+- Secure collaboration with external partners
+- Protecting sensitive information from breaches
+- Meeting compliance requirements
+- Reducing time spent searching for information
+
+## Implementation Considerations
+Practical guidance for organizations evaluating adoption:
+- What to consider before deployment
+- How to approach a pilot program
+- Key success factors
+
+DO NOT fabricate statistics. DO NOT repeat content. Make each section substantive and unique.
+
+Begin the report now.
+"""
+            elif is_comparison_request:
+                report_prompt = f"""{enhanced_prompt}
+
+You are generating a **comparison and evaluation report**. Provide objective, balanced analysis.
+
+REQUIRED STRUCTURE:
+
+## Executive Summary
+Key comparison findings and recommendations (2-3 paragraphs).
+
+## Detailed Comparison
+
+### Feature-by-Feature Analysis
+Create a comprehensive comparison covering capabilities, limitations, and trade-offs.
+
+### Strengths
+What does each option do well? Be specific with examples.
+
+### Limitations
+What are the weaknesses or gaps? Be honest and balanced.
+
+### Best Fit Scenarios
+When would you choose each option? What use cases favor each?
+
+## Decision Framework
+Help the reader decide which option fits their specific needs.
+
+## Recommendations
+Clear, actionable recommendations based on different user scenarios.
+
+IMPORTANT: Be balanced and objective. Acknowledge trade-offs. Don't oversell or undersell.
+
+Begin the report now.
+"""
+            elif is_summary_request:
+                report_prompt = f"""{enhanced_prompt}
+
+You are generating a **concise executive summary report**. Focus on clarity and actionable insights.
+
+REQUIRED STRUCTURE:
+
+## Executive Summary
+The most important points in 3-4 paragraphs. What does a busy executive need to know?
+
+## Key Highlights
+Bulleted list of the 5-7 most critical points.
+
+## Quick Reference
+- **What it is**: One-sentence description
+- **Key benefits**: Top 3 benefits
+- **Best for**: Who should use this
+- **Getting started**: First step to take
+
+## Detailed Breakdown
+Expand on each key area with specifics, but keep it focused and scannable.
+
+## Action Items
+What should the reader do next? Be specific and prioritized.
+
+IMPORTANT: Respect the reader's time. Be concise but complete. Lead with the most important information.
+
+Begin the report now.
+"""
+            else:
+                # Default comprehensive technical report
+                report_prompt = f"""{enhanced_prompt}
 
 You are generating a professional enterprise report. This MUST be a comprehensive, detailed document.
 
-CRITICAL REQUIREMENTS - YOU MUST FOLLOW THESE:
-1. Minimum length: 3500-5000 words (approximately 4500-7000 tokens)
+CRITICAL REQUIREMENTS:
+1. Minimum length: 3500-5000 words
 2. Each major section MUST contain 4-6 substantial paragraphs with specific details
-3. DO NOT use LaTeX notation like \\boxed{{}} - write in plain professional prose
-4. DO NOT stop until you have thoroughly covered all sections with extensive detail
-5. Provide concrete examples, data points, and technical specifics throughout
+3. DO NOT use LaTeX notation - write in plain professional prose
+4. Provide concrete examples and practical applications throughout
+5. **SYNTHESIZE information** - don't just summarize, provide insights and actionable guidance
 
-REQUIRED STRUCTURE (follow this exactly):
+REQUIRED STRUCTURE:
 
-1. **Executive Summary** (400-600 words)
-   Write 4-5 detailed paragraphs covering:
-   - Comprehensive overview of the analysis scope and methodology
-   - All key findings with specific metrics and observations
-   - Critical implications and business impact
-   - High-level recommendations summary
+## Executive Summary (400-600 words)
+- Comprehensive overview of the analysis
+- Key findings with specific observations
+- Critical implications and business impact
+- High-level recommendations
 
-2. **Detailed Analysis** (1500-2000 words minimum)
-   Write 6-8 comprehensive paragraphs covering:
-   - In-depth technical examination with specific architecture details
-   - Multiple data points, configurations, and system behaviors
-   - Security analysis with threat models and mitigation details
-   - Performance characteristics and scalability considerations
-   - Integration points and API specifications
-   - Detailed technical workflows and data flows
+## Detailed Analysis (1500-2000 words)
+- In-depth examination with specific details
+- Practical applications and real-world scenarios
+- Security and compliance considerations
+- Performance and scalability insights
+- Integration possibilities
 
-3. **Recommendations** (800-1200 words)
-   Write 5-7 detailed paragraphs covering:
-   - Specific, actionable next steps with implementation details
-   - Best practices with concrete examples
-   - Risk mitigation strategies with prioritization
-   - Resource requirements and timelines
-   - Success metrics and monitoring approaches
+## Recommendations (800-1200 words)
+- Specific, actionable next steps
+- Best practices with concrete examples
+- Implementation guidance
+- Success metrics
 
-4. **Conclusion** (400-600 words)
-   Write 4-5 paragraphs covering:
-   - Comprehensive summary of all key findings
-   - Strategic implications for the organization
-   - Future roadmap and evolution considerations
-   - Final recommendations prioritized by impact
+## Conclusion (400-600 words)
+- Summary of key findings
+- Strategic implications
+- Future considerations
+- Prioritized action items
 
-FORMATTING RULES:
-- Use markdown headers (##) for sections
-- Write in clear, professional business prose
-- Include specific technical details and examples
-- Avoid brevity - elaborate thoroughly on each point
-- NO mathematical notation or LaTeX formatting
-- Maintain professional enterprise report tone throughout
+FORMATTING: Use markdown headers (##). Write in clear, professional prose. NO LaTeX formatting.
 
-Begin the report now. Remember: This must be thorough and comprehensive with substantial detail in every section.
+Begin the report now.
 """
 
+            # Log detected report type
+            report_type = "use_case" if is_use_case_request else "comparison" if is_comparison_request else "summary" if is_summary_request else "technical"
+            logger.info(f"📊 Report type detected: {report_type} (use_case={is_use_case_request}, comparison={is_comparison_request}, summary={is_summary_request})")
+
             # Prepare LLM options with higher max_tokens for comprehensive reports
+            # Use slightly higher temperature for use case reports to encourage creativity
+            base_temp = llm_config.get('temperature', 0.7)
+            report_temp = 0.8 if is_use_case_request else base_temp  # More creative for use cases
+
             report_llm_options = {
                 'num_predict': llm_config.get('report_max_tokens', 8192),  # Higher limit for detailed reports
-                'temperature': llm_config.get('temperature', 0.7),
+                'temperature': report_temp,
             }
-            logger.info(f"🔍 Report generation: num_predict={report_llm_options['num_predict']}, model={model_name}")
+            logger.info(f"🔍 Report generation: num_predict={report_llm_options['num_predict']}, model={model_name}, type={report_type}")
 
             result = await ollama_client.generate(model_name, report_prompt, report_llm_options)
 
@@ -1830,18 +1985,22 @@ async def startup_event():
     # Start queue worker
     worker_task = asyncio.create_task(process_queue_worker())
 
-    # ChromaDB semantic search - auto-index in background with batching
+    # ChromaDB semantic search - start auto-indexer for brain files
     if bee_context_manager.knowledge_indexer and bee_context_manager.knowledge_indexer.enabled:
         try:
             stats = bee_context_manager.knowledge_indexer.get_stats()
             doc_count = stats.get('document_count', 0)
             logger.info(f"📊 ChromaDB status: {doc_count} document chunks indexed")
 
-            # Disabled auto-indexing for testing - use POST /admin/index-knowledge to index manually
-            if doc_count == 0:
-                logger.warning("📚 ChromaDB not indexed. Use POST /admin/index-knowledge to index manually.")
-            else:
-                logger.info(f"✅ ChromaDB already contains {doc_count} documents, semantic search enabled")
+            # Start the brain auto-indexer (watches for brain file changes)
+            try:
+                from knowledge_indexer import start_auto_indexer
+                await start_auto_indexer()
+                logger.info("🔄 Brain auto-indexer started (will detect brain file changes)")
+            except Exception as auto_idx_err:
+                logger.warning(f"Failed to start brain auto-indexer: {auto_idx_err}")
+                if doc_count == 0:
+                    logger.warning("📚 ChromaDB not indexed. Use POST /admin/index-knowledge to index manually.")
         except Exception as e:
             logger.warning(f"ChromaDB check failed: {e}. Using keyword fallback.")
 

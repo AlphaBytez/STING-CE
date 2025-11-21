@@ -1,0 +1,29 @@
+# QE Bee (Quality Engineering Bee) Worker Dockerfile
+# Lightweight review agent that validates outputs before delivery
+
+FROM python:3.12-slim
+
+# Install minimal dependencies
+RUN pip install requests urllib3
+
+# Create worker directory
+WORKDIR /opt/worker
+
+# Copy only the QE Bee worker script
+COPY app/workers/qe_bee_worker.py .
+
+# Set environment
+ENV PYTHONPATH=/opt/worker
+ENV APP_SERVICE_URL=https://app:5050
+ENV LLM_SERVICE_URL=http://external-ai:8091
+ENV QE_BEE_LLM_ENABLED=true
+ENV QE_BEE_MODEL=phi4
+ENV QE_BEE_TIMEOUT=30
+ENV QE_BEE_POLL_INTERVAL=5
+
+# Health check - lightweight version
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
+    CMD python3 -c "from qe_bee_worker import health_check_main; health_check_main()"
+
+# Run the QE Bee worker
+CMD ["python3", "qe_bee_worker.py"]
