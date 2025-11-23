@@ -821,14 +821,6 @@ def create_app(config=None):
             logger.warning(f"Storage blueprint registration failed: {e}")
             logger.info("Storage management features will be unavailable")
         
-        # Register MVP dashboard routes
-        try:
-            from app.routes.mvp_routes import mvp_bp
-            flask_app.register_blueprint(mvp_bp)
-            logger.info("🚀 MVP dashboard blueprint registered successfully")
-        except Exception as e:
-            logger.warning(f"MVP blueprint registration failed: {e}")
-            logger.info("MVP features will be unavailable")
         
         # Register Email notification routes
         try:

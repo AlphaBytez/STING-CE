@@ -306,35 +306,6 @@ const CredentialValidator = () => {
         </button>
       </div>
 
-      {/* AAL2 Status Display */}
-      <div className="p-4 sting-glass-subtle rounded-lg border border-gray-600/50">
-        <h4 className="text-md font-semibold text-white mb-3">🛡️ AAL2 Status</h4>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <span className="text-gray-400">Current AAL:</span>
-            <span className={`ml-2 font-bold ${userAAL === 'aal2' ? 'text-green-300' : 'text-yellow-300'}`}>
-              {userAAL.toUpperCase()}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-400">Admin Access:</span>
-            <span className={`ml-2 font-bold ${userAAL === 'aal2' ? 'text-green-300' : 'text-red-300'}`}>
-              {userAAL === 'aal2' ? 'GRANTED' : 'LIMITED'}
-            </span>
-          </div>
-        </div>
-        {userAAL === 'aal2' && (
-          <div className="mt-3 p-2 bg-green-500/20 rounded text-green-200 text-xs">
-            ✅ Enhanced security active - You have full admin access to all sensitive functions.
-          </div>
-        )}
-        {userAAL === 'aal1' && (
-          <div className="mt-3 p-2 bg-yellow-500/20 rounded text-yellow-200 text-xs">
-            ⚠️ Basic security only - Complete verification above to access sensitive admin functions.
-          </div>
-        )}
-      </div>
-
       {/* Development Tools */}
       {process.env.NODE_ENV === 'development' && (
         <div className="mt-4 p-3 bg-purple-500/20 rounded text-purple-200 text-xs">

@@ -65,7 +65,8 @@ class ReportWorker:
             'encryption_status_report': EncryptionStatusReportGenerator,
             'storage_utilization_report': StorageUtilizationReportGenerator,
             'healthcare_compliance_report': HealthcareComplianceGenerator,
-            'bee_conversational_report': BeeConversationalReportGenerator
+            'bee_conversational_report': BeeConversationalReportGenerator,
+            'demo_report': DocumentProcessingReportGenerator
         }
         
         logger.info(f"Report worker {self.worker_id} initialized")

@@ -8,7 +8,7 @@ import os
 import random
 import tempfile
 from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, g
 from werkzeug.utils import secure_filename
 from app.middleware.auth_middleware import require_admin
 from app.utils.decorators import require_auth_method
@@ -20,6 +20,7 @@ from app.models.nectar_bot_models import NectarBot, NectarBotHandoff, NectarBotU
 from app.models.report_models import Report, ReportTemplate, ReportStatus
 # Honey Jar operations via knowledge service API
 from app.services.honey_jar_service import HoneyJarService, get_honey_jar_service
+from app.services.report_service import get_report_service
 # Demo data generators
 from app.services.demo_data_generator import MedicalDemoGenerator, LegalDemoGenerator, FinancialDemoGenerator
 # PostgreSQL JSONB support
@@ -92,15 +93,20 @@ def generate_demo_data():
             'message': ''
         }
         
+        # Get current user ID if available
+        current_user_id = None
+        if hasattr(g, 'user') and g.user:
+            current_user_id = g.user.kratos_id
+            
         # Define what each step does based on scenario
         if scenario == 'basic':
-            result['generated'] = _generate_basic_demo_step(step)
+            result['generated'] = _generate_basic_demo_step(step, current_user_id)
         elif scenario == 'comprehensive':
-            result['generated'] = _generate_comprehensive_demo_step(step)
+            result['generated'] = _generate_comprehensive_demo_step(step, current_user_id)
         elif scenario == 'security-focused':
-            result['generated'] = _generate_security_demo_step(step)
+            result['generated'] = _generate_security_demo_step(step, current_user_id)
         elif scenario == 'pii-scrubbing':
-            result['generated'] = _generate_pii_demo_step(step)
+            result['generated'] = _generate_pii_demo_step(step, current_user_id)
         elif scenario == 'nectar-bot':
             result['generated'] = _generate_nectar_bot_demo_step(step)
         else:
@@ -117,7 +123,7 @@ def generate_demo_data():
             'details': str(e)
         }), 500
 
-def _generate_basic_demo_step(step):
+def _generate_basic_demo_step(step, user_id=None):
     """Generate basic demo data step by step"""
     generated = {'honeyJars': 0, 'documents': 0, 'reports': 0, 'users': 0, 'nectarBots': 0}
 
@@ -131,7 +137,7 @@ def _generate_basic_demo_step(step):
             generated['documents'] = docs_created
 
         elif step == 3:  # Build reports and create nectar bots
-            reports_created = _create_sample_reports('basic')
+            reports_created = _create_sample_reports('basic', user_id)
             bots_created = _create_demo_nectar_bots('basic')
             generated['reports'] = reports_created
             generated['nectarBots'] = bots_created
@@ -148,7 +154,7 @@ def _generate_basic_demo_step(step):
 
     return generated
 
-def _generate_comprehensive_demo_step(step):
+def _generate_comprehensive_demo_step(step, user_id=None):
     """Generate comprehensive demo data step by step"""
     generated = {'honeyJars': 0, 'documents': 0, 'reports': 0, 'users': 0, 'nectarBots': 0}
 
@@ -162,7 +168,7 @@ def _generate_comprehensive_demo_step(step):
             generated['documents'] = docs_created
 
         elif step == 3:  # Build comprehensive reports and create nectar bots
-            reports_created = _create_sample_reports('comprehensive')
+            reports_created = _create_sample_reports('comprehensive', user_id)
             bots_created = _create_demo_nectar_bots('comprehensive')
             generated['reports'] = reports_created
             generated['nectarBots'] = bots_created
@@ -181,7 +187,7 @@ def _generate_comprehensive_demo_step(step):
 
     return generated
 
-def _generate_security_demo_step(step):
+def _generate_security_demo_step(step, user_id=None):
     """Generate security-focused demo data step by step"""
     generated = {'honeyJars': 0, 'documents': 0, 'reports': 0, 'users': 0}
     
@@ -195,7 +201,7 @@ def _generate_security_demo_step(step):
             generated['documents'] = docs_created
             
         elif step == 3:  # Compliance reports
-            reports_created = _create_sample_reports('security')
+            reports_created = _create_sample_reports('security', user_id)
             generated['reports'] = reports_created
             
         elif step == 4:  # Security audit trails
@@ -209,7 +215,7 @@ def _generate_security_demo_step(step):
         
     return generated
 
-def _generate_pii_demo_step(step):
+def _generate_pii_demo_step(step, user_id=None):
     """Generate PII scrubbing demo data step by step"""
     generated = {'honeyJars': 0, 'documents': 0, 'reports': 0, 'users': 0}
     
@@ -223,7 +229,7 @@ def _generate_pii_demo_step(step):
             _create_advanced_pii_patterns()
             
         elif step == 3:  # PII detection reports
-            reports_created = _create_sample_reports('pii')
+            reports_created = _create_sample_reports('pii', user_id)
             generated['reports'] = reports_created
             
         elif step == 4:  # Custom PII rules
@@ -523,7 +529,7 @@ def _save_demo_document(jar_name, filename, content, tags=None):
         current_app.logger.error(f"Error saving demo document {filename}: {str(e)}")
         return False
 
-def _create_sample_reports(scenario_type):
+def _create_sample_reports(scenario_type, target_user_id=None):
     """
     Create sample reports using the correct Report model structure.
     Reports are created with 'completed' status as demo placeholders.
@@ -531,11 +537,16 @@ def _create_sample_reports(scenario_type):
     reports_created = 0
 
     try:
-        # Get admin user dynamically
-        admin_id, admin_kratos_id, admin_email = get_admin_user()
-        if not admin_kratos_id:
-            current_app.logger.error("Cannot create reports: no admin user found")
-            return 0
+        # Use provided user ID or fallback to admin
+        if target_user_id:
+            report_owner_id = target_user_id
+        else:
+            # Get admin user dynamically
+            admin_id, admin_kratos_id, admin_email = get_admin_user()
+            if not admin_kratos_id:
+                current_app.logger.error("Cannot create reports: no admin user found")
+                return 0
+            report_owner_id = admin_kratos_id
 
         # First, ensure we have a demo report template
         demo_template = ReportTemplate.query.filter_by(name='demo_report').first()
@@ -546,12 +557,17 @@ def _create_sample_reports(scenario_type):
                 display_name='Demo Report',
                 description='Template for demonstration reports',
                 category='demo',
-                generator_class='DemoReportGenerator',
-                parameters={},
+                generator_class='DocumentProcessingReportGenerator',
+                parameters={'demo_scenario': 'basic'},
                 template_config={},
                 output_formats=['pdf'],
                 is_active=True
             )
+            db.session.add(demo_template)
+            db.session.flush()
+        else:
+            # Update existing template to use correct generator
+            demo_template.generator_class = 'DocumentProcessingReportGenerator'
             db.session.add(demo_template)
             db.session.flush()
 
@@ -587,30 +603,32 @@ def _create_sample_reports(scenario_type):
                 report = Report(
                     id=str(uuid.uuid4()),
                     template_id=demo_template.id,
-                    user_id=admin_kratos_id,
+                    user_id=report_owner_id,
                     title=config['title'],
                     description=config['description'],
-                    status='completed',  # Demo reports show as completed
+                    status='queued',  # Set to queued so worker picks it up
                     priority='normal',
-                    progress_percentage=100,
+                    progress_percentage=0,
                     output_format='pdf',
                     scrambling_enabled=True,
                     pii_detected=True if 'PII' in config['title'] else False,
                     risk_level='low',
-                    generated_by=admin_kratos_id,
+                    generated_by=report_owner_id,
                     access_type='user-owned',
-                    parameters={'demo_data': True, 'scenario': scenario_type},
-                    result_summary={
-                        'demo': True,
-                        'generated_at': datetime.utcnow().isoformat(),
-                        'scenario': scenario_type,
-                        'findings_count': random.randint(5, 25),
-                        'risk_items': random.randint(0, 10)
-                    },
-                    completed_at=datetime.utcnow()
+                    parameters={'demo_scenario': scenario_type, 'is_demo': True}
                 )
 
                 db.session.add(report)
+                db.session.commit()  # Commit to ensure report is visible to queue service
+                
+                # Queue the report for processing
+                try:
+                    report_service = get_report_service()
+                    report_service.queue_report(report.id)
+                    current_app.logger.info(f"Queued demo report: {config['title']} ({report.id})")
+                except Exception as queue_error:
+                    current_app.logger.error(f"Failed to queue report {report.id}: {queue_error}")
+                
                 reports_created += 1
                 current_app.logger.info(f"Created demo report: {config['title']}")
 

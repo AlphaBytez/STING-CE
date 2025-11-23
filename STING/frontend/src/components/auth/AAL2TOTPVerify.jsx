@@ -192,7 +192,7 @@ const AAL2TOTPVerify = () => {
           </p>
           {userEmail && (
             <p className="text-sm text-blue-300">
-              Verifying AAL2 for: {userEmail}
+              Verifying credentials for: {userEmail}
             </p>
           )}
         </div>

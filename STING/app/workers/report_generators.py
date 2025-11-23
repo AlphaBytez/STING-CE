@@ -200,6 +200,46 @@ class HoneyJarSummaryGenerator(BaseReportGenerator):
             logger.error(f"Failed to collect honey jar data: {e}")
             raise
     
+    async def _generate_ai_insights(self, summary_data: Dict[str, Any]) -> str:
+        """Generate AI insights based on the report summary"""
+        try:
+            external_ai_url = os.environ.get('EXTERNAL_AI_SERVICE_URL', 'http://external-ai:8091')
+            
+            prompt = f"""
+            Analyze the following Honey Jar usage statistics and provide a brief, professional executive summary (2-3 sentences) highlighting key risks or observations.
+            
+            Statistics:
+            - Total Honey Jars: {summary_data['total_honey_jars']}
+            - Total Documents: {summary_data['total_documents']}
+            - Total Size: {summary_data['total_size_mb']} MB
+            - Average Docs/Jar: {summary_data['average_documents_per_jar']}
+            - Most Active Jar: {summary_data['most_active_jar']}
+            
+            Focus on the scale of data and potential security implications.
+            """
+            
+            response = requests.post(
+                f"{external_ai_url}/bee/chat",
+                json={
+                    'message': prompt,
+                    'user_id': self.user_id,
+                    'context': {
+                        'generation_mode': 'insight',
+                        'bypass_token_limit': False
+                    },
+                    'require_auth': False
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                return response.json().get('response', '').strip()
+            return "AI Insights unavailable."
+            
+        except Exception as e:
+            logger.warning(f"Failed to generate AI insights: {e}")
+            return "AI Insights generation failed."
+
     async def process_data(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process honey jar data into report format"""
         
@@ -211,6 +251,10 @@ class HoneyJarSummaryGenerator(BaseReportGenerator):
             'average_documents_per_jar': round(raw_data['total_documents'] / max(raw_data['total_jars'], 1), 1),
             'most_active_jar': max(raw_data['honey_jars'], key=lambda x: x['doc_count'])['name'] if raw_data['honey_jars'] else 'N/A'
         }
+
+        # Generate AI Insights
+        ai_insights = await self._generate_ai_insights(summary)
+        summary['ai_insights'] = ai_insights
         
         # Prepare detailed data
         jar_details = []
@@ -332,21 +376,61 @@ class DocumentProcessingReportGenerator(BaseReportGenerator):
             # Regular data collection for non-demo reports
             return {'documents': [], 'processing_stats': {}}
 
+    async def _generate_ai_summary(self, stats: Dict[str, Any], scenario: str) -> str:
+        """Generate AI executive summary based on processing stats"""
+        try:
+            external_ai_url = os.environ.get('EXTERNAL_AI_SERVICE_URL', 'http://external-ai:8091')
+            
+            prompt = f"""
+            Generate a professional executive summary for a {scenario} document processing report.
+            
+            Statistics:
+            - Total Documents: {stats['total_documents']}
+            - PII Instances Detected: {stats['pii_instances_detected']}
+            - Success Rate: {stats['success_rate']}
+            
+            The summary should emphasize the effectiveness of the PII detection system and compliance implications.
+            """
+            
+            response = requests.post(
+                f"{external_ai_url}/bee/chat",
+                json={
+                    'message': prompt,
+                    'user_id': self.user_id,
+                    'context': {
+                        'generation_mode': 'summary',
+                        'bypass_token_limit': False
+                    },
+                    'require_auth': False
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                return response.json().get('response', '').strip()
+            return "AI Executive Summary unavailable."
+            
+        except Exception as e:
+            logger.warning(f"Failed to generate AI summary: {e}")
+            return "AI Executive Summary generation failed."
+
     async def process_data(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         # Check if this is demo data
         if raw_data.get('is_demo'):
             # Generate rich demo report content inline
             demo_scenario = self.parameters.get('demo_scenario', 'healthcare')
+            
+            # Generate AI Summary
+            ai_summary = await self._generate_ai_summary(raw_data['processing_stats'], demo_scenario)
 
             # Create demo content based on real data analysis
             demo_content = f"""
-HEALTHCARE DOCUMENT PROCESSING REPORT
+{demo_scenario.upper()} DOCUMENT PROCESSING REPORT
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 Data Source: Real Demo Honey Jars Analysis
 
 EXECUTIVE SUMMARY:
-This report analyzes healthcare documents uploaded to demo honey jars,
-showing real PII detection results from your STING system.
+{ai_summary}
 
 REAL DATA ANALYSIS:
 • Total Documents Processed: {raw_data['processing_stats']['total_documents']}
@@ -363,17 +447,17 @@ DOCUMENT BREAKDOWN:
             demo_content += f"""
 
 PII DETECTION EFFECTIVENESS:
-Your STING system successfully analyzed real healthcare demo documents
+Your STING system successfully analyzed real {demo_scenario} demo documents
 and detected PII patterns including SSNs, MRNs, phone numbers, and email addresses.
 
 COMPLIANCE STATUS:
 ✓ All demo documents processed successfully
 ✓ PII detection working as expected
 ✓ Real-time analysis functional
-✓ Healthcare data compliance verified
+✓ {demo_scenario.capitalize()} data compliance verified
 
 This report demonstrates STING's actual capabilities processing
-real healthcare documents with authentic PII patterns.
+real {demo_scenario} documents with authentic PII patterns.
 
 Report generated from real system analysis - not simulated data.
 """
@@ -384,7 +468,8 @@ Report generated from real system analysis - not simulated data.
                 'summary': {
                     'documents_processed': raw_data['processing_stats']['total_documents'],
                     'pii_detected': raw_data['processing_stats']['pii_instances_detected'],
-                    'success_rate': raw_data['processing_stats']['success_rate']
+                    'success_rate': raw_data['processing_stats']['success_rate'],
+                    'ai_summary': ai_summary
                 },
                 'data': raw_data['documents']
             }

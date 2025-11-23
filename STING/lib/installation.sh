@@ -186,6 +186,11 @@ publish-workstation=no
 publish-addresses=yes
 publish-domain=yes
 
+# CRITICAL: Disable IPv6 AAAA record publishing
+# iOS/iPadOS prefers IPv6 when available and will fail to connect
+# if AAAA records are published but IPv6 isn't routable on the network
+publish-aaaa-on-ipv4=no
+
 [reflector]
 # Reflector disabled (not needed)
 

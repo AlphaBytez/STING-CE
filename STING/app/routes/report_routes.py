@@ -61,21 +61,41 @@ def get_public_reports():
 
 @report_bp.route('/public/queue/status', methods=['GET'])
 def get_public_queue_status():
-    """Get demo queue status for Beeacon dashboard - no auth required"""
-    logger.info("Serving demo queue status for Beeacon dashboard")
-    return jsonify({
-        'success': True,
-        'data': {
-            'queue_name': 'default',
-            'pending_reports': 3,
-            'processing_reports': 1,
-            'completed_today': 8,
-            'failed_today': 0,
-            'average_processing_time': '2.3 minutes',
-            'user_active_reports': 2,
-            'estimated_wait_time': '5 minutes'
-        }
-    })
+    """Get real queue status for Beeacon dashboard - no auth required"""
+    try:
+        with get_db_session() as session:
+            status = get_queue_status(session)
+            
+            # Calculate estimated wait time
+            avg_time = status.get('avg_processing_time_seconds', 0)
+            pending = status.get('total_pending', 0)
+            wait_seconds = pending * avg_time
+            wait_minutes = round(wait_seconds / 60, 1)
+            
+            return jsonify({
+                'success': True,
+                'data': {
+                    'queue_name': status.get('queue_name', 'default'),
+                    'pending_reports': pending,
+                    'processing_reports': status.get('currently_processing', 0),
+                    'completed_today': 0, # TODO: Add query for today's completed
+                    'failed_today': 0,    # TODO: Add query for today's failed
+                    'average_processing_time': f"{round(avg_time / 60, 1)} minutes",
+                    'user_active_reports': 0, # Can't know without auth
+                    'estimated_wait_time': f"{wait_minutes} minutes"
+                }
+            })
+    except Exception as e:
+        logger.error(f"Error getting queue status: {e}")
+        return jsonify({
+            'success': False, 
+            'error': 'Failed to retrieve queue status',
+            'data': {
+                'pending_reports': 0,
+                'processing_reports': 0,
+                'estimated_wait_time': 'Unknown'
+            }
+        })
 
 @report_bp.route('/test-auth', methods=['GET'])
 @require_auth_or_api_key(['admin', 'read'])

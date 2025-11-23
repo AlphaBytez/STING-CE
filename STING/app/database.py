@@ -1,16 +1,12 @@
 """
 Database models for STING application.
 """
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 from contextlib import contextmanager
 import os
-
-db = SQLAlchemy()
-migrate = Migrate()
+from app.extensions import db, migrate
 
 # Create async session maker
 async_session = None
