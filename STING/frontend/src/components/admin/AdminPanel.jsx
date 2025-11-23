@@ -70,7 +70,7 @@ const AdminPanel = () => {
   const loadHoneyJars = async () => {
     try {
       setLoading(true);
-      const response = await honeyJarApi.getHoneyJars();
+      const response = await honeyJarApi.getHoneyJars(1, 100);
       setHoneyJars(response.items || []);
       // Select first honey jar by default
       if (response.items?.length > 0) {

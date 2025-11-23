@@ -278,7 +278,7 @@ class DocumentRepository:
             # Invalid UUID format
             return None
     
-    def list_documents(self, honey_jar_id: str):
+    def list_documents(self, honey_jar_id: str, limit: int = 100, offset: int = 0):
         """List documents for a honey pot"""
         try:
             # Convert string to UUID if needed
@@ -286,7 +286,7 @@ class DocumentRepository:
                 honey_jar_uuid = PyUUID(honey_jar_id)
             else:
                 honey_jar_uuid = honey_jar_id
-            return self.db.query(Document).filter(Document.honey_jar_id == honey_jar_uuid).all()
+            return self.db.query(Document).filter(Document.honey_jar_id == honey_jar_uuid).offset(offset).limit(limit).all()
         except (ValueError, TypeError) as e:
             # Invalid UUID format
             return []

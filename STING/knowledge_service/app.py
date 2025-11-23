@@ -754,6 +754,12 @@ async def upload_document(
     
     document = doc_repo.create_document(honey_jar_id, document_data)
     
+    # Update honey jar statistics
+    try:
+        repo.update_honey_jar_stats(honey_jar.id)
+    except Exception as e:
+        logger.error(f"Failed to update honey jar stats: {e}")
+    
     if needs_approval:
         # Add to pending queue
         pending_documents_db[str(document.id)] = {

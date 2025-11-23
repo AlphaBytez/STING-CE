@@ -305,36 +305,38 @@ def _create_basic_honey_jars():
     return created
 
 def _create_comprehensive_honey_jars():
-    """Create comprehensive set of honey jars via knowledge service API"""
-    comprehensive_jars = [
-        {'name': 'Enterprise Security Policies', 'description': 'Complete security policy documentation', 'tags': ['security', 'policies', 'demo']},
-        {'name': 'Incident Response Playbooks', 'description': 'Security incident response procedures', 'tags': ['security', 'incident-response', 'demo']},
-        {'name': 'Compliance Audit Reports', 'description': 'Historical compliance audit documentation', 'tags': ['compliance', 'audit', 'demo']},
-        {'name': 'Vendor Management', 'description': 'Third-party vendor contracts and assessments', 'tags': ['procurement', 'vendor', 'demo']},
-        {'name': 'Employee Training Materials', 'description': 'Security awareness and training content', 'tags': ['training', 'security', 'demo']},
-        {'name': 'Risk Assessment Archive', 'description': 'Historical risk assessments and mitigation plans', 'tags': ['risk', 'assessment', 'demo']},
-        {'name': 'Business Continuity Plans', 'description': 'Disaster recovery and continuity procedures', 'tags': ['bcp', 'disaster-recovery', 'demo']},
-        {'name': 'Technical Documentation', 'description': 'System architecture and technical specifications', 'tags': ['technical', 'architecture', 'demo']},
-        {'name': 'Legal Contracts Archive', 'description': 'Historical legal agreements and contracts', 'tags': ['legal', 'contracts', 'demo']},
-        {'name': 'Financial Audit Trail', 'description': 'Financial records and audit documentation', 'tags': ['financial', 'audit', 'demo']}
+    """Create comprehensive set of 35 honey jars across departments"""
+    departments = [
+        ('Legal', ['Contracts', 'Litigation', 'Compliance', 'IP', 'Corporate']),
+        ('HR', ['Benefits', 'Recruiting', 'Employee Relations', 'Training', 'Payroll']),
+        ('Finance', ['Audits', 'Tax', 'Budgeting', 'Invoices', 'Reports']),
+        ('IT', ['Architecture', 'Security', 'Operations', 'Support', 'Assets']),
+        ('Sales', ['Contracts', 'Proposals', 'Leads', 'Enablement', 'Territories']),
+        ('Marketing', ['Assets', 'Campaigns', 'Research', 'Brand', 'Events']),
+        ('R&D', ['Specs', 'Patents', 'Prototypes', 'Research', 'Roadmap'])
     ]
 
     created = 0
     honey_jar_service = get_honey_jar_service()
 
-    for jar_config in comprehensive_jars:
-        try:
-            jar_id = honey_jar_service.create_honey_jar(
-                name=jar_config['name'],
-                description=jar_config['description'],
-                jar_type='public',
-                tags=jar_config['tags']
-            )
-            if jar_id:
-                created += 1
-                current_app.logger.info(f"Created comprehensive demo honey jar: {jar_config['name']} (ID: {jar_id})")
-        except Exception as e:
-            current_app.logger.error(f"Error creating comprehensive honey jar {jar_config['name']}: {str(e)}")
+    for dept, categories in departments:
+        for category in categories:
+            name = f"{dept} - {category} Archive"
+            description = f"Comprehensive {category.lower()} documentation for {dept} department"
+            tags = [dept.lower(), category.lower(), 'demo', 'comprehensive']
+            
+            try:
+                jar_id = honey_jar_service.create_honey_jar(
+                    name=name,
+                    description=description,
+                    jar_type='public',
+                    tags=tags
+                )
+                if jar_id:
+                    created += 1
+                    current_app.logger.info(f"Created comprehensive honey jar: {name} (ID: {jar_id})")
+            except Exception as e:
+                current_app.logger.error(f"Error creating honey jar {name}: {str(e)}")
 
     return created
 
@@ -399,45 +401,53 @@ def _create_sample_documents(scenario_type):
     documents_created = 0
 
     try:
-        # Get demo data from generators
+        # Get demo data generators
         medical_gen = MedicalDemoGenerator()
         legal_gen = LegalDemoGenerator()
         financial_gen = FinancialDemoGenerator()
 
-        # Number of documents based on scenario
-        doc_counts = {
-            'basic': {'medical': 2, 'legal': 2, 'financial': 1},
-            'comprehensive': {'medical': 5, 'legal': 5, 'financial': 3},
-            'security': {'medical': 3, 'legal': 3, 'financial': 2},
-            'pii': {'medical': 4, 'legal': 2, 'financial': 2}
-        }
+        # Define document distribution
+        if scenario_type == 'comprehensive':
+            # Target: 225 documents
+            targets = [
+                ('HR', 'Benefits', medical_gen.generate_patient_intake_form, 45, ['hr', 'pii', 'demo']),
+                ('Legal', 'Contracts', legal_gen.generate_contract, 45, ['legal', 'privileged', 'demo']),
+                ('Finance', 'Invoices', financial_gen.generate_loan_application, 45, ['financial', 'pci', 'demo']),
+                ('IT', 'Security', legal_gen.generate_case_file, 45, ['technical', 'security', 'demo']), # Using case file as placeholder for incident report
+                ('Sales', 'Proposals', legal_gen.generate_contract, 45, ['sales', 'commercial', 'demo'])
+            ]
+        else:
+            # Basic/other scenarios
+            doc_counts = {
+                'basic': {'medical': 2, 'legal': 2, 'financial': 1},
+                'security': {'medical': 3, 'legal': 3, 'financial': 2},
+                'pii': {'medical': 4, 'legal': 2, 'financial': 2}
+            }
+            counts = doc_counts.get(scenario_type, doc_counts['basic'])
+            targets = [
+                ('Medical Records Demo', None, medical_gen.generate_patient_intake_form, counts.get('medical', 0), ['healthcare', 'phi', 'demo']),
+                ('Legal Documents Demo', None, legal_gen.generate_contract, counts.get('legal', 0), ['legal', 'privileged', 'demo']),
+                ('Financial Data Demo', None, financial_gen.generate_loan_application, counts.get('financial', 0), ['financial', 'pci', 'demo'])
+            ]
 
-        counts = doc_counts.get(scenario_type, doc_counts['basic'])
+        for target in targets:
+            jar_prefix, category, generator_func, count, tags = target
+            
+            for i in range(count):
+                try:
+                    # Construct jar name based on scenario
+                    if scenario_type == 'comprehensive':
+                        jar_name = f"{jar_prefix} - {category} Archive"
+                    else:
+                        jar_name = jar_prefix
 
-        # Create medical documents
-        for i in range(counts['medical']):
-            doc_content = random.choice([
-                medical_gen.generate_patient_intake_form(),
-                medical_gen.generate_lab_results(),
-                medical_gen.generate_prescription()
-            ])
-            if _save_demo_document('Medical Records Demo', f'medical_sample_{i+1}.txt', doc_content, ['healthcare', 'phi', 'demo']):
-                documents_created += 1
-
-        # Create legal documents
-        for i in range(counts['legal']):
-            doc_content = random.choice([
-                legal_gen.generate_case_file(),
-                legal_gen.generate_contract()
-            ])
-            if _save_demo_document('Legal Documents Demo', f'legal_sample_{i+1}.txt', doc_content, ['legal', 'privileged', 'demo']):
-                documents_created += 1
-
-        # Create financial documents
-        for i in range(counts['financial']):
-            doc_content = financial_gen.generate_loan_application()
-            if _save_demo_document('Financial Data Demo', f'financial_sample_{i+1}.txt', doc_content, ['financial', 'pci', 'demo']):
-                documents_created += 1
+                    doc_content = generator_func()
+                    filename = f"{tags[0]}_doc_{i+1}_{uuid.uuid4().hex[:6]}.txt"
+                    
+                    if _save_demo_document(jar_name, filename, doc_content, tags):
+                        documents_created += 1
+                except Exception as e:
+                    current_app.logger.error(f"Error creating document {i} for {jar_prefix}: {e}")
 
     except Exception as e:
         current_app.logger.error(f"Error creating sample documents: {str(e)}")
@@ -485,7 +495,7 @@ def _save_demo_document(jar_name, filename, content, tags=None):
         # Query knowledge service for honey jars
         headers = {"X-API-Key": honey_jar_service.api_key}
         response = requests.get(
-            f"{honey_jar_service.knowledge_url}/honey-jars",
+            f"{honey_jar_service.knowledge_url}/honey-jars?limit=1000",
             headers=headers,
             timeout=10
         )
@@ -596,6 +606,21 @@ def _create_sample_reports(scenario_type, target_user_id=None):
         }
 
         configs = report_configs.get(scenario_type, report_configs['basic'])
+        
+        # For comprehensive scenario, expand the list to reach ~25 reports
+        if scenario_type == 'comprehensive':
+            base_configs = configs[:]
+            configs = []
+            statuses = ['completed', 'completed', 'completed', 'processing', 'queued', 'failed']
+            
+            # Generate 5 variations for each of the 5 base types = 25 reports
+            for i in range(5):
+                for base in base_configs:
+                    new_config = base.copy()
+                    month = (datetime.now() - timedelta(days=30*i)).strftime("%B")
+                    new_config['title'] = f"{base['title']} - {month}"
+                    new_config['status'] = statuses[i % len(statuses)]
+                    configs.append(new_config)
 
         for config in configs:
             try:
@@ -606,28 +631,31 @@ def _create_sample_reports(scenario_type, target_user_id=None):
                     user_id=report_owner_id,
                     title=config['title'],
                     description=config['description'],
-                    status='queued',  # Set to queued so worker picks it up
+                    status=config.get('status', 'queued'),  # Use varied status
                     priority='normal',
-                    progress_percentage=0,
+                    progress_percentage=100 if config.get('status') == 'completed' else (45 if config.get('status') == 'processing' else 0),
                     output_format='pdf',
                     scrambling_enabled=True,
                     pii_detected=True if 'PII' in config['title'] else False,
                     risk_level='low',
                     generated_by=report_owner_id,
                     access_type='user-owned',
-                    parameters={'demo_scenario': scenario_type, 'is_demo': True}
+                    parameters={'demo_scenario': scenario_type, 'is_demo': True},
+                    created_at=datetime.utcnow() - timedelta(days=random.randint(0, 60)),
+                    completed_at=datetime.utcnow() - timedelta(days=random.randint(0, 60)) if config.get('status') == 'completed' else None
                 )
 
                 db.session.add(report)
                 db.session.commit()  # Commit to ensure report is visible to queue service
                 
-                # Queue the report for processing
-                try:
-                    report_service = get_report_service()
-                    report_service.queue_report(report.id)
-                    current_app.logger.info(f"Queued demo report: {config['title']} ({report.id})")
-                except Exception as queue_error:
-                    current_app.logger.error(f"Failed to queue report {report.id}: {queue_error}")
+                # Queue the report for processing ONLY if it's queued
+                if report.status == 'queued':
+                    try:
+                        report_service = get_report_service()
+                        report_service.queue_report(report.id)
+                        current_app.logger.info(f"Queued demo report: {config['title']} ({report.id})")
+                    except Exception as queue_error:
+                        current_app.logger.error(f"Failed to queue report {report.id}: {queue_error}")
                 
                 reports_created += 1
                 current_app.logger.info(f"Created demo report: {config['title']}")
@@ -754,42 +782,34 @@ def _create_demo_nectar_bots(scenario_type):
                 }
             ]
         elif scenario_type == 'comprehensive':
+            # 15 Bots across departments
             bot_configs = [
-                {
-                    'name': 'Enterprise Support Bot',
-                    'description': 'Advanced support bot for enterprise customers with priority handling',
-                    'system_prompt': 'You are an enterprise support specialist. Provide detailed, professional responses and escalate complex issues promptly.',
-                    'confidence_threshold': 0.75,
-                    'handoff_keywords': ["enterprise", "priority", "escalate", "urgent", "critical", "SLA"]
-                },
-                {
-                    'name': 'Technical Documentation Bot',
-                    'description': 'Specialized bot for technical documentation and developer support',
-                    'system_prompt': 'You are a technical documentation assistant. Help developers find code examples, API references, and implementation guides.',
-                    'confidence_threshold': 0.7,
-                    'handoff_keywords': ["bug", "API", "integration", "code", "technical"]
-                },
-                {
-                    'name': 'Security Incident Bot',
-                    'description': 'Handles security-related inquiries and incident reporting',
-                    'system_prompt': 'You are a security assistant. Handle security questions carefully and escalate any potential security incidents immediately.',
-                    'confidence_threshold': 0.9,
-                    'handoff_keywords': ["security", "breach", "incident", "vulnerability", "threat"]
-                },
-                {
-                    'name': 'HR Assistant Bot',
-                    'description': 'Provides HR information and handles employee inquiries',
-                    'system_prompt': 'You are an HR assistant. Help with policy questions, benefits information, and general HR inquiries while maintaining confidentiality.',
-                    'confidence_threshold': 0.75,
-                    'handoff_keywords': ["personal", "confidential", "complaint", "harassment", "grievance"]
-                },
-                {
-                    'name': 'Training Bot',
-                    'description': 'Assists with training materials and educational content',
-                    'system_prompt': 'You are a training assistant. Help users learn new concepts and navigate training materials effectively.',
-                    'confidence_threshold': 0.6,
-                    'handoff_keywords': ["confused", "help", "explain", "training"]
-                }
+                # Support Team
+                {'name': 'Support - Tier 1', 'description': 'General customer inquiries', 'system_prompt': 'You are Tier 1 support.', 'confidence_threshold': 0.8, 'handoff_keywords': ['escalate']},
+                {'name': 'Support - Tier 2', 'description': 'Technical troubleshooting', 'system_prompt': 'You are Tier 2 support.', 'confidence_threshold': 0.7, 'handoff_keywords': ['engineering']},
+                {'name': 'Support - Enterprise', 'description': 'VIP customer support', 'system_prompt': 'You are VIP support.', 'confidence_threshold': 0.9, 'handoff_keywords': ['manager']},
+                
+                # Sales Team
+                {'name': 'Sales - North America', 'description': 'US/Canada sales inquiries', 'system_prompt': 'You are NA Sales.', 'confidence_threshold': 0.75, 'handoff_keywords': ['quote']},
+                {'name': 'Sales - EMEA', 'description': 'Europe sales inquiries', 'system_prompt': 'You are EMEA Sales.', 'confidence_threshold': 0.75, 'handoff_keywords': ['quote']},
+                {'name': 'Sales - APAC', 'description': 'Asia Pacific sales inquiries', 'system_prompt': 'You are APAC Sales.', 'confidence_threshold': 0.75, 'handoff_keywords': ['quote']},
+                
+                # IT Team
+                {'name': 'IT Helpdesk', 'description': 'Internal IT support', 'system_prompt': 'You are IT Helpdesk.', 'confidence_threshold': 0.8, 'handoff_keywords': ['hardware']},
+                {'name': 'IT Security', 'description': 'Security incident reporting', 'system_prompt': 'You are Security Bot.', 'confidence_threshold': 0.9, 'handoff_keywords': ['breach']},
+                {'name': 'DevOps Assistant', 'description': 'Deployment and CI/CD help', 'system_prompt': 'You are DevOps Bot.', 'confidence_threshold': 0.7, 'handoff_keywords': ['deploy']},
+                
+                # HR Team
+                {'name': 'HR - Benefits', 'description': 'Benefits and insurance Q&A', 'system_prompt': 'You are Benefits Bot.', 'confidence_threshold': 0.85, 'handoff_keywords': ['confidential']},
+                {'name': 'HR - Recruiting', 'description': 'Candidate screening helper', 'system_prompt': 'You are Recruiting Bot.', 'confidence_threshold': 0.7, 'handoff_keywords': ['interview']},
+                
+                # Compliance & Legal
+                {'name': 'Compliance Officer', 'description': 'Policy compliance checker', 'system_prompt': 'You are Compliance Bot.', 'confidence_threshold': 0.9, 'handoff_keywords': ['violation']},
+                {'name': 'Legal Assistant', 'description': 'Contract review helper', 'system_prompt': 'You are Legal Bot.', 'confidence_threshold': 0.8, 'handoff_keywords': ['lawyer']},
+                
+                # Operations
+                {'name': 'Facilities Bot', 'description': 'Office management requests', 'system_prompt': 'You are Facilities Bot.', 'confidence_threshold': 0.8, 'handoff_keywords': ['repair']},
+                {'name': 'Travel Desk', 'description': 'Corporate travel booking', 'system_prompt': 'You are Travel Bot.', 'confidence_threshold': 0.75, 'handoff_keywords': ['agent']}
             ]
         else:
             # Default to basic for other scenarios
@@ -848,21 +868,30 @@ def _create_demo_bot_usage(scenario_type):
     """
     try:
         # Get demo bots (those with 'Demo' in description or standard demo names)
+        demo_bot_names = [
+            'Customer Support Bot', 'FAQ Assistant', 'Documentation Helper',
+            'Enterprise Support Bot', 'Technical Documentation Bot',
+            'Security Incident Bot', 'HR Assistant Bot', 'Training Bot',
+            'General Assistant Bot',
+            # Comprehensive Scenario Bots
+            'Support - Tier 1', 'Support - Tier 2', 'Support - Enterprise',
+            'Sales - North America', 'Sales - EMEA', 'Sales - APAC',
+            'IT Helpdesk', 'IT Security', 'DevOps Assistant',
+            'HR - Benefits', 'HR - Recruiting',
+            'Compliance Officer', 'Legal Assistant',
+            'Facilities Bot', 'Travel Desk'
+        ]
+        
         demo_bots = NectarBot.query.filter(
             NectarBot.description.ilike('%demo%') |
-            NectarBot.name.in_([
-                'Customer Support Bot', 'FAQ Assistant', 'Documentation Helper',
-                'Enterprise Support Bot', 'Technical Documentation Bot',
-                'Security Incident Bot', 'HR Assistant Bot', 'Training Bot',
-                'General Assistant Bot'
-            ])
+            NectarBot.name.in_(demo_bot_names)
         ).all()
 
         if not demo_bots:
             current_app.logger.warning("No demo bots found for usage data generation")
             return
 
-        usage_count = 50 if scenario_type == 'basic' else 150
+        usage_count = 50 if scenario_type == 'basic' else 1000
         handoff_count = 5 if scenario_type == 'basic' else 15
 
         # Collect all usage records for bulk insert

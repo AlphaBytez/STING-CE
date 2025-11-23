@@ -56,7 +56,7 @@ const HoneyJarContextBar = ({ currentHoneyJar, onHoneyJarChange, onSearchStateCh
       setLoading(true);
       setError(null);
       // Use same API method as working HoneyJarPage
-      const response = await honeyJarApi.getHoneyJars();
+      const response = await honeyJarApi.getHoneyJars(1, 100);
       const jarData = Array.isArray(response) ? response : (response.items || []);
       setHoneyJars(jarData);
     } catch (err) {

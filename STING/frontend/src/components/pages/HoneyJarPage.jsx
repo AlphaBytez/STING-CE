@@ -906,7 +906,8 @@ const HoneyJarPage = () => {
       if (!skipLoadingState) {
         setLoading(true);
       }
-      const response = await honeyJarApi.getHoneyJars();
+      // Fetch more jars to ensure we see the generated demo data
+      const response = await honeyJarApi.getHoneyJars(1, 1000);
       // API returns array directly, not {items: [...]}
       const jarData = Array.isArray(response) ? response : (response.items || []);
       
