@@ -101,88 +101,128 @@ const DemoDataManager = () => {
     {
       id: 'basic',
       name: 'Basic Demo Data',
-      description: 'Generate basic honey jars, documents, and sample reports',
+      description: 'Quick starter demo with essential data across all features',
       icon: Database,
-      estimatedTime: '2-3 minutes',
+      estimatedTime: '3-5 minutes',
+      color: 'blue',
       includes: [
-        '5 sample honey jars with documents',
-        '10 sample reports (various types)',
-        'Sample PII data for scrubbing demos',
-        'Basic user activity data'
+        '3 honey jars (Medical, Legal, Financial)',
+        '60 documents with realistic content',
+        '10 reports (compliance, audit, metrics)',
+        '3 Nectar bots with 250 usage records each',
+        '50 handoff/escalation scenarios'
       ]
     },
     {
       id: 'comprehensive',
       name: 'Comprehensive Demo',
-      description: 'Full demo environment with all features populated',
+      description: 'Full-scale enterprise demo showcasing all platform capabilities',
       icon: Shield,
-      estimatedTime: '5-8 minutes',
+      estimatedTime: '10-15 minutes',
+      color: 'gold',
       includes: [
-        '20 honey jars across different categories',
-        '5 sample reports with realistic data',
-        'Compliance templates with test data',
-        'Advanced PII patterns and scenarios',
-        'Sample team collaboration data',
-        'Security audit trails'
+        '35 honey jars across all departments',
+        '225 documents (medical, legal, financial, HR, IT)',
+        '25 reports with various statuses',
+        '15 Nectar bots (Support, Sales, IT, Compliance, etc.)',
+        '1,000 bot usage records per bot',
+        '200 handoff scenarios with conversation threads'
       ]
     },
     {
       id: 'security-focused',
       name: 'Security & Compliance Demo',
-      description: 'Focus on security features and compliance reporting',
+      description: 'Security-focused data for compliance and audit demonstrations',
       icon: Shield,
-      estimatedTime: '3-4 minutes',
+      estimatedTime: '5-7 minutes',
+      color: 'red',
       includes: [
-        'Security-focused honey jars',
-        'Compliance reports (HIPAA, GDPR, etc.)',
-        'PII detection and scrubbing samples',
-        'Security audit reports',
-        'Vulnerability assessments'
-      ]
-    },
-    {
-      id: 'healthcare',
-      name: 'Healthcare & Medical Demo',
-      description: 'Generate realistic healthcare data with HIPAA compliance focus',
-      icon: Heart,
-      estimatedTime: '2-3 minutes',
-      includes: [
-        'Patient intake forms with PHI',
-        'Lab results and medical reports',
-        'Prescription and medication data',
-        'HIPAA compliance templates',
-        'Medical record number patterns',
-        'Healthcare provider information'
+        '10 security-focused honey jars',
+        '95 documents with security content',
+        '15 compliance reports (HIPAA, SOC2, GDPR)',
+        'Security audit trails and logs',
+        'Incident response documentation',
+        'Vulnerability assessment samples'
       ]
     },
     {
       id: 'pii-scrubbing',
-      name: 'PII Scrubbing Demo',
-      description: 'Generate diverse PII patterns for testing scrubbing capabilities',
+      name: 'PII Detection Demo',
+      description: 'Extensive PII patterns for testing detection and scrubbing',
       icon: FileText,
-      estimatedTime: '1-2 minutes',
+      estimatedTime: '5-7 minutes',
+      color: 'purple',
       includes: [
-        'Sample documents with various PII types',
-        'Email addresses, phone numbers, SSNs',
-        'Medical records samples',
-        'Financial data patterns',
-        'Custom PII detection rules'
+        '15 honey jars with PII-heavy content',
+        '165 documents with diverse PII patterns',
+        'SSNs, credit cards, medical record numbers',
+        'International ID formats and phone numbers',
+        'Email addresses and physical addresses',
+        'Bank account and routing numbers'
       ]
     },
     {
       id: 'nectar-bot',
       name: 'Nectar Bot Demo',
-      description: 'Generate AI-powered chatbots with conversation data and handoff scenarios',
+      description: 'AI chatbot ecosystem with realistic conversation data',
       icon: Bot,
-      estimatedTime: '2-3 minutes',
+      estimatedTime: '3-5 minutes',
+      color: 'cyan',
       includes: [
-        'Customer Support Bot with conversation history',
-        'FAQ Assistant with automated responses',
-        'Documentation Helper Bot',
-        'Enterprise Support Bot with escalation data',
-        'Security Incident Bot with handoff scenarios',
-        'Realistic conversation usage statistics',
-        'Bot handoff and escalation examples'
+        '5 specialized Nectar bots',
+        'Customer Support & FAQ bots',
+        'Technical Documentation bot',
+        'Enterprise & Security bots',
+        '500+ conversation usage records',
+        '100+ handoff/escalation scenarios'
+      ]
+    },
+    {
+      id: 'enterprise-showcase',
+      name: 'Enterprise Showcase',
+      description: 'Executive demo highlighting enterprise features and scale',
+      icon: Users,
+      estimatedTime: '8-12 minutes',
+      color: 'emerald',
+      includes: [
+        '25 department-specific honey jars',
+        '150 enterprise documents',
+        '20 executive dashboard reports',
+        '10 enterprise bots with high usage',
+        'Team collaboration scenarios',
+        'Multi-department knowledge sharing'
+      ]
+    },
+    {
+      id: 'healthcare',
+      name: 'Healthcare & HIPAA Demo',
+      description: 'Healthcare-focused data with HIPAA compliance patterns',
+      icon: Heart,
+      estimatedTime: '4-6 minutes',
+      color: 'rose',
+      includes: [
+        '10 medical honey jars',
+        '100 healthcare documents',
+        'Patient intake forms with PHI',
+        'Lab results and medical reports',
+        'HIPAA compliance audit reports',
+        'Healthcare-specific PII patterns'
+      ]
+    },
+    {
+      id: 'legal-financial',
+      name: 'Legal & Financial Demo',
+      description: 'Legal contracts, financial records, and regulatory compliance',
+      icon: FileText,
+      estimatedTime: '4-6 minutes',
+      color: 'amber',
+      includes: [
+        '10 legal honey jars',
+        '10 financial honey jars',
+        '120 legal and financial documents',
+        'Contract templates and NDAs',
+        'Financial statements and audits',
+        'Regulatory compliance reports'
       ]
     }
   ];

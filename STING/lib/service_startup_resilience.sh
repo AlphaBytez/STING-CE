@@ -31,8 +31,8 @@ get_health_check() {
     case "$service" in
         app) echo "https://localhost:5050/health" ;;
         frontend) echo "https://localhost:8443" ;;
-        chatbot) echo "http://localhost:5005/health" ;;
-        knowledge) echo "http://localhost:5030/health" ;;
+        chatbot) echo "http://localhost:8888/health" ;;
+        knowledge) echo "http://localhost:8090/health" ;;
         kratos) echo "http://localhost:4433/health/ready" ;;
         loki) echo "http://localhost:3100/ready" ;;
         grafana) echo "http://localhost:3000/api/health" ;;

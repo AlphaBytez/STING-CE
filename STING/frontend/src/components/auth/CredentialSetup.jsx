@@ -15,19 +15,30 @@ const CredentialSetup = () => {
   useEffect(() => {
     const checkCredentialStatus = async () => {
       try {
-        const response = await axios.get('/api/aal2/status', {
+        // Use /api/auth/me which reliably checks Kratos for credential status
+        const response = await axios.get('/api/auth/me', {
           withCredentials: true
         });
 
-        const status = response.data?.status;
-        const hasPasskey = status?.passkey_enrolled || false;
-        const hasTotp = status?.totp_enrolled || false;
+        // /api/auth/me returns { has_passkey, has_totp } directly from Kratos check
+        const data = response.data;
+        const hasPasskey = data?.has_passkey || false;
+        const hasTotp = data?.has_totp || false;
+        const userRole = data?.user?.role || 'user';
+        const isAdminUser = userRole === 'admin' || userRole === 'super_admin';
 
-        // STING requires BOTH Passkey AND TOTP for 3FA
-        if (hasPasskey && hasTotp) {
-          console.log('✅ User has both credentials (3FA complete) - redirecting to dashboard');
+        console.log('🔐 CredentialSetup check from /api/auth/me:', { hasPasskey, hasTotp, userRole, isAdminUser });
+
+        // Admins need BOTH Passkey AND TOTP for 3FA
+        // Regular users need at least TOTP
+        const setupComplete = isAdminUser
+          ? (hasPasskey && hasTotp)  // Admins need both
+          : hasTotp;                  // Users need at least TOTP
+
+        if (setupComplete) {
+          console.log('✅ User has required credentials - redirecting to dashboard');
           setHasCredentials(true);
-          // User has both credentials, redirect to dashboard
+          // User has required credentials, redirect to dashboard
           setTimeout(() => {
             navigate('/dashboard');
           }, 1000);
@@ -35,7 +46,8 @@ const CredentialSetup = () => {
           console.log('⚠️ User missing credentials:', {
             hasPasskey,
             hasTotp,
-            needsPasskey: !hasPasskey,
+            isAdmin: isAdminUser,
+            needsPasskey: isAdminUser && !hasPasskey,
             needsTotp: !hasTotp
           });
           setIsLoading(false);

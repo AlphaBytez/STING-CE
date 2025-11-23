@@ -427,6 +427,77 @@ def test_webhook(webhook_id: str):
 # Admin Endpoints
 # ============================================================================
 
+@qe_bee_bp.route('/admin/stats', methods=['GET'])
+@require_auth_or_api_key(['admin'])
+def admin_get_stats():
+    """Admin: Get full review statistics"""
+    try:
+        user_id = get_current_user()
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        user_role = get_user_role()
+        if user_role not in ['admin', 'super_admin']:
+            return jsonify({'error': 'Admin access required'}), 403
+
+        review_service = get_review_service()
+        stats = review_service.get_review_stats()
+
+        # Add pending/reviewing counts from queue
+        with get_db_session() as session:
+            pending = session.query(ReviewQueue).filter(
+                ReviewQueue.status == ReviewStatus.PENDING
+            ).count()
+
+            reviewing = session.query(ReviewQueue).filter(
+                ReviewQueue.status == ReviewStatus.REVIEWING
+            ).count()
+
+        stats['pending'] = pending
+        stats['reviewing'] = reviewing
+
+        return jsonify(stats)
+
+    except Exception as e:
+        logger.error(f"Error getting admin stats: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+@qe_bee_bp.route('/admin/history', methods=['GET'])
+@require_auth_or_api_key(['admin'])
+def admin_get_history():
+    """Admin: Get full review history"""
+    try:
+        user_id = get_current_user()
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        user_role = get_user_role()
+        if user_role not in ['admin', 'super_admin']:
+            return jsonify({'error': 'Admin access required'}), 403
+
+        limit = min(int(request.args.get('limit', 50)), 200)
+
+        review_service = get_review_service()
+        reviews = review_service.get_recent_reviews(limit=limit)
+
+        return jsonify({
+            'reviews': reviews,
+            'count': len(reviews)
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting admin history: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+@qe_bee_bp.route('/admin/reviews/<review_id>/retry', methods=['POST'])
+@require_auth_or_api_key(['admin'])
+def admin_retry_review_path(review_id: str):
+    """Admin: Retry a failed review (path parameter version)"""
+    return admin_retry_review_impl(review_id)
+
+
 @qe_bee_bp.route('/admin/queue', methods=['GET'])
 @require_auth_or_api_key(['admin'])
 def admin_get_queue():
@@ -482,10 +553,8 @@ def admin_get_queue():
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@qe_bee_bp.route('/admin/review/<review_id>/retry', methods=['POST'])
-@require_auth_or_api_key(['admin'])
-def admin_retry_review(review_id: str):
-    """Admin: Retry a failed review"""
+def admin_retry_review_impl(review_id: str):
+    """Implementation: Retry a failed review"""
     try:
         user_id = get_current_user()
         if not user_id:
@@ -528,6 +597,13 @@ def admin_retry_review(review_id: str):
     except Exception as e:
         logger.error(f"Error retrying review {review_id}: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+
+
+@qe_bee_bp.route('/admin/review/<review_id>/retry', methods=['POST'])
+@require_auth_or_api_key(['admin'])
+def admin_retry_review(review_id: str):
+    """Admin: Retry a failed review (original route)"""
+    return admin_retry_review_impl(review_id)
 
 
 # ============================================================================

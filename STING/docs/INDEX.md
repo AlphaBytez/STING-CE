@@ -15,6 +15,7 @@ System design and technical architecture documentation
 - Module dependencies
 - Database schema
 - Implementation status
+- QE Bee architecture ([qe-bee-architecture.md](./architecture/qe-bee-architecture.md))
 
 #### 🚀 [Deployment](./deployment/)
 Installation, deployment, and configuration guides
@@ -28,6 +29,7 @@ Feature-specific documentation
 - Theme system
 - Bee chat and honey jars
 - Tiered authentication
+- **QE Bee** - Output validation agent ([QE_BEE_REVIEW_SYSTEM.md](./features/QE_BEE_REVIEW_SYSTEM.md))
 
 #### 🔧 [Troubleshooting](./troubleshooting/)
 Debugging guides and issue resolution
@@ -70,6 +72,7 @@ Platform-specific requirements and configurations
 4. **Testing**: [`TESTING.md`](./TESTING.md) - Test procedures and frameworks
 
 ### Recent Updates
+- **QE Bee Review System** - Automated output validation agent (November 2025)
 - Tiered Authentication System implementation
 - Vault persistent storage configuration
 - AAL2 passkey verification fixes
@@ -91,4 +94,4 @@ Platform-specific requirements and configurations
 - Include code examples where relevant
 
 ---
-*Last Updated: September 2025*
+*Last Updated: November 2025*

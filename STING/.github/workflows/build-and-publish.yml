@@ -37,7 +37,7 @@ jobs:
             platforms: linux/amd64,linux/arm64
 
           # Workers and services
-          - name: minimal-report-worker
+          - name: report-worker
             context: .
             dockerfile: Dockerfile.report-worker
             platforms: linux/amd64,linux/arm64
@@ -175,7 +175,7 @@ jobs:
           script: |
             const version = '${{ github.event.release.tag_name }}';
             const images = [
-              'app', 'frontend', 'minimal-report-worker', 'knowledge',
+              'app', 'frontend', 'report-worker', 'knowledge',
               'chatbot', 'messaging', 'external-ai', 'public-bee',
               'vault', 'utils'
             ];

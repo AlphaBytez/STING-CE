@@ -8,8 +8,11 @@ import apiClient from '../../utils/apiClient';
 
 /**
  * SecuritySetupPage - Enforces 2FA/3FA requirements based on user role
- * - Regular users: Must set up Passkey (WebAuthn)
- * - Admin users: Must set up both Passkey and TOTP (3FA)
+ * - Regular users: Must set up at least one method (TOTP recommended, Passkey optional)
+ * - Admin users: Must set up TOTP first (works everywhere), then Passkey (3FA)
+ *
+ * IMPORTANT: TOTP is enforced first because it works on any device.
+ * Passkeys are device-specific and can lock users out if it's their only method.
  */
 const SecuritySetupPage = () => {
   const navigate = useNavigate();
@@ -42,20 +45,32 @@ const SecuritySetupPage = () => {
         
         // Convert to expected format
         const authMethods = userData?.user?.auth_methods || {};
+        const role = userData?.user?.role || 'user';
+        const isAdminUser = role === 'admin' || role === 'super_admin';
+
+        // Determine if setup is complete based on role:
+        // - Admins: MUST have TOTP (required), Passkey recommended but optional for completion
+        // - Users: Need at least one method (TOTP preferred)
+        const has_totp = !!authMethods.totp;
+        const has_webauthn = !!authMethods.webauthn;
+        const setupComplete = isAdminUser
+          ? (has_totp && has_webauthn)  // Admins need BOTH
+          : (has_totp || has_webauthn);  // Users need at least one
+
         const status = {
-          has_totp: !!authMethods.totp,
-          has_webauthn: !!authMethods.webauthn,
-          needs_setup: !(authMethods.totp || authMethods.webauthn),
-          role: userData?.user?.role || 'user'
+          has_totp,
+          has_webauthn,
+          needs_setup: !setupComplete,
+          role
         };
-        
+
         setSetupStatus(status);
         setRequirements(status.requirements);
-        
+
         // If setup is complete, redirect to intended destination
-        if (!status.needs_setup) {
+        if (setupComplete) {
           const from = location.state?.from?.pathname || '/dashboard';
-          console.log('2FA setup complete, redirecting to:', from);
+          console.log('Security setup complete, redirecting to:', from);
           navigate(from, { replace: true });
         }
         
@@ -75,23 +90,32 @@ const SecuritySetupPage = () => {
     try {
       const response = await apiClient.get('/api/auth/me');
       const userData = response.data;
-      
+
       // Convert to expected format
       const authMethods = userData?.user?.auth_methods || {};
+      const role = userData?.user?.role || 'user';
+      const isAdminUser = role === 'admin' || role === 'super_admin';
+
+      const has_totp = !!authMethods.totp;
+      const has_webauthn = !!authMethods.webauthn;
+      const setupComplete = isAdminUser
+        ? (has_totp && has_webauthn)  // Admins need BOTH
+        : (has_totp || has_webauthn);  // Users need at least one
+
       const status = {
-        has_totp: !!authMethods.totp,
-        has_webauthn: !!authMethods.webauthn,
-        needs_setup: !(authMethods.totp || authMethods.webauthn),
-        role: userData?.user?.role || 'user'
+        has_totp,
+        has_webauthn,
+        needs_setup: !setupComplete,
+        role
       };
-      
+
       setSetupStatus(status);
       setRequirements(status.requirements);
-      
+
       // If setup is complete, redirect to intended destination
-      if (!status.needs_setup) {
+      if (setupComplete) {
         const from = location.state?.from?.pathname || '/dashboard';
-        console.log('2FA setup complete after component setup, redirecting to:', from);
+        console.log('Security setup complete after enrollment, redirecting to:', from);
         navigate(from, { replace: true });
       }
     } catch (error) {
@@ -146,43 +170,70 @@ const SecuritySetupPage = () => {
             </h2>
             
             <div className="space-y-4">
-              {/* Passkey Requirement */}
+              {/* TOTP Requirement - Step 1 for Admins (works on any device) */}
               <div className="flex items-center space-x-4 p-4 bg-gray-700 rounded-lg">
                 <div className="flex-shrink-0">
-                  {setupStatus.has_webauthn ? (
+                  {setupStatus.has_totp ? (
                     <CheckCircle className="w-6 h-6 text-green-400" />
                   ) : (
-                    <Key className="w-6 h-6 text-yellow-400" />
+                    <Smartphone className="w-6 h-6 text-yellow-400" />
                   )}
                 </div>
                 <div className="flex-grow">
                   <h3 className="font-medium text-white">
-                    Passkey Authentication
-                    {setupStatus.has_webauthn && <span className="text-green-400 ml-2">✓ Configured</span>}
+                    {isAdmin ? 'Step 1: ' : ''}TOTP Authenticator
+                    {setupStatus.has_totp && <span className="text-green-400 ml-2">✓ Configured</span>}
+                    {isAdmin && !setupStatus.has_totp && <span className="text-yellow-400 ml-2">(Required)</span>}
                   </h3>
                   <p className="text-gray-300 text-sm">
-                    Use your device's built-in security (Face ID, Touch ID, Windows Hello, etc.)
+                    Time-based codes from Google Authenticator, Authy, or similar apps.
+                    {isAdmin && ' Works on any device - your recovery fallback.'}
                   </p>
                 </div>
               </div>
 
-              {/* TOTP Requirement (Admins only) */}
+              {/* Passkey Requirement - Step 2 for Admins */}
               {isAdmin && (
                 <div className="flex items-center space-x-4 p-4 bg-gray-700 rounded-lg">
                   <div className="flex-shrink-0">
-                    {setupStatus.has_totp ? (
+                    {setupStatus.has_webauthn ? (
                       <CheckCircle className="w-6 h-6 text-green-400" />
                     ) : (
-                      <Smartphone className="w-6 h-6 text-yellow-400" />
+                      <Key className="w-6 h-6 text-yellow-400" />
                     )}
                   </div>
                   <div className="flex-grow">
                     <h3 className="font-medium text-white">
-                      TOTP Authenticator
-                      {setupStatus.has_totp && <span className="text-green-400 ml-2">✓ Configured</span>}
+                      Step 2: Passkey Authentication
+                      {setupStatus.has_webauthn && <span className="text-green-400 ml-2">✓ Configured</span>}
+                      {!setupStatus.has_webauthn && <span className="text-yellow-400 ml-2">(Required)</span>}
                     </h3>
                     <p className="text-gray-300 text-sm">
-                      Time-based codes from Google Authenticator, Authy, or similar apps
+                      Use your device's built-in security (Face ID, Touch ID, Windows Hello, etc.)
+                      Note: Passkeys are device-specific.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* For non-admins, show passkey as optional enhancement */}
+              {!isAdmin && (
+                <div className="flex items-center space-x-4 p-4 bg-gray-700 rounded-lg opacity-75">
+                  <div className="flex-shrink-0">
+                    {setupStatus.has_webauthn ? (
+                      <CheckCircle className="w-6 h-6 text-green-400" />
+                    ) : (
+                      <Key className="w-6 h-6 text-gray-400" />
+                    )}
+                  </div>
+                  <div className="flex-grow">
+                    <h3 className="font-medium text-white">
+                      Passkey Authentication
+                      {setupStatus.has_webauthn && <span className="text-green-400 ml-2">✓ Configured</span>}
+                      {!setupStatus.has_webauthn && <span className="text-gray-400 ml-2">(Optional)</span>}
+                    </h3>
+                    <p className="text-gray-300 text-sm">
+                      Optional: Use your device's built-in security for faster logins.
                     </p>
                   </div>
                 </div>
@@ -214,12 +265,37 @@ const SecuritySetupPage = () => {
 
         {/* Setup Components */}
         <div className="max-w-4xl mx-auto space-y-8">
-          {/* Passkey Setup */}
-          {!setupStatus.has_webauthn && (
+          {/* TOTP Setup - Always Step 1 (works everywhere, prevents lockout) */}
+          {!setupStatus.has_totp && (
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h2 className="text-2xl font-semibold text-white mb-4 flex items-center">
+                <Smartphone className="w-6 h-6 text-yellow-400 mr-2" />
+                {isAdmin ? 'Step 1: ' : ''}Set up TOTP Authentication
+              </h2>
+              <div className="mb-4">
+                <p className="text-gray-300 mb-2">
+                  TOTP provides secure authentication that works on any device.
+                  {isAdmin && ' Required for admin accounts.'}
+                </p>
+                <p className="text-gray-400 text-sm">
+                  You can use Google Authenticator, Authy, 1Password, or any compatible authenticator app.
+                </p>
+                {isAdmin && (
+                  <p className="text-yellow-400 text-sm mt-2">
+                    ⚠️ Set up TOTP first - it's your recovery method if you lose access to a passkey device.
+                  </p>
+                )}
+              </div>
+              <TOTPManager onSetupComplete={handleSetupComplete} />
+            </div>
+          )}
+
+          {/* Passkey Setup - Step 2 for Admins (only show after TOTP is set up) */}
+          {isAdmin && setupStatus.has_totp && !setupStatus.has_webauthn && (
             <div className="bg-gray-800 rounded-lg p-6">
               <h2 className="text-2xl font-semibold text-white mb-4 flex items-center">
                 <Key className="w-6 h-6 text-yellow-400 mr-2" />
-                Step 1: Set up Passkey Authentication
+                Step 2: Set up Passkey Authentication
               </h2>
               <div className="mb-4">
                 <p className="text-gray-300 mb-2">
@@ -228,27 +304,27 @@ const SecuritySetupPage = () => {
                 <p className="text-gray-400 text-sm">
                   This works with Face ID, Touch ID, Windows Hello, or security keys.
                 </p>
+                <p className="text-blue-400 text-sm mt-2">
+                  ✓ TOTP is configured - you can always use it to recover access on any device.
+                </p>
               </div>
               <PasskeyManagerDirect onSetupComplete={handleSetupComplete} />
             </div>
           )}
 
-          {/* TOTP Setup (Admins only) */}
-          {isAdmin && !setupStatus.has_totp && (
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-2xl font-semibold text-white mb-4 flex items-center">
-                <Smartphone className="w-6 h-6 text-yellow-400 mr-2" />
-                Step {setupStatus.has_webauthn ? '2' : '2'}: Set up TOTP Authentication
+          {/* For non-admins who have TOTP, optionally show passkey setup */}
+          {!isAdmin && setupStatus.has_totp && !setupStatus.has_webauthn && (
+            <div className="bg-gray-800 rounded-lg p-6 opacity-75">
+              <h2 className="text-xl font-semibold text-white mb-4 flex items-center">
+                <Key className="w-5 h-5 text-gray-400 mr-2" />
+                Optional: Add Passkey for Faster Logins
               </h2>
               <div className="mb-4">
                 <p className="text-gray-300 mb-2">
-                  TOTP provides a backup authentication method and is required for admin accounts.
-                </p>
-                <p className="text-gray-400 text-sm">
-                  You can use Google Authenticator, Authy, 1Password, or any compatible authenticator app.
+                  You can add a passkey for quicker logins using Face ID, Touch ID, or Windows Hello.
                 </p>
               </div>
-              <TOTPManager onSetupComplete={handleSetupComplete} />
+              <PasskeyManagerDirect onSetupComplete={handleSetupComplete} />
             </div>
           )}
 

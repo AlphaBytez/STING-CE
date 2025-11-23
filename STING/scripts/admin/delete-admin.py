@@ -4,6 +4,7 @@ Delete admin user from Kratos
 """
 
 import sys
+import os
 import argparse
 import requests
 import urllib3
@@ -11,8 +12,8 @@ import urllib3
 # Suppress SSL warnings for self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Kratos configuration
-KRATOS_ADMIN_URL = 'http://kratos:4434'
+# Kratos configuration - use env var or default to HTTPS
+KRATOS_ADMIN_URL = os.getenv("KRATOS_ADMIN_URL", "https://kratos:4434")
 
 def delete_admin(email, force=False):
     """Delete admin user from Kratos"""
@@ -43,13 +44,20 @@ def delete_admin(email, force=False):
             print(f"❌ Admin user not found: {email}")
             return False
 
-        # Confirm deletion unless --force
+        # Confirm deletion unless --force or non-interactive
         if not force:
-            print(f"\n⚠️  WARNING: You are about to delete admin user: {email}")
-            print(f"   User ID: {admin_id}")
-            confirm = input("\nType 'DELETE' to confirm: ")
-            if confirm != 'DELETE':
-                print("❌ Deletion cancelled")
+            # Check if running interactively (stdin is a tty)
+            if sys.stdin.isatty():
+                print(f"\n⚠️  WARNING: You are about to delete admin user: {email}")
+                print(f"   User ID: {admin_id}")
+                confirm = input("\nType 'DELETE' to confirm: ")
+                if confirm != 'DELETE':
+                    print("❌ Deletion cancelled")
+                    return False
+            else:
+                # Non-interactive mode without --force, abort for safety
+                print(f"❌ Non-interactive mode requires --force flag")
+                print(f"   Use: --force to skip confirmation")
                 return False
 
         # Delete the admin user

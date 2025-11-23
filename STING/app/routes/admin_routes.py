@@ -396,10 +396,23 @@ def get_user_role() -> str:
                 return 'admin'
         return 'user'
 
-@admin_bp.route('/generate-demo-data', methods=['POST'])
+# NOTE: generate-demo-data route has been moved to demo_routes.py
+# This old implementation is deprecated - the demo_bp blueprint handles this route now
+# Keeping this comment for reference about the migration
+
+@admin_bp.route('/generate-demo-data-deprecated', methods=['POST'])
 @require_auth_or_api_key(['admin'])
-def generate_demo_data():
-    """Generate demo data for testing and demonstrations"""
+def generate_demo_data_deprecated():
+    """DEPRECATED: Use demo_routes.py instead. This route has been moved to demo_bp."""
+    return jsonify({
+        'error': 'This endpoint has been deprecated. Use the new demo_routes implementation.',
+        'message': 'Route moved to demo_routes.py with enhanced functionality'
+    }), 410  # 410 Gone
+
+@admin_bp.route('/generate-demo-data-legacy', methods=['POST'])
+@require_auth_or_api_key(['admin'])
+def generate_demo_data_legacy():
+    """Legacy demo data generator - kept for reference only"""
     step = None  # Initialize step variable for exception handling
     try:
         # Check admin permissions
@@ -411,9 +424,9 @@ def generate_demo_data():
         scenario = data.get('scenario', 'basic')
         step = data.get('step', 1)
         total_steps = data.get('totalSteps', 5)
-        
-        logger.info(f"🔍 DEMO API: Generating demo data - scenario: {scenario}, step: {step}/{total_steps}")
-        logger.info(f"🔍 DEMO API: Step value type: {type(step)}, value: {repr(step)}")
+
+        logger.info(f"🔍 DEMO API (LEGACY): Generating demo data - scenario: {scenario}, step: {step}/{total_steps}")
+        logger.info(f"🔍 DEMO API (LEGACY): Step value type: {type(step)}, value: {repr(step)}")
         
         # Initialize response
         response_data = {

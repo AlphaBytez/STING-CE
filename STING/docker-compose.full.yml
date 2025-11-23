@@ -259,7 +259,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.minimal-worker
-    image: sting-ce-minimal-report-worker:latest
+    image: sting-ce-report-worker:latest
     environment:
       # Only needs to know where the app service is
       - APP_SERVICE_URL=https://app:5050

@@ -30,6 +30,7 @@ import PIIConfigurationManager from './PIIConfigurationManager';
 import AdminRecovery from './AdminRecovery';
 import DemoDataManager from './DemoDataManager';
 import NectarBotManager from './NectarBotManager';
+import QEBeeReviewDashboard from './QEBeeReviewDashboard';
 import { resilientGet, resilientPost, fallbackGenerators } from '../../utils/resilientApiClient';
 import ScrollToTopButton from '../common/ScrollToTopButton';
 
@@ -335,6 +336,17 @@ const AdminPanel = () => {
                 <Bot className="w-4 h-4" />
                 Nectar Bots
               </button>
+              <button
+                onClick={() => changeTab('qe-bee')}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
+                  activeTab === 'qe-bee'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-lg shadow-emerald-500/20'
+                    : 'text-gray-400 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <Eye className="w-4 h-4" />
+                QE Bee Review
+              </button>
             </div>
           </div>
         </div>
@@ -502,6 +514,12 @@ const AdminPanel = () => {
           {activeTab === 'nectar-bots' && (
             <div className="bg-gradient-to-br from-cyan-500/5 to-teal-500/5 rounded-2xl p-1 border border-cyan-500/20">
               <NectarBotManager />
+            </div>
+          )}
+
+          {activeTab === 'qe-bee' && (
+            <div className="bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 rounded-2xl p-1 border border-emerald-500/20">
+              <QEBeeReviewDashboard />
             </div>
           )}
         </div>

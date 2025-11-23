@@ -99,29 +99,38 @@ const SimpleProtectedRoute = ({ children }) => {
       }
 
       try {
-        const response = await fetch('/api/aal2/status', {
+        // Use /api/auth/me which reliably checks Kratos for credential status
+        const response = await fetch('/api/auth/me', {
           credentials: 'include'
         });
 
         if (response.ok) {
           const data = await response.json();
-          const status = data?.status;
-          const hasPasskey = status?.passkey_enrolled || false;
-          const hasTotp = status?.totp_enrolled || false;
+          // /api/auth/me returns { has_passkey, has_totp } directly from Kratos check
+          const hasPasskey = data?.has_passkey || false;
+          const hasTotp = data?.has_totp || false;
+          const userRole = data?.user?.role || identity?.traits?.role || 'user';
+          const isAdminUser = userRole === 'admin' || userRole === 'super_admin';
 
-          // User needs credential setup if they don't have BOTH Passkey AND TOTP
-          // STING requires 3-factor enrollment (Email + Passkey + TOTP)
-          // Users only need to verify with ONE for AAL2, but must have BOTH enrolled
-          if (!hasPasskey || !hasTotp) {
+          console.log('🔐 Credential check from /api/auth/me:', { hasPasskey, hasTotp, userRole, isAdminUser });
+
+          // Admins need BOTH passkey AND TOTP
+          // Regular users need at least TOTP (passkey optional)
+          const needsSetup = isAdminUser
+            ? (!hasPasskey || !hasTotp)  // Admins need both
+            : !hasTotp;                   // Users need at least TOTP
+
+          if (needsSetup) {
             console.log('⚠️ User missing credentials - redirecting to credential setup', {
               hasPasskey,
               hasTotp,
-              needsPasskey: !hasPasskey,
+              isAdmin: isAdminUser,
+              needsPasskey: isAdminUser && !hasPasskey,
               needsTotp: !hasTotp
             });
             setNeedsCredentialSetup(true);
           } else {
-            console.log('✅ User has both Passkey and TOTP configured (3FA complete)');
+            console.log('✅ User has required credentials configured', { hasPasskey, hasTotp, isAdmin: isAdminUser });
             setNeedsCredentialSetup(false);
           }
         }

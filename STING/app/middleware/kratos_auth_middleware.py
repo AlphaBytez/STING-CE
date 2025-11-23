@@ -68,6 +68,33 @@ class KratosAuthMiddleware:
                 self.session_id = session_data.get('id')
                 self.authenticated_at = session_data.get('authenticated_at')
                 self.expires_at = session_data.get('expires_at')
+
+            @property
+            def is_admin(self):
+                """Check if user has admin role"""
+                return self.role in ('admin', 'super_admin')
+
+            @property
+            def is_super_admin(self):
+                """Check if user has super_admin role"""
+                return self.role == 'super_admin'
+
+            def to_dict(self):
+                """Return user data as dictionary for API responses"""
+                return {
+                    'id': self.id,
+                    'email': self.email,
+                    'role': self.role,
+                    'effective_role': self.role,
+                    'name': self.name,
+                    'firstName': self.name.split()[0] if self.name else '',
+                    'lastName': ' '.join(self.name.split()[1:]) if self.name and len(self.name.split()) > 1 else '',
+                    'kratos_id': self.kratos_id,
+                    'kratos_synced': True,
+                    'aal': self.aal,
+                    'is_admin': self.is_admin,
+                    'is_super_admin': self.is_super_admin
+                }
         
         # Set Flask globals for backward compatibility
         g.user = SimpleUser(identity, session_data)

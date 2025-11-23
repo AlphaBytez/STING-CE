@@ -80,9 +80,13 @@ const SecuritySettings = () => {
             });
 
             const aal2Data = aal2StatusResponse.data;
-            const hasExistingCredentials = aal2Data?.status?.passkey_enrolled ||
-                                          aal2Data?.status?.totp_enrolled;
-            const isAAL2Verified = aal2Data?.status?.aal2_verified;
+            // /api/aal2/status returns {success, status: {passkey_enrolled, totp_enrolled}}
+            // Handle both nested and direct field formats for robustness
+            const status = aal2Data?.status || aal2Data;
+            const hasExistingCredentials = status?.passkey_enrolled || status?.has_webauthn ||
+                                          status?.totp_enrolled || status?.has_totp ||
+                                          aal2Data?.configured_methods?.webauthn || aal2Data?.configured_methods?.totp;
+            const isAAL2Verified = status?.aal2_verified;
 
             console.log('🔐 Security Settings AAL2 Gate Check:', {
               hasExistingCredentials,

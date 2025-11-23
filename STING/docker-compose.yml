@@ -250,7 +250,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.minimal-worker
-    image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-minimal-report-worker:${STING_VERSION:-latest}
+    image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-report-worker:${STING_VERSION:-latest}
     environment:
     - APP_SERVICE_URL=https://app:5050
     volumes:

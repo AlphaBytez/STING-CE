@@ -165,6 +165,10 @@ show_help() {
     echo "    [--password=<PASSWORD>]     LEGACY: Set specific password (only with --use-password)"
     echo "  delete admin --email=<EMAIL>  Delete admin user account"
     echo "    [--force]                   Skip confirmation prompts"
+    echo "  reset-mfa --email=<EMAIL>     Reset MFA credentials (TOTP/passkeys) - user keeps account"
+    echo "    [--force]                   Skip confirmation prompts"
+    echo "    [--totp-only]               Only reset TOTP (keep passkeys)"
+    echo "    [--webauthn-only]           Only reset passkeys (keep TOTP)"
     echo "  create user <EMAIL>           Create regular user (future enhancement)"
     echo
     echo "� Certificate Management:"
@@ -1968,15 +1972,23 @@ main() {
                     fi
                     
                     log_message "🔐 Security check passed - proceeding with admin deletion" "INFO"
-                    
+
                     # Call the admin deletion script
-                    local delete_script="${SOURCE_DIR}/scripts/delete-admin.py"
+                    local delete_script="${SOURCE_DIR}/scripts/admin/delete-admin.py"
+                    if [[ ! -f "$delete_script" ]]; then
+                        delete_script="${INSTALL_DIR}/scripts/admin/delete-admin.py"
+                    fi
+
+                    # Fallback to legacy location for backwards compatibility
                     if [[ ! -f "$delete_script" ]]; then
                         delete_script="${INSTALL_DIR}/scripts/delete-admin.py"
                     fi
-                    
+
                     if [[ ! -f "$delete_script" ]]; then
                         log_message "Admin deletion script not found" "ERROR"
+                        log_message "Expected locations:" "ERROR"
+                        log_message "  - ${SOURCE_DIR}/scripts/admin/delete-admin.py" "ERROR"
+                        log_message "  - ${INSTALL_DIR}/scripts/admin/delete-admin.py" "ERROR"
                         return 1
                     fi
                     
@@ -2058,6 +2070,91 @@ main() {
                 log_message "Recreate only supports 'admin' resource type" "ERROR"
                 return 1
             fi
+            ;;
+        reset-mfa)
+            # Reset MFA credentials for a user (preserves account)
+            local email=""
+            local force="false"
+            local totp_only="false"
+            local webauthn_only="false"
+
+            # Parse arguments
+            for arg in "$@"; do
+                case "$arg" in
+                    --email=*)
+                        email="${arg#--email=}"
+                        ;;
+                    --force)
+                        force=true
+                        ;;
+                    --totp-only)
+                        totp_only=true
+                        ;;
+                    --webauthn-only)
+                        webauthn_only=true
+                        ;;
+                    *)
+                        if [[ -z "$email" && "$arg" != --* ]]; then
+                            email="$arg"
+                        fi
+                        ;;
+                esac
+            done
+
+            if [[ -z "$email" ]]; then
+                log_message "Error: Email address is required" "ERROR"
+                log_message "Usage: msting reset-mfa --email=user@domain.com [--force] [--totp-only|--webauthn-only]" "INFO"
+                return 1
+            fi
+
+            # SECURITY CHECK: Verify sudo/root privileges
+            if ! check_admin_creation_privileges; then
+                log_message "🛡️ SECURITY PROTECTION: Unauthorized MFA reset attempt blocked" "ERROR"
+                log_message "📧 MFA reset for: $email (DENIED)" "WARNING"
+                return 1
+            fi
+
+            log_message "🔐 Security check passed - proceeding with MFA reset" "INFO"
+
+            # Find the reset script
+            local reset_script="${SOURCE_DIR}/scripts/admin/reset-mfa.py"
+            if [[ ! -f "$reset_script" ]]; then
+                reset_script="${INSTALL_DIR}/scripts/admin/reset-mfa.py"
+            fi
+
+            if [[ ! -f "$reset_script" ]]; then
+                log_message "MFA reset script not found" "ERROR"
+                log_message "Expected locations:" "ERROR"
+                log_message "  - ${SOURCE_DIR}/scripts/admin/reset-mfa.py" "ERROR"
+                log_message "  - ${INSTALL_DIR}/scripts/admin/reset-mfa.py" "ERROR"
+                return 1
+            fi
+
+            # Build command arguments
+            local cmd_args=("--email=$email")
+            if [[ "$force" == "true" ]]; then
+                cmd_args+=("--force")
+            fi
+            if [[ "$totp_only" == "true" ]]; then
+                cmd_args+=("--totp-only")
+            fi
+            if [[ "$webauthn_only" == "true" ]]; then
+                cmd_args+=("--webauthn-only")
+            fi
+
+            log_message "Resetting MFA for user: $email" "INFO"
+
+            # Copy script to container and execute
+            docker cp "$reset_script" sting-ce-app:/tmp/reset_mfa.py 2>/dev/null
+
+            # Run script inside container
+            docker exec sting-ce-app python3 /tmp/reset_mfa.py "${cmd_args[@]}"
+            local exit_code=$?
+
+            # Clean up
+            docker exec sting-ce-app rm -f /tmp/reset_mfa.py 2>/dev/null
+
+            return $exit_code
             ;;
         upload-knowledge)
             # Upload STING Platform Knowledge to Honey Jar

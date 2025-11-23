@@ -14,22 +14,63 @@ kratos_session_bp = Blueprint('kratos_session', __name__)
 
 # Kratos configuration
 KRATOS_PUBLIC_URL = os.getenv('KRATOS_PUBLIC_URL', 'https://kratos:4433')
+KRATOS_ADMIN_URL = os.getenv('KRATOS_ADMIN_URL', 'https://kratos:4434')
 
 @kratos_session_bp.route('/me', methods=['GET'])
 def get_current_user_simple():
     """
     Get current user information from Kratos session only.
     Pure Kratos approach - no Flask session coordination needed.
+
+    Returns credential status (has_passkey, has_totp) by querying Kratos Admin API
+    with include_credential parameters.
     """
     try:
         # Use the user data already loaded by middleware
         if not g.get('is_authenticated', False):
             return jsonify({'error': 'Not authenticated'}), 401
-        
+
         user = g.user
         session = g.session
-        
-        # Simple user response using only Kratos data
+
+        # Query Kratos Admin API for credential information
+        # IMPORTANT: Must include credentials explicitly to get TOTP/WebAuthn status
+        has_passkey = False
+        has_totp = False
+        passkey_count = 0
+
+        if user.kratos_id:
+            try:
+                response = requests.get(
+                    f"{KRATOS_ADMIN_URL}/admin/identities/{user.kratos_id}",
+                    params={'include_credential': ['totp', 'webauthn']},
+                    verify=False,
+                    timeout=5
+                )
+                if response.status_code == 200:
+                    identity_data = response.json()
+                    credentials = identity_data.get('credentials', {})
+
+                    # Check for WebAuthn credentials in Kratos
+                    if 'webauthn' in credentials:
+                        webauthn_config = credentials.get('webauthn', {}).get('config', {})
+                        webauthn_creds = webauthn_config.get('credentials', [])
+                        passkey_count = len(webauthn_creds)
+                        has_passkey = passkey_count > 0
+
+                    # Check for TOTP credentials in Kratos
+                    if 'totp' in credentials:
+                        totp_config = credentials.get('totp', {}).get('config', {})
+                        # TOTP is configured if there's a secret_key in the config
+                        has_totp = bool(totp_config.get('secret_key') or totp_config)
+
+                    logger.info(f"Kratos credentials check for {user.email}: {passkey_count} passkeys, TOTP: {has_totp}")
+                else:
+                    logger.warning(f"Failed to fetch Kratos identity: {response.status_code}")
+            except Exception as e:
+                logger.warning(f"Failed to check Kratos credentials: {e}")
+
+        # Simple user response using Kratos data + credential status
         user_info = {
             'id': user.kratos_id,
             'email': user.email,
@@ -44,10 +85,18 @@ def get_current_user_simple():
                 'effective_aal': user.aal  # With pure Kratos, these are the same
             }
         }
-        
+
         logger.info(f"Retrieved pure Kratos session for user: {user.email}")
-        return jsonify({'user': user_info})
-        
+
+        # Return user info along with credential status at top level
+        # Frontend expects has_passkey and has_totp at the root of the response
+        return jsonify({
+            'user': user_info,
+            'has_passkey': has_passkey,
+            'has_totp': has_totp,
+            'passkey_count': passkey_count
+        })
+
     except Exception as e:
         logger.error(f"Error in pure Kratos session endpoint: {e}")
         return jsonify({'error': 'Session retrieval failed'}), 500
