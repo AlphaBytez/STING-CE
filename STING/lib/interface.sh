@@ -1035,6 +1035,7 @@ main() {
                 
                 # Sync with exclusions for critical/generated files
                 # Use --no-perms to avoid permission issues with Docker-created directories
+                # IMPORTANT: Exclude config.yml to preserve user-configured values (domain, ports, etc.)
                 rsync -av "$PROJECT_DIR/" "$INSTALL_DIR/" \
                     --no-perms \
                     --exclude ".git" \
@@ -1063,6 +1064,7 @@ main() {
                     --exclude "secrets/" \
                     --exclude "conf/secrets/" \
                     --exclude "conf/vault/" \
+                    --exclude "conf/config.yml" \
                     --exclude "*.swp" \
                     --exclude ".DS_Store" \
                     --exclude "docker-compose.override.yml" \
@@ -1081,9 +1083,24 @@ main() {
                 mkdir -p "$INSTALL_DIR/conf"
                 
                 # Copy critical config files explicitly
+                # IMPORTANT: Don't overwrite config.yml if it already exists with configured values
+                # config.yml contains user-configured domain, ports, etc. that should persist across updates
                 if [ -f "$PROJECT_DIR/conf/config.yml" ]; then
-                    cp -f "$PROJECT_DIR/conf/config.yml" "$INSTALL_DIR/conf/config.yml"
-                    log_message "Copied config.yml"
+                    if [ -f "$INSTALL_DIR/conf/config.yml" ]; then
+                        # Check if install dir has configured values (not placeholder)
+                        if grep -q "CONFIGURE_YOUR_DOMAIN" "$INSTALL_DIR/conf/config.yml" 2>/dev/null; then
+                            # Install dir still has placeholder, safe to overwrite
+                            cp -f "$PROJECT_DIR/conf/config.yml" "$INSTALL_DIR/conf/config.yml"
+                            log_message "Copied config.yml (had placeholder values)"
+                        else
+                            # Install dir has configured values, preserve them
+                            log_message "📋 Preserving existing config.yml (contains configured values)"
+                        fi
+                    else
+                        # No config.yml in install dir, copy it
+                        cp -f "$PROJECT_DIR/conf/config.yml" "$INSTALL_DIR/conf/config.yml"
+                        log_message "Copied config.yml (new installation)"
+                    fi
                 fi
                 
                 if [ -f "$PROJECT_DIR/conf/config_loader.py" ]; then
@@ -1141,10 +1158,20 @@ main() {
                     log_message "Failed to change to installation directory: ${INSTALL_DIR}" "ERROR"
                     return 1
                 }
-                
+
+                # Detect which profile-based services were running before update
+                # These need to be restarted after the update since they're not included in default 'docker compose up'
+                local mailpit_was_running=false
+                if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "sting-ce-mailpit"; then
+                    mailpit_was_running=true
+                    log_message "📧 Mailpit was running - will restart after update"
+                fi
+
                 # Stop all services gracefully (preserves networks and volumes)
                 log_message "Stopping all services gracefully..."
                 docker compose stop
+                # Also stop profile-based services that regular stop might miss
+                docker compose --profile development stop 2>/dev/null || true
 
                 # Remove containers to prepare for rebuild
                 log_message "Removing old containers..."
@@ -1200,11 +1227,18 @@ main() {
                 # Ensure all services are actually started (fix for dependency timing issues)
                 source "$INSTALL_DIR/lib/fix_service_startup.sh"
                 ensure_all_services_started || log_message "Some services may need manual start" "WARN"
-                
+
+                # Restart profile-based services that were running before update
+                # These aren't included in default 'docker compose up' since they require explicit profiles
+                if [ "$mailpit_was_running" = "true" ]; then
+                    log_message "📧 Restarting Mailpit (development profile service)..."
+                    docker compose --profile development up -d mailpit || log_message "Failed to restart Mailpit" "WARN"
+                fi
+
                 # Show status
                 log_message "Services status:"
                 docker compose ps
-                
+
                 # Restore original directory
                 cd "$original_dir" || true
             fi

@@ -393,16 +393,22 @@ def cert_info():
         # Get configured hostname/RP ID
         webauthn_rp_id = os.getenv('WEBAUTHN_RP_ID', 'localhost')
 
-        # Get system IP - prefer STING_HOSTNAME if it's an IP, otherwise try to detect
+        # Get system IP - prefer SERVER_IP env var (set at install time from host)
+        # This is needed because containers can only see Docker network IPs
+        server_ip = os.getenv('SERVER_IP', '')
         sting_hostname = os.getenv('STING_HOSTNAME', '')
 
-        # Check if STING_HOSTNAME is an IP address
         import re
         ip_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
-        if sting_hostname and re.match(ip_pattern, sting_hostname):
+
+        # Priority: SERVER_IP > STING_HOSTNAME (if IP) > hostname -I detection
+        if server_ip and re.match(ip_pattern, server_ip):
+            primary_ip = server_ip
+        elif sting_hostname and re.match(ip_pattern, sting_hostname):
             primary_ip = sting_hostname
         else:
-            # Try to get IP from hostname -I, but filter out Docker IPs (172.x, 10.x for Docker networks)
+            # Try to get IP from hostname -I
+            # Note: Inside Docker, this returns Docker network IP, so SERVER_IP is preferred
             try:
                 ip_result = subprocess.run(
                     ['hostname', '-I'],
@@ -412,10 +418,10 @@ def cert_info():
                 )
                 if ip_result.returncode == 0:
                     all_ips = ip_result.stdout.strip().split()
-                    # Prefer IPs that are NOT Docker internal (not 172.17-32.x.x.x or 10.x.x.x)
+                    # Prefer IPs that are NOT Docker internal (172.16-31.x.x.x range)
+                    # Note: 10.x.x.x and 192.168.x.x are valid private networks, don't filter
                     for ip in all_ips:
-                        if not (ip.startswith('172.1') or ip.startswith('172.2') or
-                               ip.startswith('172.3') or ip.startswith('10.')):
+                        if not (ip.startswith('172.1') or ip.startswith('172.2') or ip.startswith('172.3')):
                             primary_ip = ip
                             break
                     else:
