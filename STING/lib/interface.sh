@@ -825,10 +825,19 @@ main() {
                 
                 # Single service update (existing code)
                 log_message "Updating $service service..."
-                
+
                 # Check service dependencies
                 check_service_dependencies "$service"
-                
+
+                # IMPORTANT: Check for config changes BEFORE syncing code
+                # This prevents the race condition where files are synced first,
+                # making them identical, and then the check fails to detect changes
+                local config_needs_regen=false
+                if check_config_changes; then
+                    config_needs_regen=true
+                    log_message "📋 Config changes detected - will regenerate env files after sync"
+                fi
+
                 # Copy fresh code for the service
                 if [ "$sync_only" = "true" ]; then
                     log_message "🔄 Sync-only mode: Syncing only changed files for $service..."
@@ -869,20 +878,25 @@ main() {
                     cd "$original_dir" || true
                 fi
                 
-                # Check if config changed
-                if check_config_changes; then
+                # Regenerate env files if config changes were detected BEFORE sync
+                # Using the flag set earlier prevents the race condition where:
+                # 1. Files are synced first (making them identical)
+                # 2. check_config_changes() returns false (no diff)
+                # 3. Env regeneration is skipped, leaving stale values
+                if [ "$config_needs_regen" = "true" ]; then
+                    log_message "🔄 Regenerating environment files due to config changes..."
                     # Load config utils for centralized config generation
                     source "${SCRIPT_DIR}/config_utils.sh" || {
                         log_message "Failed to load config utils module" "ERROR"
                         return 1
                     }
-                    
+
                     # Regenerate env files using utils container (no local generation)
                     if ! generate_config_via_utils "runtime" "config.yml"; then
                         log_message "Failed to regenerate configuration files via utils container" "ERROR"
                         return 1
                     fi
-                    
+
                     # Validate generation was successful
                     if ! validate_config_generation; then
                         log_message "Configuration validation failed" "ERROR"
@@ -895,7 +909,7 @@ main() {
 
                     source_service_envs
                 fi
-                
+
                 # Store current directory and change to install directory for docker compose
                 local original_dir="$(pwd)"
                 cd "${INSTALL_DIR}" || {
@@ -1003,7 +1017,16 @@ main() {
             else
                 # Update all services
                 log_message "Updating all services..."
-                
+
+                # IMPORTANT: Check for config changes BEFORE syncing code
+                # This prevents the race condition where files are synced first,
+                # making them identical, and then the check fails to detect changes
+                local config_needs_regen_all=false
+                if check_config_changes; then
+                    config_needs_regen_all=true
+                    log_message "📋 Config changes detected - will regenerate env files after sync"
+                fi
+
                 # First, sync all code from project directory to INSTALL_DIR
                 log_message "Syncing entire project to INSTALL_DIR..."
                 
@@ -1091,10 +1114,11 @@ main() {
                 [ -d "$PROJECT_DIR/conf/mailslurper" ] && rsync -av "$PROJECT_DIR/conf/mailslurper/" "$INSTALL_DIR/conf/mailslurper/" \
                     --exclude='venv' --exclude='**/venv' --exclude='__pycache__' --exclude='*.pyc' || true
                 
-                # Check if config changed and regenerate env files if needed
-                if check_config_changes; then
+                # Regenerate env files if config changes were detected BEFORE sync
+                # Using the flag set earlier prevents the race condition
+                if [ "$config_needs_regen_all" = "true" ]; then
                     # Regenerate env files using config_loader.py (with venv)
-                    log_message "Running config_loader.py to regenerate environment files..."
+                    log_message "🔄 Regenerating environment files due to config changes..."
                     if [ -f "${CONFIG_DIR}/config_loader.py" ]; then
                         local python_cmd="python3"
                         if [ -f "${INSTALL_DIR}/.venv/bin/python3" ]; then
