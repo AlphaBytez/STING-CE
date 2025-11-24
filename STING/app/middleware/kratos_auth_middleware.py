@@ -29,19 +29,56 @@ class KratosAuthMiddleware:
         logger.info("🔐 Pure Kratos authentication middleware initialized")
     
     def load_user_from_kratos(self):
-        """Load user information from Kratos session on each request"""
-        
+        """Load user information from Kratos session or API key on each request"""
+
+        # Initialize g.api_key to None
+        g.api_key = None
+
         # Skip authentication for public routes
         public_routes = [
-            '/health', '/api/health', 
+            '/health', '/api/health',
             '/.ory/', '/login', '/registration',
             '/recovery', '/verification', '/error',
             '/api/bootstrap/', '/static/'
         ]
-        
+
         if any(request.path.startswith(route) for route in public_routes):
             return
-        
+
+        # Check for API key FIRST (before Kratos session)
+        auth_header = request.headers.get('Authorization', '')
+        x_api_key = request.headers.get('X-API-Key', '')
+
+        api_key_value = None
+        if auth_header.startswith('Bearer sk_'):
+            api_key_value = auth_header[7:]  # Remove 'Bearer ' prefix
+        elif x_api_key and x_api_key.startswith('sk_'):
+            api_key_value = x_api_key
+
+        if api_key_value:
+            logger.info(f"🔑 Found API key in request for {request.path}")
+            try:
+                from app.models.api_key_models import ApiKey
+                from app.models.user_models import User
+
+                api_key = ApiKey.verify_key(api_key_value)
+                if api_key:
+                    # Load the user associated with this API key
+                    user = User.query.filter_by(kratos_id=api_key.user_id).first()
+                    if user:
+                        g.user = user
+                        g.api_key = api_key
+                        g.is_authenticated = True
+                        g.auth_method = 'api_key'
+                        logger.info(f"🔑 Authenticated via API key: {api_key.name} (scopes: {api_key.scopes})")
+                        return
+                    else:
+                        logger.warning(f"🔑 API key valid but user {api_key.user_id} not found in database")
+                else:
+                    logger.warning(f"🔑 Invalid API key provided")
+            except Exception as e:
+                logger.error(f"🔑 Error verifying API key: {e}")
+
         # Get Kratos session
         session_data = self._get_kratos_session()
         

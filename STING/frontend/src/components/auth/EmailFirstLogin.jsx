@@ -82,7 +82,7 @@ const EmailFirstLogin = () => {
         setError('No additional authentication methods available. Please contact support.');
       }
     } catch (error) {
-      console.error('🔐 Failed to initialize AAL2 flow:', error);
+      console.error('🔐 Failed to initialize Email:', error);
       setError('Failed to initialize secure authentication. Please try again.');
     }
   }, [initializeKratosFlow]);

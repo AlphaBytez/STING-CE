@@ -70,7 +70,7 @@ const AAL2TOTPVerify = () => {
       });
       
       if (!flowResponse.ok) {
-        throw new Error('Failed to initialize AAL2 flow');
+        throw new Error('Failed to initialize TOTP');
       }
       
       const flowData = await flowResponse.json();

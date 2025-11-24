@@ -597,18 +597,25 @@ def enforce_2fa():
 
 
 def require_admin(f):
-    """Decorator to require admin privileges"""
+    """Decorator to require admin privileges - supports both session auth and API keys"""
     from functools import wraps
-    
+
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Check if user exists in g.user (set by auth middleware)
+        # First check for API key with admin scope
+        if hasattr(g, 'api_key') and g.api_key:
+            if 'admin' in g.api_key.scopes:
+                return f(*args, **kwargs)
+            else:
+                return jsonify({'error': 'Admin scope required for this API key'}), 403
+
+        # Fall back to session-based auth
         if not hasattr(g, 'user') or not g.user:
             return jsonify({'error': 'Authentication required'}), 401
-        
+
         if not g.user.is_admin and not g.user.is_super_admin:
             return jsonify({'error': 'Admin privileges required'}), 403
-        
+
         return f(*args, **kwargs)
     return decorated_function
 

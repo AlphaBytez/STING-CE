@@ -271,7 +271,7 @@ const AAL2PasskeyVerify = () => {
         });
 
         if (!refreshResponse.ok) {
-          throw new Error('Failed to initialize AAL2 flow');
+          throw new Error('Failed to initialize Passkey');
         }
 
         const flowData = await refreshResponse.json();
