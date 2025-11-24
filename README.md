@@ -11,396 +11,264 @@
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![AlphaBytez](https://img.shields.io/badge/by-AlphaBytez-blue.svg)](https://github.com/alphabytez)
 
-Self-hosted platform for secure, private LLM deployment with complete data sovereignty. Features innovative "Honey Jar" knowledge management, enterprise-grade authentication, and the Bee AI assistant. Built for organizations that value privacy and control over their AI infrastructure.
+**Your data. Your AI. Your rules.**
+
+STING-CE is for teams and organizations who want to run AI on their own terms. No cloud dependencies, no data leaving your servers, no third-party snooping. You get a complete AI-powered knowledge platform that runs entirely on your infrastructure.
+
+Think of it as your private ChatGPT—but one that actually knows your company's documents, respects your privacy policies, and doesn't phone home. Store your knowledge in "Honey Jars," chat with Bee (our AI assistant), and keep everything locked down with enterprise-grade security.
 
 <p align="center">
   <img src="assets/screenshots/dashboard-v1.png" alt="STING-CE Dashboard" width="750"/>
 </p>
 
-## ✨ Features
+## What Can STING-CE Do?
 
-### 🔐 Modern Authentication
-- **Passwordless Authentication** - Magic links and WebAuthn/Passkeys
-- **Multi-Factor Authentication** - TOTP, SMS, and biometric options
-- **Email Verification** - Built-in with automatic validation
-- **Session Management** - AAL2 (Two-factor) session controls
-- **OAuth2/OIDC** - Standard protocol support via Ory Kratos
-- **Certificate Management** - Automated certificate distribution for seamless WebAuthn across machines
+### Honey Jars: Your Knowledge, Organized
 
-### 🍯 Honey Jar Knowledge Management
-- **Semantic Search** - Vector-based knowledge retrieval with ChromaDB
-- **Multi-Format Support** - PDF, DOCX, HTML, JSON, Markdown, TXT
-- **Private & Secure** - Your data stays on your infrastructure
-- **Bee Integration** - AI assistant queries your knowledge bases for context
-- **Background Processing** - Automatic document chunking and embedding
+Honey Jars are where your documents live. Drop in PDFs, Word docs, markdown files, or plain text—STING automatically processes them, breaks them into searchable chunks, and creates vector embeddings. When you (or Bee) ask a question, the system finds the most relevant pieces of your knowledge instantly.
+
+- Supports PDF, DOCX, HTML, JSON, Markdown, and TXT
+- Semantic search that understands meaning, not just keywords
+- Everything stays on your servers
 
 <p align="center">
   <img src="assets/screenshots/honey-jar-creation.gif" alt="Honey Jar Knowledge Management" width="750"/>
 </p>
 
-### 🤖 AI-Powered Assistant (Bee)
-- **Intelligent Chat Interface** - Natural language queries with Bee (B. Sting)
-- **Knowledge Base Integration** - ChromaDB-powered context retrieval from Honey Jars
-- **Multi-LLM Support** - Works with Ollama, OpenAI, LM Studio, vLLM
-- **Contextual Responses** - Bee leverages your knowledge bases for accurate answers
+### Bee: Your AI Assistant That Actually Knows Your Stuff
+
+Bee (B. Sting, if we're being formal) is your conversational AI that's connected to your Honey Jars. Ask questions in plain English, and Bee pulls relevant context from your documents before generating responses. It's like having a colleague who's read everything and remembers it perfectly.
+
+- Natural conversation with your knowledge base
+- Works with Ollama (local), OpenAI, LM Studio, or vLLM
+- Answers grounded in your actual documents
 
 <p align="center">
   <img src="assets/screenshots/bee-chat-interface.gif" alt="Bee AI Assistant Chat Interface" width="750"/>
 </p>
 
-### 🔒 Security & Privacy
-- **Vault Integration** - HashiCorp Vault for secrets management
-- **PII Protection** - Automatic serialization for sensitive data
-- **Audit Logging** - Comprehensive security event tracking
-- **Zero-Trust Architecture** - All services isolated and authenticated
+### Security That Doesn't Get in the Way
 
-### 🐳 Easy Deployment
-- **Docker-Based** - One-command deployment
-- **Web Setup Wizard** - Interactive first-run configuration
-- **Automatic Validation** - Built-in health checks for all services
-- **Hot Reload** - Development mode with live updates
+We built STING-CE for organizations that take security seriously. Passwordless login with passkeys, multi-factor auth, automatic PII detection, and HashiCorp Vault for secrets. All traffic encrypted, all services isolated, all access logged.
 
-### 🎨 Modern UI & Theming
-- **Glass Morphism Design** - Modern STING theme with floating elements
-- **Responsive Interface** - Optimized for desktop, tablet, and mobile
-- **Multiple Themes** - Customizable themes including modern glass, retro terminal, and more
-- **Accessibility** - WCAG-compliant design with keyboard navigation
-- **Dark Mode Support** - Built-in support for light and dark themes
+- Passwordless auth with WebAuthn/passkeys and magic links
+- MFA options: TOTP, SMS, biometrics
+- Automatic PII detection and protection
+- Zero-trust architecture throughout
 
-## 🚧 Development Status
+### Modern Interface, Easy Setup
 
-**STING-CE is under active development!** While the core platform is functional and deployable, not all features listed above are fully enabled or production-ready. Some features may require additional configuration, bug fixes, or implementation work.
+One command gets you up and running. A web wizard walks you through configuration. The interface is clean, responsive, and works on any device. Pick from multiple themes (including a slick glass morphism design) and dark mode support.
 
-**We need your help!** 🤝
+- Docker-based: `bash bootstrap.sh` and you're off
+- Web setup wizard for painless configuration
+- Themes for every taste, accessibility baked in
 
-- 🐛 **Found a bug?** Please [open an issue](https://github.com/AlphaBytez/STING-CE-Public/issues)
-- 💡 **Have an idea?** We'd love to hear it - [create a feature request](https://github.com/AlphaBytez/STING-CE-Public/issues/new)
-- 🔧 **Want to contribute?** Pull requests are always welcome! See [CONTRIBUTING.md](CONTRIBUTING.md)
-- 📖 **Improving docs?** Documentation PRs are especially appreciated
+## Heads Up: This Is a Work in Progress
 
-Every contribution matters - from reporting issues to improving documentation to submitting code. This is a community project, and we welcome developers of all skill levels!
+STING-CE is under active development. The core platform works and you can deploy it today, but some features are still being polished. You might hit rough edges, and some things may need extra configuration to work perfectly.
 
-## 🚀 Quick Start
+**We'd love your help making it better:**
 
-### Prerequisites
+- Found something broken? [Open an issue](https://github.com/AlphaBytez/STING-CE-Public/issues)
+- Got an idea? [Tell us about it](https://github.com/AlphaBytez/STING-CE-Public/issues/new)
+- Want to contribute code? [Check out CONTRIBUTING.md](CONTRIBUTING.md)
+- Docs person? Documentation PRs are especially welcome
 
-- **OS**: Ubuntu 20.04+, Debian 11+, macOS, or WSL2
-- **RAM**: 8GB minimum (16GB recommended)
-- **CPU**: 4 cores minimum
-- **Disk**: 50GB free space
-- **Docker**: Installed automatically if not present
+This is a community project. Whether you're fixing typos or building features, every contribution helps.
 
-### Installation (One-Line Install)
+## Getting Started
 
-The fastest way to get started is with our bootstrap installer:
+### What You'll Need
+
+- **A Linux box** (Ubuntu 20.04+, Debian 11+), macOS, or WSL2
+- **8GB RAM** minimum (16GB is better, especially for running local LLMs)
+- **4 CPU cores**
+- **50GB disk space**
+- Docker (we'll install it if you don't have it)
+
+### The Easy Way (One Command)
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE-Public/main/bootstrap.sh)"
 ```
 
-This single command will:
-- Detect your platform (macOS, WSL, Debian/Ubuntu)
-- Clone the repository
-- Launch the web-based setup wizard
+That's it. The script detects your platform, clones the repo, and fires up a web wizard to walk you through the rest.
 
-### Installation (Manual)
+### The Manual Way
 
-Prefer to clone manually? No problem:
+If you prefer to see what's happening:
 
 ```bash
-# Clone the repository
 git clone https://github.com/AlphaBytez/STING-CE-Public.git
 cd STING-CE-Public
-
-# Run the installer (includes web wizard)
 ./install_sting.sh
 ```
 
-**The installer will:**
-1. ✅ Check system requirements
-2. ✅ Install Docker (if needed)
-3. ✅ Launch the web setup wizard at `http://localhost:8335`
-4. ✅ Guide you through configuration (domain, email, LLM settings)
-5. ✅ Install and start all services
-6. ✅ Validate email delivery
-7. ✅ Create your admin account
+The installer handles everything: checking your system, installing Docker if needed, launching a setup wizard at `http://localhost:8335`, and getting all 20+ services running. You'll configure your domain, email settings, and LLM preferences through the web interface.
 
-**After installation:**
-- **Frontend**: https://localhost:8443
-- **API**: https://localhost:5050
-- **Mailpit** (dev mode): http://localhost:8025
+**Once it's done:**
+- Open https://localhost:8443 for the main interface
+- API lives at https://localhost:5050
+- Dev email viewer at http://localhost:8025 (Mailpit)
 
-### Upgrading/Reinstalling
-
-If you already have STING-CE installed and want to upgrade or reinstall:
+### Already Installed? Upgrading Is Easy
 
 ```bash
 cd STING-CE-Public
-
-# Reinstall (preserves your data and configuration)
-./manage_sting.sh reinstall
-
-# Fresh install (removes everything - use with caution!)
-./manage_sting.sh reinstall --fresh
+./manage_sting.sh reinstall          # Keeps your data
+./manage_sting.sh reinstall --fresh  # Nuclear option: wipes everything
 ```
 
-**Note:** Running `./install_sting.sh` on an existing installation will detect this and direct you to use the reinstall command instead.
+### Headless/Automated Install
 
-### Installation (Command Line)
-
-For headless servers or automated deployments:
+For servers without a GUI or CI/CD pipelines:
 
 ```bash
-# Clone the repository
 git clone https://github.com/AlphaBytez/STING-CE-Public.git
 cd STING-CE-Public
-
-# Create configuration from template
 cp STING/conf/config.yml.default STING/conf/config.yml
-
-# Edit configuration (set domain, email settings, etc.)
-nano STING/conf/config.yml
-
-# Run installer in non-interactive mode
+nano STING/conf/config.yml  # Set your domain, email, etc.
 ./install_sting.sh --non-interactive
-
-# Start services
 ./manage_sting.sh start
 ```
 
-## 📖 Documentation
+## Documentation
 
-### 🌐 Documentation Website
+**Online docs**: [docs.sting.alphabytez.dev](https://alphabytez.github.io/sting-docs/) (coming soon) — searchable, mobile-friendly, dark mode included.
 
-Visit our comprehensive documentation site for a better reading experience:
+**In the repo**: Everything's in `STING/docs/`:
+- [Installation Guide](STING/docs/platform/guides/fresh-install-guide.md)
+- [Configuration](STING/docs/operations/)
+- [API Reference](STING/docs/api/)
+- [Architecture Deep Dive](STING/docs/architecture/)
+- [Security Policies](SECURITY.md)
 
-**[docs.sting.alphabytez.dev](https://alphabytez.github.io/sting-docs/)** (Coming Soon)
-
-Features:
-- 🔍 Full-text search across all documentation
-- 📱 Mobile-friendly responsive design
-- 🌓 Dark/light mode support
-- 📚 Version-specific documentation
-- 💻 Code examples and API reference
-
-### 📂 Documentation in Repository
-
-Documentation is also available in the `STING/docs/` directory:
-
-- **Installation**: [STING/docs/README.md](STING/docs/README.md) or [Fresh Install Guide](STING/docs/platform/guides/fresh-install-guide.md)
-- **Configuration**: [STING/docs/operations/](STING/docs/operations/)
-- **API Reference**: [STING/docs/api/](STING/docs/api/)
-- **Architecture**: [STING/docs/architecture/](STING/docs/architecture/)
-- **Security**: [SECURITY.md](SECURITY.md)
-
-## 🛠️ Management
-
-### Service Management
+## Day-to-Day Management
 
 ```bash
-# Start all services
-./manage_sting.sh start
-
-# Stop all services
-./manage_sting.sh stop
-
-# Restart a specific service
-./manage_sting.sh restart [service]
-
-# View logs
-./manage_sting.sh logs [service]
-
-# Check service status
-./manage_sting.sh status
+./manage_sting.sh start              # Fire up all services
+./manage_sting.sh stop               # Shut everything down
+./manage_sting.sh restart [service]  # Restart one service (or all)
+./manage_sting.sh logs [service]     # Tail the logs
+./manage_sting.sh status             # See what's running
 ```
 
-### Certificate Management
+### Setting Up Passkeys Across Machines
 
-For seamless WebAuthn/passkey authentication across different machines:
+If you're using WebAuthn/passkeys (and you should—they're great), you'll need to distribute your CA certificate to client machines. Otherwise browsers will complain about self-signed certs and passkeys won't work.
 
 ```bash
-# Generate certificate bundle for client distribution
 ./manage_sting.sh export-certs ./client-certs
-
-# Copy certificates to remote machines
 ./manage_sting.sh copy-certs user@hostname /remote/path
-
-# Clients run the appropriate installer:
-# macOS: ./install-ca-mac.sh
-# Linux: ./install-ca-linux.sh  
-# Windows: install-ca-windows.ps1
 ```
 
-**Why Certificate Management Matters:**
-- **Eliminates certificate errors** that break WebAuthn authentication
-- **Essential for VM/container deployments** where clients access from different machines
-- **Critical for production** where users can't manually install certificates
-- **Enables passkey authentication** across your entire infrastructure
+Then on each client:
+- **macOS**: `./install-ca-mac.sh`
+- **Linux**: `./install-ca-linux.sh`
+- **Windows**: `install-ca-windows.ps1`
 
-See [Certificate Management Guide](STING/docs/guides/CERTIFICATE_MANAGEMENT.md) for complete documentation.
+More details in the [Certificate Management Guide](STING/docs/guides/CERTIFICATE_MANAGEMENT.md).
 
-## 🏗️ Architecture
+## Under the Hood
 
-STING-CE uses a microservices architecture:
+STING-CE runs as a fleet of Docker containers working together:
 
-- **Frontend**: React-based UI with Vite
-- **API**: Flask REST API with PII protection
-- **Kratos**: Ory Kratos for authentication flows
-- **Vault**: HashiCorp Vault for secrets
-- **Bee**: AI assistant chatbot (B. Sting)
-- **Knowledge**: ChromaDB vector database for Honey Jars
-- **Database**: PostgreSQL for application data
-- **Redis**: Caching and session storage
-- **Mailpit**: Development email catcher
+| Service | What It Does |
+|---------|-------------|
+| **Frontend** | React + Vite UI |
+| **API** | Flask backend with automatic PII protection |
+| **Kratos** | Ory Kratos handles all the auth stuff |
+| **Vault** | HashiCorp Vault keeps secrets secret |
+| **Bee** | The AI chatbot that knows your docs |
+| **Knowledge** | ChromaDB vector store for semantic search |
+| **Database** | PostgreSQL for structured data |
+| **Redis** | Caching and sessions |
+| **Mailpit** | Catches emails in dev mode |
 
-## 🐛 Troubleshooting
+Everything communicates over an internal Docker network with Nginx handling SSL termination and routing.
 
-### Common Issues
+## When Things Go Wrong
 
-**Email Delivery Not Working**
+**Emails not sending?**
 ```bash
 python3 STING/scripts/health/validate_mailpit.py
 ```
 
-**Docker Permission Denied**
+**"Permission denied" from Docker?**
 ```bash
 sudo usermod -aG docker $USER
-# Logout and login again
+# Then log out and back in
 ```
 
-**Port Already in Use**
+**Port 8443 already in use?**
 ```bash
-# Find what's using the port
-sudo lsof -i :8443
-
-# Change port in config.yml or kill the process
+sudo lsof -i :8443  # Find the culprit
+# Either kill it or change the port in config.yml
 ```
 
-**Services Not Starting**
+**Services won't start?**
 ```bash
-# Check logs
-./manage_sting.sh logs
-
-# Check system resources
-free -h
-df -h
-
-# Restart with cleanup
-./manage_sting.sh restart
+./manage_sting.sh logs           # What's the error?
+free -h && df -h                 # Out of RAM or disk?
+./manage_sting.sh restart        # Sometimes a restart fixes it
 ```
 
-## 🤝 Contributing
+## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Want to help? Awesome. Check out [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started.
 
-## 🔒 Security
+## Security
 
-Security is our top priority. Please see [SECURITY.md](SECURITY.md) for:
-- Reporting vulnerabilities
-- Security best practices
-- Supported versions
-- Disclosure policy
+Found a security issue? **Don't open a public issue.** Instead, read [SECURITY.md](SECURITY.md) for our responsible disclosure process. We take security seriously and will respond quickly.
 
-**DO NOT** create public issues for security vulnerabilities.
+## License
 
-## 📜 License
+[Apache License 2.0](LICENSE) — use it, modify it, share it. Just keep the license notice.
 
-STING-CE is released under the [Apache License 2.0](LICENSE).
+## Who Made This?
 
-```
-Copyright 2024 AlphaBytez and the STING-CE Community
+STING-CE is built by **[AlphaBytez](https://github.com/AlphaBytez)**, a team focused on security, authentication, and AI.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+- Questions? [olliec@alphabytez.dev](mailto:olliec@alphabytez.dev)
+- Security concerns? [security@alphabytez.dev](mailto:security@alphabytez.dev)
 
-    http://www.apache.org/licenses/LICENSE-2.0
+## Standing on the Shoulders of Giants
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-```
+STING-CE wouldn't exist without these amazing open-source projects:
 
-## 🏢 About AlphaBytez
+**Infrastructure**: [Ory Kratos](https://www.ory.sh/kratos/) (auth), [HashiCorp Vault](https://www.vaultproject.io/) (secrets), [PostgreSQL](https://www.postgresql.org/), [Redis](https://redis.io/), [Docker](https://www.docker.com/)
 
-STING-CE is developed and maintained by **AlphaBytez**, a software development company focused on security, authentication, and AI-powered solutions.
+**AI/ML**: [Ollama](https://ollama.ai/), [ChromaDB](https://www.trychroma.com/), [Sentence Transformers](https://www.sbert.net/)
 
-> *Bee Smart. Bee Secure.*
+**Frameworks**: [Flask](https://flask.palletsprojects.com/), [FastAPI](https://fastapi.tiangolo.com/), [React](https://react.dev/), [Vite](https://vitejs.dev/)
 
-- **Contact**: [olliec@alphabytez.dev](mailto:olliec@alphabytez.dev)
-- **Security**: [security@alphabytez.dev](mailto:security@alphabytez.dev)
-- **GitHub**: [@AlphaBytez](https://github.com/AlphaBytez)
+**Dev Tools**: [Mailpit](https://github.com/axllent/mailpit), [Grafana](https://grafana.com/), [Loki](https://grafana.com/oss/loki/)
 
-## 🙏 Acknowledgments
+Special thanks to the Ory, ChromaDB, and Ollama communities for making secure, private AI accessible to everyone.
 
-STING-CE is built on the shoulders of giants. We're grateful to the open-source community and these outstanding projects:
-
-### Core Infrastructure
-- **[Ory Kratos](https://www.ory.sh/kratos/)** - Identity and authentication management with WebAuthn support
-- **[HashiCorp Vault](https://www.vaultproject.io/)** - Enterprise-grade secrets management
-- **[Docker](https://www.docker.com/)** - Containerization platform for simplified deployment
-- **[PostgreSQL](https://www.postgresql.org/)** - Reliable, powerful relational database
-- **[Redis](https://redis.io/)** - In-memory data structure store for caching and sessions
-
-### AI & Knowledge Management
-- **[Ollama](https://ollama.ai/)** - Simplified local LLM deployment and management
-- **[ChromaDB](https://www.trychroma.com/)** - Open-source vector database for embeddings
-- **[Sentence Transformers](https://www.sbert.net/)** - State-of-the-art sentence embeddings
-
-### Application Framework
-- **[Flask](https://flask.palletsprojects.com/)** - Lightweight Python web framework for our API
-- **[FastAPI](https://fastapi.tiangolo.com/)** - Modern Python framework for knowledge services
-- **[React](https://react.dev/)** - Component-based UI library
-- **[Vite](https://vitejs.dev/)** - Fast frontend build tool
-- **[Material-UI](https://mui.com/)** - React component library
-
-### Development Tools
-- **[Mailpit](https://github.com/axllent/mailpit)** - Email testing tool for development
-- **[Grafana](https://grafana.com/)** - Observability and monitoring dashboards
-- **[Loki](https://grafana.com/oss/loki/)** - Log aggregation system
-
-### Documentation
-- **[Hugo](https://gohugo.io/)** - Fast and flexible static site generator for building our documentation site
-- **[Docsy](https://www.docsy.dev/)** - Google's beautiful documentation theme for Hugo with search and versioning
-
-### Community
-Special thanks to:
-- The Ory community for excellent authentication patterns
-- The ChromaDB team for vector database innovation
-- The Ollama project for making LLMs accessible
-- All open-source contributors who make projects like STING possible
-
-See [CREDITS.md](CREDITS.md) for the complete list of third-party libraries and licenses.
-
-## 📊 Project Status
-
-- **Version**: 1.0.0-ce ([Changelog](CHANGELOG.md))
-- **Status**: Active Development
-- **Platforms**: Linux (Ubuntu/Debian), macOS, WSL2
-- **License**: Apache 2.0 ([View License](LICENSE))
-- **Languages**: Python 3.11+, JavaScript (React)
-- **Release Date**: October 2025
+Full credits in [CREDITS.md](CREDITS.md).
 
 ---
 
 <div align="center">
 
+**Version 1.0.0-ce** · [Changelog](CHANGELOG.md) · Active Development
+
+Linux (Ubuntu/Debian) · macOS · WSL2 · Python 3.11+ · React
+
+<br/>
+
 <a href="https://github.com/alphabytez">
   <img src="docs/assets/alphabytez-logo.svg" alt="AlphaBytez" width="300">
 </a>
 
-Made with ❤️ by **[AlphaBytez](https://github.com/alphabytez)** and the STING-CE Community
+<br/>
 
 *Bee Smart. Bee Secure.*
 
-**Quick Install**:
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE-Public/main/bootstrap.sh)"
 ```
-
-<br/>
-<br/>
 
 </div>

@@ -917,14 +917,21 @@ def chat_with_public_bot(slug):
             'is_public': True
         }
 
-        # Forward to AI service
-        response_data = _send_chat_request(
-            message=message,
-            conversation_id=conversation_id,
-            user_id=user_id,
-            user_email='public@user.local',
-            bot_context=bot_context
-        )
+        # Forward to Nectar Worker ONLY (no fallbacks for public bots - security)
+        try:
+            response_data = _send_public_chat_request(
+                message=message,
+                conversation_id=conversation_id,
+                user_id=user_id,
+                user_email='public@user.local',
+                bot_context=bot_context
+            )
+        except Exception as service_error:
+            logger.error(f"Public bot {bot.name} service unavailable: {service_error}")
+            return jsonify({
+                'error': 'Service temporarily unavailable',
+                'message': 'This chat service is currently unavailable. Please try again later.'
+            }), 503
 
         # Track usage
         _track_bot_usage(bot, conversation_id, message, response_data, request)
@@ -946,22 +953,59 @@ def chat_with_public_bot(slug):
 
 # ==================== Helper Functions ====================
 
-def _send_chat_request(message, conversation_id, user_id, user_email, bot_context):
-    """Send chat request to Nectar Worker service"""
-    chat_request = {
+def _send_public_chat_request(message, conversation_id, user_id, user_email, bot_context):
+    """
+    Send chat request for PUBLIC Nectar Bots - NO FALLBACKS for security.
+
+    Public bots must ONLY use the Nectar Worker service to prevent:
+    - Data leakage from Honey Jars the public shouldn't access
+    - Exposure of internal Bee context and conversation history
+    - PII protection mode mismatches
+
+    If Nectar Worker is unavailable, returns a service unavailable error.
+    """
+    nectar_request = {
         'message': message,
         'conversation_id': conversation_id,
         'user_id': user_id,
         'user_email': user_email,
         'bot_id': bot_context.get('bot_id'),
-        'bot_context': bot_context  # Include full bot context with system_prompt
+        'bot_context': bot_context
+    }
+
+    try:
+        response = requests.post(
+            f"{NECTAR_WORKER_URL}/chat",
+            json=nectar_request,
+            timeout=30
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            logger.error(f"Nectar Worker returned {response.status_code} for public bot: {bot_context.get('bot_name')}")
+            raise Exception("Service temporarily unavailable")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Nectar Worker unavailable for public bot {bot_context.get('bot_name')}: {e}")
+        raise Exception("Service temporarily unavailable")
+
+
+def _send_chat_request(message, conversation_id, user_id, user_email, bot_context):
+    """Send chat request to Nectar Worker service or fallback AI services (for authenticated users only)"""
+    # Base request for Nectar Worker (uses bot_context at top level)
+    nectar_request = {
+        'message': message,
+        'conversation_id': conversation_id,
+        'user_id': user_id,
+        'user_email': user_email,
+        'bot_id': bot_context.get('bot_id'),
+        'bot_context': bot_context  # Nectar Worker expects this at top level
     }
 
     # Try Nectar Worker service first (primary for Nectar Bots)
     try:
         response = requests.post(
             f"{NECTAR_WORKER_URL}/chat",
-            json=chat_request,
+            json=nectar_request,
             timeout=30
         )
         if response.status_code == 200:
@@ -971,23 +1015,51 @@ def _send_chat_request(message, conversation_id, user_id, user_email, bot_contex
     except requests.exceptions.RequestException as e:
         logger.warning(f"Nectar Worker service unavailable: {e}")
 
+    # Build request for external-ai service (expects bot_context INSIDE context field)
+    # The BeeChatRequest model has 'context' field where bot_context should be nested
+    external_ai_request = {
+        'message': message,
+        'conversation_id': conversation_id,
+        'user_id': user_id,
+        'context': {
+            'bot_context': bot_context,  # External-AI looks for request.context.get('bot_context')
+            'user_email': user_email
+        }
+    }
+    logger.info(f"Sending Nectar Bot request to external-ai with bot: {bot_context.get('bot_name')}, is_nectar_bot: {bot_context.get('is_nectar_bot')}")
+
     # Fallback to external AI service
     try:
         response = requests.post(
             f"{EXTERNAL_AI_SERVICE_URL}/bee/chat",
-            json=chat_request,
+            json=external_ai_request,
             timeout=30
         )
         if response.status_code == 200:
             return response.json()
+        else:
+            logger.warning(f"External AI returned {response.status_code}: {response.text[:200]}")
     except requests.exceptions.RequestException as e:
         logger.warning(f"External AI service unavailable: {e}")
 
-    # Final fallback to chatbot service
+    # Final fallback to chatbot service (Bee)
+    # Build request for Bee chatbot - include bot context so it can adapt its response
+    chatbot_request = {
+        'message': message,
+        'conversation_id': conversation_id,
+        'user_id': user_id,
+        'context': {
+            'bot_context': bot_context,
+            'user_email': user_email,
+            'is_nectar_bot_fallback': True  # Signal that this is a Nectar Bot fallback
+        }
+    }
+    logger.info(f"Falling back to chatbot service for Nectar Bot: {bot_context.get('bot_name')}")
+
     try:
         response = requests.post(
             f"{CHATBOT_SERVICE_URL}/chat",
-            json=chat_request,
+            json=chatbot_request,
             timeout=30
         )
         if response.status_code == 200:

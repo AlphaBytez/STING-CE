@@ -302,6 +302,11 @@ async def test_chat(request: BeeRequest):
         logger.info(f"Test chat sentiment: {sentiment}")
     
     # Generate response without auth checks
+    # Check for bot_context in request context (for testing Nectar Bot fallback)
+    bot_context = None
+    if request.context and request.context.get('bot_context'):
+        bot_context = request.context['bot_context']
+
     tools_used = []
     response_text = await generate_bee_response(
         message=request.message,
@@ -310,7 +315,8 @@ async def test_chat(request: BeeRequest):
         tools_used=tools_used,
         user_info={'id': request.user_id or "test-user", 'role': 'end_user'},
         conversation_history=[],
-        auth_token=None  # Test endpoint has no auth
+        auth_token=None,  # Test endpoint has no auth
+        bot_context=bot_context  # Pass Nectar Bot context if provided
     )
     
     # Add to conversation history
@@ -429,9 +435,18 @@ async def chat(request: BeeRequest, auth: Optional[HTTPAuthorizationCredentials]
             user_id=request.user_id,
             additional_context=request.context
         )
-        
+
         # Add user role to context
         context['user_role'] = user_role.value
+
+        # Check for Nectar Bot context (fallback from Nectar Bot routes)
+        bot_context = None
+        if request.context and request.context.get('bot_context'):
+            bot_context = request.context['bot_context']
+            if bot_context.get('is_nectar_bot'):
+                bot_name = bot_context.get('bot_name', 'Nectar Bot')
+                logger.info(f"Nectar Bot fallback detected: {bot_name}")
+                context['nectar_bot_context'] = bot_context
         
         # Process with tools if requested
         tools_used = []
@@ -486,7 +501,8 @@ async def chat(request: BeeRequest, auth: Optional[HTTPAuthorizationCredentials]
                 tools_used=tools_used,
                 user_info=user_info,
                 conversation_history=await conversation_manager.get_recent_messages(conversation['id']),
-                auth_token=auth.credentials if auth else None
+                auth_token=auth.credentials if auth else None,
+                bot_context=bot_context  # Pass Nectar Bot context if available
             )
         
         # Encrypt response if needed
@@ -1106,9 +1122,14 @@ async def generate_bee_response(
     tools_used: List[Dict[str, Any]],
     user_info: Optional[Dict[str, Any]],
     conversation_history: List[Dict[str, Any]],
-    auth_token: str = None
+    auth_token: str = None,
+    bot_context: Optional[Dict[str, Any]] = None
 ) -> str:
-    """Generate response using LLM with enhanced Bee personality and context"""
+    """Generate response using LLM with enhanced Bee personality and context.
+
+    Args:
+        bot_context: Optional Nectar Bot context with custom system_prompt for fallback handling
+    """
     
     # ADAPTIVE CONTEXT: Smart honey jar context loading with performance optimization
     knowledge_context = {}
@@ -1190,12 +1211,29 @@ async def generate_bee_response(
     
     # Get conversation ID from context
     conversation_id = context.get('conversation_id', 'default')
-    
+
+    # Determine which system prompt to use
+    # If this is a Nectar Bot fallback, use the bot's custom system prompt
+    effective_system_prompt = config['system_prompt']
+    if bot_context and bot_context.get('is_nectar_bot'):
+        custom_prompt = bot_context.get('system_prompt')
+        if custom_prompt:
+            bot_name = bot_context.get('bot_name', 'Nectar Bot')
+            logger.info(f"Using custom system prompt for Nectar Bot: {bot_name}")
+            effective_system_prompt = custom_prompt
+        else:
+            logger.warning(f"Nectar Bot {bot_context.get('bot_name')} has no system_prompt, using Bee's default")
+
     # Use BeeContextManager to generate minimal prompt with persistent context
-    # First ensure system prompt is initialized
+    # First ensure system prompt is initialized (use effective prompt which may be custom)
+    # Note: For Nectar Bot requests, we override the system prompt
     if not bee_context_manager.system_prompt_initialized:
-        bee_context_manager.initialize_system_prompt(config['system_prompt'])
-    
+        bee_context_manager.initialize_system_prompt(effective_system_prompt)
+    elif bot_context and bot_context.get('is_nectar_bot'):
+        # For Nectar Bot requests, temporarily override the system prompt
+        # This ensures the bot uses its custom identity, not Bee's
+        bee_context_manager.initialize_system_prompt(effective_system_prompt)
+
     # Get context messages from BeeContextManager
     context_messages = bee_context_manager.get_context_for_llm(
         session_id=conversation_id,
