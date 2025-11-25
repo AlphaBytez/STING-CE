@@ -1560,23 +1560,61 @@ def generate_enhanced_fallback(message: str, sentiment: str, tools: List[Dict], 
     
     return prefix + base + " Is there anything specific you'd like to know more about?"
 
+async def warmup_llm():
+    """Preload the LLM model to avoid cold start delays"""
+    import httpx
+
+    # Get default model from environment or use qwen2.5-14b-instruct as default
+    default_model = os.getenv('CHATBOT_MODEL', 'qwen2.5-14b-instruct')
+
+    try:
+        logger.info(f"🔥 Warming up Bee chat model: {default_model}")
+        warmup_start = time.time()
+
+        async with httpx.AsyncClient(verify=False, timeout=60.0) as client:
+            response = await client.post(
+                f"{EXTERNAL_AI_URL}/ollama/generate",
+                json={
+                    'model': default_model,
+                    'prompt': 'Warmup: respond with OK',
+                    'stream': False,
+                    'options': {
+                        'num_predict': 5,
+                        'temperature': 0.1
+                    }
+                }
+            )
+
+        warmup_time = time.time() - warmup_start
+
+        if response.status_code == 200:
+            logger.info(f"✅ Model {default_model} warmed up successfully ({warmup_time:.2f}s)")
+        else:
+            logger.warning(f"⚠️ Model warmup returned status {response.status_code}")
+
+    except Exception as e:
+        logger.warning(f"⚠️ Model warmup failed (will retry on first use): {e}")
+
 # Startup event
 @app.on_event("startup")
 async def startup_event():
     """Initialize Bee on startup"""
     app.state.start_time = time.time()
     logger.info(f"🐝 Bee Server is starting up on {BEE_HOST}:{BEE_PORT}")
-    
+
     # Initialize components
     await kratos_auth.initialize()
     # await analytics_engine.initialize()  # Analytics engine not implemented yet
-    
+
     # Initialize database connection for conversation manager if using DB version
     if isinstance(conversation_manager, ConversationManagerDB):
         await conversation_manager.initialize()
-    
+
     await conversation_manager.start_cleanup_task()
-    
+
+    # Preload LLM model
+    await warmup_llm()
+
     logger.info("🐝 Bee is ready to buzz!")
 
 # Shutdown event

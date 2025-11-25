@@ -80,6 +80,10 @@ class QEBeeWorker:
         logger.info(f"   LLM enabled: {self.llm_enabled}")
         logger.info(f"   Model: {self.llm_model}")
 
+        # Preload/warmup the model if LLM is enabled
+        if self.llm_enabled:
+            self._warmup_model()
+
     async def start(self):
         """Start the QE Bee worker loop"""
         self.is_running = True
@@ -484,6 +488,37 @@ Respond with ONLY a JSON object (no markdown):
                 'message': f'LLM review error: {str(e)[:100]}',
                 'confidence': 50
             }
+
+    def _warmup_model(self):
+        """Preload the LLM model to avoid cold start delays"""
+        try:
+            logger.info(f"🔥 Warming up QE Bee model: {self.llm_model}")
+            warmup_start = time.time()
+
+            response = self.session.post(
+                f"{self.llm_service_url}/ollama/generate",
+                json={
+                    'model': self.llm_model,
+                    'prompt': 'Warmup: respond with OK',
+                    'stream': False,
+                    'options': {
+                        'num_predict': 5,
+                        'temperature': 0.1
+                    }
+                },
+                timeout=60,  # Allow more time for initial model loading
+                verify=False
+            )
+
+            warmup_time = time.time() - warmup_start
+
+            if response.status_code == 200:
+                logger.info(f"✅ Model {self.llm_model} warmed up successfully ({warmup_time:.2f}s)")
+            else:
+                logger.warning(f"⚠️ Model warmup returned status {response.status_code}")
+
+        except Exception as e:
+            logger.warning(f"⚠️ Model warmup failed (will retry on first use): {e}")
 
     def health_check(self) -> bool:
         """Check if the worker is healthy"""

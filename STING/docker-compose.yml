@@ -338,7 +338,7 @@ services:
     - APP_SERVICE_URL=https://app:5050
     - LLM_SERVICE_URL=http://external-ai:8091
     - QE_BEE_LLM_ENABLED=${QE_BEE_LLM_ENABLED:-true}
-    - QE_BEE_MODEL=${QE_BEE_MODEL:-phi4}
+    - QE_BEE_MODEL=${QE_BEE_MODEL:-microsoft/phi-4-mini-reasoning}
     - QE_BEE_TIMEOUT=${QE_BEE_TIMEOUT:-30}
     - QE_BEE_POLL_INTERVAL=${QE_BEE_POLL_INTERVAL:-5}
     volumes:
@@ -554,7 +554,7 @@ services:
     environment:
     - KNOWLEDGE_SERVICE_URL=http://knowledge:8090
     - KNOWLEDGE_ENABLED=true
-    - CHATBOT_MODEL=phi3
+    - CHATBOT_MODEL=qwen2.5-14b-instruct
     - NATIVE_LLM_URL=http://host.docker.internal:8086
     - MODEL_CLEANUP_INTERVAL=600
     - MAX_CONTEXT_LENGTH=4096
