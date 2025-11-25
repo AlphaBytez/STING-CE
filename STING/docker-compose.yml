@@ -36,6 +36,7 @@ services:
       VAULT_ADDR: http://0.0.0.0:8200
       VAULT_API_ADDR: http://0.0.0.0:8200
       SKIP_SETCAP: 'true'
+      TZ: UTC
     volumes:
     - config_data:/app/conf
     - vault_data:/vault/data
@@ -76,6 +77,10 @@ services:
       POSTGRES_HOST: ${POSTGRES_HOST:-db}
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       VAULT_ADDR: http://vault:8200
+      TZ: UTC
+      SERVER_IP: ${SERVER_IP:-unknown}
+      STING_HOSTNAME: ${HOSTNAME:-localhost}
+      HOSTNAME: ${HOSTNAME:-localhost}
     volumes:
     - .:/app
     - config_data:/app/conf
@@ -114,6 +119,7 @@ services:
       POSTGRES_HOST_AUTH_METHOD: md5
       LANG: en_US.utf8
       LC_ALL: en_US.utf8
+      TZ: UTC
     deploy:
       resources:
         limits:
@@ -152,6 +158,7 @@ services:
     - DSN=postgresql://kratos_user:kratos_secure_password_change_me@db:5432/kratos?sslmode=disable
     - HOSTNAME=kratos
     - AAL2_SESSION_TIMEOUT=${AAL2_SESSION_TIMEOUT:-4h}
+    - TZ=UTC
     volumes:
     - ${INSTALL_DIR}/kratos/identity.schema.sting.json:/etc/config/kratos/identity.schema.json:ro
     - ${INSTALL_DIR}/kratos/identity.schema.extended.json:/etc/config/kratos/identity.schema.extended.json:ro
@@ -209,6 +216,7 @@ services:
     - KRATOS_PUBLIC_URL=https://kratos:4433
     - KRATOS_ADMIN_URL=https://kratos:4434
     - REPORT_GENERATION_TIMEOUT_SECONDS=1800
+    - TZ=UTC
     volumes:
     - ./conf:/app/conf
     - sting_logs:/var/log/sting
@@ -253,6 +261,7 @@ services:
     image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-report-worker:${STING_VERSION:-latest}
     environment:
     - APP_SERVICE_URL=https://app:5050
+    - TZ=UTC
     volumes:
     - sting_certs:/app/certs
     networks:
@@ -299,6 +308,7 @@ services:
     - KRATOS_PUBLIC_URL=https://kratos:4433
     - KRATOS_ADMIN_URL=https://kratos:4434
     - KRATOS_VERIFY_SSL=false
+    - TZ=UTC
     volumes:
     - ./conf:/app/conf
     - sting_logs:/var/log/sting
@@ -341,6 +351,7 @@ services:
     - QE_BEE_MODEL=${QE_BEE_MODEL:-microsoft/phi-4-mini-reasoning}
     - QE_BEE_TIMEOUT=${QE_BEE_TIMEOUT:-30}
     - QE_BEE_POLL_INTERVAL=${QE_BEE_POLL_INTERVAL:-5}
+    - TZ=UTC
     volumes:
     - sting_certs:/app/certs
     networks:
@@ -379,6 +390,7 @@ services:
       REACT_APP_KRATOS_PUBLIC_URL: https://${HOSTNAME:-localhost}:${REACT_PORT:-8443}/.ory
       PUBLIC_URL: /
       NODE_ENV: production
+      TZ: UTC
     volumes:
     - sting_certs:/etc/nginx/certs:ro
     networks:
@@ -449,6 +461,7 @@ services:
     - CHROMA_SERVER_HTTP_PORT=8000
     - ANONYMIZED_TELEMETRY=false
     - ALLOW_RESET=true
+    - TZ=UTC
     volumes:
     - chroma_data:/chroma/chroma
     ports:
@@ -486,6 +499,7 @@ services:
     - KNOWLEDGE_PORT=8090
     - KNOWLEDGE_HOST=0.0.0.0
     - CHROMA_URL=http://chroma:8000
+    - TZ=UTC
     deploy:
       resources:
         limits:
@@ -521,6 +535,8 @@ services:
   llm-gateway-proxy:
     container_name: sting-ce-llm-gateway-proxy
     image: nginx:1.27-alpine
+    environment:
+    - TZ=UTC
     volumes:
     - ./nginx-llm-proxy.conf:/etc/nginx/nginx.conf:ro
     ports:
@@ -559,6 +575,7 @@ services:
     - MODEL_CLEANUP_INTERVAL=600
     - MAX_CONTEXT_LENGTH=4096
     - PHI3_MEMORY_OPTIMIZATION=true
+    - TZ=UTC
     deploy:
       resources:
         limits:
@@ -603,6 +620,7 @@ services:
     - REDIS_URL=redis://redis:6379
     - MAX_MESSAGE_SIZE=1048576
     - MESSAGE_RETENTION_DAYS=30
+    - TZ=UTC
     volumes:
     - messaging_data:/app/data
     - ./messaging_service:/app
@@ -642,6 +660,7 @@ services:
     - REDIS_MAXMEMORY=512mb
     - REDIS_MAXMEMORY_POLICY=allkeys-lru
     - REDIS_SAVE="900 1 300 10 60 10000"
+    - TZ=UTC
     deploy:
       resources:
         limits:
@@ -666,6 +685,8 @@ services:
     image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-external-ai:${STING_VERSION:-latest}
     env_file:
     - ${INSTALL_DIR}/env/external-ai.env
+    environment:
+    - TZ=UTC
     ports:
     - 8091:8091
     volumes:
@@ -703,6 +724,8 @@ services:
     image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-nectar-worker:${STING_VERSION:-latest}
     env_file:
     - ${INSTALL_DIR}/env/nectar-worker.env
+    environment:
+    - TZ=UTC
     ports:
     - 9002:9002
     networks:
@@ -746,6 +769,7 @@ services:
     - EXTERNAL_AI_URL=http://external-ai:8091
     - CHATBOT_URL=http://chatbot:8888
     - KNOWLEDGE_SERVICE_URL=http://knowledge:8090
+    - TZ=UTC
     ports:
     - 8092:8092
     networks:

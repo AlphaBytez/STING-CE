@@ -495,8 +495,36 @@ is_local_domain() {
 
 # Generate SSL certificates
 generate_ssl_certs() {
-    # Use STING_HOSTNAME (set during installation) or fallback to DOMAIN_NAME or localhost
-    local domain="${STING_HOSTNAME:-${DOMAIN_NAME:-localhost}}"
+    # Try multiple sources to detect domain, prioritizing actual configuration
+    local domain=""
+    if [ -n "$STING_HOSTNAME" ]; then
+        domain="$STING_HOSTNAME"
+    elif [ -n "$DOMAIN_NAME" ]; then
+        domain="$DOMAIN_NAME"
+    elif [ -f "${INSTALL_DIR}/.sting_domain" ]; then
+        domain=$(cat "${INSTALL_DIR}/.sting_domain" 2>/dev/null)
+        if [ -n "$domain" ]; then
+            log_message "Using domain from .sting_domain: $domain"
+        fi
+    fi
+
+    # If still no domain, try to detect from system hostname
+    if [ -z "$domain" ]; then
+        local sys_hostname=$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "")
+        if [ -n "$sys_hostname" ] && [ "$sys_hostname" != "localhost" ]; then
+            # If hostname doesn't have a TLD, add .local
+            if [[ ! "$sys_hostname" =~ \. ]]; then
+                domain="${sys_hostname}.local"
+            else
+                domain="$sys_hostname"
+            fi
+            log_message "Detected domain from system hostname: $domain"
+        else
+            domain="localhost"
+            log_message "WARNING: Using localhost as fallback domain" "WARNING"
+        fi
+    fi
+
     local email="${CERTBOT_EMAIL:-your-email@example.com}"
     local temp_cert_dir="/tmp/sting_certs"
 
@@ -901,7 +929,32 @@ export_ca_certificate() {
 # Create installation scripts for client platforms
 create_client_install_scripts() {
     local output_dir="$1"
-    local domain="${DOMAIN_NAME:-$(cat ${INSTALL_DIR}/.sting_domain 2>/dev/null || echo 'CONFIGURE_YOUR_DOMAIN.local')}"
+
+    # Try multiple sources to detect domain, prioritizing actual configuration
+    local domain=""
+    if [ -n "$STING_HOSTNAME" ]; then
+        domain="$STING_HOSTNAME"
+    elif [ -n "$DOMAIN_NAME" ]; then
+        domain="$DOMAIN_NAME"
+    elif [ -f "${INSTALL_DIR}/.sting_domain" ]; then
+        domain=$(cat "${INSTALL_DIR}/.sting_domain" 2>/dev/null)
+    else
+        # Last resort: try to detect from system hostname with .local suffix
+        local sys_hostname=$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "")
+        if [ -n "$sys_hostname" ] && [ "$sys_hostname" != "localhost" ]; then
+            # If hostname doesn't have a TLD, add .local
+            if [[ ! "$sys_hostname" =~ \. ]]; then
+                domain="${sys_hostname}.local"
+            else
+                domain="$sys_hostname"
+            fi
+        else
+            # Absolute fallback - but this shouldn't happen in normal operation
+            domain="CONFIGURE_YOUR_DOMAIN.local"
+            log_message "WARNING: Could not detect hostname, using placeholder" "WARNING"
+        fi
+    fi
+
     local vm_ip="${VM_IP:-$(ip route get 1 | awk '{print $7; exit}' 2>/dev/null || echo '192.168.1.100')}"
     
     # macOS installation script

@@ -10,6 +10,7 @@ import string
 import time
 import sys  # Added sys import
 import base64
+import subprocess
 from urllib.parse import quote as url_quote
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, List
@@ -583,14 +584,65 @@ class ConfigurationManager:
     
     def _generate_web_safe_password(self, length: int = 16) -> str:
         """Generate a web-safe password without problematic characters.
-        
+
         Args:
             length: The length of the password to generate
         """
         # Use alphanumeric characters only (no +, /, =, etc.)
         alphabet = string.ascii_letters + string.digits
         return ''.join(secrets.choice(alphabet) for _ in range(length))
-        
+
+    def _detect_server_ip(self) -> str:
+        """Detect the primary server IP address for host machine.
+
+        Uses 'ip route get 1' to determine the primary network interface IP.
+        This is needed because Docker containers see internal Docker network IPs,
+        not the actual host IP that clients use to access the server.
+
+        Returns:
+            The detected IP address as a string, or 'unknown' if detection fails
+        """
+        try:
+            # Try primary method: ip route get 1
+            result = subprocess.run(
+                ['ip', 'route', 'get', '1'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                # Parse output like: "1.0.0.0 via 192.168.1.1 dev eth0 src 192.168.1.100"
+                # We want the IP after 'src'
+                for i, word in enumerate(result.stdout.split()):
+                    if word == 'src' and i + 1 < len(result.stdout.split()):
+                        ip = result.stdout.split()[i + 1]
+                        logger.info(f"Detected server IP: {ip}")
+                        return ip
+
+            # Fallback: Try hostname -I
+            result = subprocess.run(
+                ['hostname', '-I'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                all_ips = result.stdout.strip().split()
+                # Prefer IPs that are NOT Docker internal (172.16-31.x.x.x range)
+                for ip in all_ips:
+                    if not (ip.startswith('172.1') or ip.startswith('172.2') or ip.startswith('172.3')):
+                        logger.info(f"Detected server IP (via hostname -I): {ip}")
+                        return ip
+                # If all IPs are Docker internal, just use the first one
+                if all_ips:
+                    logger.warning(f"Only Docker internal IPs found, using: {all_ips[0]}")
+                    return all_ips[0]
+        except Exception as e:
+            logger.warning(f"Failed to detect server IP: {e}")
+
+        logger.warning("Could not detect server IP, returning 'unknown'")
+        return 'unknown'
+
     def _get_secret(self, path: str, key: str, supertokens_safe: bool = False) -> str:
         """Retrieve a secret from Vault with fallback to generation."""
         if self.client:
@@ -913,6 +965,19 @@ class ConfigurationManager:
                 )
             except Exception as e:
                 logger.warning(f"Could not store deprecated HuggingFace token in Vault: {e}")
+
+        # Get SERVER_IP from environment (set by host during install) or detect
+        # Docker containers only see internal IPs, so this must come from host environment
+        server_ip = os.environ.get('SERVER_IP', '')
+        if not server_ip:
+            # Fallback: try to detect, but this will likely return Docker IP
+            server_ip = self._detect_server_ip()
+            logger.warning(f"SERVER_IP not set in environment, detected: {server_ip}")
+        else:
+            logger.info(f"Using SERVER_IP from environment: {server_ip}")
+
+        # Store SERVER_IP in processed config
+        self.processed_config['SERVER_IP'] = server_ip
 
         # Set environment variables
         for key, value in db_vars.items():
@@ -1345,7 +1410,7 @@ class ConfigurationManager:
         self.processed_config['WEBAUTHN_RP_ID'] = webauthn_rp_id
         self.processed_config['WEBAUTHN_RP_NAME'] = webauthn_display_name
         self.processed_config['WEBAUTHN_RP_ORIGIN'] = webauthn_origin
-        
+
         # Add VAULT_TOKEN to processed_config for app.env generation
         self.processed_config['VAULT_TOKEN'] = self._clean_value(self.vault_token)
         
@@ -1874,12 +1939,12 @@ class ConfigurationManager:
                     'FLASK_SECRET_KEY','SECRET_KEY', 'SUPERTOKENS_URL', 'SUPERTOKENS_API_DOMAIN',
                     'WEBAUTHN_RP_ID', 'WEBAUTHN_RP_NAME', 'WEBAUTHN_RP_ORIGIN',
                     'HONEY_RESERVE_ENABLED', 'HONEY_RESERVE_DEFAULT_QUOTA', 'HONEY_RESERVE_MAX_FILE_SIZE',
-                    'HONEY_RESERVE_TEMP_RETENTION_HOURS', 'HONEY_RESERVE_WARNING_THRESHOLD', 
+                    'HONEY_RESERVE_TEMP_RETENTION_HOURS', 'HONEY_RESERVE_WARNING_THRESHOLD',
                     'HONEY_RESERVE_CRITICAL_THRESHOLD', 'HONEY_RESERVE_RATE_LIMIT_MINUTE',
                     'HONEY_RESERVE_RATE_LIMIT_HOUR', 'HONEY_RESERVE_ENCRYPT_AT_REST',
                     'HONEY_RESERVE_MASTER_KEY', 'HONEY_RESERVE_ENCRYPTION_ALGORITHM',
                     'HONEY_RESERVE_KEY_DERIVATION', 'HONEY_RESERVE_AUDIT_ACCESS',
-                    'VAULT_TOKEN'
+                    'VAULT_TOKEN', 'SERVER_IP'
                 },
                 'db.env': {
                     'POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB',

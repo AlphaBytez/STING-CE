@@ -3,6 +3,7 @@ import { Bell, Globe, Clock, Palette, Monitor, Zap } from 'lucide-react';
 import { useKratos } from '../../auth/KratosProvider';
 import { useTheme as useNewTheme, THEMES, THEME_CONFIG } from '../theme/ThemeManager';
 import PerformanceIndicator from '../theme/PerformanceIndicator';
+import { getUserTimezone, getTimezoneOffset, formatLocalTime } from '../../utils/dateFormatter';
 
 const PreferenceSettings = () => {
   const { identity } = useKratos();
@@ -102,32 +103,66 @@ const PreferenceSettings = () => {
             </select>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Clock className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
-              <div>
-                <p className="font-medium" style={{ color: 'var(--color-text)' }}>Timezone</p>
-                <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Set your timezone</p>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Clock className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
+                <div>
+                  <p className="font-medium" style={{ color: 'var(--color-text)' }}>Timezone</p>
+                  <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                    All times are stored in UTC and displayed in your local timezone
+                  </p>
+                </div>
               </div>
+              <select
+                value={preferences.timezone}
+                onChange={(e) => handlePreferenceChange('timezone', e.target.value)}
+                style={{
+                  backgroundColor: 'var(--color-bg-elevated)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-text)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '0.5rem 0.75rem'
+                }}
+                className="focus:ring-2 focus:ring-primary focus:border-primary"
+              >
+                {Intl.supportedValuesOf('timeZone').map(timezone => (
+                  <option key={timezone} value={timezone}>
+                    {timezone}
+                  </option>
+                ))}
+              </select>
             </div>
-            <select
-              value={preferences.timezone}
-              onChange={(e) => handlePreferenceChange('timezone', e.target.value)}
+
+            {/* Timezone Information Card */}
+            <div
+              className="p-3 rounded-lg"
               style={{
                 backgroundColor: 'var(--color-bg-elevated)',
-                border: '1px solid var(--color-border)',
-                color: 'var(--color-text)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '0.5rem 0.75rem'
+                border: '1px solid var(--color-border)'
               }}
-              className="focus:ring-2 focus:ring-primary focus:border-primary"
             >
-              {Intl.supportedValuesOf('timeZone').map(timezone => (
-                <option key={timezone} value={timezone}>
-                  {timezone}
-                </option>
-              ))}
-            </select>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p style={{ color: 'var(--color-text-secondary)' }}>Current Timezone</p>
+                  <p className="font-medium mt-1" style={{ color: 'var(--color-text)' }}>
+                    {getUserTimezone()}
+                  </p>
+                </div>
+                <div>
+                  <p style={{ color: 'var(--color-text-secondary)' }}>UTC Offset</p>
+                  <p className="font-medium mt-1" style={{ color: 'var(--color-text)' }}>
+                    {getTimezoneOffset()}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <p style={{ color: 'var(--color-text-secondary)' }}>Current Local Time</p>
+                  <p className="font-medium mt-1" style={{ color: 'var(--color-text)' }}>
+                    {formatLocalTime(new Date().toISOString(), 'long')}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center justify-between">

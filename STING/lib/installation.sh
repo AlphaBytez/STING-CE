@@ -3894,6 +3894,46 @@ build_and_start_services() {
         log_message "Persisted HOSTNAME=${HOSTNAME} to .env file"
     fi
 
+    # Detect and persist SERVER_IP to .env file for container use
+    # Docker containers see internal Docker network IPs, not the host IP that clients use
+    # This detection runs on the host to capture the actual server IP
+    local detected_ip=""
+
+    # Try primary method: ip route get 1
+    if command -v ip >/dev/null 2>&1; then
+        detected_ip=$(ip route get 1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="src") print $(i+1)}' | head -1)
+    fi
+
+    # Fallback: hostname -I
+    if [ -z "$detected_ip" ] && command -v hostname >/dev/null 2>&1; then
+        local all_ips=$(hostname -I 2>/dev/null | tr ' ' '\n')
+        # Prefer non-Docker IPs (avoid 172.16-31.x.x range)
+        for ip in $all_ips; do
+            if [[ ! "$ip" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. ]]; then
+                detected_ip="$ip"
+                break
+            fi
+        done
+        # If only Docker IPs available, use the first one
+        if [ -z "$detected_ip" ] && [ -n "$all_ips" ]; then
+            detected_ip=$(echo "$all_ips" | head -1)
+        fi
+    fi
+
+    # Use detected IP or mark as unknown
+    SERVER_IP="${detected_ip:-unknown}"
+    export SERVER_IP
+    log_message "Detected SERVER_IP: $SERVER_IP"
+
+    if [ -f "${INSTALL_DIR}/.env" ]; then
+        # Remove existing SERVER_IP line if present
+        sed -i.backup '/^SERVER_IP=/d' "${INSTALL_DIR}/.env" 2>/dev/null || \
+            sed -i '' '/^SERVER_IP=/d' "${INSTALL_DIR}/.env" 2>/dev/null
+        # Append new SERVER_IP
+        echo "SERVER_IP=${SERVER_IP}" >> "${INSTALL_DIR}/.env"
+        log_message "Persisted SERVER_IP=${SERVER_IP} to .env file"
+    fi
+
     # Change to installation directory for Docker operations
     cd "${INSTALL_DIR}" || {
         log_message "Failed to change to installation directory" "ERROR"
