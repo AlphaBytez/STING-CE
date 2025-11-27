@@ -1347,14 +1347,14 @@ const BeeChat = () => {
                   {/* Message Content */}
                   {message.sender === 'user' ? (
                     <p className="text-sm whitespace-pre-wrap">
-                      {message.content}
+                      {message.text}
                     </p>
                   ) : (
                     <div className="text-sm prose prose-invert max-w-none">
                       {message.pii_protection ? (
                         /* Render with PII visual indicators */
                         <MessageWithPII
-                          message={message.content}
+                          message={message.text}
                           piiProtection={message.pii_protection}
                           preferences={piiPreferences}
                           showBadge={true}
@@ -1421,7 +1421,7 @@ const BeeChat = () => {
                           )
                           }}
                         >
-                          {cleanMarkdownContent(message.content)}
+                          {cleanMarkdownContent(message.text)}
                         </ReactMarkdown>
                       )}
                     </div>
