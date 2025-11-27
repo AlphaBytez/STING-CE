@@ -6,13 +6,73 @@ Provides endpoints for user storage management, document organization, and clean
 
 import os
 import shutil
+import uuid
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, current_app, g
-from sqlalchemy import func, desc, and_, or_
+from sqlalchemy import func, desc, and_, or_, Column, String, Text, Integer, BigInteger, DateTime, Boolean, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.utils.decorators import require_auth
-from app.models import db, User, HoneyJar, Document, File
-from app.services.honey_reserve import HoneyReserve
-from app.utils.file_utils import get_file_size, format_bytes
+from app.extensions import db
+from app.models import User
+# Note: FileAsset used for temp files, HoneyReserve not implemented yet
+try:
+    from app.models.file_models import FileAsset as File
+except ImportError:
+    File = None  # File model may not exist
+
+# Stub for format_bytes utility
+def format_bytes(size):
+    """Format bytes to human readable size"""
+    if size == 0:
+        return "0 B"
+    units = ['B', 'KB', 'MB', 'GB', 'TB']
+    i = 0
+    while size >= 1024 and i < len(units) - 1:
+        size /= 1024
+        i += 1
+    return f"{size:.2f} {units[i]}"
+
+
+# Define models that map to existing database tables
+class HoneyJar(db.Model):
+    """SQLAlchemy model for honey_jars table"""
+    __tablename__ = 'honey_jars'
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    type = Column(String(100))
+    status = Column(String(50), default='active')
+    owner = Column(String(255), index=True)  # Maps to owner column in DB
+    created_date = Column(DateTime, default=datetime.utcnow)
+    last_updated = Column(DateTime, default=datetime.utcnow)
+    tags = Column(JSONB, default=list)
+    permissions = Column(JSONB, default=dict)
+    document_count = Column(Integer, default=0)
+    embedding_count = Column(Integer, default=0)
+    total_size_bytes = Column(BigInteger, default=0)
+
+
+class Document(db.Model):
+    """SQLAlchemy model for documents table"""
+    __tablename__ = 'documents'
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    filename = Column(String(255), nullable=False)
+    size_bytes = Column(Integer, default=0)  # Maps to size_bytes in DB
+    content_type = Column(String(255))
+    honey_jar_id = Column(UUID(as_uuid=True), ForeignKey('honey_jars.id', ondelete='CASCADE'))
+    status = Column(String(50), default='pending')
+    file_path = Column(String(500))
+    doc_metadata = Column(JSONB, default=dict)  # Maps to doc_metadata in DB
+    tags = Column(JSONB, default=list)
+    upload_date = Column(DateTime, default=datetime.utcnow)  # Maps to upload_date in DB
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    embedding_count = Column(Integer, default=0)
+    processing_time = Column(db.Float)
+    error_message = Column(Text)
 
 basket_bp = Blueprint('basket', __name__, url_prefix='/api/basket')
 
@@ -41,8 +101,8 @@ def get_basket_overview():
         user_documents = db.session.query(
             Document.id,
             Document.filename,
-            Document.file_size,
-            Document.created_at,
+            Document.size_bytes,
+            Document.upload_date,
             Document.status,
             Document.honey_jar_id,
             HoneyJar.name.label('honey_jar_name'),
@@ -51,10 +111,10 @@ def get_basket_overview():
             HoneyJar, Document.honey_jar_id == HoneyJar.id
         ).filter(
             and_(
-                or_(Document.uploader_id == user_id, HoneyJar.owner_id == user_id),
+                HoneyJar.owner == str(user_id),
                 Document.status != 'deleted'
             )
-        ).order_by(desc(Document.created_at)).all()
+        ).order_by(desc(Document.upload_date)).all()
 
         # Get user's temporary files
         temp_files = db.session.query(File).filter(
@@ -66,14 +126,14 @@ def get_basket_overview():
         ).all()
 
         # Calculate storage breakdown
-        documents_size = sum(doc.file_size or 0 for doc in user_documents)
+        documents_size = sum(doc.size_bytes or 0 for doc in user_documents)
         temp_files_size = sum(file.size or 0 for file in temp_files)
         total_used = documents_size + temp_files_size
 
         # Group documents by honey jar
         honey_jar_breakdown = {}
         for doc in user_documents:
-            jar_id = doc.honey_jar_id
+            jar_id = str(doc.honey_jar_id)
             if jar_id not in honey_jar_breakdown:
                 honey_jar_breakdown[jar_id] = {
                     'id': jar_id,
@@ -83,15 +143,15 @@ def get_basket_overview():
                     'total_size': 0,
                     'document_count': 0
                 }
-            
+
             honey_jar_breakdown[jar_id]['documents'].append({
-                'id': doc.id,
+                'id': str(doc.id),
                 'filename': doc.filename,
-                'size': doc.file_size or 0,
-                'created_at': doc.created_at.isoformat() if doc.created_at else None,
+                'size': doc.size_bytes or 0,
+                'created_at': doc.upload_date.isoformat() if doc.upload_date else None,
                 'status': doc.status
             })
-            honey_jar_breakdown[jar_id]['total_size'] += doc.file_size or 0
+            honey_jar_breakdown[jar_id]['total_size'] += doc.size_bytes or 0
             honey_jar_breakdown[jar_id]['document_count'] += 1
 
         # Sort honey jars by size (largest first)
@@ -123,9 +183,9 @@ def get_basket_overview():
             })
 
         # Large files that haven't been accessed recently
-        large_files = [doc for doc in user_documents if (doc.file_size or 0) > 10 * 1024 * 1024]  # > 10MB
+        large_files = [doc for doc in user_documents if (doc.size_bytes or 0) > 10 * 1024 * 1024]  # > 10MB
         if large_files:
-            large_files_size = sum(doc.file_size or 0 for doc in large_files)
+            large_files_size = sum(doc.size_bytes or 0 for doc in large_files)
             cleanup_opportunities.append({
                 'type': 'large_files',
                 'description': f'Review {len(large_files)} large files (>10MB)',
@@ -237,11 +297,8 @@ def perform_cleanup():
             for file in temp_files:
                 try:
                     if not dry_run:
-                        # Delete from Honey Reserve storage
-                        honey_reserve = HoneyReserve()
-                        honey_reserve.delete_file(file.id)
-                        
-                        # Delete from database
+                        # Note: HoneyReserve storage not yet implemented
+                        # Just delete from database for now
                         db.session.delete(file)
                     
                     cleaned_files += 1
@@ -256,10 +313,12 @@ def perform_cleanup():
                 db.session.commit()
 
         elif cleanup_type == 'documents':
-            # Clean up specific documents marked for deletion
-            query = db.session.query(Document).filter(
+            # Clean up specific documents marked for deletion (owned via honey jar)
+            query = db.session.query(Document).join(
+                HoneyJar, Document.honey_jar_id == HoneyJar.id
+            ).filter(
                 and_(
-                    Document.uploader_id == user_id,
+                    HoneyJar.owner == str(user_id),
                     Document.status == 'deleted'
                 )
             )
@@ -272,19 +331,12 @@ def perform_cleanup():
             for doc in deleted_docs:
                 try:
                     if not dry_run:
-                        # Delete from storage if file_path exists
-                        if doc.file_path:
-                            honey_reserve = HoneyReserve()
-                            # Extract file ID from path if needed
-                            if 'honey_reserve/' in doc.file_path:
-                                file_id = doc.file_path.split('honey_reserve/')[-1]
-                                honey_reserve.delete_file(file_id)
-                        
-                        # Delete from database
+                        # Note: HoneyReserve storage not yet implemented
+                        # Just delete from database for now
                         db.session.delete(doc)
                     
                     cleaned_files += 1
-                    freed_space += doc.file_size or 0
+                    freed_space += doc.size_bytes or 0
                     
                 except Exception as e:
                     error_msg = f"Failed to delete document {doc.id}: {str(e)}"
@@ -300,10 +352,12 @@ def perform_cleanup():
                 return jsonify({'error': 'No file IDs provided for cleanup'}), 400
             
             # Handle both Document and File model cleanup
-            documents = db.session.query(Document).filter(
+            documents = db.session.query(Document).join(
+                HoneyJar, Document.honey_jar_id == HoneyJar.id
+            ).filter(
                 and_(
                     Document.id.in_(file_ids),
-                    Document.uploader_id == user_id
+                    HoneyJar.owner == str(user_id)
                 )
             ).all()
             
@@ -318,16 +372,11 @@ def perform_cleanup():
             for doc in documents:
                 try:
                     if not dry_run:
-                        if doc.file_path:
-                            honey_reserve = HoneyReserve()
-                            if 'honey_reserve/' in doc.file_path:
-                                file_id = doc.file_path.split('honey_reserve/')[-1]
-                                honey_reserve.delete_file(file_id)
-                        
+                        # Note: HoneyReserve storage not yet implemented
                         db.session.delete(doc)
                     
                     cleaned_files += 1
-                    freed_space += doc.file_size or 0
+                    freed_space += doc.size_bytes or 0
                     
                 except Exception as e:
                     error_msg = f"Failed to delete document {doc.id}: {str(e)}"
@@ -338,8 +387,9 @@ def perform_cleanup():
             for file in temp_files:
                 try:
                     if not dry_run:
-                        honey_reserve = HoneyReserve()
-                        honey_reserve.delete_file(file.id)
+                        # Note: HoneyReserve storage not yet implemented
+                        # Just delete from database for now
+                        pass
                         db.session.delete(file)
                     
                     cleaned_files += 1
@@ -396,16 +446,13 @@ def bulk_document_operations():
 
         current_app.logger.info(f"Bulk operation request: {operation} on {len(document_ids)} documents by user {user_id}")
 
-        # Verify user owns or has access to these documents
-        documents = db.session.query(Document).filter(
+        # Verify user owns or has access to these documents (via honey jar ownership)
+        documents = db.session.query(Document).join(
+            HoneyJar, Document.honey_jar_id == HoneyJar.id
+        ).filter(
             and_(
                 Document.id.in_(document_ids),
-                or_(
-                    Document.uploader_id == user_id,
-                    Document.honey_jar_id.in_(
-                        db.session.query(HoneyJar.id).filter(HoneyJar.owner_id == user_id)
-                    )
-                )
+                HoneyJar.owner == str(user_id)
             )
         ).all()
 
@@ -439,7 +486,7 @@ def bulk_document_operations():
                     target_jar = db.session.query(HoneyJar).filter(
                         and_(
                             HoneyJar.id == target_honey_jar_id,
-                            HoneyJar.owner_id == user_id
+                            HoneyJar.owner == str(user_id)
                         )
                     ).first()
                     
@@ -512,8 +559,8 @@ def search_user_documents():
         base_query = db.session.query(
             Document.id,
             Document.filename,
-            Document.file_size,
-            Document.created_at,
+            Document.size_bytes,
+            Document.upload_date,
             Document.status,
             Document.honey_jar_id,
             HoneyJar.name.label('honey_jar_name')
@@ -522,8 +569,7 @@ def search_user_documents():
         ).filter(
             and_(
                 or_(
-                    Document.uploader_id == user_id,
-                    HoneyJar.owner_id == user_id,
+                    HoneyJar.owner == str(user_id),
                     HoneyJar.type == 'public'
                 ),
                 Document.status != 'deleted'
@@ -552,17 +598,17 @@ def search_user_documents():
         if date_range:
             if date_range.get('start'):
                 start_date = datetime.fromisoformat(date_range['start'])
-                search_conditions.append(Document.created_at >= start_date)
+                search_conditions.append(Document.upload_date >= start_date)
             if date_range.get('end'):
                 end_date = datetime.fromisoformat(date_range['end'])
-                search_conditions.append(Document.created_at <= end_date)
+                search_conditions.append(Document.upload_date <= end_date)
 
         # Size range filter
         if size_range:
             if size_range.get('min'):
-                search_conditions.append(Document.file_size >= size_range['min'])
+                search_conditions.append(Document.size_bytes >= size_range['min'])
             if size_range.get('max'):
-                search_conditions.append(Document.file_size <= size_range['max'])
+                search_conditions.append(Document.size_bytes <= size_range['max'])
 
         # Apply all conditions
         if search_conditions:
@@ -571,19 +617,19 @@ def search_user_documents():
             search_query = base_query
 
         # Execute search with limit
-        results = search_query.order_by(desc(Document.created_at)).limit(limit).all()
+        results = search_query.order_by(desc(Document.upload_date)).limit(limit).all()
 
         # Format results
         documents = []
         for result in results:
             documents.append({
-                'id': result.id,
+                'id': str(result.id),
                 'filename': result.filename,
-                'size': result.file_size or 0,
-                'size_formatted': format_bytes(result.file_size or 0),
-                'created_at': result.created_at.isoformat() if result.created_at else None,
+                'size': result.size_bytes or 0,
+                'size_formatted': format_bytes(result.size_bytes or 0),
+                'created_at': result.upload_date.isoformat() if result.upload_date else None,
                 'status': result.status,
-                'honey_jar_id': result.honey_jar_id,
+                'honey_jar_id': str(result.honey_jar_id),
                 'honey_jar_name': result.honey_jar_name
             })
 
@@ -605,5 +651,103 @@ def search_user_documents():
         current_app.logger.error(f"Basket search error: {str(e)}")
         return jsonify({
             'error': 'Search operation failed',
+            'details': str(e) if current_app.debug else 'Internal server error'
+        }), 500
+
+
+@basket_bp.route('/add-report', methods=['POST'])
+@require_auth
+def add_report_to_basket():
+    """
+    Add a generated report from Bee chat to the user's basket (private space)
+    Creates a file entry that can be viewed in the Basket page
+    """
+    try:
+        user_id = g.user.id if hasattr(g, 'user') and g.user else None
+
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+
+        data = request.get_json()
+        filename = data.get('filename')
+        content = data.get('content')
+        content_type = data.get('content_type', 'text/markdown')
+        metadata = data.get('metadata', {})
+
+        if not filename or not content:
+            return jsonify({'error': 'Filename and content are required'}), 400
+
+        current_app.logger.info(f"Adding report to basket for user {user_id}: {filename}")
+
+        # Get or create user's private "Reports" honey jar
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        # Find or create a "Bee Reports" honey jar for the user
+        reports_jar = HoneyJar.query.filter(
+            and_(
+                HoneyJar.owner == str(user_id),
+                HoneyJar.name == 'Bee Reports',
+                HoneyJar.type == 'private'
+            )
+        ).first()
+
+        if not reports_jar:
+            # Create the reports honey jar
+            reports_jar = HoneyJar(
+                name='Bee Reports',
+                description='Auto-generated reports from Bee chat conversations',
+                type='private',
+                owner=str(user_id),
+                status='active',
+                tags=['reports', 'bee-generated']
+            )
+            db.session.add(reports_jar)
+            db.session.flush()  # Get the ID
+
+        # Create a document entry for the report
+        content_bytes = content.encode('utf-8')
+
+        new_document = Document(
+            filename=filename,
+            size_bytes=len(content_bytes),
+            content_type=content_type,
+            honey_jar_id=reports_jar.id,
+            status='active',
+            doc_metadata={
+                **metadata,
+                'source': 'bee_chat_report',
+                'added_to_basket': datetime.utcnow().isoformat(),
+                'uploader_id': str(user_id)
+            },
+            tags=['report', 'bee-generated']
+        )
+        db.session.add(new_document)
+
+        # Note: File content storage (HoneyReserve) not yet implemented
+        # For now, the document entry is created without storing the actual content
+        # This allows tracking reports in the basket even before full storage is available
+        current_app.logger.info(f"Document entry created (content storage pending future implementation)")
+
+        db.session.commit()
+
+        current_app.logger.info(f"Report added to basket: {filename} (document {new_document.id})")
+
+        return jsonify({
+            'success': True,
+            'message': f'Report "{filename}" added to your Bee Reports folder',
+            'document_id': new_document.id,
+            'honey_jar_id': reports_jar.id,
+            'honey_jar_name': reports_jar.name,
+            'file_size': len(content_bytes),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Add report to basket error: {str(e)}")
+        db.session.rollback()
+        return jsonify({
+            'error': 'Failed to add report to basket',
             'details': str(e) if current_app.debug else 'Internal server error'
         }), 500

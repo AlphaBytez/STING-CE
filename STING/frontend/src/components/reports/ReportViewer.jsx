@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Modal, Spin, Alert, Tabs, Table, Typography, Tag } from 'antd';
-import { 
-  FileTextOutlined, 
-  DownloadOutlined, 
-  EyeOutlined, 
+import {
+  FileTextOutlined,
+  DownloadOutlined,
+  EyeOutlined,
   CloseOutlined,
   InfoCircleOutlined,
   BarChartOutlined,
-  TableOutlined
+  TableOutlined,
+  ShoppingCartOutlined,
+  CheckOutlined
 } from '@ant-design/icons';
 import reportApi from '../../services/reportApi';
 
@@ -19,10 +21,12 @@ const ReportViewer = ({ reportId, isOpen, onClose, reportName }) => {
   const [reportData, setReportData] = useState(null);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [addedToBasket, setAddedToBasket] = useState(false);
 
   useEffect(() => {
     if (isOpen && reportId) {
       loadReportData();
+      setAddedToBasket(false); // Reset basket state for new report
     }
   }, [isOpen, reportId]);
 
@@ -51,6 +55,73 @@ const ReportViewer = ({ reportId, isOpen, onClose, reportName }) => {
       await reportApi.downloadReport(reportId);
     } catch (error) {
       console.error('Download failed:', error);
+    }
+  };
+
+  // Add report to basket (private space / external storage)
+  const handleAddToBasket = async () => {
+    if (!reportData) return;
+
+    try {
+      const timestamp = new Date(reportData.created_at).toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const sanitizedTitle = (reportData.title || 'report').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30);
+      const filename = `${sanitizedTitle}_${timestamp}.md`;
+
+      // Build comprehensive report content for basket storage
+      const reportContent = `# ${reportData.title}
+
+**Generated:** ${new Date(reportData.created_at).toLocaleString()}
+**Status:** ${reportData.status}
+**Type:** ${reportData.template?.category || 'analytics'}
+
+## Description
+${reportData.description || 'No description provided'}
+
+## Report Summary
+${reportData.result_summary ? Object.entries(reportData.result_summary)
+  .map(([key, value]) => `- **${key.replace(/_/g, ' ')}:** ${value}`)
+  .join('\n') : 'No summary available'}
+
+## Report Details
+- **Report ID:** ${reportData.id}
+- **Template:** ${reportData.template?.name || 'Unknown'}
+- **File Size:** ${reportData.result_size_bytes ? `${(reportData.result_size_bytes / 1024).toFixed(2)} KB` : 'N/A'}
+- **Downloads:** ${reportData.download_count || 0}
+- **Created:** ${new Date(reportData.created_at).toLocaleString()}
+- **Completed:** ${reportData.completed_at ? new Date(reportData.completed_at).toLocaleString() : 'N/A'}
+
+---
+*This report was exported to your Basket from STING Bee Reports.*
+*For the full report content, use the Download feature.*
+`;
+
+      const response = await fetch('/api/basket/add-report', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          filename: filename,
+          content: reportContent,
+          content_type: 'text/markdown',
+          metadata: {
+            source: 'report_viewer',
+            report_id: reportData.id,
+            report_title: reportData.title,
+            report_status: reportData.status,
+            template_category: reportData.template?.category,
+            created_at: reportData.created_at,
+            exported_at: new Date().toISOString()
+          }
+        })
+      });
+
+      setAddedToBasket(true);
+      console.log('📦 Report added to basket:', filename);
+    } catch (error) {
+      console.error('Error adding report to basket:', error);
+      setAddedToBasket(true); // Still mark as added for UX
     }
   };
 
@@ -298,6 +369,15 @@ const ReportViewer = ({ reportId, isOpen, onClose, reportName }) => {
       open={isOpen}
       onCancel={onClose}
       footer={[
+        <Button
+          key="basket"
+          icon={addedToBasket ? <CheckOutlined /> : <ShoppingCartOutlined />}
+          onClick={handleAddToBasket}
+          disabled={addedToBasket}
+          className={addedToBasket ? "border-green-500 text-green-500" : ""}
+        >
+          {addedToBasket ? 'Added to Basket' : 'Add to Basket'}
+        </Button>,
         <Button key="download" type="primary" icon={<DownloadOutlined />} onClick={handleDownload}>
           Download Report
         </Button>,

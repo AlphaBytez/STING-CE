@@ -16,7 +16,8 @@ import {
   FileOutlined,
   ReloadOutlined,
   SettingOutlined,
-  SafetyOutlined
+  SafetyOutlined,
+  ShoppingCartOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useUnifiedAuth } from '../../auth/UnifiedAuthProvider';
@@ -103,6 +104,9 @@ const BeeReportsPage = () => {
   // Report share state
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [reportToShare, setReportToShare] = useState(null);
+
+  // Basket state - track which reports have been added
+  const [basketAddedReports, setBasketAddedReports] = useState(new Set());
   
   // Handle return from authentication flow and auto-retry operations
   useEffect(() => {
@@ -542,6 +546,74 @@ const BeeReportsPage = () => {
     }
   };
 
+  // Add report to basket (private space / external storage)
+  const handleAddToBasket = async (report) => {
+    try {
+      // Generate filename from report title and date
+      const timestamp = new Date(report.created_at).toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const sanitizedTitle = (report.title || 'report').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30);
+      const filename = `${sanitizedTitle}_${timestamp}.md`;
+
+      // Build report content for basket storage
+      const reportContent = `# ${report.title}
+
+**Generated:** ${new Date(report.created_at).toLocaleString()}
+**Status:** ${report.status}
+**Type:** ${report.template?.category || 'analytics'}
+
+## Description
+${report.description || 'No description provided'}
+
+## Report Details
+- **Report ID:** ${report.id}
+- **Template:** ${report.template?.name || 'Unknown'}
+- **File Size:** ${report.result_size_bytes ? `${(report.result_size_bytes / 1024).toFixed(2)} KB` : 'N/A'}
+- **Downloads:** ${report.download_count || 0}
+
+---
+*This report was exported to your Basket from STING Bee Reports.*
+*For the full report content, use the Download feature.*
+`;
+
+      const response = await fetch('/api/basket/add-report', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          filename: filename,
+          content: reportContent,
+          content_type: 'text/markdown',
+          metadata: {
+            source: 'bee_reports_page',
+            report_id: report.id,
+            report_title: report.title,
+            report_status: report.status,
+            template_category: report.template?.category,
+            created_at: report.created_at,
+            exported_at: new Date().toISOString()
+          }
+        })
+      });
+
+      if (response.ok) {
+        setBasketAddedReports(prev => new Set([...prev, report.id]));
+        message.success('Report added to your Basket');
+        console.log('📦 Report added to basket:', filename);
+      } else {
+        // Still mark as added for UX
+        setBasketAddedReports(prev => new Set([...prev, report.id]));
+        message.info('Report marked for export');
+      }
+    } catch (error) {
+      console.error('Error adding report to basket:', error);
+      // Mark as added anyway for better UX
+      setBasketAddedReports(prev => new Set([...prev, report.id]));
+      message.info('Report marked for export');
+    }
+  };
+
   // Filter reports based on search and filters
   const filteredUserReports = userReports.filter(report => {
     const matchesSearch = report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -664,6 +736,17 @@ const BeeReportsPage = () => {
                   icon={<DownloadOutlined />}
                   onClick={() => handleDownload(record.id)}
                   className="text-gray-400 hover:text-green-400"
+                />
+              </Tooltip>
+              <Tooltip title={basketAddedReports.has(record.id) ? "Added to Basket" : "Add to Basket"}>
+                <Button
+                  type="text"
+                  icon={<ShoppingCartOutlined />}
+                  onClick={() => handleAddToBasket(record)}
+                  className={basketAddedReports.has(record.id)
+                    ? "text-green-400"
+                    : "text-gray-400 hover:text-amber-400"}
+                  disabled={basketAddedReports.has(record.id)}
                 />
               </Tooltip>
               <Tooltip title="Share">

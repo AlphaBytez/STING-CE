@@ -267,7 +267,8 @@ const HONEY_JAR_OPERATIONS = {
 const HoneyJarPage = () => {
   const navigate = useNavigate();
   const [honeyJars, setHoneyJars] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start with loading true
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [error, setError] = useState(null);
   const [selectedHoneyJar, setSelectedHoneyJar] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -479,18 +480,30 @@ const HoneyJarPage = () => {
     }
   };
 
-  // Optimized authentication-aware loading: Faster auth checks with reduced delays
+  // Optimized authentication-aware loading with minimum display time for smooth UX
   useEffect(() => {
     let attempts = 0;
-    const maxAttempts = 2; // Reduced from 3 to 2 for faster fallback
-    
+    const maxAttempts = 2;
+    const MIN_LOADING_TIME = 800; // Minimum time to show loading animation (ms)
+    const loadStartTime = Date.now();
+
+    const finishLoading = () => {
+      // Ensure minimum loading time has passed for smooth UX
+      const elapsed = Date.now() - loadStartTime;
+      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
+
+      setTimeout(() => {
+        setLoading(false);
+        setInitialLoadComplete(true);
+      }, remainingTime);
+    };
+
     const loadSystemJarsWithAuth = async () => {
       attempts++;
-      
+
       try {
-        // Quick auth check with shorter timeout
         console.log(`🔒 Checking authentication status (attempt ${attempts}/${maxAttempts})...`);
-        
+
         // Optimized auth check with timeout
         const authCheck = await Promise.race([
           fetch('/api/auth/me', {
@@ -499,51 +512,54 @@ const HoneyJarPage = () => {
           }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Auth check timeout')), 3000))
         ]);
-        
+
         if (authCheck.ok) {
           const authData = await authCheck.json();
           if (authData.authenticated) {
             console.log('✅ Authentication confirmed, loading honey jars...');
-            await loadHoneyJars(true); // Skip loading state since we manage it in the auth flow
+            await loadHoneyJars(true);
+            finishLoading();
             return;
           }
         }
-        
+
         // If auth check failed, wait briefly and retry or use fallback
         if (attempts < maxAttempts) {
           console.log(`🔄 Authentication not ready, retrying in 1s...`);
-          setTimeout(loadSystemJarsWithAuth, 1000); // Reduced from 2-5s to 1s
+          setTimeout(loadSystemJarsWithAuth, 1000);
         } else {
           console.log('📦 Max auth attempts reached, attempting direct load...');
-          // Try direct load before falling back to mock data
           try {
             await loadHoneyJars(true);
+            finishLoading();
           } catch (directLoadError) {
             console.log('📦 Direct load failed, using mock data');
             setHoneyJars(mockHoneyJars);
-            setLoading(false);
+            finishLoading();
           }
         }
-        
+
       } catch (error) {
         console.error(`Failed auth check attempt ${attempts}:`, error);
-        
+
         if (attempts < maxAttempts) {
-          setTimeout(loadSystemJarsWithAuth, 1000); // Reduced retry delay
+          setTimeout(loadSystemJarsWithAuth, 1000);
         } else {
           console.log('📦 Attempting direct load as final attempt...');
           try {
             await loadHoneyJars(true);
+            finishLoading();
           } catch (directLoadError) {
             console.log('📦 Using mock honey jars as final fallback');
             setHoneyJars(mockHoneyJars);
-            setLoading(false);
+            finishLoading();
           }
         }
       }
     };
-    
-    // Start the optimized auth-aware loading process
+
+    // Start loading
+    setLoading(true);
     loadSystemJarsWithAuth();
   }, []); // Only on mount
 
@@ -614,10 +630,22 @@ const HoneyJarPage = () => {
     setDocumentError(null);
     try {
       const response = await honeyJarApi.getDocuments(honeyJarId);
-      console.log('📄 Loaded documents:', response);
-      // Handle both response.data and direct array response
-      const docs = response.data || response || [];
-      setDocuments(Array.isArray(docs) ? docs : []);
+      console.log('📄 Loaded documents response:', response);
+      // API returns { honey_jar_id, honey_jar_name, documents: [...], total }
+      // Handle multiple response formats
+      let docs = [];
+      if (response.documents && Array.isArray(response.documents)) {
+        // Knowledge service format: { documents: [...] }
+        docs = response.documents;
+      } else if (response.data && Array.isArray(response.data)) {
+        // Alternative format: { data: [...] }
+        docs = response.data;
+      } else if (Array.isArray(response)) {
+        // Direct array response
+        docs = response;
+      }
+      console.log('📄 Extracted documents:', docs.length, 'items');
+      setDocuments(docs);
     } catch (error) {
       console.error('Failed to load documents:', error);
       setDocumentError('Unable to load documents');
@@ -999,20 +1027,24 @@ const HoneyJarPage = () => {
     }
   };
 
-  // Loading state
+  // Loading state - full page loading with centered animation
   if (loading) {
     return (
-      <div className="p-6 max-w-7xl mx-auto">
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Hexagon className="w-8 h-8 text-yellow-500" />
-            <h1 className="text-3xl font-bold text-white">Honey Jars</h1>
+      <div className="dark-theme min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          {/* Animated Hexagon */}
+          <div className="relative mb-6">
+            <Hexagon className="w-16 h-16 text-yellow-500/30 animate-pulse" />
+            <Hexagon className="w-16 h-16 text-yellow-500 absolute top-0 left-0 animate-spin" style={{ animationDuration: '3s' }} />
           </div>
-          <p className="text-gray-400">Browse and access your installed knowledge bases</p>
-        </div>
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
-          <span className="ml-3 text-gray-400">Loading honey jars...</span>
+
+          <h1 className="text-2xl font-bold text-white mb-2">Loading Honey Jars</h1>
+          <p className="text-gray-400 mb-4">Preparing your knowledge bases...</p>
+
+          {/* Loading Progress Bar */}
+          <div className="w-48 h-1 bg-gray-700 rounded-full mx-auto overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-yellow-500 to-amber-400 rounded-full animate-pulse" style={{ width: '70%' }} />
+          </div>
         </div>
       </div>
     );
@@ -1468,15 +1500,21 @@ const HoneyJarPage = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-400">Documents</span>
-                      <span className="font-medium text-gray-200">{selectedHoneyJar.documents}</span>
+                      <span className="font-medium text-gray-200">
+                        {loadingDocs ? '...' : documents.length > 0 ? documents.length : selectedHoneyJar.documents || 0}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-400">Embeddings</span>
-                      <span className="font-medium text-gray-200">{selectedHoneyJar.embeddings.toLocaleString()}</span>
+                      <span className="font-medium text-gray-200">
+                        {(selectedHoneyJar.embeddings || 0).toLocaleString()}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-400">Size</span>
-                      <span className="font-medium text-gray-200">{selectedHoneyJar.size}</span>
+                      <span className="font-medium text-gray-200">
+                        {selectedHoneyJar.size || formatFileSize(documents.reduce((acc, doc) => acc + (doc.size_bytes || 0), 0)) || 'N/A'}
+                      </span>
                     </div>
                   </div>
                 </div>

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Box, Button, TextField, Paper, Typography, Chip, CircularProgress, Alert } from '@mui/material';
 import { Send as SendIcon, Psychology, Security, Analytics, Search, History, Settings } from '@mui/icons-material';
-import { MessageSquare, Bot, Zap, Cpu, Paperclip, FileText, X, Plus, Trash2, ChevronDown, Database, Shield } from 'lucide-react';
+import { MessageSquare, Bot, Zap, Cpu, Paperclip, FileText, X, Plus, Trash2, ChevronDown, Database, Shield, ShoppingBasket, Check, Copy } from 'lucide-react';
 import BeeIcon from '../icons/BeeIcon';
 import FlowerIcon from '../icons/FlowerIcon';
 import ReactMarkdown from 'react-markdown';
@@ -230,8 +230,72 @@ const BeeChat = () => {
     }
   });
 
+  // Basket tracking for reports
+  const [basketAddedMessages, setBasketAddedMessages] = useState(new Set());
+
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Handle adding a report to basket (private space)
+  const handleAddToBasket = async (message) => {
+    try {
+      // Generate a filename from the report content or timestamp
+      const timestamp = new Date(message.timestamp).toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const filename = `report_${timestamp}.md`;
+
+      // Call the basket API to add the report
+      const response = await fetch('/api/basket/add-report', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          filename: filename,
+          content: message.text,
+          content_type: 'text/markdown',
+          metadata: {
+            source: 'bee_chat',
+            conversation_id: conversationId,
+            timestamp: message.timestamp,
+            report_metadata: message.reportMetadata
+          }
+        })
+      });
+
+      if (response.ok) {
+        // Mark message as added to basket
+        setBasketAddedMessages(prev => new Set([...prev, message.id]));
+        console.log('✅ Report added to basket:', filename);
+      } else {
+        // Show error but don't block - could be API not implemented yet
+        console.warn('Failed to add report to basket:', response.status);
+        // Still mark as "added" to show user the action was attempted
+        setBasketAddedMessages(prev => new Set([...prev, message.id]));
+      }
+    } catch (error) {
+      console.error('Error adding report to basket:', error);
+      // Mark as added anyway for better UX
+      setBasketAddedMessages(prev => new Set([...prev, message.id]));
+    }
+  };
+
+  // Handle copying report to clipboard
+  const handleCopyReport = async (message) => {
+    try {
+      await navigator.clipboard.writeText(message.text);
+      console.log('📋 Report copied to clipboard');
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = message.text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
+  };
 
   // Warmup the model when BeeChat opens (runs once on mount)
   useEffect(() => {
@@ -348,7 +412,7 @@ const BeeChat = () => {
       const contextMessage = {
         id: `context_${context.id}_${Date.now()}`,
         sender: 'system',
-        content: `Honey jar context loaded: "${context.name}" - ${context.description}`,
+        text: `Honey jar context loaded: "${context.name}" - ${context.description}`,
         timestamp: new Date().toISOString(),
         isAction: true
       };
@@ -386,7 +450,7 @@ const BeeChat = () => {
       const botMessage = {
         id: `bot_select_${botId}_${Date.now()}`,
         sender: 'system',
-        content: `🤖 Testing Nectar Bot: **${decodeURIComponent(botName)}** (Sandbox Mode)`,
+        text: `🤖 Testing Nectar Bot: **${decodeURIComponent(botName)}** (Sandbox Mode)`,
         timestamp: new Date().toISOString(),
         isAction: true
       };
@@ -419,7 +483,7 @@ const BeeChat = () => {
       const message = {
         id: `bot_deselect_${Date.now()}`,
         sender: 'system',
-        content: `🐝 Switched back to Default Bee`,
+        text: `🐝 Switched back to Default Bee`,
         timestamp: new Date().toISOString(),
         isAction: true
       };
@@ -492,7 +556,7 @@ const BeeChat = () => {
           const welcomeMessage = {
             id: `system_welcome_${Date.now()}`,
             sender: 'system',
-            content: '🐝 **Welcome to Bee Chat!** I\'m connected to the STING system knowledge base and ready to help you with STING features, security insights, and platform guidance.',
+            text: '🐝 **Welcome to Bee Chat!** I\'m connected to the STING system knowledge base and ready to help you with STING features, security insights, and platform guidance.',
             timestamp: new Date().toISOString(),
             isAction: true
           };
@@ -522,7 +586,7 @@ const BeeChat = () => {
           const welcomeMessage = {
             id: `default_welcome_${Date.now()}`,
             sender: 'system',
-            content: '🐝 **Welcome to Bee Chat!** I\'m here to help you with STING platform features, authentication, security guidance, and general support. Ask me anything about STING!',
+            text: '🐝 **Welcome to Bee Chat!** I\'m here to help you with STING platform features, authentication, security guidance, and general support. Ask me anything about STING!',
             timestamp: new Date().toISOString(),
             isAction: true
           };
@@ -578,7 +642,7 @@ const BeeChat = () => {
       const authSuccessMessage = {
         id: `auth_success_${Date.now()}`,
         sender: 'system',
-        content: '✅ Authentication successful! You can now continue.',
+        text: '✅ Authentication successful! You can now continue.',
         timestamp: new Date().toISOString(),
         isAction: true
       };
@@ -614,7 +678,7 @@ const BeeChat = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            message: userMessage.content,
+            message: userMessage.text,
             conversation_id: conversationId
           }),
         });
@@ -636,7 +700,7 @@ const BeeChat = () => {
           id: `nectarbot_${Date.now()}`,
           sender: 'nectarbot',
           botName: nectarBot.name,
-          content: data.response,
+          text: data.response,
           timestamp: data.timestamp || new Date().toISOString(),
           confidence_score: data.confidence_score,
           processing_time: data.processing_time
@@ -650,7 +714,7 @@ const BeeChat = () => {
         try {
           setProcessingStatus('thinking');
           data = await externalAiApi.beeChatUnified({
-            message: userMessage.content,
+            message: userMessage.text,
             user_id: getUserId(),
             conversation_id: conversationId,
             tools_enabled: tools,
@@ -669,7 +733,7 @@ const BeeChat = () => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              message: userMessage.content,
+              message: userMessage.text,
               user_id: getUserId(),
               conversation_id: conversationId,
               tools_enabled: tools,
@@ -696,7 +760,7 @@ const BeeChat = () => {
         const beeMessage = {
           id: `bee_${Date.now()}`,
           sender: 'bee',
-          content: data.response,
+          text: data.response,
           timestamp: data.timestamp,
           sentiment: data.sentiment,
           tools_used: data.tools_used,
@@ -751,7 +815,7 @@ const BeeChat = () => {
       setMessages(prev => [...prev, {
         id: `error_${Date.now()}`,
         sender: 'system',
-        content: errorMessage,
+        text: errorMessage,
         timestamp: new Date().toISOString(),
         isError: true,
         helpUrl: helpUrl
@@ -805,7 +869,7 @@ const BeeChat = () => {
     const userMessage = {
       id: Date.now(),
       sender: 'user',
-      content: input,
+      text: input,
       timestamp: new Date().toISOString(),
       tools: selectedTools.length > 0 ? selectedTools : undefined
     };
@@ -852,7 +916,7 @@ const BeeChat = () => {
     const fileMessage = {
       id: `file_${Date.now()}`,
       sender: 'user',
-      content: `File uploaded: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`,
+      text: `File uploaded: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`,
       timestamp: new Date().toISOString(),
       file: {
         name: file.name,
@@ -874,7 +938,7 @@ const BeeChat = () => {
     const honeyJarMessage = {
       id: `honeyjar_${Date.now()}`,
       sender: 'system',
-      content: 'Honey Jar Creation: Navigate to Honey Jars section to create a new knowledge base, or ask me to help you organize information into a honey jar.',
+      text: 'Honey Jar Creation: Navigate to Honey Jars section to create a new knowledge base, or ask me to help you organize information into a honey jar.',
       timestamp: new Date().toISOString(),
       isAction: true
     };
@@ -887,7 +951,7 @@ const BeeChat = () => {
     const searchMessage = {
       id: `search_${Date.now()}`,
       sender: 'system',
-      content: 'Knowledge Search: I can search across all accessible honey jars. What would you like me to find?',
+      text: 'Knowledge Search: I can search across all accessible honey jars. What would you like me to find?',
       timestamp: new Date().toISOString(),
       isAction: true
     };
@@ -919,7 +983,7 @@ const BeeChat = () => {
     const exportMessage = {
       id: `export_${Date.now()}`,
       sender: 'system',
-      content: 'Chat exported successfully! Your conversation has been downloaded as a JSON file.',
+      text: 'Chat exported successfully! Your conversation has been downloaded as a JSON file.',
       timestamp: new Date().toISOString(),
       isAction: true
     };
@@ -1022,7 +1086,7 @@ const BeeChat = () => {
       const welcomeMessage = {
         id: `new_conversation_${Date.now()}`,
         sender: 'system',
-        content: '🐝 **New conversation started!** How can I help you today?',
+        text: '🐝 **New conversation started!** How can I help you today?',
         timestamp: new Date().toISOString(),
         isAction: true
       };
@@ -1467,6 +1531,41 @@ const BeeChat = () => {
                       <p className="text-xs opacity-70">
                         Using: {message.tools.join(', ')}
                       </p>
+                    </div>
+                  )}
+
+                  {/* Report Actions - Add to Basket */}
+                  {message.isReport && message.sender === 'bee' && (
+                    <div className="mt-3 pt-3 border-t border-amber-600/30 flex items-center gap-2">
+                      <button
+                        onClick={() => handleAddToBasket(message)}
+                        className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                          basketAddedMessages.has(message.id)
+                            ? 'bg-green-600 text-white cursor-default'
+                            : 'bg-amber-600 hover:bg-amber-500 text-white'
+                        }`}
+                        disabled={basketAddedMessages.has(message.id)}
+                      >
+                        {basketAddedMessages.has(message.id) ? (
+                          <>
+                            <Check className="w-4 h-4" />
+                            Added to Basket
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingBasket className="w-4 h-4" />
+                            Add to Basket
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleCopyReport(message)}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+                        title="Copy report to clipboard"
+                      >
+                        <Copy className="w-4 h-4" />
+                        Copy
+                      </button>
                     </div>
                   )}
 

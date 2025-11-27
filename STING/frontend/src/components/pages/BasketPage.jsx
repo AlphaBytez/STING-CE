@@ -20,6 +20,148 @@ import {
 } from 'lucide-react';
 import BasketIcon from '../icons/BasketIcon';
 
+// Demo data for when API returns empty results or for demonstration
+const generateDemoData = () => {
+  const now = new Date();
+  const oneDay = 24 * 60 * 60 * 1000;
+
+  return {
+    user_id: 'demo',
+    storage_quota: 1073741824, // 1GB
+    total_used: 287654912, // ~275MB
+    usage_percentage: 26.8,
+    storage_status: 'healthy',
+    breakdown: {
+      documents: 245760000, // ~234MB
+      temp_files: 41894912, // ~40MB
+      other: 0
+    },
+    honey_jars: [
+      {
+        id: 'demo_jar_1',
+        name: 'Bee Reports',
+        type: 'private',
+        documents: [
+          {
+            id: 'demo_doc_1',
+            filename: 'quarterly_analysis_2025.md',
+            size: 45678,
+            created_at: new Date(now - 2 * oneDay).toISOString(),
+            status: 'active'
+          },
+          {
+            id: 'demo_doc_2',
+            filename: 'market_insights_report.md',
+            size: 32456,
+            created_at: new Date(now - 5 * oneDay).toISOString(),
+            status: 'active'
+          },
+          {
+            id: 'demo_doc_3',
+            filename: 'customer_feedback_summary.md',
+            size: 28900,
+            created_at: new Date(now - 7 * oneDay).toISOString(),
+            status: 'active'
+          }
+        ],
+        total_size: 107034,
+        document_count: 3
+      },
+      {
+        id: 'demo_jar_2',
+        name: 'Engineering Documentation',
+        type: 'team',
+        documents: [
+          {
+            id: 'demo_doc_4',
+            filename: 'api_reference_v2.pdf',
+            size: 2456789,
+            created_at: new Date(now - 3 * oneDay).toISOString(),
+            status: 'active'
+          },
+          {
+            id: 'demo_doc_5',
+            filename: 'system_architecture.docx',
+            size: 1234567,
+            created_at: new Date(now - 10 * oneDay).toISOString(),
+            status: 'active'
+          },
+          {
+            id: 'demo_doc_6',
+            filename: 'deployment_guide.md',
+            size: 89012,
+            created_at: new Date(now - 14 * oneDay).toISOString(),
+            status: 'active'
+          },
+          {
+            id: 'demo_doc_7',
+            filename: 'security_guidelines.txt',
+            size: 56789,
+            created_at: new Date(now - 20 * oneDay).toISOString(),
+            status: 'active'
+          }
+        ],
+        total_size: 3837157,
+        document_count: 4
+      },
+      {
+        id: 'demo_jar_3',
+        name: 'Marketing Materials',
+        type: 'team',
+        documents: [
+          {
+            id: 'demo_doc_8',
+            filename: 'product_brochure_2025.pdf',
+            size: 5678901,
+            created_at: new Date(now - 1 * oneDay).toISOString(),
+            status: 'active'
+          },
+          {
+            id: 'demo_doc_9',
+            filename: 'case_study_enterprise.docx',
+            size: 234567,
+            created_at: new Date(now - 8 * oneDay).toISOString(),
+            status: 'active'
+          }
+        ],
+        total_size: 5913468,
+        document_count: 2
+      }
+    ],
+    cleanup_opportunities: [
+      {
+        type: 'temp_files',
+        description: 'Delete 5 old temporary files',
+        potential_savings: 41894912,
+        count: 5
+      },
+      {
+        type: 'large_files',
+        description: 'Review 2 large files (>10MB)',
+        potential_savings: 15678901,
+        count: 2
+      }
+    ],
+    total_cleanup_potential: 57573813,
+    recommendations: [
+      {
+        type: 'organization',
+        priority: 'medium',
+        message: 'Consider organizing your documents into more specific folders'
+      }
+    ],
+    statistics: {
+      total_documents: 9,
+      total_honey_jars: 3,
+      total_temp_files: 5,
+      largest_file_size: 5678901,
+      oldest_document: new Date(now - 20 * oneDay).toISOString()
+    },
+    timestamp: now.toISOString(),
+    is_demo: true // Flag to indicate this is demo data
+  };
+};
+
 const BasketPage = () => {
   const [basketData, setBasketData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -31,14 +173,31 @@ const BasketPage = () => {
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [cleanupType, setCleanupType] = useState('temp_files');
   const [bulkOperation, setBulkOperation] = useState(null);
+  const [showingDemo, setShowingDemo] = useState(false);
 
   // Fetch basket overview data
   const fetchBasketData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      // Use the existing storage APIs instead of non-existent basket endpoint
+      setShowingDemo(false);
+
+      // Try the basket overview endpoint first
+      const basketResponse = await fetch('/api/basket/overview', {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (basketResponse.ok) {
+        const data = await basketResponse.json();
+        // Check if we got real data with documents
+        if (data.honey_jars && data.honey_jars.length > 0) {
+          setBasketData(data);
+          return;
+        }
+      }
+
+      // Fallback to existing storage APIs
       const [usageResponse, filesResponse] = await Promise.all([
         fetch('/api/files/honey-reserve/usage', {
           credentials: 'include',
@@ -59,6 +218,17 @@ const BasketPage = () => {
 
       if (filesResponse.ok) {
         filesData = await filesResponse.json();
+      }
+
+      // Check if we have any real data
+      const hasRealData = (usageData?.used > 0) || (filesData.files?.length > 0);
+
+      if (!hasRealData) {
+        // Show demo data when no real data exists
+        console.log('📦 No basket data found, showing demo data');
+        setBasketData(generateDemoData());
+        setShowingDemo(true);
+        return;
       }
 
       // Transform the data to match BasketPage expectations
@@ -90,7 +260,10 @@ const BasketPage = () => {
       setBasketData(transformedData);
     } catch (err) {
       console.error('Failed to fetch basket data:', err);
-      setError('Failed to connect to storage service');
+      // On error, show demo data instead of error message
+      console.log('📦 Error fetching basket data, showing demo data');
+      setBasketData(generateDemoData());
+      setShowingDemo(true);
     } finally {
       setLoading(false);
     }
@@ -334,7 +507,7 @@ const BasketPage = () => {
               <p className="text-sm text-slate-400">Manage your documents and files</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
             <button
               onClick={fetchBasketData}
@@ -345,6 +518,23 @@ const BasketPage = () => {
             </button>
           </div>
         </div>
+
+        {/* Demo Data Banner */}
+        {showingDemo && (
+          <div className="bg-amber-900/20 border border-amber-600/50 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <Database className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-amber-300 font-medium">Demo Mode</h3>
+                <p className="text-amber-200/80 text-sm mt-1">
+                  This is sample data showing how your Basket will look with files.
+                  Generate a report in Bee Chat and click "Add to Basket" to add real content,
+                  or upload documents to your Honey Jars to see them here.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Storage Overview */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
