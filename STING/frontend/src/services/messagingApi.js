@@ -1,12 +1,14 @@
 import axios from 'axios';
 
-// Messaging Service API client for chat history
-const MESSAGING_API_URL = window.env?.REACT_APP_MESSAGING_API_URL || 
-                         process.env.REACT_APP_MESSAGING_API_URL || 
-                         '/api/messaging';  // Use proxy route instead of direct port
+// Bee Chatbot API client for chat history
+// Note: Using chatbot service instead of messaging service because
+// messaging service uses in-memory storage, while chatbot uses PostgreSQL
+const BEE_API_URL = window.env?.REACT_APP_BEE_API_URL ||
+                    process.env.REACT_APP_BEE_API_URL ||
+                    '/api/bee';  // Use proxy route to chatbot
 
 const messagingClient = axios.create({
-    baseURL: MESSAGING_API_URL,
+    baseURL: BEE_API_URL,
     withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
@@ -14,9 +16,15 @@ const messagingClient = axios.create({
     }
 });
 
+// Note: Authentication is handled via HttpOnly cookies
+// The ory_kratos_session cookie is automatically included by the browser
+// and passed to the backend via Nginx proxy_set_header Cookie $http_cookie
+// No need for JavaScript-based token extraction since HttpOnly cookies
+// cannot be accessed by document.cookie (this is a security feature)
+
 // Add logging for debug purposes
 if (process.env.NODE_ENV === 'development' || window.env?.NODE_ENV === 'development') {
-    console.log('Messaging API URL:', MESSAGING_API_URL);
+    console.log('Bee API URL (for chat history):', BEE_API_URL);
     
     messagingClient.interceptors.response.use(
         response => {
@@ -38,37 +46,41 @@ if (process.env.NODE_ENV === 'development' || window.env?.NODE_ENV === 'developm
 export const chatHistoryApi = {
     // Get chat conversation history for a user
     getChatHistory: async (userId, limit = 50, offset = 0) => {
-        const response = await messagingClient.get(`/chat/history/${userId}?limit=${limit}&offset=${offset}`);
+        const response = await messagingClient.get(`/users/${userId}/conversations?limit=${limit}&offset=${offset}`);
         return response.data;
     },
 
     // Get messages in a specific conversation
     getConversationMessages: async (conversationId, limit = 100, offset = 0) => {
-        const response = await messagingClient.get(`/chat/conversations/${conversationId}/messages?limit=${limit}&offset=${offset}`);
+        const response = await messagingClient.get(`/conversations/${conversationId}/messages?limit=${limit}&offset=${offset}`);
         return response.data;
     },
 
     // Save a chat message
     saveChatMessage: async (conversationId, messageData) => {
-        const response = await messagingClient.post(`/chat/conversations/${conversationId}/messages`, messageData);
-        return response.data;
+        // Chatbot saves messages automatically during chat, this is a no-op for now
+        // Messages are saved via the /chat endpoint in bee_server.py
+        console.log('saveChatMessage called - messages are automatically saved during chat');
+        return { success: true };
     },
 
     // Create a new chat conversation
     createChatConversation: async (userId, title = null) => {
-        const response = await messagingClient.post('/chat/conversations', null, {
-            params: { user_id: userId, title }
-        });
-        return response.data;
+        // Conversations are created automatically on first message in bee_server.py
+        // Return a temporary ID that will be replaced when first message is sent
+        console.log('createChatConversation called - conversation will be created on first message');
+        return {
+            conversation_id: `temp_${Date.now()}`,
+            title: title || 'New Chat',
+            created_at: new Date().toISOString()
+        };
     },
 
     // Delete/archive a conversation (if needed later)
     archiveConversation: async (conversationId) => {
         // This would need to be implemented in the backend
-        const response = await messagingClient.patch(`/chat/conversations/${conversationId}`, {
-            is_archived: true
-        });
-        return response.data;
+        console.warn('archiveConversation not yet implemented in bee_server');
+        return { success: false };
     }
 };
 

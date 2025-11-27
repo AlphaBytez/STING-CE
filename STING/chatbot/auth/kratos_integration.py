@@ -42,14 +42,14 @@ class KratosAuth:
         """Verify a session token and get user info"""
         if not session_token:
             return None
-        
+
         try:
             # Call Kratos whoami endpoint
+            # Kratos expects the session token as a Cookie, not as a Bearer token
             response = await self.client.get(
                 f"{self.public_url}/sessions/whoami",
                 headers={
-                    "Authorization": f"Bearer {session_token}",
-                    "X-Session-Token": session_token
+                    "Cookie": f"ory_kratos_session={session_token}"
                 }
             )
             

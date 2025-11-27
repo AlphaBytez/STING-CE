@@ -245,7 +245,63 @@ class ConversationManagerDB:
             conversation['summary'] = summary
         
         return conversation
-    
+
+    async def get_user_conversations(
+        self,
+        user_id: str,
+        limit: int = 50,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """
+        Get all conversations for a user.
+        Returns list of conversations with basic metadata.
+        """
+        async with self.db.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT
+                    id,
+                    user_id,
+                    bot_id,
+                    title,
+                    conversation_type,
+                    status,
+                    created_at,
+                    updated_at,
+                    last_message_at
+                FROM conversations
+                WHERE user_id = $1 AND status != 'deleted'
+                ORDER BY last_message_at DESC
+                LIMIT $2 OFFSET $3
+                """,
+                user_id,
+                limit,
+                offset
+            )
+
+            conversations = []
+            for row in rows:
+                # Get message count
+                msg_count = await conn.fetchval(
+                    "SELECT COUNT(*) FROM messages WHERE conversation_id = $1",
+                    row['id']
+                )
+
+                conversations.append({
+                    'conversation_id': str(row['id']),
+                    'user_id': row['user_id'],
+                    'bot_id': row['bot_id'],
+                    'title': row['title'] or f"Chat {str(row['id'])[:8]}",
+                    'conversation_type': row['conversation_type'],
+                    'status': row['status'],
+                    'created_at': row['created_at'].isoformat(),
+                    'updated_at': row['updated_at'].isoformat(),
+                    'last_message_at': row['last_message_at'].isoformat(),
+                    'message_count': msg_count
+                })
+
+            return conversations
+
     async def clear_conversation(
         self,
         conversation_id: str,

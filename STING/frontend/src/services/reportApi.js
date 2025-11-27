@@ -111,21 +111,34 @@ class ReportApiService {
     // Download report file
     async downloadReport(reportId) {
         try {
+            // Detect Safari/iOS - use direct URL navigation instead of blob
+            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+            if (isSafari || isIOS) {
+                // For Safari/iOS: Open download URL directly in new window
+                // The backend send_file with as_attachment=True will trigger download
+                const downloadUrl = `${REPORT_BASE_URL}/${reportId}/download`;
+                window.open(downloadUrl, '_blank');
+                return { success: true };
+            }
+
+            // For other browsers: Use blob download method
             const response = await apiClient.get(`${REPORT_BASE_URL}/${reportId}/download`, {
                 responseType: 'blob'
             });
-            
+
             // Extract filename from Content-Disposition header if available
             const contentDisposition = response.headers['content-disposition'];
             let filename = `report_${reportId}.pdf`;
-            
+
             if (contentDisposition) {
                 const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
                 if (filenameMatch && filenameMatch[1]) {
                     filename = filenameMatch[1].replace(/['"]/g, '');
                 }
             }
-            
+
             // Create download link
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
@@ -135,7 +148,7 @@ class ReportApiService {
             link.click();
             link.remove();
             window.URL.revokeObjectURL(url);
-            
+
             return { success: true, filename };
         } catch (error) {
             console.error('Error downloading report:', error);

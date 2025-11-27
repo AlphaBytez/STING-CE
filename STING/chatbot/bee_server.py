@@ -249,6 +249,25 @@ async def health_check():
     
     return health_status
 
+@app.post("/warmup")
+async def warmup_model_endpoint():
+    """Warmup the LLM model on demand - called when BeeChat is opened"""
+    try:
+        logger.info("🔥 Manual warmup requested")
+        await warmup_llm()
+        return {
+            "status": "success",
+            "message": "Model warmed up successfully",
+            "timestamp": datetime.datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"❌ Warmup failed: {e}")
+        return {
+            "status": "error",
+            "message": f"Warmup failed: {str(e)}",
+            "timestamp": datetime.datetime.now(timezone.utc).isoformat()
+        }
+
 @app.get("/support/health")
 async def support_health_check():
     """Support system health check"""
@@ -641,6 +660,105 @@ async def get_conversation(
         raise HTTPException(status_code=404, detail="Conversation not found")
     
     return conversation
+
+@app.get("/users/{user_id}/conversations")
+async def get_user_conversations(
+    user_id: str,
+    request: Request,
+    limit: int = 50,
+    offset: int = 0,
+    auth: Optional[HTTPAuthorizationCredentials] = Depends(security)
+):
+    """Get all conversations for a user"""
+    # Try to get session token from Authorization header first, then from cookie
+    session_token = None
+
+    if auth:
+        session_token = auth.credentials
+        logger.info(f"[AUTH] Using Authorization header, token: {session_token[:20]}...")
+    else:
+        # Check for session cookie (for requests from frontend where cookie is HttpOnly)
+        cookies = request.cookies
+        logger.info(f"[AUTH] No Authorization header. Available cookies: {list(cookies.keys())}")
+        session_token = cookies.get('ory_kratos_session')
+        if session_token:
+            logger.info(f"[AUTH] Found ory_kratos_session cookie, token: {session_token[:20]}...")
+        else:
+            logger.warning(f"[AUTH] No ory_kratos_session cookie found!")
+
+    if not session_token:
+        logger.error(f"[AUTH] No authentication token found - auth: {auth}, cookies: {list(request.cookies.keys())}")
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    user_info = await kratos_auth.verify_session(session_token)
+    if not user_info:
+        raise HTTPException(status_code=401, detail="Invalid authentication")
+
+    # Verify user can only access their own conversations
+    if user_info['id'] != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        conversations = await conversation_manager.get_user_conversations(
+            user_id,
+            limit=limit,
+            offset=offset
+        )
+
+        return {
+            "conversations": conversations,
+            "count": len(conversations)
+        }
+    except Exception as e:
+        logger.error(f"Error retrieving user conversations: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/conversations/{conversation_id}/messages")
+async def get_conversation_messages(
+    conversation_id: str,
+    request: Request,
+    limit: int = 100,
+    offset: int = 0,
+    auth: Optional[HTTPAuthorizationCredentials] = Depends(security)
+):
+    """Get all messages in a conversation"""
+    # Try to get session token from Authorization header first, then from cookie
+    session_token = None
+
+    if auth:
+        session_token = auth.credentials
+        logger.info(f"[AUTH] Using Authorization header, token: {session_token[:20]}...")
+    else:
+        # Check for session cookie (for requests from frontend where cookie is HttpOnly)
+        cookies = request.cookies
+        logger.info(f"[AUTH] No Authorization header. Available cookies: {list(cookies.keys())}")
+        session_token = cookies.get('ory_kratos_session')
+        if session_token:
+            logger.info(f"[AUTH] Found ory_kratos_session cookie, token: {session_token[:20]}...")
+        else:
+            logger.warning(f"[AUTH] No ory_kratos_session cookie found!")
+
+    if not session_token:
+        logger.error(f"[AUTH] No authentication token found - auth: {auth}, cookies: {list(request.cookies.keys())}")
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    user_info = await kratos_auth.verify_session(session_token)
+    if not user_info:
+        raise HTTPException(status_code=401, detail="Invalid authentication")
+
+    try:
+        messages = await conversation_manager.get_recent_messages(
+            conversation_id,
+            limit=limit
+        )
+
+        return {
+            "messages": messages,
+            "count": len(messages)
+        }
+    except Exception as e:
+        logger.error(f"Error retrieving conversation messages: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/conversations/{conversation_id}/token-usage")
 async def get_conversation_token_usage(

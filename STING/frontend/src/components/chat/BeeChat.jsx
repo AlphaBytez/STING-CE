@@ -19,6 +19,46 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { resilientGet } from '../../utils/resilientApiClient';
 import { usePageVisibilityInterval } from '../../hooks/usePageVisibilityInterval';
 import { shouldRetryOperation, getStoredOperationContext, handleReturnFromAuth } from '../../utils/tieredAuth';
+import { useUnifiedAuth } from '../../auth/UnifiedAuthProvider';
+
+// Fun bee-themed loading messages
+const getBeeLoadingMessage = (status) => {
+  const messages = {
+    connecting: [
+      '🐝 Waking the bee...',
+      '🐝 Bee is stretching its wings...',
+      '🐝 Buzzing into action...',
+      '🐝 Finding the hive entrance...',
+      '🐝 Warming up the wings...',
+    ],
+    thinking: [
+      '🐝 Bee is pondering...',
+      '🐝 Consulting the hive mind...',
+      '🐝 Doing the waggle dance...',
+      '🐝 Checking the honey reserves...',
+      '🐝 Pollinating your question...',
+      '🐝 Buzzing through possibilities...',
+    ],
+    generating: [
+      '🐝 Crafting sweet responses...',
+      '🐝 Producing fresh honey...',
+      '🐝 Assembling the honeycomb...',
+      '🐝 Bee is writing...',
+      '🐝 Gathering nectar of knowledge...',
+    ],
+    warming: [
+      '🔥 Waking bee from hibernation...',
+      '🔥 Warming up the hive...',
+      '🔥 Bee is doing morning stretches...',
+      '🔥 First flight of the day...',
+      '🔥 Model loading (this may take a moment)...',
+    ]
+  };
+
+  const statusMessages = messages[status] || messages.connecting;
+  // Return a random message for variety
+  return statusMessages[Math.floor(Math.random() * statusMessages.length)];
+};
 
 // Clean markdown content from LLM responses
 const cleanMarkdownContent = (content) => {
@@ -74,18 +114,53 @@ const cleanMarkdownContent = (content) => {
 const BeeChat = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { identity, isAuthenticated } = useUnifiedAuth();
 
-  // Load persisted data from localStorage
-  const loadPersistedData = () => {
-    const savedMessages = localStorage.getItem('beeChat_messages');
-    const savedConversationId = localStorage.getItem('beeChat_conversationId');
-    return {
-      messages: savedMessages ? JSON.parse(savedMessages) : [],
-      conversationId: savedConversationId || null
-    };
+  // Get actual user ID from Kratos identity
+  const getCurrentUserId = () => {
+    if (!isAuthenticated || !identity?.id) {
+      console.warn('User not authenticated, using fallback ID');
+      return 'anonymous';
+    }
+    return identity.id;
   };
 
-  const { messages: savedMessages, conversationId: savedConversationId } = loadPersistedData();
+  // Load most recent conversation from database on mount
+  const loadMostRecentConversation = async () => {
+    try {
+      const userId = getCurrentUserId();
+      if (userId === 'anonymous') {
+        return { messages: [], conversationId: null };
+      }
+
+      // Fetch user's conversation history (most recent first)
+      const historyResponse = await chatHistoryApi.getChatHistory(userId, 1, 0);
+
+      if (historyResponse.conversations && historyResponse.conversations.length > 0) {
+        // Get the most recent conversation
+        const recentConversation = historyResponse.conversations[0];
+        const messagesResponse = await chatHistoryApi.getConversationMessages(recentConversation.conversation_id);
+
+        // Convert to chat format
+        const loadedMessages = messagesResponse.messages.map(msg => ({
+          id: msg.id,
+          text: msg.content,
+          sender: msg.sender,
+          timestamp: new Date(msg.timestamp),
+          type: msg.message_type
+        }));
+
+        return {
+          messages: loadedMessages,
+          conversationId: recentConversation.conversation_id
+        };
+      }
+    } catch (error) {
+      console.error('Failed to load recent conversation:', error);
+    }
+
+    return { messages: [], conversationId: null };
+  };
 
   // Simple Mode state - persisted to localStorage
   const [simpleMode, setSimpleMode] = useState(() => {
@@ -93,11 +168,12 @@ const BeeChat = () => {
     return saved === 'true';
   });
 
-  const [messages, setMessages] = useState(savedMessages);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [conversationId, setConversationId] = useState(savedConversationId);
+  const [conversationId, setConversationId] = useState(null);
   const [beeStatus, setBeeStatus] = useState('checking');
+  const [isLoadingConversation, setIsLoadingConversation] = useState(true);
 
   // Message queue for allowing typing while processing
   const [messageQueue, setMessageQueue] = useState([]);
@@ -157,6 +233,58 @@ const BeeChat = () => {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
+  // Warmup the model when BeeChat opens (runs once on mount)
+  useEffect(() => {
+    const warmupModel = async () => {
+      try {
+        console.log('🔥 Triggering model warmup...');
+        const response = await fetch('/api/bee/warmup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Model warmup completed:', data);
+        } else {
+          console.warn('⚠️ Model warmup request failed:', response.status);
+        }
+      } catch (error) {
+        // Silent failure - warmup is optional, model will load on first use
+        console.log('ℹ️ Model warmup not available (will warm on first message)');
+      }
+    };
+
+    warmupModel();
+  }, []); // Empty dependency array = run once on mount
+
+  // Load most recent conversation from database on mount
+  useEffect(() => {
+    const loadConversation = async () => {
+      if (!isAuthenticated) {
+        setIsLoadingConversation(false);
+        return;
+      }
+
+      try {
+        const { messages: loadedMessages, conversationId: loadedId } = await loadMostRecentConversation();
+        if (loadedMessages.length > 0) {
+          setMessages(loadedMessages);
+          setConversationId(loadedId);
+          console.log('✅ Loaded conversation from database:', loadedId);
+        }
+      } catch (error) {
+        console.error('Failed to load conversation on mount:', error);
+      } finally {
+        setIsLoadingConversation(false);
+      }
+    };
+
+    loadConversation();
+  }, [isAuthenticated]); // Reload when auth status changes
+
   // Persist simple mode preference
   useEffect(() => {
     console.log('🔍 BeeChat simpleMode changed:', simpleMode);
@@ -195,19 +323,6 @@ const BeeChat = () => {
       prevLastMessageContentRef.current = messages[messages.length - 1]?.content || '';
     }
   }, [messages]);
-
-  // Persist messages and conversation ID to localStorage
-  useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem('beeChat_messages', JSON.stringify(messages));
-    }
-  }, [messages]);
-
-  useEffect(() => {
-    if (conversationId) {
-      localStorage.setItem('beeChat_conversationId', conversationId);
-    }
-  }, [conversationId]);
 
   // Persist honey jar context to localStorage
   useEffect(() => {
@@ -608,7 +723,11 @@ const BeeChat = () => {
       let errorMessage = 'Failed to connect to Bee. Please check if the service is running.';
       let helpUrl = null;
 
-      if (error.response) {
+      // Check for timeout errors (model loading)
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = '🔥 Model is loading (first use after idle). Please try again in a moment!';
+        setProcessingStatus('warming');
+      } else if (error.response) {
         const errorData = error.response.data;
 
         // Handle specific error codes from backend
@@ -622,6 +741,10 @@ const BeeChat = () => {
           }
         } else if (errorData.message) {
           errorMessage = errorData.message;
+        } else if (error.response.status === 504 || error.response.status === 408) {
+          // Gateway timeout or request timeout
+          errorMessage = '🔥 Model is warming up (first use after idle). Please try again!';
+          setProcessingStatus('warming');
         }
       }
 
@@ -811,42 +934,37 @@ const BeeChat = () => {
       setHistoryPage(1);
     }
     setLoadingHistory(true);
-    
+
     try {
-      // For demo purposes, use a mock user ID
-      // In production, get this from authentication context
-      const userId = 'current_user'; // Replace with actual user ID
+      // Get the actual authenticated user ID
+      const userId = getCurrentUserId();
+
+      // Don't load history for anonymous users
+      if (userId === 'anonymous') {
+        setChatHistory([]);
+        setHasMoreHistory(false);
+        setLoadingHistory(false);
+        return;
+      }
+
       const limit = 20; // Load 20 conversations per page
-      
+
       const historyResponse = await chatHistoryApi.getChatHistory(userId, limit, (page - 1) * limit);
       const newConversations = historyResponse.conversations || [];
-      
+
       if (append) {
         setChatHistory(prev => [...prev, ...newConversations]);
       } else {
         setChatHistory(newConversations);
       }
-      
+
       setHasMoreHistory(newConversations.length === limit);
-      
+
     } catch (error) {
       console.error('Failed to load chat history:', error);
-      // Fallback to mock data for demo (generate more for scrolling demo)
-      const mockConversations = Array.from({ length: page === 1 ? 15 : 10 }, (_, i) => ({
-        conversation_id: `demo_${page}_${i + 1}`,
-        title: `Chat Session ${(page - 1) * 20 + i + 1}`,
-        created_at: new Date(Date.now() - (i + (page - 1) * 20) * 86400000).toISOString(),
-        last_message_at: new Date(Date.now() - (i + (page - 1) * 20) * 3600000).toISOString(),
-        message_count: Math.floor(Math.random() * 50) + 5
-      }));
-      
-      if (append) {
-        setChatHistory(prev => [...prev, ...mockConversations]);
-      } else {
-        setChatHistory(mockConversations);
-      }
-      
-      setHasMoreHistory(page < 3); // Demo: show "load more" for first 3 pages
+      // Show empty history on error instead of fake demo data
+      setChatHistory([]);
+      setHasMoreHistory(false);
     } finally {
       setLoadingHistory(false);
     }
@@ -876,11 +994,9 @@ const BeeChat = () => {
       setMessages(loadedMessages);
       setConversationId(conversationId);
       setShowChatHistory(false);
-      
-      // Update localStorage
-      localStorage.setItem('beeChat_messages', JSON.stringify(loadedMessages));
-      localStorage.setItem('beeChat_conversationId', conversationId);
-      
+
+      console.log('✅ Loaded conversation:', conversationId);
+
     } catch (error) {
       console.error('Failed to load conversation:', error);
       // Show error message
@@ -901,10 +1017,7 @@ const BeeChat = () => {
       setMessages([]);
       // Clear conversation ID to force creation of new conversation
       setConversationId(null);
-      // Clear localStorage for current conversation
-      localStorage.removeItem('beeChat_messages');
-      localStorage.removeItem('beeChat_conversationId');
-      
+
       // Add a welcome message for new conversation
       const welcomeMessage = {
         id: `new_conversation_${Date.now()}`,
@@ -925,17 +1038,18 @@ const BeeChat = () => {
 
   const saveChatMessage = async (message) => {
     try {
+      const userId = getCurrentUserId();
+
       if (!conversationId) {
         // Create new conversation if none exists
-        const userId = 'current_user'; // Replace with actual user ID
         const newConv = await chatHistoryApi.createChatConversation(userId, 'New Chat');
         setConversationId(newConv.conversation_id);
-        localStorage.setItem('beeChat_conversationId', newConv.conversation_id);
+        console.log('✅ Created new conversation:', newConv.conversation_id);
       }
-      
+
       // Save message to messaging service
       await chatHistoryApi.saveChatMessage(conversationId, {
-        user_id: 'current_user', // Replace with actual user ID
+        user_id: userId,
         sender: message.sender,
         content: message.text,
         message_type: message.type || 'text',
@@ -1374,10 +1488,7 @@ const BeeChat = () => {
               <div className="flex items-center gap-2">
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-500"></div>
                 <p className="text-sm text-gray-400">
-                  {processingStatus === 'connecting' && 'Connecting to Bee...'}
-                  {processingStatus === 'thinking' && 'Bee is thinking...'}
-                  {processingStatus === 'generating' && 'Generating response...'}
-                  {(processingStatus === 'idle' || !processingStatus) && 'Processing...'}
+                  {getBeeLoadingMessage(processingStatus || 'connecting')}
                 </p>
                 {messageQueue.length > 0 && (
                   <span className="text-xs text-yellow-500 ml-2">

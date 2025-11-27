@@ -172,19 +172,50 @@ class DatabaseManager:
     async def get_conversation_messages(self, conversation_id: str, limit: int = 100) -> List[Dict[str, Any]]:
         """
         Get messages for a conversation.
+        Returns messages formatted for frontend consumption.
         """
+        # Validate UUID format - if invalid, return empty list (for demo conversations)
+        try:
+            conversation_uuid = UUID(str(conversation_id))
+        except (ValueError, AttributeError):
+            # Not a valid UUID (e.g., demo conversations like 'demo_1_3')
+            return []
+
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
                 """
-                SELECT * FROM messages 
-                WHERE conversation_id = $1 
-                ORDER BY timestamp DESC 
+                SELECT
+                    id,
+                    conversation_id,
+                    role,
+                    content,
+                    token_count,
+                    metadata,
+                    created_at
+                FROM messages
+                WHERE conversation_id = $1
+                ORDER BY created_at DESC
                 LIMIT $2
                 """,
-                UUID(str(conversation_id)),
+                conversation_uuid,
                 limit
             )
-            return [dict(row) for row in reversed(rows)]  # Return in chronological order
+
+            # Transform to frontend format and return in chronological order
+            messages = []
+            for row in reversed(rows):
+                # Map role to sender for frontend compatibility
+                sender = 'user' if row['role'] == 'user' else 'bee'
+                messages.append({
+                    'id': str(row['id']),
+                    'sender': sender,
+                    'content': row['content'],
+                    'timestamp': row['created_at'].isoformat(),
+                    'message_type': 'text',
+                    'metadata': row['metadata'] or {}
+                })
+
+            return messages
     
     # Memory Management
     
