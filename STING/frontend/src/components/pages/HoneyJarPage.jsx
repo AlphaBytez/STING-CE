@@ -1126,7 +1126,10 @@ const HoneyJarPage = () => {
         
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 floating-button rounded-2xl transition-colors"
+          className="flex items-center gap-2 px-4 py-2 font-medium rounded-2xl transition-colors"
+          style={{ backgroundColor: '#EAB308', color: '#111827' }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FACC15'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#EAB308'}
         >
           <Plus className="w-5 h-5" />
           Create Honey Jar

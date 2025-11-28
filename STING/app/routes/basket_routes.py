@@ -116,18 +116,24 @@ def get_basket_overview():
             )
         ).order_by(desc(Document.upload_date)).all()
 
-        # Get user's temporary files
-        temp_files = db.session.query(File).filter(
-            and_(
-                File.uploader_id == user_id,
-                File.is_temporary == True,
-                File.created_at > datetime.utcnow() - timedelta(hours=48)
-            )
-        ).all()
+        # Get user's temporary files (skip if File model not available or incompatible)
+        temp_files = []
+        if File is not None:
+            try:
+                temp_files = db.session.query(File).filter(
+                    and_(
+                        File.uploader_id == str(user_id),
+                        File.is_temporary == True,
+                        File.created_at > datetime.utcnow() - timedelta(hours=48)
+                    )
+                ).all()
+            except Exception as file_query_error:
+                current_app.logger.warning(f"Could not query temp files (model may not be compatible): {file_query_error}")
+                temp_files = []
 
         # Calculate storage breakdown
         documents_size = sum(doc.size_bytes or 0 for doc in user_documents)
-        temp_files_size = sum(file.size or 0 for file in temp_files)
+        temp_files_size = sum(getattr(file, 'size', 0) or getattr(file, 'size_bytes', 0) or 0 for file in temp_files)
         total_used = documents_size + temp_files_size
 
         # Group documents by honey jar
@@ -163,18 +169,24 @@ def get_basket_overview():
 
         # Find cleanup opportunities
         cleanup_opportunities = []
-        
-        # Old temporary files
-        old_temp_files = db.session.query(File).filter(
-            and_(
-                File.uploader_id == user_id,
-                File.is_temporary == True,
-                File.created_at < datetime.utcnow() - timedelta(hours=24)
-            )
-        ).all()
-        
+
+        # Old temporary files (skip if File model not available or incompatible)
+        old_temp_files = []
+        if File is not None:
+            try:
+                old_temp_files = db.session.query(File).filter(
+                    and_(
+                        File.uploader_id == str(user_id),
+                        File.is_temporary == True,
+                        File.created_at < datetime.utcnow() - timedelta(hours=24)
+                    )
+                ).all()
+            except Exception as file_query_error:
+                current_app.logger.warning(f"Could not query old temp files: {file_query_error}")
+                old_temp_files = []
+
         if old_temp_files:
-            temp_cleanup_size = sum(file.size or 0 for file in old_temp_files)
+            temp_cleanup_size = sum(getattr(file, 'size', 0) or getattr(file, 'size_bytes', 0) or 0 for file in old_temp_files)
             cleanup_opportunities.append({
                 'type': 'temp_files',
                 'description': f'Delete {len(old_temp_files)} old temporary files',
@@ -238,8 +250,8 @@ def get_basket_overview():
                 'total_documents': len(user_documents),
                 'total_honey_jars': len(honey_jar_breakdown),
                 'total_temp_files': len(temp_files),
-                'largest_file_size': max((doc.file_size or 0 for doc in user_documents), default=0),
-                'oldest_document': min((doc.created_at for doc in user_documents if doc.created_at), default=datetime.utcnow()).isoformat()
+                'largest_file_size': max((doc.size_bytes or 0 for doc in user_documents), default=0),
+                'oldest_document': min((doc.upload_date for doc in user_documents if doc.upload_date), default=datetime.utcnow()).isoformat()
             },
             'timestamp': datetime.utcnow().isoformat()
         }
@@ -279,38 +291,45 @@ def perform_cleanup():
 
         if cleanup_type == 'temp_files':
             # Clean up temporary files older than 24 hours
-            cutoff_time = datetime.utcnow() - timedelta(hours=24)
-            
-            query = db.session.query(File).filter(
-                and_(
-                    File.uploader_id == user_id,
-                    File.is_temporary == True,
-                    File.created_at < cutoff_time
+            if File is None:
+                return jsonify({'error': 'Temp file cleanup not available (File model not loaded)'}), 400
+
+            try:
+                cutoff_time = datetime.utcnow() - timedelta(hours=24)
+
+                query = db.session.query(File).filter(
+                    and_(
+                        File.uploader_id == str(user_id),
+                        File.is_temporary == True,
+                        File.created_at < cutoff_time
+                    )
                 )
-            )
-            
-            if file_ids:
-                query = query.filter(File.id.in_(file_ids))
-            
-            temp_files = query.all()
-            
-            for file in temp_files:
-                try:
-                    if not dry_run:
-                        # Note: HoneyReserve storage not yet implemented
-                        # Just delete from database for now
-                        db.session.delete(file)
-                    
-                    cleaned_files += 1
-                    freed_space += file.size or 0
-                    
-                except Exception as e:
-                    error_msg = f"Failed to delete temp file {file.id}: {str(e)}"
-                    current_app.logger.error(error_msg)
-                    errors.append(error_msg)
-            
-            if not dry_run and cleaned_files > 0:
-                db.session.commit()
+
+                if file_ids:
+                    query = query.filter(File.id.in_(file_ids))
+
+                temp_files = query.all()
+
+                for file in temp_files:
+                    try:
+                        if not dry_run:
+                            # Note: HoneyReserve storage not yet implemented
+                            # Just delete from database for now
+                            db.session.delete(file)
+
+                        cleaned_files += 1
+                        freed_space += getattr(file, 'size', 0) or getattr(file, 'size_bytes', 0) or 0
+
+                    except Exception as e:
+                        error_msg = f"Failed to delete temp file {file.id}: {str(e)}"
+                        current_app.logger.error(error_msg)
+                        errors.append(error_msg)
+
+                if not dry_run and cleaned_files > 0:
+                    db.session.commit()
+            except Exception as file_cleanup_error:
+                current_app.logger.warning(f"Temp file cleanup failed (model may not be compatible): {file_cleanup_error}")
+                errors.append(f"Temp file cleanup unavailable: {str(file_cleanup_error)}")
 
         elif cleanup_type == 'documents':
             # Clean up specific documents marked for deletion (owned via honey jar)
@@ -350,7 +369,7 @@ def perform_cleanup():
             # Clean up specifically selected files
             if not file_ids:
                 return jsonify({'error': 'No file IDs provided for cleanup'}), 400
-            
+
             # Handle both Document and File model cleanup
             documents = db.session.query(Document).join(
                 HoneyJar, Document.honey_jar_id == HoneyJar.id
@@ -360,46 +379,50 @@ def perform_cleanup():
                     HoneyJar.owner == str(user_id)
                 )
             ).all()
-            
-            temp_files = db.session.query(File).filter(
-                and_(
-                    File.id.in_(file_ids),
-                    File.uploader_id == user_id
-                )
-            ).all()
-            
+
+            # Try to get temp files if File model is available
+            temp_files = []
+            if File is not None:
+                try:
+                    temp_files = db.session.query(File).filter(
+                        and_(
+                            File.id.in_(file_ids),
+                            File.uploader_id == str(user_id)
+                        )
+                    ).all()
+                except Exception as file_query_error:
+                    current_app.logger.warning(f"Could not query temp files for cleanup: {file_query_error}")
+
             # Process documents
             for doc in documents:
                 try:
                     if not dry_run:
                         # Note: HoneyReserve storage not yet implemented
                         db.session.delete(doc)
-                    
+
                     cleaned_files += 1
                     freed_space += doc.size_bytes or 0
-                    
+
                 except Exception as e:
                     error_msg = f"Failed to delete document {doc.id}: {str(e)}"
                     current_app.logger.error(error_msg)
                     errors.append(error_msg)
-            
+
             # Process temp files
             for file in temp_files:
                 try:
                     if not dry_run:
                         # Note: HoneyReserve storage not yet implemented
-                        # Just delete from database for now
-                        pass
                         db.session.delete(file)
-                    
+
                     cleaned_files += 1
-                    freed_space += file.size or 0
-                    
+                    freed_space += getattr(file, 'size', 0) or getattr(file, 'size_bytes', 0) or 0
+
                 except Exception as e:
                     error_msg = f"Failed to delete file {file.id}: {str(e)}"
                     current_app.logger.error(error_msg)
                     errors.append(error_msg)
-            
+
             if not dry_run and cleaned_files > 0:
                 db.session.commit()
 
@@ -737,8 +760,8 @@ def add_report_to_basket():
         return jsonify({
             'success': True,
             'message': f'Report "{filename}" added to your Bee Reports folder',
-            'document_id': new_document.id,
-            'honey_jar_id': reports_jar.id,
+            'document_id': str(new_document.id),
+            'honey_jar_id': str(reports_jar.id),
             'honey_jar_name': reports_jar.name,
             'file_size': len(content_bytes),
             'timestamp': datetime.utcnow().isoformat()
