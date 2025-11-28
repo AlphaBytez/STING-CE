@@ -762,13 +762,9 @@ services:
       context: ./public_bee
       dockerfile: Dockerfile
     image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-public-bee:${STING_VERSION:-latest}
+    env_file:
+    - ${INSTALL_DIR}/env/public-bee.env
     environment:
-    - PUBLIC_BEE_PORT=8092
-    - PUBLIC_BEE_HOST=0.0.0.0
-    - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-sting_app}
-    - EXTERNAL_AI_URL=http://external-ai:8091
-    - CHATBOT_URL=http://chatbot:8888
-    - KNOWLEDGE_SERVICE_URL=http://knowledge:8090
     - TZ=UTC
     ports:
     - 8092:8092

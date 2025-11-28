@@ -204,6 +204,8 @@ ensure_all_services_started_enhanced() {
         "frontend"
         "chatbot"
         "knowledge"
+        "nectar-worker"
+        "public-bee"
         "log-forwarder"
         "loki"
         "grafana"

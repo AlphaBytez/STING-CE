@@ -603,7 +603,11 @@ manage_services() {
             # 8. Start chatbot last (depends on many services)
             log_message "Starting chatbot service..."
             docker_compose up -d chatbot
-            
+
+            # 9. Start public bot services (nectar-worker and public-bee)
+            log_message "Starting public bot services..."
+            docker_compose up -d nectar-worker public-bee
+
             # Use enhanced startup resilience if available
             if command -v ensure_all_services_started_enhanced >/dev/null 2>&1; then
                 log_message "Using enhanced service startup with dependency handling..."

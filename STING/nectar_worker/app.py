@@ -20,12 +20,51 @@ import aiohttp
 import redis.asyncio as redis
 import json
 import os
+import re
 import logging
 from datetime import datetime, timedelta
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def strip_model_artifacts(response: str) -> str:
+    """
+    Strip model-specific artifacts from LLM responses.
+
+    Some reasoning models include artifacts that shouldn't be shown to users:
+    - <think>...</think> tags (DeepSeek, Phi-4 chain-of-thought)
+    - \\boxed{...} LaTeX wrappers (Phi-4 math formatting)
+    """
+    if not response:
+        return response
+
+    # Remove <think>...</think> blocks (including multiline)
+    cleaned = re.sub(r'<think>.*?</think>\s*', '', response, flags=re.DOTALL)
+
+    # Also handle unclosed <think> tags (model might have been cut off)
+    cleaned = re.sub(r'<think>.*$', '', cleaned, flags=re.DOTALL)
+
+    # Remove \boxed{...} completely - it's usually a duplicate of the answer
+    # Phi-4 outputs: "Answer here\n\n\boxed{Answer here}"
+    cleaned = re.sub(r'\\boxed\{[^}]*\}', '', cleaned)
+
+    # Remove duplicate consecutive paragraphs (model sometimes repeats itself)
+    lines = cleaned.strip().split('\n\n')
+    if len(lines) >= 2:
+        # Check if last paragraph is duplicate or near-duplicate of earlier content
+        seen = set()
+        unique_lines = []
+        for line in lines:
+            normalized = line.strip().lower()
+            if normalized and normalized not in seen:
+                seen.add(normalized)
+                unique_lines.append(line)
+        cleaned = '\n\n'.join(unique_lines)
+
+    return cleaned.strip()
+
 
 # Initialize FastAPI
 app = FastAPI(title="Nectar Worker Service", version="1.0.0")
@@ -161,14 +200,17 @@ async def call_llm(system_prompt: str, user_message: str, conversation_history: 
     
     # Call appropriate LLM based on provider
     if LLM_PROVIDER == "ollama":
-        return await call_ollama(messages)
+        response = await call_ollama(messages)
     elif LLM_PROVIDER == "openai":
-        return await call_openai(messages)
+        response = await call_openai(messages)
     elif LLM_PROVIDER == "anthropic":
-        return await call_anthropic(messages)
+        response = await call_anthropic(messages)
     else:
         # Default: Try OpenAI-compatible endpoint
-        return await call_openai_compatible(messages)
+        response = await call_openai_compatible(messages)
+
+    # Strip model artifacts (<think> tags, \boxed{}, etc.)
+    return strip_model_artifacts(response)
 
 async def call_ollama(messages: List[Dict]) -> str:
     """Call Ollama LLM"""

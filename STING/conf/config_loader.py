@@ -1859,6 +1859,42 @@ class ConfigurationManager:
                 'NECTAR_WORKER_ENABLED': 'true'
             }
 
+    def _generate_public_bee_env_vars(self):
+        """Generate public-bee environment variables from configuration"""
+        try:
+            # Get public_bee config from top-level section if it exists
+            public_bee_config = self.raw_config.get('public_bee', {})
+
+            # Get database credentials (URL-encoded password for DATABASE_URL)
+            from urllib.parse import quote_plus
+            postgres_user = self.processed_config.get('POSTGRES_USER', 'postgres')
+            postgres_password = self.processed_config.get('POSTGRES_PASSWORD', '')
+            postgres_db = self.processed_config.get('POSTGRES_DB', 'sting_app')
+
+            # URL-encode the password to handle special characters
+            encoded_password = quote_plus(postgres_password) if postgres_password else ''
+
+            return {
+                'PUBLIC_BEE_PORT': str(public_bee_config.get('port', 8092)),
+                'PUBLIC_BEE_HOST': public_bee_config.get('host', '0.0.0.0'),
+                'DATABASE_URL': f"postgresql://{postgres_user}:{encoded_password}@db:5432/{postgres_db}",
+                'EXTERNAL_AI_URL': public_bee_config.get('external_ai_url', 'http://external-ai:8091'),
+                'CHATBOT_URL': public_bee_config.get('chatbot_url', 'http://chatbot:8888'),
+                'KNOWLEDGE_SERVICE_URL': public_bee_config.get('knowledge_service_url', 'http://knowledge:8090'),
+                'LOG_LEVEL': public_bee_config.get('log_level', 'INFO')
+            }
+        except Exception as e:
+            logger.error(f"Failed to generate public-bee environment variables: {e}")
+            return {
+                'PUBLIC_BEE_PORT': '8092',
+                'PUBLIC_BEE_HOST': '0.0.0.0',
+                'DATABASE_URL': 'postgresql://postgres:password@db:5432/sting_app',
+                'EXTERNAL_AI_URL': 'http://external-ai:8091',
+                'CHATBOT_URL': 'http://chatbot:8888',
+                'KNOWLEDGE_SERVICE_URL': 'http://knowledge:8090',
+                'LOG_LEVEL': 'INFO'
+            }
+
     def _generate_email_secrets(self):
         email_secrets = {
             'smtp_password': self._generate_secret(),
@@ -2079,7 +2115,8 @@ class ConfigurationManager:
                 },
                 'observability.env': self._generate_observability_env_vars(),
                 'headscale.env': self._generate_headscale_env_vars(),
-                'nectar-worker.env': self._generate_nectar_worker_env_vars()
+                'nectar-worker.env': self._generate_nectar_worker_env_vars(),
+                'public-bee.env': self._generate_public_bee_env_vars()
                 # SUPERTOKENS IS COMPLETELY REMOVED - DO NOT UNCOMMENT
                 # DO NOT ADD ANY SUPERTOKENS ENV FILES HERE
             }
