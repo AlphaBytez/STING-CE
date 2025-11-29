@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, session, g
 from flask_cors import CORS
 from app.models.nectar_bot_models import (
     NectarBot, NectarBotHandoff, NectarBotUsage,
+    NectarBotConversation, NectarBotMessage,
     get_bot_by_api_key, get_active_bots_for_user,
     get_pending_handoffs, get_bot_analytics,
     get_bot_by_slug, get_public_bot_by_slug,
@@ -951,6 +952,119 @@ def chat_with_public_bot(slug):
         return jsonify({'error': 'Chat failed'}), 500
 
 
+# ==================== Conversation History Endpoints ====================
+
+@nectar_bot_bp.route('/<bot_id>/conversations', methods=['GET'])
+@require_auth_flexible()
+def list_bot_conversations(bot_id):
+    """List conversations for a bot (for dashboard/handoff management)"""
+    try:
+        # Check bot ownership
+        bot = NectarBot.query.get(bot_id)
+        if not bot:
+            return jsonify({'error': 'Bot not found'}), 404
+
+        user_id = g.get('user', {}).get('id') or g.get('identity', {}).get('id')
+        if str(bot.created_by) != str(user_id):
+            return jsonify({'error': 'Not authorized'}), 403
+
+        # Get query params
+        status = request.args.get('status')
+        limit = min(int(request.args.get('limit', 50)), 100)
+        offset = int(request.args.get('offset', 0))
+
+        query = NectarBotConversation.query.filter_by(bot_id=bot_id)
+
+        if status:
+            query = query.filter_by(status=status)
+
+        conversations = query.order_by(
+            NectarBotConversation.last_message_at.desc()
+        ).offset(offset).limit(limit).all()
+
+        return jsonify({
+            'conversations': [conv.to_dict() for conv in conversations],
+            'total': query.count()
+        })
+
+    except Exception as e:
+        logger.error(f"Error listing conversations: {e}")
+        return jsonify({'error': 'Failed to list conversations'}), 500
+
+
+@nectar_bot_bp.route('/conversations/<conversation_id>', methods=['GET'])
+@require_auth_flexible()
+def get_conversation_history(conversation_id):
+    """Get full conversation history for handoff or review"""
+    try:
+        conversation = NectarBotConversation.query.filter_by(
+            conversation_id=conversation_id
+        ).first()
+
+        if not conversation:
+            return jsonify({'error': 'Conversation not found'}), 404
+
+        # Check authorization
+        bot = NectarBot.query.get(conversation.bot_id)
+        if bot:
+            user_id = g.get('user', {}).get('id') or g.get('identity', {}).get('id')
+            if str(bot.created_by) != str(user_id):
+                return jsonify({'error': 'Not authorized'}), 403
+
+        # Get all messages
+        messages = NectarBotMessage.query.filter_by(
+            conversation_id=conversation_id
+        ).order_by(NectarBotMessage.timestamp.asc()).all()
+
+        return jsonify({
+            'conversation': conversation.to_dict(),
+            'messages': [msg.to_dict() for msg in messages]
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting conversation: {e}")
+        return jsonify({'error': 'Failed to get conversation'}), 500
+
+
+@nectar_bot_bp.route('/conversations/<conversation_id>/handoff', methods=['POST'])
+@require_auth_flexible()
+def handoff_nectar_conversation(conversation_id):
+    """Mark a conversation as handed off to a human agent"""
+    try:
+        conversation = NectarBotConversation.query.filter_by(
+            conversation_id=conversation_id
+        ).first()
+
+        if not conversation:
+            return jsonify({'error': 'Conversation not found'}), 404
+
+        # Check authorization
+        bot = NectarBot.query.get(conversation.bot_id)
+        if bot:
+            user_id = g.get('user', {}).get('id') or g.get('identity', {}).get('id')
+            if str(bot.created_by) != str(user_id):
+                return jsonify({'error': 'Not authorized'}), 403
+
+        data = request.get_json() or {}
+        handoff_to = data.get('handoff_to', user_id)
+
+        conversation.status = 'handed_off'
+        conversation.handed_off_to = handoff_to
+        conversation.handed_off_at = datetime.utcnow()
+        db.session.commit()
+
+        return jsonify({
+            'status': 'success',
+            'conversation_id': conversation_id,
+            'handed_off_to': handoff_to,
+            'handed_off_at': conversation.handed_off_at.isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Error handing off conversation: {e}")
+        return jsonify({'error': 'Failed to handoff conversation'}), 500
+
+
 # ==================== Helper Functions ====================
 
 def _send_public_chat_request(message, conversation_id, user_id, user_email, bot_context):
@@ -1078,8 +1192,54 @@ def _send_chat_request(message, conversation_id, user_id, user_email, bot_contex
 
 
 def _track_bot_usage(bot, conversation_id, user_message, response_data, request_obj):
-    """Track bot usage for analytics"""
+    """Track bot usage for analytics and persist conversation history"""
     try:
+        # Get or create conversation record
+        conversation = NectarBotConversation.query.filter_by(
+            conversation_id=conversation_id
+        ).first()
+
+        if not conversation:
+            conversation = NectarBotConversation(
+                conversation_id=conversation_id,
+                bot_id=bot.id,
+                user_id=response_data.get('user_id', 'unknown'),
+                user_ip=request_obj.remote_addr,
+                user_agent=request_obj.headers.get('User-Agent'),
+                session_metadata={
+                    'referer': request_obj.headers.get('Referer'),
+                    'origin': request_obj.headers.get('Origin')
+                },
+                status='active'
+            )
+            db.session.add(conversation)
+
+        # Save user message
+        user_msg = NectarBotMessage(
+            conversation_id=conversation_id,
+            role='user',
+            content=user_message
+        )
+        db.session.add(user_msg)
+
+        # Save assistant response
+        response_time_ms = int(response_data.get('processing_time', 0) * 1000)
+        assistant_msg = NectarBotMessage(
+            conversation_id=conversation_id,
+            role='assistant',
+            content=response_data.get('response', ''),
+            confidence_score=response_data.get('confidence_score'),
+            response_time_ms=response_time_ms,
+            honey_jars_used=response_data.get('honey_jars_used', []),
+            knowledge_matches=response_data.get('knowledge_matches', 0)
+        )
+        db.session.add(assistant_msg)
+
+        # Update conversation stats
+        conversation.message_count = (conversation.message_count or 0) + 2
+        conversation.last_message_at = datetime.utcnow()
+
+        # Also track in usage table for backwards compatibility / analytics
         usage = NectarBotUsage(
             bot_id=bot.id,
             conversation_id=conversation_id,
@@ -1090,7 +1250,7 @@ def _track_bot_usage(bot, conversation_id, user_message, response_data, request_
             user_message=user_message[:1000],  # Limit storage
             bot_response=response_data.get('response', '')[:1000],
             confidence_score=response_data.get('confidence_score'),
-            response_time_ms=int(response_data.get('processing_time', 0) * 1000),
+            response_time_ms=response_time_ms,
             honey_jars_queried=response_data.get('honey_jars_used', []),
             knowledge_matches=response_data.get('knowledge_matches', 0)
         )

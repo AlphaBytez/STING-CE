@@ -121,6 +121,84 @@ class PublicBotUsage(Base):
         }
 
 
+class PublicBotConversation(Base):
+    """Conversation history for public bot interactions"""
+    __tablename__ = 'public_bot_conversations'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    conversation_id = Column(String(255), unique=True, nullable=False, index=True)
+    bot_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+
+    # Session metadata
+    session_metadata = Column(JSON, default={})  # IP, user agent, referer, etc.
+
+    # Status
+    status = Column(String(50), default='active')  # active, closed, handed_off
+    handed_off_to = Column(String(255))  # User ID if handed off to human
+    handed_off_at = Column(DateTime(timezone=True))
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    last_message_at = Column(DateTime(timezone=True))
+
+    # Stats
+    message_count = Column(Integer, default=0)
+    total_tokens = Column(Integer, default=0)
+
+    def to_dict(self):
+        """Convert to dictionary for JSON serialization"""
+        return {
+            'id': str(self.id),
+            'conversation_id': self.conversation_id,
+            'bot_id': str(self.bot_id),
+            'session_metadata': self.session_metadata,
+            'status': self.status,
+            'handed_off_to': self.handed_off_to,
+            'handed_off_at': self.handed_off_at.isoformat() if self.handed_off_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'last_message_at': self.last_message_at.isoformat() if self.last_message_at else None,
+            'message_count': self.message_count,
+            'total_tokens': self.total_tokens
+        }
+
+
+class PublicBotMessage(Base):
+    """Individual messages in public bot conversations"""
+    __tablename__ = 'public_bot_messages'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    conversation_id = Column(String(255), nullable=False, index=True)
+
+    # Message content
+    role = Column(String(20), nullable=False)  # 'user' or 'assistant'
+    content = Column(Text, nullable=False)
+
+    # Metadata
+    tokens_used = Column(Integer, default=0)
+    response_time_ms = Column(Integer)  # Only for assistant messages
+    confidence_score = Column(Float)  # Only for assistant messages
+    sources = Column(JSON, default=[])  # Knowledge sources used
+
+    # Timestamps
+    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+    def to_dict(self):
+        """Convert to dictionary for JSON serialization"""
+        return {
+            'id': str(self.id),
+            'conversation_id': self.conversation_id,
+            'role': self.role,
+            'content': self.content,
+            'tokens_used': self.tokens_used,
+            'response_time_ms': self.response_time_ms,
+            'confidence_score': self.confidence_score,
+            'sources': self.sources,
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None
+        }
+
+
 class PublicBotAPIKey(Base):
     """API keys for accessing public bots"""
     __tablename__ = 'public_bot_api_keys'

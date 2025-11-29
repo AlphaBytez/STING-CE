@@ -21,7 +21,7 @@ import json
 # Database imports
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from models import Base, PublicBot, PublicBotAPIKey, PublicBotUsage
+from models import Base, PublicBot, PublicBotAPIKey, PublicBotUsage, PublicBotConversation, PublicBotMessage
 from auth import get_public_bee_auth, PublicBeeAuth
 from bot_manager import PublicBotManager
 
@@ -129,6 +129,57 @@ async def health_check():
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
+# Conversation persistence helpers
+def get_or_create_conversation(db: Session, conversation_id: str, bot_id: str,
+                                session_metadata: Dict = None) -> PublicBotConversation:
+    """Get existing conversation or create a new one"""
+    conversation = db.query(PublicBotConversation).filter(
+        PublicBotConversation.conversation_id == conversation_id
+    ).first()
+
+    if not conversation:
+        conversation = PublicBotConversation(
+            conversation_id=conversation_id,
+            bot_id=bot_id,
+            session_metadata=session_metadata or {},
+            status='active'
+        )
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
+
+    return conversation
+
+
+def save_conversation_message(db: Session, conversation_id: str, role: str, content: str,
+                               tokens_used: int = 0, response_time_ms: int = None,
+                               confidence_score: float = None, sources: List = None):
+    """Save a message to the conversation history"""
+    message = PublicBotMessage(
+        conversation_id=conversation_id,
+        role=role,
+        content=content,
+        tokens_used=tokens_used,
+        response_time_ms=response_time_ms,
+        confidence_score=confidence_score,
+        sources=sources or []
+    )
+    db.add(message)
+
+    # Update conversation stats
+    conversation = db.query(PublicBotConversation).filter(
+        PublicBotConversation.conversation_id == conversation_id
+    ).first()
+
+    if conversation:
+        conversation.message_count = (conversation.message_count or 0) + 1
+        conversation.total_tokens = (conversation.total_tokens or 0) + tokens_used
+        conversation.last_message_at = datetime.now(timezone.utc)
+
+    db.commit()
+    return message
+
+
 @app.get("/api/public/bots", response_model=List[BotInfo])
 async def list_public_bots(db = Depends(get_db)):
     """List all public bots (no authentication required)"""
@@ -180,11 +231,23 @@ async def chat_with_bot(
     try:
         # Generate conversation ID if not provided
         conversation_id = message.conversation_id or str(uuid.uuid4())
-        
+
+        # Get or create conversation record with session metadata
+        session_metadata = {
+            "ip_address": request.client.host if request.client else None,
+            "user_agent": request.headers.get("user-agent"),
+            "referer": request.headers.get("referer"),
+            "api_key_prefix": api_key_record.key_prefix if api_key_record else None
+        }
+        get_or_create_conversation(db, conversation_id, str(bot.id), session_metadata)
+
+        # Save user message to database
+        save_conversation_message(db, conversation_id, "user", message.message)
+
         # Get relevant knowledge from bot's honey jars
         manager = PublicBotManager(db)
         knowledge_context = manager.query_honey_jars(bot, message.message, max_results=5)
-        
+
         # Prepare context for the AI
         context = {
             "bot_name": bot.display_name,
@@ -193,28 +256,17 @@ async def chat_with_bot(
             "conversation_id": conversation_id,
             "user_message": message.message
         }
-        
+
         if message.context:
             context.update(message.context)
-        
+
         # Call the AI service
         ai_response = await call_ai_service(context)
-        
+
         # Calculate processing time and estimate tokens
         processing_time_ms = int((time.time() - start_time) * 1000)
         tokens_used = estimate_tokens(message.message + ai_response)
-        
-        # Log usage
-        auth_handler = PublicBeeAuth(db)
-        auth_handler.log_usage(
-            bot=bot,
-            api_key_record=api_key_record,
-            request=request,
-            conversation_id=conversation_id,
-            tokens_used=tokens_used,
-            response_time_ms=processing_time_ms
-        )
-        
+
         # Prepare sources from knowledge context
         sources = [
             {
@@ -225,7 +277,26 @@ async def chat_with_bot(
             }
             for result in knowledge_context[:3]  # Include top 3 sources
         ]
-        
+
+        # Save assistant response to database
+        save_conversation_message(
+            db, conversation_id, "assistant", ai_response,
+            tokens_used=tokens_used,
+            response_time_ms=processing_time_ms,
+            sources=sources
+        )
+
+        # Log usage (existing usage tracking)
+        auth_handler = PublicBeeAuth(db)
+        auth_handler.log_usage(
+            bot=bot,
+            api_key_record=api_key_record,
+            request=request,
+            conversation_id=conversation_id,
+            tokens_used=tokens_used,
+            response_time_ms=processing_time_ms
+        )
+
         return ChatResponse(
             response=ai_response,
             conversation_id=conversation_id,
@@ -254,6 +325,134 @@ async def chat_with_bot(
         )
         
         raise HTTPException(status_code=500, detail="Failed to process message")
+
+
+# Conversation history endpoints for handoff support
+class ConversationSummary(BaseModel):
+    conversation_id: str
+    bot_id: str
+    status: str
+    message_count: int
+    total_tokens: int
+    created_at: str
+    last_message_at: Optional[str]
+    session_metadata: Dict[str, Any]
+
+
+class ConversationDetail(BaseModel):
+    conversation_id: str
+    bot_id: str
+    status: str
+    messages: List[Dict[str, Any]]
+    session_metadata: Dict[str, Any]
+    created_at: str
+    last_message_at: Optional[str]
+
+
+@app.get("/api/public/conversations/{conversation_id}", response_model=ConversationDetail)
+async def get_conversation(
+    conversation_id: str,
+    db = Depends(get_db),
+    auth_data: tuple = Depends(get_public_bee_auth)
+):
+    """Get full conversation history for handoff or review"""
+    bot, _ = auth_data
+
+    conversation = db.query(PublicBotConversation).filter(
+        PublicBotConversation.conversation_id == conversation_id,
+        PublicBotConversation.bot_id == str(bot.id)
+    ).first()
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Get all messages for this conversation
+    messages = db.query(PublicBotMessage).filter(
+        PublicBotMessage.conversation_id == conversation_id
+    ).order_by(PublicBotMessage.timestamp.asc()).all()
+
+    return ConversationDetail(
+        conversation_id=conversation.conversation_id,
+        bot_id=str(conversation.bot_id),
+        status=conversation.status,
+        messages=[msg.to_dict() for msg in messages],
+        session_metadata=conversation.session_metadata or {},
+        created_at=conversation.created_at.isoformat() if conversation.created_at else None,
+        last_message_at=conversation.last_message_at.isoformat() if conversation.last_message_at else None
+    )
+
+
+@app.get("/api/public/bots/{bot_id}/conversations", response_model=List[ConversationSummary])
+async def list_bot_conversations(
+    bot_id: str,
+    status: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    db = Depends(get_db),
+    auth_data: tuple = Depends(get_public_bee_auth)
+):
+    """List conversations for a bot (for dashboard/handoff management)"""
+    bot, _ = auth_data
+
+    if str(bot.id) != bot_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this bot's conversations")
+
+    query = db.query(PublicBotConversation).filter(
+        PublicBotConversation.bot_id == bot_id
+    )
+
+    if status:
+        query = query.filter(PublicBotConversation.status == status)
+
+    conversations = query.order_by(
+        PublicBotConversation.last_message_at.desc()
+    ).offset(offset).limit(limit).all()
+
+    return [
+        ConversationSummary(
+            conversation_id=conv.conversation_id,
+            bot_id=str(conv.bot_id),
+            status=conv.status,
+            message_count=conv.message_count or 0,
+            total_tokens=conv.total_tokens or 0,
+            created_at=conv.created_at.isoformat() if conv.created_at else None,
+            last_message_at=conv.last_message_at.isoformat() if conv.last_message_at else None,
+            session_metadata=conv.session_metadata or {}
+        )
+        for conv in conversations
+    ]
+
+
+@app.post("/api/public/conversations/{conversation_id}/handoff")
+async def handoff_conversation(
+    conversation_id: str,
+    handoff_to: str,
+    db = Depends(get_db),
+    auth_data: tuple = Depends(get_public_bee_auth)
+):
+    """Mark a conversation as handed off to a human agent"""
+    bot, _ = auth_data
+
+    conversation = db.query(PublicBotConversation).filter(
+        PublicBotConversation.conversation_id == conversation_id,
+        PublicBotConversation.bot_id == str(bot.id)
+    ).first()
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    conversation.status = 'handed_off'
+    conversation.handed_off_to = handoff_to
+    conversation.handed_off_at = datetime.now(timezone.utc)
+    db.commit()
+
+    return {
+        "status": "success",
+        "conversation_id": conversation_id,
+        "handed_off_to": handoff_to,
+        "handed_off_at": conversation.handed_off_at.isoformat()
+    }
+
 
 async def call_ai_service(context: Dict[str, Any]) -> str:
     """Call the AI service to generate a response"""

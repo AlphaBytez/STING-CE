@@ -252,6 +252,91 @@ class NectarBotHandoff(db.Model):
             self.resolution_time_minutes = int(delta.total_seconds() / 60)
 
 
+class NectarBotConversation(db.Model):
+    """Nectar Bot conversation tracking for handoff support"""
+    __tablename__ = 'nectar_bot_conversations'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    conversation_id = Column(String(255), unique=True, nullable=False, index=True)
+    bot_id = Column(UUID(as_uuid=True), ForeignKey('nectar_bots.id'), nullable=False)
+
+    # Session metadata
+    user_id = Column(String(255))
+    user_ip = Column(String(45))
+    user_agent = Column(Text)
+    session_metadata = Column(JSON, default=dict)
+
+    # Status for handoff
+    status = Column(String(50), default='active')  # active, closed, handed_off
+    handed_off_to = Column(String(255))  # User ID if handed off
+    handed_off_at = Column(DateTime(timezone=True))
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_message_at = Column(DateTime(timezone=True))
+
+    # Stats
+    message_count = Column(Integer, default=0)
+    total_tokens = Column(Integer, default=0)
+
+    # Relationships
+    bot = relationship("NectarBot", backref="conversations")
+
+    def to_dict(self):
+        """Convert to dictionary representation"""
+        return {
+            'id': str(self.id),
+            'conversation_id': self.conversation_id,
+            'bot_id': str(self.bot_id),
+            'user_id': self.user_id,
+            'status': self.status,
+            'handed_off_to': self.handed_off_to,
+            'handed_off_at': self.handed_off_at.isoformat() if self.handed_off_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'last_message_at': self.last_message_at.isoformat() if self.last_message_at else None,
+            'message_count': self.message_count,
+            'total_tokens': self.total_tokens,
+            'session_metadata': self.session_metadata or {}
+        }
+
+
+class NectarBotMessage(db.Model):
+    """Individual messages in Nectar Bot conversations"""
+    __tablename__ = 'nectar_bot_messages'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    conversation_id = Column(String(255), nullable=False, index=True)
+
+    # Message content
+    role = Column(String(20), nullable=False)  # 'user' or 'assistant'
+    content = Column(Text, nullable=False)
+
+    # Metadata
+    confidence_score = Column(Float)
+    response_time_ms = Column(Integer)
+    honey_jars_used = Column(JSON, default=list)
+    knowledge_matches = Column(Integer, default=0)
+
+    # Timestamps
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    def to_dict(self):
+        """Convert to dictionary representation"""
+        return {
+            'id': str(self.id),
+            'conversation_id': self.conversation_id,
+            'role': self.role,
+            'content': self.content,
+            'confidence_score': self.confidence_score,
+            'response_time_ms': self.response_time_ms,
+            'honey_jars_used': self.honey_jars_used or [],
+            'knowledge_matches': self.knowledge_matches,
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None
+        }
+
+
 class NectarBotUsage(db.Model):
     """Nectar Bot usage tracking"""
     __tablename__ = 'nectar_bot_usage'

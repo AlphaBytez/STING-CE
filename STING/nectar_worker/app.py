@@ -323,12 +323,17 @@ async def chat(request: ChatRequest):
         bot_context = request.bot_context or {}
         system_prompt = bot_context.get("system_prompt", "You are a helpful AI assistant.")
         bot_name = bot_context.get("bot_name", "Assistant")
-        
+
+        # Prepend bot identity to system prompt to override model's default name
+        # This prevents models like Phi from introducing themselves by their model name
+        identity_prefix = f"Your name is {bot_name}. Never refer to yourself as Phi, Claude, GPT, or any other AI model name. "
+        system_prompt = identity_prefix + system_prompt
+
         logger.info(f"💬 Chat request for bot: {bot_name} (ID: {request.bot_id})")
-        
+
         # Load conversation history
         history = await get_conversation_history(request.conversation_id, limit=10)
-        
+
         # Call LLM
         response_text = await call_llm(
             system_prompt=system_prompt,
