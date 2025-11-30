@@ -509,6 +509,31 @@
                     </p>
                 </div>
 
+                <!-- macOS Sudo Timeout Warning -->
+                <div id="macos-sudo-warning" class="bg-amber-900/30 border-2 border-amber-500 rounded-lg p-5 mb-6" style="display: none;">
+                    <div class="flex items-start gap-3">
+                        <div class="text-2xl">🍎</div>
+                        <div class="flex-1">
+                            <h4 class="text-amber-400 font-bold mb-2">macOS Users: Keep Your Terminal Handy!</h4>
+                            <p class="text-amber-200 mb-3">
+                                Installation takes <strong>15-30 minutes</strong>. macOS sudo credentials expire after ~5 minutes of inactivity.
+                            </p>
+                            <div class="bg-slate-900/80 rounded-lg p-4 mb-3">
+                                <p class="text-slate-300 text-sm mb-2"><strong>If installation pauses:</strong></p>
+                                <ol class="text-slate-300 text-sm space-y-1 ml-4 list-decimal">
+                                    <li>Go to your <strong>terminal window</strong> (where you ran the installer)</li>
+                                    <li>Run: <code class="bg-slate-800 px-2 py-0.5 rounded text-lime-400">sudo -v</code></li>
+                                    <li>Enter your password or use TouchID</li>
+                                    <li>Installation will automatically resume</li>
+                                </ol>
+                            </div>
+                            <p class="text-xs text-slate-400">
+                                💡 <strong>Pro tip:</strong> Keep your terminal visible during installation. You may see a password prompt there.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="bg-red-900/20 border border-red-700 rounded-lg p-4 mb-6" id="prod-warning">
                     <p class="text-sm text-red-300">
                         <strong>⚠️ Warning:</strong> Applying this configuration will install and start STING. This wizard will be disabled.
@@ -536,24 +561,42 @@
                         </div>
                     </div>
 
-                    <!-- Sudo Reauth Banner (hidden by default) -->
-                    <div id="sudo-reauth-banner" class="bg-amber-900/30 border border-amber-600 rounded-lg p-4 mb-4" style="display: none;">
+                    <!-- macOS Persistent Reminder (shown during installation on macOS) -->
+                    <div id="macos-install-reminder" class="bg-blue-900/30 border border-blue-500 rounded-lg p-3 mb-4" style="display: none;">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">🍎</span>
+                            <p class="text-sm text-blue-200">
+                                <strong>macOS:</strong> Keep your terminal visible. If progress stalls, run <code class="bg-slate-800 px-1 rounded text-lime-400">sudo -v</code> in the terminal.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Sudo Reauth Banner (hidden by default - shows when sudo actually expires) -->
+                    <div id="sudo-reauth-banner" class="bg-red-900/40 border-2 border-red-500 rounded-lg p-5 mb-4" style="display: none;">
                         <div class="flex items-start gap-3">
-                            <div class="text-amber-400 text-2xl">⚠️</div>
+                            <div class="text-red-400 text-3xl">🔐</div>
                             <div class="flex-1">
-                                <h4 class="text-amber-300 font-semibold mb-2">Sudo credentials expired - installation paused</h4>
-                                <p class="text-sm text-slate-300 mb-3">
-                                    The installation needs sudo access to continue. Please open a terminal and run:
+                                <h4 class="text-red-400 font-bold text-lg mb-2">Action Required: Sudo Credentials Expired</h4>
+                                <p class="text-slate-200 mb-3">
+                                    Installation is <strong>paused</strong> waiting for sudo authentication. This is normal on macOS.
                                 </p>
-                                <div class="bg-slate-900 rounded p-3 mb-3 font-mono text-sm text-lime-400">
-                                    sudo -v
+                                <div class="bg-slate-900 rounded-lg p-4 mb-4">
+                                    <p class="text-slate-300 text-sm mb-2"><strong>To continue:</strong></p>
+                                    <ol class="text-slate-300 text-sm space-y-2 ml-4 list-decimal">
+                                        <li>Go to your <strong class="text-amber-400">terminal window</strong> (where you started the installer)</li>
+                                        <li>Run this command:
+                                            <div class="bg-slate-800 rounded px-3 py-2 mt-1 font-mono text-lime-400 flex items-center justify-between">
+                                                <span>sudo -v</span>
+                                                <button onclick="copyToClipboard('sudo -v')" class="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-slate-300">Copy</button>
+                                            </div>
+                                        </li>
+                                        <li>Enter your password or use TouchID when prompted</li>
+                                        <li>Installation will <strong>automatically resume</strong></li>
+                                    </ol>
                                 </div>
-                                <p class="text-xs text-slate-400 mb-3">
-                                    This will prompt for your password or TouchID. After authenticating, the installation will continue automatically.
+                                <p class="text-xs text-slate-400">
+                                    ⏱️ This happens because macOS sudo credentials expire after ~5 minutes of inactivity.
                                 </p>
-                                <button onclick="checkSudoStatus()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 px-4 py-2 rounded text-sm font-medium transition-colors">
-                                    ✓ Check Sudo Status
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -1124,9 +1167,26 @@
                 if (state.dev_mode) {
                     document.getElementById('dev-mode-notice').style.display = 'block';
                     document.getElementById('prod-warning').style.display = 'none';
+                    document.getElementById('macos-sudo-warning').style.display = 'none';
                 } else {
                     document.getElementById('dev-mode-notice').style.display = 'none';
                     document.getElementById('prod-warning').style.display = 'block';
+
+                    // Check server platform for macOS sudo timeout warning
+                    try {
+                        const platformResponse = await fetch('/api/server-platform');
+                        const platformData = await platformResponse.json();
+
+                        if (platformData.sudo_timeout_warning) {
+                            document.getElementById('macos-sudo-warning').style.display = 'block';
+                        } else {
+                            document.getElementById('macos-sudo-warning').style.display = 'none';
+                        }
+                    } catch (platformError) {
+                        console.error('Failed to check platform:', platformError);
+                        // Default to hiding the warning if we can't detect
+                        document.getElementById('macos-sudo-warning').style.display = 'none';
+                    }
                 }
             } catch (error) {
                 console.error('Failed to check dev mode:', error);
@@ -1138,11 +1198,41 @@
                 return;
             }
 
+            // CRITICAL: Check sudo BEFORE starting installation
+            // On macOS, if user took their time in wizard, sudo may have expired
+            // We need them to refresh it NOW, not when the prompt gets buried in logs
+            try {
+                const sudoCheckResponse = await fetch('/api/pre-install-sudo-check', { method: 'POST' });
+                const sudoCheck = await sudoCheckResponse.json();
+
+                if (!sudoCheck.sudo_valid) {
+                    // Show blocking modal - don't proceed until sudo is refreshed
+                    const shouldProceed = await showSudoRefreshModal(sudoCheck.is_macos);
+                    if (!shouldProceed) {
+                        return; // User cancelled
+                    }
+                }
+            } catch (e) {
+                console.error('Sudo check failed:', e);
+                // Continue anyway - worst case they'll see the prompt during install
+            }
+
             // Switch to installation progress view (Step 9)
             document.querySelectorAll('.step-content').forEach(step => step.style.display = 'none');
             document.querySelector('[data-step="9"]').style.display = 'block';
             document.getElementById('prev-btn').style.display = 'none';
             document.getElementById('next-btn').style.display = 'none';
+
+            // Show macOS reminder if on macOS
+            try {
+                const platformResponse = await fetch('/api/server-platform');
+                const platformData = await platformResponse.json();
+                if (platformData.is_macos) {
+                    document.getElementById('macos-install-reminder').style.display = 'block';
+                }
+            } catch (e) {
+                // Ignore platform detection errors
+            }
 
             try {
                 // Start installation
@@ -1166,6 +1256,94 @@
             } catch (error) {
                 showInstallError('Installation failed: ' + error);
             }
+        }
+
+        async function showSudoRefreshModal(isMacOS) {
+            return new Promise((resolve) => {
+                // Create modal overlay
+                const overlay = document.createElement('div');
+                overlay.id = 'sudo-refresh-modal';
+                overlay.className = 'fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50';
+                overlay.innerHTML = `
+                    <div class="bg-slate-800 border-2 border-amber-500 rounded-xl p-8 max-w-lg mx-4 shadow-2xl">
+                        <div class="flex items-start gap-4 mb-6">
+                            <div class="text-4xl">${isMacOS ? '🍎' : '🔐'}</div>
+                            <div>
+                                <h3 class="text-xl font-bold text-amber-400 mb-2">Sudo Credentials Expired</h3>
+                                <p class="text-slate-300">
+                                    ${isMacOS
+                                        ? 'Your macOS sudo session has timed out. This is normal after browsing the wizard for a few minutes.'
+                                        : 'Your sudo session has expired.'}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 rounded-lg p-5 mb-6">
+                            <p class="text-slate-200 font-medium mb-3">Please do this now:</p>
+                            <ol class="text-slate-300 space-y-3 ml-4 list-decimal">
+                                <li>Go to your <strong class="text-amber-400">terminal window</strong> (where you ran the installer)</li>
+                                <li>Run this command:
+                                    <div class="bg-slate-800 rounded px-4 py-2 mt-2 font-mono text-lime-400 text-lg flex items-center justify-between">
+                                        <span>sudo -v</span>
+                                        <button onclick="copyToClipboard('sudo -v'); this.textContent='✅'" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-slate-300">Copy</button>
+                                    </div>
+                                </li>
+                                <li>Enter your password ${isMacOS ? 'or use TouchID' : ''}</li>
+                                <li>Come back here and click <strong class="text-lime-400">"Continue Installation"</strong></li>
+                            </ol>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button id="sudo-modal-retry" class="flex-1 bg-lime-500 hover:bg-lime-600 text-slate-900 font-bold py-3 px-6 rounded-lg transition-colors">
+                                ✓ Continue Installation
+                            </button>
+                            <button id="sudo-modal-cancel" class="bg-slate-700 hover:bg-slate-600 text-slate-300 py-3 px-6 rounded-lg transition-colors">
+                                Cancel
+                            </button>
+                        </div>
+
+                        <p class="text-xs text-slate-500 mt-4 text-center">
+                            Installation will verify sudo access before starting.
+                        </p>
+                    </div>
+                `;
+
+                document.body.appendChild(overlay);
+
+                // Handle retry button - check sudo again
+                document.getElementById('sudo-modal-retry').addEventListener('click', async () => {
+                    const btn = document.getElementById('sudo-modal-retry');
+                    btn.disabled = true;
+                    btn.textContent = 'Checking...';
+
+                    try {
+                        const recheckResponse = await fetch('/api/pre-install-sudo-check', { method: 'POST' });
+                        const recheck = await recheckResponse.json();
+
+                        if (recheck.sudo_valid) {
+                            overlay.remove();
+                            resolve(true); // Proceed with installation
+                        } else {
+                            btn.disabled = false;
+                            btn.textContent = '✓ Continue Installation';
+                            // Show error message
+                            alert('Sudo is still expired. Please run "sudo -v" in your terminal and enter your password, then try again.');
+                        }
+                    } catch (e) {
+                        btn.disabled = false;
+                        btn.textContent = '✓ Continue Installation';
+                        // On error, let them proceed anyway
+                        overlay.remove();
+                        resolve(true);
+                    }
+                });
+
+                // Handle cancel button
+                document.getElementById('sudo-modal-cancel').addEventListener('click', () => {
+                    overlay.remove();
+                    resolve(false); // Don't proceed
+                });
+            });
         }
 
         async function streamInstallLogs(installId) {
@@ -1329,10 +1507,18 @@
             wizardCard.parentNode.insertBefore(commandSection, wizardCard.nextSibling);
         }
 
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                // Brief visual feedback could be added here if needed
+            }).catch(function(err) {
+                console.error('Could not copy text: ', err);
+            });
+        }
+
         function copyAdminCommand() {
             const commandElement = document.getElementById('admin-command');
             const command = commandElement.textContent;
-            
+
             navigator.clipboard.writeText(command).then(function() {
                 // Show success feedback
                 const button = event.target;
@@ -1340,7 +1526,7 @@
                 button.textContent = '✅ Copied!';
                 button.classList.remove('bg-lime-500', 'hover:bg-lime-600');
                 button.classList.add('bg-green-500');
-                
+
                 setTimeout(() => {
                     button.textContent = originalText;
                     button.classList.remove('bg-green-500');

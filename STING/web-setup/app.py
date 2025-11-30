@@ -1247,6 +1247,43 @@ def run_installation_background(install_id, config_data, admin_email):
         installations[install_id]['error'] = str(e)
         installations[install_id]['log'] += f"\n\nFatal error: {str(e)}"
 
+@app.route('/api/pre-install-sudo-check', methods=['POST'])
+def pre_install_sudo_check():
+    """
+    Check if sudo is still valid before starting installation.
+    On macOS, sudo expires after ~5 mins - if user took their time in wizard,
+    we need them to refresh it BEFORE we start installation (not during, when
+    the prompt gets buried in logs).
+    """
+    import platform as plat
+
+    is_macos = plat.system() == 'Darwin'
+
+    # Check if sudo is valid non-interactively
+    try:
+        result = subprocess.run(
+            ['sudo', '-n', 'true'],
+            capture_output=True,
+            timeout=5
+        )
+        sudo_valid = result.returncode == 0
+    except Exception:
+        sudo_valid = False
+
+    if sudo_valid:
+        return jsonify({
+            'sudo_valid': True,
+            'message': 'Sudo credentials are valid'
+        })
+    else:
+        return jsonify({
+            'sudo_valid': False,
+            'is_macos': is_macos,
+            'message': 'Sudo credentials have expired. Please run "sudo -v" in your terminal before continuing.',
+            'action_required': True
+        })
+
+
 @app.route('/api/apply-config', methods=['POST'])
 def apply_config():
     """
@@ -1388,6 +1425,35 @@ def shutdown_wizard():
 def health():
     """Health check endpoint"""
     return jsonify({'status': 'healthy', 'service': 'sting-setup-wizard'})
+
+@app.route('/api/server-platform', methods=['GET'])
+def get_server_platform():
+    """Get server platform info for UI hints (e.g., macOS sudo timeout warning)"""
+    try:
+        import platform as plat
+
+        system = plat.system()  # 'Darwin', 'Linux', 'Windows'
+        is_macos = system == 'Darwin'
+        is_wsl = False
+
+        # Check for WSL
+        try:
+            with open('/proc/version', 'r') as f:
+                version_info = f.read().lower()
+                is_wsl = 'microsoft' in version_info or 'wsl' in version_info
+        except:
+            pass
+
+        return jsonify({
+            'system': system,
+            'is_macos': is_macos,
+            'is_wsl': is_wsl,
+            'is_linux': system == 'Linux' and not is_wsl,
+            'sudo_timeout_warning': is_macos,  # macOS has aggressive sudo timeout
+            'platform_name': 'macOS' if is_macos else ('WSL' if is_wsl else system)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e), 'is_macos': False, 'sudo_timeout_warning': False}), 500
 
 @app.route('/api/certificate-info')
 def certificate_info():
