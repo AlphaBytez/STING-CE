@@ -495,6 +495,10 @@ def get_hostname_options():
     try:
         import re
 
+        # Check if hostname was already selected in CLI pre-wizard prompt
+        # This is passed via STING_HOSTNAME environment variable from install_sting.sh
+        cli_selected_hostname = os.environ.get('STING_HOSTNAME', '').strip()
+
         # Reuse helper functions from detect_sting_hostname
         def is_vm():
             """Check if running in a virtual machine"""
@@ -540,8 +544,11 @@ def get_hostname_options():
         platform = 'vm' if is_vm() else 'bare-metal'
         mdns_available = has_mdns()
 
-        # Get detected hostname
-        detected_hostname = detect_sting_hostname()
+        # Use CLI-selected hostname if available, otherwise detect
+        if cli_selected_hostname:
+            detected_hostname = cli_selected_hostname
+        else:
+            detected_hostname = detect_sting_hostname()
 
         # Get short hostname for .local option
         short_hostname = None
@@ -558,36 +565,52 @@ def get_hostname_options():
         # Build options list (similar to CLI)
         options = []
 
+        # Check if detected_hostname is an IP address
+        is_ip = re.match(r'^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$', detected_hostname)
+
         # Option 1: sting.local (generic .local hostname)
+        # Mark as recommended if it matches CLI selection
+        is_sting_local_recommended = (cli_selected_hostname == 'sting.local')
         options.append({
             'value': 'sting.local',
             'label': 'sting.local',
-            'description': 'Generic STING hostname',
+            'description': 'Generic STING hostname (works with WebAuthn)',
             'requires_mdns': True,
-            'recommended': False,
+            'recommended': is_sting_local_recommended,
             'warning': None if mdns_available else 'Requires mDNS/Avahi to be installed'
         })
 
         # Option 2: localhost (local only)
+        is_localhost_recommended = (cli_selected_hostname == 'localhost')
         options.append({
             'value': 'localhost',
             'label': 'localhost',
-            'description': 'Local access only (not suitable for remote access)',
+            'description': 'Local access only (works with WebAuthn)',
             'requires_mdns': False,
-            'recommended': False,
+            'recommended': is_localhost_recommended,
             'warning': 'Not recommended for VMs - remote access will not work'
         })
 
-        # Option 3: Detected hostname (recommended)
-        is_ip = re.match(r'^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$', detected_hostname)
-        options.append({
-            'value': detected_hostname,
-            'label': detected_hostname,
-            'description': f'Detected {"IP address" if is_ip else "hostname"} (auto-detected)',
-            'requires_mdns': detected_hostname.endswith('.local'),
-            'recommended': True,
-            'warning': None
-        })
+        # Option 3: Detected/CLI-selected hostname
+        # Only add if different from sting.local and localhost
+        if detected_hostname not in ['sting.local', 'localhost']:
+            # Mark as recommended if it's the CLI-selected value, or if no CLI selection and it's a .local hostname
+            is_detected_recommended = bool(cli_selected_hostname and cli_selected_hostname == detected_hostname) or \
+                                      (not cli_selected_hostname and detected_hostname.endswith('.local'))
+
+            # Add WebAuthn warning for IP addresses
+            ip_warning = None
+            if is_ip:
+                ip_warning = 'IP addresses do NOT work with WebAuthn/Passkeys (except localhost)'
+
+            options.append({
+                'value': detected_hostname,
+                'label': detected_hostname,
+                'description': f'{"CLI-selected" if cli_selected_hostname else "Auto-detected"} {"IP address" if is_ip else "hostname"}',
+                'requires_mdns': detected_hostname.endswith('.local'),
+                'recommended': is_detected_recommended,
+                'warning': ip_warning
+            })
 
         # Option 4: Custom (placeholder for user input)
         options.append({
@@ -600,21 +623,26 @@ def get_hostname_options():
         })
 
         # Platform-specific guidance
-        if platform == 'vm':
+        if cli_selected_hostname:
+            # Hostname was already selected in CLI - show confirmation
+            guidance = f'Using hostname selected during setup: {cli_selected_hostname}'
+            recommendation = f'Keep the selected hostname ({cli_selected_hostname}) for WebAuthn compatibility'
+        elif platform == 'vm':
             if mdns_available:
                 guidance = '.local domains work great for remote VM access with mDNS/Avahi'
-                recommendation = 'Use detected hostname (recommended for VMs with mDNS)'
+                recommendation = 'Use sting.local or hostname.local for WebAuthn support'
             else:
-                guidance = 'IP address recommended, or install Avahi for .local hostname support'
-                recommendation = 'Use detected IP or install Avahi for better hostname support'
+                guidance = 'Use sting.local hostname - Avahi will be installed for .local support'
+                recommendation = 'Use sting.local (recommended) - IP addresses do NOT work with WebAuthn'
         else:
-            guidance = 'localhost works for local testing, or use your domain/IP for remote access'
-            recommendation = 'Use detected value or configure custom domain'
+            guidance = 'localhost works for local testing, or use a .local domain for remote access'
+            recommendation = 'Use sting.local or localhost for WebAuthn support'
 
         return jsonify({
             'platform': platform,
             'mdns_available': mdns_available,
             'detected_hostname': detected_hostname,
+            'cli_selected_hostname': cli_selected_hostname,  # Let frontend know if CLI already selected
             'primary_ip': primary_ip,
             'short_hostname': short_hostname,
             'options': options,

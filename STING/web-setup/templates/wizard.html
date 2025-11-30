@@ -179,46 +179,68 @@
 
             <!-- Step 2: Data Disk -->
             <div class="step-content" data-step="2">
-                <h2 class="text-2xl font-bold text-amber-400 mb-4">💾 Data Disk Configuration <span class="text-sm text-slate-400 font-normal">(Optional)</span></h2>
-                <p class="text-slate-300 mb-6">Attach and configure a separate disk for data storage (where the honey is stored). You can skip this step and use the system disk.</p>
+                <h2 class="text-2xl font-bold text-amber-400 mb-4">💾 Data Disk Configuration</h2>
 
-                <button onclick="detectDisks()" class="mb-4 bg-amber-400 text-slate-900 font-medium px-4 py-2 rounded-lg hover:bg-amber-500">
-                    Detect Disks
-                </button>
-
-                <div id="disk-list" class="space-y-2">
-                    <p class="text-slate-300">Click "Detect Disks" to find available disks</p>
-                </div>
-
-                <!-- Enhanced Safety Warning -->
-                <div class="mt-6 bg-red-900/30 border-2 border-red-600 rounded-lg p-5">
+                <!-- PROMINENT SKIP NOTICE - Most users should see this first -->
+                <div class="mb-6 bg-green-900/40 border-2 border-green-500 rounded-lg p-5">
                     <div class="flex items-start gap-3">
-                        <div class="text-3xl">⚠️</div>
+                        <div class="text-3xl">✅</div>
                         <div class="flex-1">
-                            <h3 class="text-lg font-bold text-red-400 mb-2">DANGER ZONE - Disk Formatting</h3>
-                            <p class="text-red-300 mb-3">
-                                <strong>Formatting will PERMANENTLY ERASE all data on the selected disk.</strong><br>
-                                This action cannot be undone!
+                            <h3 class="text-lg font-bold text-green-400 mb-2">Most Users: Just Click "Next"</h3>
+                            <p class="text-green-200 text-base">
+                                <strong>STING works perfectly using your system disk.</strong> No separate data disk is required.
                             </p>
-
-                            <div class="bg-slate-800/50 rounded p-3 mt-3">
-                                <p class="text-sm font-semibold text-green-400 mb-2">✓ Safety Checks Enabled:</p>
-                                <ul class="text-xs text-slate-300 space-y-1 ml-4">
-                                    <li>✓ System disks (/, /boot, /home) are protected</li>
-                                    <li>✓ Root filesystem disk is blocked</li>
-                                    <li>✓ Currently mounted partitions are blocked</li>
-                                    <li>✓ Swap partitions are protected</li>
-                                    <li>✓ Only unmounted, non-system disks are shown</li>
-                                    <li>✓ Device path validation prevents injection attacks</li>
-                                </ul>
-                            </div>
-
-                            <p class="text-xs text-amber-300 mt-3">
-                                <strong>💡 Tip:</strong> If you're unsure, skip this step. STING will work fine using your system disk for data storage.
+                            <p class="text-slate-300 text-sm mt-2">
+                                This step is only for advanced users who want to use a dedicated disk for STING data storage (e.g., in enterprise deployments with large datasets).
                             </p>
                         </div>
                     </div>
                 </div>
+
+                <!-- Collapsible advanced section -->
+                <details class="glass-card-light rounded-lg p-4">
+                    <summary class="cursor-pointer text-amber-400 font-medium flex items-center gap-2">
+                        <span>🔧 Advanced: Configure Separate Data Disk (Optional)</span>
+                    </summary>
+
+                    <div class="mt-4 pt-4 border-t border-slate-600">
+                        <p class="text-slate-300 mb-4">Attach and configure a separate disk for data storage (where the honey is stored).</p>
+
+                        <button onclick="detectDisks()" class="mb-4 bg-amber-400 text-slate-900 font-medium px-4 py-2 rounded-lg hover:bg-amber-500">
+                            Detect Disks
+                        </button>
+
+                        <div id="disk-list" class="space-y-2">
+                            <p class="text-slate-400 text-sm">Click "Detect Disks" to find available disks</p>
+                        </div>
+
+                        <!-- Danger Zone Warning -->
+                        <div class="mt-6 bg-red-900/30 border-2 border-red-600 rounded-lg p-5">
+                            <div class="flex items-start gap-3">
+                                <div class="text-3xl">⚠️</div>
+                                <div class="flex-1">
+                                    <h3 class="text-lg font-bold text-red-400 mb-2">DANGER ZONE - Disk Formatting</h3>
+                                    <p class="text-red-300 mb-3">
+                                        <strong>Formatting will PERMANENTLY ERASE all data on the selected disk.</strong><br>
+                                        This action cannot be undone!
+                                    </p>
+
+                                    <div class="bg-slate-800/50 rounded p-3 mt-3">
+                                        <p class="text-sm font-semibold text-green-400 mb-2">✓ Safety Checks Enabled:</p>
+                                        <ul class="text-xs text-slate-300 space-y-1 ml-4">
+                                            <li>✓ System disks (/, /boot, /home) are protected</li>
+                                            <li>✓ Root filesystem disk is blocked</li>
+                                            <li>✓ Currently mounted partitions are blocked</li>
+                                            <li>✓ Swap partitions are protected</li>
+                                            <li>✓ Only unmounted, non-system disks are shown</li>
+                                            <li>✓ Device path validation prevents injection attacks</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
             </div>
 
             <!-- Step 3: Admin Account -->
@@ -674,42 +696,77 @@
                     guidanceEl.classList.remove('hidden');
                 }
 
-                // Render hostname options as radio buttons
                 const optionsContainer = document.getElementById('hostname-options');
-                optionsContainer.innerHTML = hostnameData.options.map((option, index) => {
-                    const isRecommended = option.recommended;
-                    const hasWarning = option.warning;
-                    const requiresMdns = option.requires_mdns && !hostnameData.mdns_available;
 
-                    return `
-                        <div class="relative">
-                            <label class="flex items-start gap-3 p-3 bg-slate-700/50 border ${isRecommended ? 'border-green-500/50' : 'border-slate-600'} rounded-lg cursor-pointer hover:bg-slate-700 transition-colors ${requiresMdns ? 'opacity-60' : ''}">
-                                <input type="radio"
-                                       name="hostname-option"
-                                       value="${option.value}"
-                                       class="mt-1"
-                                       ${isRecommended ? 'checked' : ''}
-                                       ${requiresMdns ? 'disabled' : ''}
-                                       onchange="handleHostnameChange('${option.value}')">
+                // Check if hostname was already selected in CLI prompt
+                if (hostnameData.cli_selected_hostname) {
+                    // Hostname already selected in CLI - show confirmation instead of making user choose again
+                    const selectedHostname = hostnameData.cli_selected_hostname;
+                    optionsContainer.innerHTML = `
+                        <div class="bg-green-900/30 border-2 border-green-500/50 rounded-lg p-4">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">✅</span>
                                 <div class="flex-1">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-slate-100 font-medium">${option.label}</span>
-                                        ${isRecommended ? '<span class="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/50">⭐ RECOMMENDED</span>' : ''}
-                                    </div>
-                                    <p class="text-xs text-slate-400 mt-1">${option.description}</p>
-                                    ${hasWarning ? `<p class="text-xs text-amber-400 mt-1">⚠️ ${option.warning}</p>` : ''}
+                                    <p class="text-green-400 font-semibold">Hostname already configured</p>
+                                    <p class="text-slate-200 text-lg font-mono mt-1">${selectedHostname}</p>
+                                    <p class="text-xs text-slate-400 mt-2">Selected during initial setup. This value will be used for WebAuthn/Passkey authentication.</p>
                                 </div>
-                            </label>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button type="button" onclick="showHostnameOptions()" class="text-xs text-amber-400 hover:text-amber-300 underline">
+                                Change hostname (advanced)
+                            </button>
+                        </div>
+                        <div id="hostname-options-expanded" class="hidden mt-3 space-y-2">
+                            <!-- Will be populated if user clicks "Change hostname" -->
                         </div>
                     `;
-                }).join('');
 
-                // Set initial hostname value (recommended option)
-                const recommendedOption = hostnameData.options.find(opt => opt.recommended);
-                if (recommendedOption) {
-                    document.getElementById('hostname').value = recommendedOption.value;
-                    document.getElementById('hostname-display').textContent = recommendedOption.value;
-                    updateAdminEmail(recommendedOption.value);
+                    // Set the hidden hostname value
+                    document.getElementById('hostname').value = selectedHostname;
+                    document.getElementById('hostname-display').textContent = selectedHostname;
+                    updateAdminEmail(selectedHostname);
+
+                    // Store options data for if user wants to change
+                    window.hostnameOptionsData = hostnameData;
+                } else {
+                    // No CLI selection - show full options (original behavior)
+                    optionsContainer.innerHTML = hostnameData.options.map((option, index) => {
+                        const isRecommended = option.recommended;
+                        const hasWarning = option.warning;
+                        const requiresMdns = option.requires_mdns && !hostnameData.mdns_available;
+
+                        return `
+                            <div class="relative">
+                                <label class="flex items-start gap-3 p-3 bg-slate-700/50 border ${isRecommended ? 'border-green-500/50' : 'border-slate-600'} rounded-lg cursor-pointer hover:bg-slate-700 transition-colors ${requiresMdns ? 'opacity-60' : ''}">
+                                    <input type="radio"
+                                           name="hostname-option"
+                                           value="${option.value}"
+                                           class="mt-1"
+                                           ${isRecommended ? 'checked' : ''}
+                                           ${requiresMdns ? 'disabled' : ''}
+                                           onchange="handleHostnameChange('${option.value}')">
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-slate-100 font-medium">${option.label}</span>
+                                            ${isRecommended ? '<span class="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/50">⭐ RECOMMENDED</span>' : ''}
+                                        </div>
+                                        <p class="text-xs text-slate-400 mt-1">${option.description}</p>
+                                        ${hasWarning ? `<p class="text-xs text-amber-400 mt-1">⚠️ ${option.warning}</p>` : ''}
+                                    </div>
+                                </label>
+                            </div>
+                        `;
+                    }).join('');
+
+                    // Set initial hostname value (recommended option)
+                    const recommendedOption = hostnameData.options.find(opt => opt.recommended);
+                    if (recommendedOption) {
+                        document.getElementById('hostname').value = recommendedOption.value;
+                        document.getElementById('hostname-display').textContent = recommendedOption.value;
+                        updateAdminEmail(recommendedOption.value);
+                    }
                 }
 
             } catch (error) {
@@ -748,6 +805,49 @@
                 hostnameDisplay.textContent = value;
                 updateAdminEmail(value);
             }
+        }
+
+        function showHostnameOptions() {
+            // Show expanded hostname options when user clicks "Change hostname (advanced)"
+            const expandedContainer = document.getElementById('hostname-options-expanded');
+            const hostnameData = window.hostnameOptionsData;
+
+            if (!hostnameData || !expandedContainer) return;
+
+            expandedContainer.classList.remove('hidden');
+
+            // Render the options
+            expandedContainer.innerHTML = hostnameData.options.map((option, index) => {
+                const isRecommended = option.recommended;
+                const hasWarning = option.warning;
+                const requiresMdns = option.requires_mdns && !hostnameData.mdns_available;
+
+                return `
+                    <div class="relative">
+                        <label class="flex items-start gap-3 p-3 bg-slate-700/50 border ${isRecommended ? 'border-green-500/50' : 'border-slate-600'} rounded-lg cursor-pointer hover:bg-slate-700 transition-colors ${requiresMdns ? 'opacity-60' : ''}">
+                            <input type="radio"
+                                   name="hostname-option"
+                                   value="${option.value}"
+                                   class="mt-1"
+                                   ${isRecommended ? 'checked' : ''}
+                                   ${requiresMdns ? 'disabled' : ''}
+                                   onchange="handleHostnameChange('${option.value}')">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-slate-100 font-medium">${option.label}</span>
+                                    ${isRecommended ? '<span class="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/50">⭐ SELECTED</span>' : ''}
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1">${option.description}</p>
+                                ${hasWarning ? `<p class="text-xs text-amber-400 mt-1">⚠️ ${option.warning}</p>` : ''}
+                            </div>
+                        </label>
+                    </div>
+                `;
+            }).join('');
+
+            // Hide the "Change hostname" button
+            const changeBtn = expandedContainer.previousElementSibling;
+            if (changeBtn) changeBtn.style.display = 'none';
         }
 
         function updateAdminEmail(hostname) {
