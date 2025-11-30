@@ -136,7 +136,9 @@ echo ""
 log_info "Choose installation location"
 echo "  Suggested: $SUGGESTED_LOCATION"
 echo ""
-read -p "Install location [$SUGGESTED_LOCATION]: " INSTALL_LOC
+# Read from /dev/tty for curl|bash compatibility
+printf "Install location [$SUGGESTED_LOCATION]: "
+read INSTALL_LOC </dev/tty
 INSTALL_LOC=${INSTALL_LOC:-$SUGGESTED_LOCATION}
 
 # Expand ~ to home directory
@@ -145,7 +147,9 @@ INSTALL_LOC="${INSTALL_LOC/#\~/$HOME}"
 # Check if directory already exists
 if [ -d "$INSTALL_LOC" ]; then
     log_error "Directory already exists: $INSTALL_LOC"
-    read -p "Remove existing directory and continue? [y/N]: " REMOVE_EXISTING
+    # Read from /dev/tty for curl|bash compatibility
+    printf "Remove existing directory and continue? [y/N]: "
+    read REMOVE_EXISTING </dev/tty
 
     if [[ ! "$REMOVE_EXISTING" =~ ^[Yy]$ ]]; then
         log_info "Installation cancelled."

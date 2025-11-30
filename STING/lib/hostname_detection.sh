@@ -285,10 +285,15 @@ get_sting_hostname() {
 
         echo "" >&2
 
+        # CRITICAL: Read from /dev/tty, not stdin
+        # When running via 'curl | bash', stdin is the piped script content
+        # We need to read user input directly from the terminal
         if [ -n "$detected_hostname" ]; then
-            read -p "Select option [1-4] (default: $default_option): " choice >&2
+            printf "Select option [1-4] (default: $default_option): " >&2
+            read choice </dev/tty
         else
-            read -p "Select option [1-3] (default: $default_option): " choice >&2
+            printf "Select option [1-3] (default: $default_option): " >&2
+            read choice </dev/tty
         fi
 
         # Trim whitespace and use default if empty
@@ -306,12 +311,14 @@ get_sting_hostname() {
                 if [ -n "$detected_hostname" ]; then
                     echo "$detected_hostname"
                 else
-                    read -p "Enter custom hostname: " custom_hostname >&2
+                    printf "Enter custom hostname: " >&2
+                    read custom_hostname </dev/tty
                     echo "${custom_hostname:-$default_hostname}"
                 fi
                 ;;
             4)
-                read -p "Enter custom hostname: " custom_hostname >&2
+                printf "Enter custom hostname: " >&2
+                read custom_hostname </dev/tty
                 echo "${custom_hostname:-$default_hostname}"
                 ;;
             *)

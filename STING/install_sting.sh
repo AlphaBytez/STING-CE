@@ -568,7 +568,9 @@ if [ "$USE_CLI" = false ]; then
     echo "  [1] Yes - Remove everything and start fresh (recommended)"
     echo "  [2] No  - Exit and let me clean up manually"
     echo ""
-    read -p "Enter your choice [1-2]: " cleanup_choice
+    # Read from /dev/tty for curl|bash compatibility
+    printf "Enter your choice [1-2]: "
+    read cleanup_choice </dev/tty
 
     case "$cleanup_choice" in
       1|yes|y|Y)
@@ -832,7 +834,9 @@ PSEOF
       log_message "   Wizard may not be accessible via hostname" "WARNING"
       log_message "   Fallback: Use IP address $LOCAL_IP instead" "WARNING"
       log_message ""
-      read -p "Press Enter to continue or Ctrl+C to abort..."
+      # Read from /dev/tty for curl|bash compatibility
+      printf "Press Enter to continue or Ctrl+C to abort..."
+      read </dev/tty
     fi
   fi
 
@@ -965,7 +969,9 @@ else
     echo "  [1] Yes - Remove everything and start fresh (recommended)"
     echo "  [2] No  - Exit and let me clean up manually"
     echo ""
-    read -p "Enter your choice [1-2]: " cleanup_choice
+    # Read from /dev/tty for curl|bash compatibility
+    printf "Enter your choice [1-2]: "
+    read cleanup_choice </dev/tty
 
     case "$cleanup_choice" in
       1|yes|y|Y)
