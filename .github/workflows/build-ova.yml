@@ -83,7 +83,6 @@ jobs:
             -var="sting_version=${{ steps.version.outputs.version }}" \
             -var="headless=true" \
             -var-file=variables.pkrvars.hcl \
-            -only=virtualbox-iso.sting-ce \
             sting-ce.pkr.hcl
         timeout-minutes: 60
 
