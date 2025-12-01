@@ -27,7 +27,7 @@ on:
 jobs:
   build-ova:
     name: Build Quick Start OVA
-    runs-on: ubuntu-latest-8-core
+    runs-on: ubuntu-latest
 
     outputs:
       version: ${{ steps.version.outputs.version }}
