@@ -27,7 +27,7 @@ on:
 jobs:
   build-ova:
     name: Build Quick Start OVA
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-core
 
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -84,7 +84,7 @@ jobs:
             -var="headless=true" \
             -var-file=variables.pkrvars.hcl \
             sting-ce.pkr.hcl
-        timeout-minutes: 60
+        timeout-minutes: 120
 
       - name: List build artifacts
         run: |
