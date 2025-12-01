@@ -6,14 +6,14 @@
 #   packer build -var-file=variables.pkrvars.hcl sting-ce.pkr.hcl
 #
 # Outputs:
-#   - VirtualBox OVA (for VMware/VirtualBox import)
+#   - QEMU qcow2 image (converted to OVA for VMware/VirtualBox import)
 #   - AWS AMI (optional, if AWS credentials configured)
 
 packer {
   required_plugins {
-    virtualbox = {
+    qemu = {
       version = ">= 1.0.0"
-      source  = "github.com/hashicorp/virtualbox"
+      source  = "github.com/hashicorp/qemu"
     }
     amazon = {
       version = ">= 1.0.0"
@@ -57,9 +57,9 @@ variable "vm_name" {
 }
 
 variable "disk_size" {
-  type        = number
-  description = "Disk size in MB"
-  default     = 40960  # 40GB
+  type        = string
+  description = "Disk size (e.g., 40G)"
+  default     = "40G"
 }
 
 variable "memory" {
@@ -115,66 +115,67 @@ locals {
 }
 
 # =============================================================================
-# Source: VirtualBox ISO Builder
+# Source: QEMU Builder (works without hardware virtualization)
 # =============================================================================
 
-source "virtualbox-iso" "sting-ce" {
-  vm_name              = "${var.vm_name}-${var.sting_version}"
-  guest_os_type        = "Ubuntu_64"
-  headless             = var.headless
+source "qemu" "sting-ce" {
+  vm_name          = "${var.vm_name}-${var.sting_version}"
+  headless         = var.headless
 
   # ISO configuration
-  iso_url              = var.iso_url
-  iso_checksum         = var.iso_checksum
+  iso_url          = var.iso_url
+  iso_checksum     = var.iso_checksum
 
   # VM resources
-  disk_size            = var.disk_size
-  memory               = var.memory
-  cpus                 = var.cpus
+  disk_size        = var.disk_size
+  memory           = var.memory
+  cpus             = var.cpus
 
-  # Network
-  http_directory       = "http"
+  # Use software emulation (no KVM required) for CI environments
+  accelerator      = "none"
 
-  # Boot command for Ubuntu autoinstall (BIOS mode)
-  boot_wait            = "5s"
-  boot_command         = [
-    "c<wait>",
-    "linux /casper/vmlinuz autoinstall ds=nocloud-net\\;s=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ ---<enter><wait>",
+  # Disk settings
+  format           = "qcow2"
+  disk_interface   = "virtio"
+  net_device       = "virtio-net"
+
+  # Network - HTTP server for autoinstall
+  http_directory   = "http"
+
+  # Boot command for Ubuntu autoinstall
+  boot_wait        = "5s"
+  boot_command     = [
+    "<esc><esc><esc><esc>e<wait>",
+    "<del><del><del><del><del><del><del><del>",
+    "<del><del><del><del><del><del><del><del>",
+    "<del><del><del><del><del><del><del><del>",
+    "<del><del><del><del><del><del><del><del>",
+    "<del><del><del><del><del><del><del><del>",
+    "<del><del><del><del><del><del><del><del>",
+    "<del><del><del><del><del><del><del><del>",
+    "<del><del><del><del><del><del><del><del>",
+    "<del><del><del><del><del><del><del><del>",
+    "<del><del><del><del><del><del><del><del>",
+    "<del><del><del><del><del><del><del><del>",
+    "<del><del><del><del><del><del><del><del>",
+    "<del><del><del><del><del><del><del><del>",
+    "<del><del><del><del><del><del><del><del>",
+    "linux /casper/vmlinuz --- autoinstall ds=\"nocloud-net;s=http://{{.HTTPIP}}:{{.HTTPPort}}/\"<enter><wait>",
     "initrd /casper/initrd<enter><wait>",
     "boot<enter>"
   ]
 
   # SSH configuration
-  ssh_username         = var.ssh_username
-  ssh_password         = var.ssh_password
-  ssh_timeout          = "30m"
+  ssh_username     = var.ssh_username
+  ssh_password     = var.ssh_password
+  ssh_timeout      = "45m"
   ssh_handshake_attempts = 100
 
   # Shutdown
-  shutdown_command     = "echo '${var.ssh_password}' | sudo -S shutdown -P now"
+  shutdown_command = "echo '${var.ssh_password}' | sudo -S shutdown -P now"
 
   # Output
-  output_directory     = "${var.output_directory}/virtualbox"
-  output_filename      = "${var.vm_name}-${var.sting_version}"
-  format               = "ova"
-
-  # Use BIOS firmware (not EFI) for better CI compatibility
-  firmware = "bios"
-
-  # VirtualBox settings
-  vboxmanage = [
-    ["modifyvm", "{{.Name}}", "--nat-localhostreachable1", "on"],
-    ["modifyvm", "{{.Name}}", "--audio", "none"],
-    ["modifyvm", "{{.Name}}", "--usb", "off"],
-    ["modifyvm", "{{.Name}}", "--vrde", "off"],
-    ["modifyvm", "{{.Name}}", "--graphicscontroller", "vmsvga"],
-    ["modifyvm", "{{.Name}}", "--vram", "16"],
-    ["modifyvm", "{{.Name}}", "--description", "${local.vm_description}"]
-  ]
-
-  # Guest additions disabled - not needed for OVA deployment
-  # and avoids "cannot find default guest additions iso" warning on CI runners
-  guest_additions_mode = "disable"
+  output_directory = "${var.output_directory}/qemu"
 }
 
 # =============================================================================
@@ -225,7 +226,7 @@ build {
   name = "sting-ce-quickstart"
 
   sources = [
-    "source.virtualbox-iso.sting-ce",
+    "source.qemu.sting-ce",
     # "source.amazon-ebs.sting-ce",  # Uncomment when AWS configured
   ]
 
@@ -294,6 +295,84 @@ build {
   # ==========================================================================
   # Post-Processors
   # ==========================================================================
+
+  # Convert QEMU qcow2 to OVA format
+  post-processor "shell-local" {
+    inline = [
+      "echo 'Converting qcow2 to OVA format...'",
+      "cd ${var.output_directory}/qemu",
+      "qemu-img convert -f qcow2 -O vmdk ${var.vm_name}-${var.sting_version} ${var.vm_name}-${var.sting_version}.vmdk",
+      "echo 'Creating OVF descriptor...'",
+      "cat > ${var.vm_name}-${var.sting_version}.ovf << 'OVFEOF'",
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+      "<Envelope xmlns=\"http://schemas.dmtf.org/ovf/envelope/1\" xmlns:ovf=\"http://schemas.dmtf.org/ovf/envelope/1\" xmlns:rasd=\"http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData\" xmlns:vssd=\"http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">",
+      "  <References>",
+      "    <File ovf:href=\"${var.vm_name}-${var.sting_version}.vmdk\" ovf:id=\"file1\"/>",
+      "  </References>",
+      "  <DiskSection>",
+      "    <Info>Virtual disk information</Info>",
+      "    <Disk ovf:capacity=\"42949672960\" ovf:diskId=\"vmdisk1\" ovf:fileRef=\"file1\" ovf:format=\"http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized\"/>",
+      "  </DiskSection>",
+      "  <NetworkSection>",
+      "    <Info>The list of logical networks</Info>",
+      "    <Network ovf:name=\"NAT\">",
+      "      <Description>NAT network</Description>",
+      "    </Network>",
+      "  </NetworkSection>",
+      "  <VirtualSystem ovf:id=\"${var.vm_name}\">",
+      "    <Info>STING-CE Quick Start VM</Info>",
+      "    <Name>${var.vm_name}-${var.sting_version}</Name>",
+      "    <OperatingSystemSection ovf:id=\"96\">",
+      "      <Info>Ubuntu 64-bit</Info>",
+      "    </OperatingSystemSection>",
+      "    <VirtualHardwareSection>",
+      "      <Info>Virtual hardware requirements</Info>",
+      "      <System>",
+      "        <vssd:ElementName>Virtual Hardware Family</vssd:ElementName>",
+      "        <vssd:InstanceID>0</vssd:InstanceID>",
+      "        <vssd:VirtualSystemType>vmx-14</vssd:VirtualSystemType>",
+      "      </System>",
+      "      <Item>",
+      "        <rasd:AllocationUnits>hertz * 10^6</rasd:AllocationUnits>",
+      "        <rasd:Description>Number of Virtual CPUs</rasd:Description>",
+      "        <rasd:ElementName>4 virtual CPU(s)</rasd:ElementName>",
+      "        <rasd:InstanceID>1</rasd:InstanceID>",
+      "        <rasd:ResourceType>3</rasd:ResourceType>",
+      "        <rasd:VirtualQuantity>4</rasd:VirtualQuantity>",
+      "      </Item>",
+      "      <Item>",
+      "        <rasd:AllocationUnits>byte * 2^20</rasd:AllocationUnits>",
+      "        <rasd:Description>Memory Size</rasd:Description>",
+      "        <rasd:ElementName>8192MB of memory</rasd:ElementName>",
+      "        <rasd:InstanceID>2</rasd:InstanceID>",
+      "        <rasd:ResourceType>4</rasd:ResourceType>",
+      "        <rasd:VirtualQuantity>8192</rasd:VirtualQuantity>",
+      "      </Item>",
+      "      <Item>",
+      "        <rasd:AddressOnParent>0</rasd:AddressOnParent>",
+      "        <rasd:ElementName>Hard Disk 1</rasd:ElementName>",
+      "        <rasd:HostResource>ovf:/disk/vmdisk1</rasd:HostResource>",
+      "        <rasd:InstanceID>3</rasd:InstanceID>",
+      "        <rasd:ResourceType>17</rasd:ResourceType>",
+      "      </Item>",
+      "      <Item>",
+      "        <rasd:AutomaticAllocation>true</rasd:AutomaticAllocation>",
+      "        <rasd:Connection>NAT</rasd:Connection>",
+      "        <rasd:ElementName>Ethernet adapter on NAT</rasd:ElementName>",
+      "        <rasd:InstanceID>4</rasd:InstanceID>",
+      "        <rasd:ResourceSubType>E1000</rasd:ResourceSubType>",
+      "        <rasd:ResourceType>10</rasd:ResourceType>",
+      "      </Item>",
+      "    </VirtualHardwareSection>",
+      "  </VirtualSystem>",
+      "</Envelope>",
+      "OVFEOF",
+      "echo 'Creating OVA archive...'",
+      "tar -cvf ${var.vm_name}-${var.sting_version}.ova ${var.vm_name}-${var.sting_version}.ovf ${var.vm_name}-${var.sting_version}.vmdk",
+      "echo 'OVA created successfully!'",
+      "ls -lh ${var.vm_name}-${var.sting_version}.ova"
+    ]
+  }
 
   post-processor "checksum" {
     checksum_types = ["sha256"]

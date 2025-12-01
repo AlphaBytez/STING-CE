@@ -11,7 +11,7 @@ iso_checksum   = "sha256:c3514bf0056180d09376462a7a1b4f213c1d6e8ea67fae5c25099c6
 
 # VM Configuration (aligned with docs minimum requirements)
 vm_name   = "sting-ce-quickstart"
-disk_size = 40960  # 40GB - enough for Docker images
+disk_size = "40G"  # 40GB - enough for Docker images
 memory    = 8192   # 8GB RAM (STING minimum requirement)
 cpus      = 4      # 4 cores (STING minimum requirement)
 

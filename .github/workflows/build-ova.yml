@@ -56,13 +56,11 @@ jobs:
         with:
           version: "1.10.0"
 
-      - name: Install VirtualBox
+      - name: Install QEMU
         run: |
           sudo apt-get update
-          sudo apt-get install -y virtualbox virtualbox-dkms
-          # Load kernel modules
-          sudo modprobe vboxdrv || true
-          vboxmanage --version
+          sudo apt-get install -y qemu-system-x86 qemu-utils
+          qemu-system-x86_64 --version
 
       - name: Initialize Packer
         working-directory: packer
@@ -84,24 +82,24 @@ jobs:
             -var="headless=true" \
             -var-file=variables.pkrvars.hcl \
             sting-ce.pkr.hcl
-        timeout-minutes: 120
+        timeout-minutes: 180
 
       - name: List build artifacts
         run: |
           echo "=== Build Output ==="
           ls -la packer/output/
-          ls -la packer/output/virtualbox/ || true
+          ls -la packer/output/qemu/ || true
 
           echo ""
           echo "=== File sizes ==="
-          du -sh packer/output/virtualbox/*
+          du -sh packer/output/qemu/*
 
       - name: Upload OVA artifact
         uses: actions/upload-artifact@v4
         with:
           name: sting-ce-ova-${{ steps.version.outputs.version }}
           path: |
-            packer/output/virtualbox/*.ova
+            packer/output/qemu/*.ova
             packer/output/*.sha256
             packer/output/manifest.json
           retention-days: 30
@@ -116,7 +114,7 @@ jobs:
           name: STING-CE v${{ steps.version.outputs.version }}
           draft: true
           files: |
-            packer/output/virtualbox/*.ova
+            packer/output/qemu/*.ova
             packer/output/*.sha256
           body: |
             ## STING-CE v${{ steps.version.outputs.version }}
@@ -126,7 +124,7 @@ jobs:
             Download the OVA file and import into VMware or VirtualBox.
 
             **Requirements:**
-            - 4GB RAM minimum
+            - 8GB RAM minimum
             - 40GB disk space
             - VirtualBox 6.1+ or VMware Workstation/Fusion
 
