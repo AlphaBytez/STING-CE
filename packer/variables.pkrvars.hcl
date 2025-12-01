@@ -4,10 +4,10 @@
 # STING Version (should match git tag)
 sting_version = "1.0.0"
 
-# Ubuntu 24.04.1 LTS Server ISO
+# Ubuntu 24.04.3 LTS Server ISO (latest point release)
 ubuntu_version = "24.04"
-iso_url        = "https://releases.ubuntu.com/24.04.1/ubuntu-24.04.1-live-server-amd64.iso"
-iso_checksum   = "sha256:d6dab0c3a657988501b4bd76f1297c053df710e06e0c3aece60dead24f270b4d"
+iso_url        = "https://releases.ubuntu.com/24.04/ubuntu-24.04.3-live-server-amd64.iso"
+iso_checksum   = "sha256:c3514bf0056180d09376462a7a1b4f213c1d6e8ea67fae5c25099c6fd3d8274b"
 
 # VM Configuration (aligned with docs minimum requirements)
 vm_name   = "sting-ce-quickstart"
