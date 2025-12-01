@@ -28,7 +28,7 @@ jobs:
   build-ova:
     name: Build Quick Start OVA
     # macOS runners have VirtualBox pre-installed
-    runs-on: macos-13
+    runs-on: macos-latest
 
     outputs:
       version: ${{ steps.version.outputs.version }}
