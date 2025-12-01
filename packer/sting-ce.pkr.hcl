@@ -170,8 +170,9 @@ source "virtualbox-iso" "sting-ce" {
     ["modifyvm", "{{.Name}}", "--description", "${local.vm_description}"]
   ]
 
-  # Guest additions (for shared folders, better integration)
-  guest_additions_mode = "upload"
+  # Guest additions disabled - not needed for OVA deployment
+  # and avoids "cannot find default guest additions iso" warning on CI runners
+  guest_additions_mode = "disable"
 }
 
 # =============================================================================
