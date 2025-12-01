@@ -10,6 +10,12 @@ STING_VERSION="${STING_VERSION:-main}"
 STING_USER="${STING_USER:-sting}"
 STING_SOURCE_DIR="/opt/sting-ce-source"
 
+# Clean up existing directory if it exists (from autoinstall late-commands)
+if [ -d "${STING_SOURCE_DIR}" ]; then
+    echo "Removing existing directory ${STING_SOURCE_DIR}..."
+    rm -rf "${STING_SOURCE_DIR}"
+fi
+
 # Create source directory
 echo "Creating STING source directory..."
 mkdir -p "${STING_SOURCE_DIR}"
