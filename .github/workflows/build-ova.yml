@@ -1,0 +1,183 @@
+name: Build STING-CE OVA
+
+on:
+  # Manual trigger with version input
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+      upload_to_release:
+        description: 'Upload OVA to GitHub Release'
+        required: false
+        type: boolean
+        default: false
+
+  # Automatic trigger on version tags
+  push:
+    tags:
+      - 'v*'
+
+  # Build on PRs that modify packer files (for testing)
+  pull_request:
+    paths:
+      - 'packer/**'
+
+jobs:
+  build-ova:
+    name: Build Quick Start OVA
+    # macOS runners have VirtualBox pre-installed
+    runs-on: macos-13
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set version from tag or input
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            # Extract version from tag (remove 'v' prefix)
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            # PR build - use commit SHA
+            VERSION="dev-${GITHUB_SHA::8}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building STING-CE OVA version: ${VERSION}"
+
+      - name: Install Packer
+        uses: hashicorp/setup-packer@main
+        with:
+          version: "1.10.0"
+
+      - name: Verify VirtualBox
+        run: |
+          # VirtualBox is pre-installed on macOS runners
+          vboxmanage --version
+
+      - name: Initialize Packer
+        working-directory: packer
+        run: packer init sting-ce.pkr.hcl
+
+      - name: Validate Packer template
+        working-directory: packer
+        run: |
+          packer validate \
+            -var="sting_version=${{ steps.version.outputs.version }}" \
+            -var-file=variables.pkrvars.hcl \
+            sting-ce.pkr.hcl
+
+      - name: Build OVA
+        working-directory: packer
+        run: |
+          packer build \
+            -var="sting_version=${{ steps.version.outputs.version }}" \
+            -var="headless=true" \
+            -var-file=variables.pkrvars.hcl \
+            -only=virtualbox-iso.sting-ce \
+            sting-ce.pkr.hcl
+        timeout-minutes: 60
+
+      - name: List build artifacts
+        run: |
+          echo "=== Build Output ==="
+          ls -la packer/output/
+          ls -la packer/output/virtualbox/ || true
+
+          echo ""
+          echo "=== File sizes ==="
+          du -sh packer/output/virtualbox/*
+
+      - name: Upload OVA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sting-ce-ova-${{ steps.version.outputs.version }}
+          path: |
+            packer/output/virtualbox/*.ova
+            packer/output/*.sha256
+            packer/output/manifest.json
+          retention-days: 30
+
+      - name: Upload to GitHub Release
+        if: |
+          (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.upload_to_release == 'true')
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: STING-CE v${{ steps.version.outputs.version }}
+          draft: true
+          files: |
+            packer/output/virtualbox/*.ova
+            packer/output/*.sha256
+          body: |
+            ## STING-CE v${{ steps.version.outputs.version }}
+
+            ### Quick Start OVA
+
+            Download the OVA file and import into VMware or VirtualBox.
+
+            **Requirements:**
+            - 4GB RAM minimum
+            - 40GB disk space
+            - VirtualBox 6.1+ or VMware Workstation/Fusion
+
+            **First Boot:**
+            1. Import OVA and start VM
+            2. Installer launches automatically
+            3. Access web wizard at displayed URL
+            4. Complete configuration
+            5. Access STING at https://VM_IP:8443
+
+            **Checksums:**
+            See `.sha256` file for verification.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Optional: Upload to external storage (Backblaze B2)
+  upload-to-b2:
+    name: Upload to Backblaze B2
+    needs: build-ova
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.upload_to_release == 'true')
+
+    steps:
+      - name: Download OVA artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sting-ce-ova-${{ needs.build-ova.outputs.version }}
+          path: ./artifacts
+        continue-on-error: true
+
+      - name: Install B2 CLI
+        run: |
+          pip install b2
+
+      - name: Upload to Backblaze B2
+        if: env.B2_APPLICATION_KEY_ID != ''
+        env:
+          B2_APPLICATION_KEY_ID: ${{ secrets.B2_APPLICATION_KEY_ID }}
+          B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+        run: |
+          # Authorize B2
+          b2 authorize-account $B2_APPLICATION_KEY_ID $B2_APPLICATION_KEY
+
+          # Upload OVA files
+          for file in artifacts/*.ova artifacts/*.sha256; do
+            if [ -f "$file" ]; then
+              echo "Uploading $file..."
+              b2 upload-file $B2_BUCKET_NAME "$file" "releases/$(basename $file)"
+            fi
+          done
+
+          echo "Upload complete!"

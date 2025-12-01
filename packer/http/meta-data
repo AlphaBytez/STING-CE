@@ -1,0 +1,3 @@
+# Empty meta-data file required for cloud-init
+instance-id: sting-ce-packer-build
+local-hostname: sting-ce

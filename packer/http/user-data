@@ -1,0 +1,83 @@
+#cloud-config
+autoinstall:
+  version: 1
+
+  # Locale and keyboard
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+
+  # Network - DHCP
+  network:
+    network:
+      version: 2
+      ethernets:
+        id0:
+          match:
+            driver: "*"
+          dhcp4: true
+          dhcp-identifier: mac
+
+  # Storage - use entire disk
+  storage:
+    layout:
+      name: lvm
+      sizing-policy: all
+
+  # Identity - default user
+  identity:
+    hostname: sting-ce
+    username: sting
+    # Password: sting-install (will be changed on first login)
+    # Generated with: python3 -c "import crypt; print(crypt.crypt('sting-install', crypt.mksalt(crypt.METHOD_SHA512)))"
+    password: "$6$8x9tukvJpbYynHkY$IwVCzXX6A3rtrlddgQ3iBtmBYgA6lA6dTGCborlUK9IMRwm4mIQoAo3DDVWmWuVy2VKUownT6NXb0NyXu7GL70"
+
+  # SSH configuration
+  ssh:
+    install-server: true
+    allow-pw: true
+    authorized-keys: []
+
+  # Packages to install
+  packages:
+    - curl
+    - wget
+    - git
+    - jq
+    - ca-certificates
+    - gnupg
+    - openssh-server
+    - sudo
+    - vim
+    - htop
+    - net-tools
+    - avahi-daemon
+    - avahi-utils
+    - libnss-mdns
+    - open-vm-tools
+    - python3
+    - python3-pip
+
+  # User configuration
+  user-data:
+    disable_root: true
+    users:
+      - name: sting
+        groups: [sudo, docker]
+        shell: /bin/bash
+        sudo: ALL=(ALL) NOPASSWD:ALL
+        lock_passwd: false
+
+  # Late commands - run after installation
+  late-commands:
+    # Enable password auth for SSH (for Packer)
+    - sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/' /target/etc/ssh/sshd_config
+    - sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /target/etc/ssh/sshd_config
+
+    # Ensure sting user can sudo without password during Packer provisioning
+    - echo 'sting ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/sting
+    - chmod 440 /target/etc/sudoers.d/sting
+
+    # Create marker for first boot detection
+    - mkdir -p /target/opt/sting-ce-source
+    - touch /target/opt/sting-ce-source/.packer-build
