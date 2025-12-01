@@ -52,10 +52,16 @@ echo "Resetting cloud-init..."
 cloud-init clean --logs 2>/dev/null || true
 rm -rf /var/lib/cloud/instances/*
 
-# Zero out free space to help compression (optional, takes time)
-echo "Zeroing free space for better compression..."
-dd if=/dev/zero of=/EMPTY bs=1M 2>/dev/null || true
-rm -f /EMPTY
+# Zero out free space to help compression (skip in CI for speed)
+# This step can take 30+ minutes on large disks
+if [ "${SKIP_ZERO_FREE_SPACE:-false}" != "true" ]; then
+    echo "Zeroing free space for better compression (this may take a while)..."
+    # Limit to 1GB to avoid excessive wait time in CI
+    dd if=/dev/zero of=/EMPTY bs=1M count=1024 2>/dev/null || true
+    rm -f /EMPTY
+else
+    echo "Skipping zero free space (SKIP_ZERO_FREE_SPACE=true)"
+fi
 
 # Sync filesystem
 sync

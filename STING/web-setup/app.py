@@ -51,8 +51,9 @@ STAGED_CONFIG_PATH = os.path.join(SETUP_DIR, 'config.yml')
 
 # Installation timeout configuration
 # Prevents runaway installations from consuming resources indefinitely
-# 45 minutes should be sufficient for most hardware (can be adjusted via environment variable)
-INSTALLATION_TIMEOUT = int(os.environ.get('INSTALLATION_TIMEOUT', '2700'))  # Default: 45 minutes (2700 seconds)
+# 90 minutes allows for slower hardware/VMs where Docker image builds take longer
+# Can be adjusted via environment variable for specific deployments
+INSTALLATION_TIMEOUT = int(os.environ.get('INSTALLATION_TIMEOUT', '5400'))  # Default: 90 minutes (5400 seconds)
 
 # Installer script location (from STING source, not install directory)
 INSTALLER_SCRIPT = os.path.join(STING_SOURCE, 'install_sting.sh')
