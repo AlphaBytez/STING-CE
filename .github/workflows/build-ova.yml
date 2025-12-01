@@ -27,8 +27,7 @@ on:
 jobs:
   build-ova:
     name: Build Quick Start OVA
-    # macOS runners have VirtualBox pre-installed
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -57,9 +56,12 @@ jobs:
         with:
           version: "1.10.0"
 
-      - name: Verify VirtualBox
+      - name: Install VirtualBox
         run: |
-          # VirtualBox is pre-installed on macOS runners
+          sudo apt-get update
+          sudo apt-get install -y virtualbox virtualbox-dkms
+          # Load kernel modules
+          sudo modprobe vboxdrv || true
           vboxmanage --version
 
       - name: Initialize Packer
