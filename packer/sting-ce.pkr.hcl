@@ -131,8 +131,8 @@ source "qemu" "sting-ce" {
   memory           = var.memory
   cpus             = var.cpus
 
-  # Use software emulation (no KVM required) for CI environments
-  accelerator      = "none"
+  # Use KVM hardware acceleration (supported on GitHub Actions runners)
+  accelerator      = "kvm"
 
   # Disk settings
   format           = "qcow2"
@@ -142,34 +142,27 @@ source "qemu" "sting-ce" {
   # Network - HTTP server for autoinstall
   http_directory   = "http"
 
-  # Boot command for Ubuntu autoinstall
-  boot_wait        = "5s"
+  # SSH port forwarding (QEMU user-mode networking)
+  host_port_min    = 2222
+  host_port_max    = 2229
+  ssh_host_port_min = 2222
+  ssh_host_port_max = 2229
+
+  # Boot command for Ubuntu 24.04 autoinstall (GRUB menu)
+  boot_wait        = "10s"
   boot_command     = [
-    "<esc><esc><esc><esc>e<wait>",
-    "<del><del><del><del><del><del><del><del>",
-    "<del><del><del><del><del><del><del><del>",
-    "<del><del><del><del><del><del><del><del>",
-    "<del><del><del><del><del><del><del><del>",
-    "<del><del><del><del><del><del><del><del>",
-    "<del><del><del><del><del><del><del><del>",
-    "<del><del><del><del><del><del><del><del>",
-    "<del><del><del><del><del><del><del><del>",
-    "<del><del><del><del><del><del><del><del>",
-    "<del><del><del><del><del><del><del><del>",
-    "<del><del><del><del><del><del><del><del>",
-    "<del><del><del><del><del><del><del><del>",
-    "<del><del><del><del><del><del><del><del>",
-    "<del><del><del><del><del><del><del><del>",
-    "linux /casper/vmlinuz --- autoinstall ds=\"nocloud-net;s=http://{{.HTTPIP}}:{{.HTTPPort}}/\"<enter><wait>",
-    "initrd /casper/initrd<enter><wait>",
-    "boot<enter>"
+    "e<wait3>",
+    "<down><down><down><end>",
+    " autoinstall ds=nocloud-net\\;s=http://{{.HTTPIP}}:{{.HTTPPort}}/",
+    "<f10>"
   ]
 
   # SSH configuration
   ssh_username     = var.ssh_username
   ssh_password     = var.ssh_password
-  ssh_timeout      = "45m"
-  ssh_handshake_attempts = 100
+  ssh_timeout      = "60m"
+  ssh_handshake_attempts = 200
+  ssh_wait_timeout = "60m"
 
   # Shutdown
   shutdown_command = "echo '${var.ssh_password}' | sudo -S shutdown -P now"
