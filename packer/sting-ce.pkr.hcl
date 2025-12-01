@@ -145,8 +145,6 @@ source "qemu" "sting-ce" {
   # SSH port forwarding (QEMU user-mode networking)
   host_port_min    = 2222
   host_port_max    = 2229
-  ssh_host_port_min = 2222
-  ssh_host_port_max = 2229
 
   # Boot command for Ubuntu 24.04 autoinstall (GRUB menu)
   boot_wait        = "10s"

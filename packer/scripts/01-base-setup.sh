@@ -54,7 +54,7 @@ timedatectl set-timezone UTC
 echo "Configuring SSH..."
 sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
 sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-systemctl restart sshd
+systemctl restart ssh || systemctl restart sshd || true
 
 # Create MOTD banner
 echo "Creating STING-CE welcome banner..."
