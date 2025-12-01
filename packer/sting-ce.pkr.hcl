@@ -135,14 +135,13 @@ source "virtualbox-iso" "sting-ce" {
   # Network
   http_directory       = "http"
 
-  # Boot command for Ubuntu autoinstall
+  # Boot command for Ubuntu autoinstall (BIOS mode)
   boot_wait            = "5s"
   boot_command         = [
-    "<esc><wait>",
-    "e<wait>",
-    "<down><down><down><end>",
-    " autoinstall ds=nocloud-net\\;s=http://{{ .HTTPIP }}:{{ .HTTPPort }}/",
-    "<f10>"
+    "c<wait>",
+    "linux /casper/vmlinuz autoinstall ds=nocloud-net\\;s=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ ---<enter><wait>",
+    "initrd /casper/initrd<enter><wait>",
+    "boot<enter>"
   ]
 
   # SSH configuration
@@ -158,6 +157,9 @@ source "virtualbox-iso" "sting-ce" {
   output_directory     = "${var.output_directory}/virtualbox"
   output_filename      = "${var.vm_name}-${var.sting_version}"
   format               = "ova"
+
+  # Use BIOS firmware (not EFI) for better CI compatibility
+  firmware = "bios"
 
   # VirtualBox settings
   vboxmanage = [
