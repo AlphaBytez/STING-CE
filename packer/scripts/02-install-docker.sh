@@ -66,10 +66,9 @@ EOF
 # Restart Docker to apply config
 systemctl restart docker
 
-# Pre-pull some base images to speed up first install
-echo "Pre-pulling base Docker images..."
-docker pull postgres:16 || true
-docker pull redis:7-alpine || true
-docker pull nginx:1.27-alpine || true
+# Note: We intentionally don't pre-pull Docker images here.
+# The STING installer pulls all required images during setup.
+# Pre-pulling base images would add ~1.2GB to OVA size with minimal benefit
+# since 20+ other images still need to be downloaded anyway.
 
 echo "=== Docker installation complete ==="

@@ -10,7 +10,7 @@ set -euo pipefail
 
 # Configuration
 SOURCE_DIR="/mnt/c/DevWorld/STING-CE/STING"
-TARGET_DIR="/mnt/c/DevWorld/STING-CE-Public"
+TARGET_DIR="/mnt/c/DevWorld/STING-CE"
 GITHUB_USERNAME="${GITHUB_USERNAME:-your-github-username}"
 GITHUB_REPO="${GITHUB_REPO:-sting-ce}"
 

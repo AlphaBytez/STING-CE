@@ -79,7 +79,7 @@ if [ ! -f "${STING_SOURCE}/install_sting.sh" ]; then
         INSTALLER="${STING_SOURCE}/STING/install_sting.sh"
     else
         log "ERROR: STING installer not found!"
-        log "Please run manually: git clone https://github.com/AlphaBytez/STING-CE-Public.git && cd STING-CE-Public && ./install_sting.sh"
+        log "Please run manually: git clone https://github.com/AlphaBytez/STING-CE.git && cd STING-CE && ./install_sting.sh"
         exit 1
     fi
 else

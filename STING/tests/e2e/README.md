@@ -39,7 +39,7 @@ End-to-end tests for STING platform authentication and login flow using Playwrig
 ## Installation
 
 ```bash
-cd /mnt/c/DevWorld/STING-CE-Public/STING/tests/e2e
+cd /mnt/c/DevWorld/STING-CE/STING/tests/e2e
 
 # Install dependencies
 npm install
@@ -302,8 +302,8 @@ test.describe('My New Test Suite', () => {
 
 ## Support
 
-- **GitHub Issues**: https://github.com/AlphaBytez/STING-CE-Public/issues
-- **Documentation**: `/mnt/c/DevWorld/STING-CE-Public/STING/docs/`
+- **GitHub Issues**: https://github.com/AlphaBytez/STING-CE/issues
+- **Documentation**: `/mnt/c/DevWorld/STING-CE/STING/docs/`
 - **Playwright Docs**: https://playwright.dev/
 
 ## License

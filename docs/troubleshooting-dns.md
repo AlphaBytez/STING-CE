@@ -166,7 +166,7 @@ This fix addresses:
 If you continue to experience DNS issues:
 
 1. Run `./fix_dns.sh --check-only` to diagnose the problem
-2. Check the [STING-CE Issues](https://github.com/AlphaBytez/STING-CE-Public/issues) for similar problems
+2. Check the [STING-CE Issues](https://github.com/AlphaBytez/STING-CE/issues) for similar problems
 3. Create a new issue with:
    - Output from `./fix_dns.sh --check-only`
    - Output from `docker buildx inspect builder`

@@ -212,12 +212,20 @@ fetch_from_kms() {
 
 
 # Install mkcert for locally-trusted certificates
+# Supports non-interactive mode for web wizard installation
 install_mkcert() {
     log_message "Installing mkcert for locally-trusted certificates..."
 
     if command -v mkcert &> /dev/null; then
         log_message "mkcert already installed"
         return 0
+    fi
+
+    # Detect if running non-interactively (no TTY or NO_PROMPT set)
+    local interactive=true
+    if [ ! -t 0 ] || [ -n "$NO_PROMPT" ] || [ -n "$WIZARD_CONFIG_PATH" ]; then
+        interactive=false
+        log_message "Running in non-interactive mode"
     fi
 
     if [[ "$(uname)" == "Darwin" ]]; then
@@ -233,22 +241,30 @@ install_mkcert() {
         # Linux installation
         if command -v apt-get &> /dev/null; then
             # Debian/Ubuntu
-            sudo apt-get update
-            sudo apt-get install -y wget libnss3-tools
+            # Use DEBIAN_FRONTEND=noninteractive to prevent any prompts
+            export DEBIAN_FRONTEND=noninteractive
+
+            # Use sudo with -n flag for non-interactive, but fall back to regular sudo
+            # (parent install_sting.sh should have established sudo credentials)
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq wget libnss3-tools
 
             # Download and install mkcert
             local mkcert_version="v1.4.4"
-            wget -O /tmp/mkcert "https://github.com/FiloSottile/mkcert/releases/download/${mkcert_version}/mkcert-${mkcert_version}-linux-amd64"
+            wget -q -O /tmp/mkcert "https://github.com/FiloSottile/mkcert/releases/download/${mkcert_version}/mkcert-${mkcert_version}-linux-amd64"
             chmod +x /tmp/mkcert
             sudo mv /tmp/mkcert /usr/local/bin/mkcert
+
+            # mkcert -install adds CA to system trust store
+            # CAROOT can be set to control where CA is stored
             mkcert -install
         elif command -v yum &> /dev/null; then
             # RHEL/CentOS
-            sudo yum install -y wget nss-tools
+            sudo yum install -y -q wget nss-tools
 
             # Download and install mkcert
             local mkcert_version="v1.4.4"
-            wget -O /tmp/mkcert "https://github.com/FiloSottile/mkcert/releases/download/${mkcert_version}/mkcert-${mkcert_version}-linux-amd64"
+            wget -q -O /tmp/mkcert "https://github.com/FiloSottile/mkcert/releases/download/${mkcert_version}/mkcert-${mkcert_version}-linux-amd64"
             chmod +x /tmp/mkcert
             sudo mv /tmp/mkcert /usr/local/bin/mkcert
             mkcert -install
@@ -571,11 +587,19 @@ generate_ssl_certs() {
         # Install mkcert if not present
         if ! command -v mkcert &> /dev/null; then
             log_message "mkcert not found, installing..."
-            log_message "⚠️  IMPORTANT: You will be prompted for your sudo password to install mkcert"
-            log_message "    This is required to add the local Certificate Authority to your system trust store"
-            echo ""
-            echo "Press ENTER to continue with mkcert installation (you will be prompted for sudo password)..."
-            read -r
+
+            # Check if running interactively (TTY available)
+            if [ -t 0 ] && [ -z "$NO_PROMPT" ] && [ -z "$WIZARD_CONFIG_PATH" ]; then
+                # Interactive mode - prompt user
+                log_message "⚠️  IMPORTANT: You will be prompted for your sudo password to install mkcert"
+                log_message "    This is required to add the local Certificate Authority to your system trust store"
+                echo ""
+                echo "Press ENTER to continue with mkcert installation (you will be prompted for sudo password)..."
+                read -r
+            else
+                # Non-interactive mode (web wizard) - proceed automatically
+                log_message "Installing mkcert automatically (non-interactive mode)..."
+            fi
 
             install_mkcert || {
                 log_message "ERROR: mkcert installation failed" "ERROR"

@@ -101,7 +101,7 @@ Unlike generic chatbots that provide outdated or incorrect information, Bee Brai
 
 **🚀 One-Line Updates**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE-Public/main/STING/scripts/update_bee_brain.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE/main/STING/scripts/update_bee_brain.sh | sudo bash
 ```
 
 **📊 Admin Control**

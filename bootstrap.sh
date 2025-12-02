@@ -3,7 +3,7 @@
 # STING-CE Bootstrap Installer
 #
 # Quick install via:
-#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE-Public/main/bootstrap.sh)"
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE/main/bootstrap.sh)"
 #
 # This script will:
 #   1. Detect your platform (macOS, WSL, Debian/Ubuntu)
@@ -81,17 +81,17 @@ SUGGESTED_LOCATION=""
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
     PLATFORM="macOS"
-    SUGGESTED_LOCATION="$HOME/STING-CE-Public"
+    SUGGESTED_LOCATION="$HOME/STING-CE"
 elif grep -qi microsoft /proc/version 2>/dev/null; then
     PLATFORM="WSL"
-    SUGGESTED_LOCATION="$HOME/STING-CE-Public"
+    SUGGESTED_LOCATION="$HOME/STING-CE"
 elif [[ -f /etc/debian_version ]]; then
     PLATFORM="Debian/Ubuntu"
     # For Linux, suggest current directory or let user choose /opt
-    SUGGESTED_LOCATION="$PWD/STING-CE-Public"
+    SUGGESTED_LOCATION="$PWD/STING-CE"
 else
     log_warning "Unknown platform detected. Attempting to proceed..."
-    SUGGESTED_LOCATION="$PWD/STING-CE-Public"
+    SUGGESTED_LOCATION="$PWD/STING-CE"
 fi
 
 log_success "Platform: $PLATFORM"
@@ -170,11 +170,11 @@ fi
 # Clone repository
 echo ""
 log_info "Cloning STING-CE repository..."
-echo "  Repository: https://github.com/AlphaBytez/STING-CE-Public.git"
+echo "  Repository: https://github.com/AlphaBytez/STING-CE.git"
 echo "  Location: $INSTALL_LOC"
 echo ""
 
-if git clone https://github.com/AlphaBytez/STING-CE-Public.git "$INSTALL_LOC"; then
+if git clone https://github.com/AlphaBytez/STING-CE.git "$INSTALL_LOC"; then
     log_success "Repository cloned successfully"
 else
     log_error "Failed to clone repository"

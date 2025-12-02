@@ -1758,6 +1758,25 @@ EOF
 
 # Pre-pull all required Docker images with retry logic and fallback registries
 prepull_docker_images() {
+    # Skip pre-pull if running from OVA with pre-built images
+    if [ -f "/opt/sting-ce-source/.ova-prebuild" ] || [ "${STING_SKIP_PREPULL:-}" = "1" ]; then
+        log_message "Skipping image pre-pull (OVA with pre-built images)" "SUCCESS"
+        return 0
+    fi
+
+    # Check if key images already exist locally
+    local images_exist=0
+    for img in "postgres:16" "redis:7-alpine" "chromadb/chroma:0.5.20" "oryd/kratos:v1.3.0"; do
+        if docker image inspect "$img" &>/dev/null; then
+            images_exist=$((images_exist + 1))
+        fi
+    done
+
+    if [ $images_exist -ge 4 ]; then
+        log_message "Docker images already present locally, skipping pre-pull" "SUCCESS"
+        return 0
+    fi
+
     log_message "Pre-pulling required Docker images..."
 
     # Define images with fallback registries
@@ -1835,8 +1854,7 @@ check_and_install_dependencies() {
     # Pre-pull Docker images to catch connectivity issues early
     prepull_docker_images || log_message "Image pre-pull had warnings, continuing..." "WARNING"
 
-    # Note: Python dependencies removed - using utils container for all Python operations
-    log_message "DEBUG: Skipping Python dependency checks (using containerized approach)"
+
 
     # Check for python3 (CRITICAL - required for setup wizard)
     # On macOS, Python should be installed via Homebrew

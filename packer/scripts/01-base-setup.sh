@@ -84,7 +84,7 @@ cat > /etc/motd << 'EOF'
    sudo msting restart   - Restart services
 
  DOCUMENTATION:
-   https://github.com/AlphaBytez/STING-CE-Public
+   https://github.com/AlphaBytez/STING-CE
 
  ============================================
 
@@ -97,5 +97,21 @@ chmod -x /etc/update-motd.d/10-help-text 2>/dev/null || true
 chmod -x /etc/update-motd.d/50-motd-news 2>/dev/null || true
 chmod -x /etc/update-motd.d/88-esm-announce 2>/dev/null || true
 chmod -x /etc/update-motd.d/91-contract-ua-esm-status 2>/dev/null || true
+
+# Configure GRUB for a larger default console resolution
+# This helps users see the VM console clearly on first boot
+echo "Configuring default display resolution..."
+if [ -f /etc/default/grub ]; then
+    # Set 1024x768 as default - works well on most hypervisors
+    sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash video=1024x768"/' /etc/default/grub
+    # Also set GRUB menu resolution
+    if ! grep -q "GRUB_GFXMODE" /etc/default/grub; then
+        echo 'GRUB_GFXMODE=1024x768' >> /etc/default/grub
+    fi
+    if ! grep -q "GRUB_GFXPAYLOAD_LINUX" /etc/default/grub; then
+        echo 'GRUB_GFXPAYLOAD_LINUX=keep' >> /etc/default/grub
+    fi
+    update-grub
+fi
 
 echo "=== Base setup complete ==="

@@ -134,11 +134,18 @@ build_docker_services() {
         log_message_verbose "Using BuildKit builder with DNS configuration for image builds" "INFO" true
     fi
 
+    # Determine if we should skip --pull (OVA mode or images already present)
+    local pull_arg="--pull"
+    if [ -f "/opt/sting-ce-source/.ova-prebuild" ] || [ "${STING_SKIP_PULL:-}" = "1" ]; then
+        pull_arg=""
+        log_message_verbose "Skipping --pull (OVA with pre-built images)" "INFO" true
+    fi
+
     if [ -z "$service" ]; then
         # Build all services with verbosity-controlled logging
         local build_cmd
         if [ "$no_cache" = "true" ]; then
-            build_cmd="docker compose build --no-cache --pull $builder_arg"
+            build_cmd="docker compose build --no-cache $pull_arg $builder_arg"
         else
             build_cmd="docker compose build $builder_arg"
         fi
@@ -153,13 +160,13 @@ build_docker_services() {
         # Handle special case for utils service which requires profiles
         if [ "$service" = "utils" ]; then
             if [ "$no_cache" = "true" ]; then
-                build_cmd="docker compose --profile installation build --no-cache --pull $builder_arg $service"
+                build_cmd="docker compose --profile installation build --no-cache $pull_arg $builder_arg $service"
             else
                 build_cmd="docker compose --profile installation build $builder_arg $service"
             fi
         else
             if [ "$no_cache" = "true" ]; then
-                build_cmd="docker compose build --no-cache --pull $builder_arg $service"
+                build_cmd="docker compose build --no-cache $pull_arg $builder_arg $service"
             else
                 build_cmd="docker compose build $builder_arg $service"
             fi

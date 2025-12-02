@@ -5,7 +5,7 @@ set -e
 echo "=== STING-CE OVA Build: Clone Repository ==="
 
 # Variables from Packer
-STING_REPO="${STING_REPO:-https://github.com/AlphaBytez/STING-CE-Public.git}"
+STING_REPO="${STING_REPO:-https://github.com/AlphaBytez/STING-CE.git}"
 STING_VERSION="${STING_VERSION:-main}"
 STING_USER="${STING_USER:-sting}"
 STING_SOURCE_DIR="/opt/sting-ce-source"

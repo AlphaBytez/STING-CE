@@ -23,7 +23,7 @@ ssh_password = "sting-install"  # Changed on first boot
 headless = true  # Set to false to see VM console during build
 
 # Repository
-sting_repo = "https://github.com/AlphaBytez/STING-CE-Public.git"
+sting_repo = "https://github.com/AlphaBytez/STING-CE.git"
 
 # Output
 output_directory = "output"

@@ -54,7 +54,7 @@ Bee Brain uses **semantic versioning** to ensure compatibility:
 Run this command as admin to update Bee Brain to the latest version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE-Public/main/STING/scripts/update_bee_brain.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE/main/STING/scripts/update_bee_brain.sh | sudo bash
 ```
 
 Or download and run locally:
@@ -356,7 +356,7 @@ No! Bee Brain files are:
 
 - **Documentation**: See `/opt/sting-ce/external_ai_service/BEE_BRAIN_VERSIONING.md`
 - **Logs**: `docker logs sting-ce-external-ai | grep -i "bee brain"`
-- **Issues**: https://github.com/AlphaBytez/STING-CE-Public/issues
+- **Issues**: https://github.com/AlphaBytez/STING-CE/issues
 - **Ask Bee**: Just ask the Bee AI Assistant! It knows how it works. 😊
 
 ---

@@ -6,7 +6,7 @@
 #   sudo ./update_bee_brain.sh
 #
 # Or via curl (1-liner):
-#   curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE-Public/main/STING/scripts/update_bee_brain.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE/main/STING/scripts/update_bee_brain.sh | sudo bash
 #
 
 set -e
@@ -58,7 +58,7 @@ if [ ! -f "$GENERATOR_SCRIPT" ]; then
     echo -e "${YELLOW}⚠ Bee Brain generator not found${NC}"
     echo "Downloading latest generator from GitHub..."
 
-    REPO_URL="https://raw.githubusercontent.com/AlphaBytez/STING-CE-Public/main/STING/external_ai_service"
+    REPO_URL="https://raw.githubusercontent.com/AlphaBytez/STING-CE/main/STING/external_ai_service"
 
     # Download generator and manager
     curl -fsSL "${REPO_URL}/bee_brain_generator.py" -o "${GENERATOR_SCRIPT}"

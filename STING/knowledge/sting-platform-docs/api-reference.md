@@ -853,7 +853,7 @@ Breaking changes will only occur in major version updates (v1 → v2).
 ## Support & Resources
 
 - **Documentation:** https://docs.stingassistant.com
-- **GitHub:** https://github.com/AlphaBytez/STING-CE-Public
+- **GitHub:** https://github.com/AlphaBytez/STING-CE
 - **Community:** GitHub Discussions
 - **Email:** olliec@alphabytez.dev
 

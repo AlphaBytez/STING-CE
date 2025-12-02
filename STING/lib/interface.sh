@@ -1358,7 +1358,7 @@ main() {
                 echo "  Checking for updates..."
 
                 # Check GitHub for latest release
-                local latest_version=$(curl -s https://api.github.com/repos/${GITHUB_REPO:-AlphaBytez/STING-CE-Public}/releases/latest 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/')
+                local latest_version=$(curl -s https://api.github.com/repos/${GITHUB_REPO:-AlphaBytez/STING-CE}/releases/latest 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/')
 
                 if [[ -n "$latest_version" ]]; then
                     echo "  Latest Version:  v${latest_version}"
@@ -1420,7 +1420,7 @@ main() {
             # Check if target version exists
             if [[ "$target_version" != "latest" ]]; then
                 # Validate specific version exists on GitHub
-                local version_check=$(curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/${GITHUB_REPO:-AlphaBytez/STING-CE-Public}/releases/tags/v${target_version}" 2>/dev/null)
+                local version_check=$(curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/${GITHUB_REPO:-AlphaBytez/STING-CE}/releases/tags/v${target_version}" 2>/dev/null)
                 if [[ "$version_check" != "200" ]]; then
                     log_message "Version v${target_version} not found" "ERROR"
                     return 1

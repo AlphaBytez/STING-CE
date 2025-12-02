@@ -70,8 +70,8 @@ STING-CE is under active development. The core platform works and you can deploy
 
 **We'd love your help making it better:**
 
-- Found something broken? [Open an issue](https://github.com/AlphaBytez/STING-CE-Public/issues)
-- Got an idea? [Tell us about it](https://github.com/AlphaBytez/STING-CE-Public/issues/new)
+- Found something broken? [Open an issue](https://github.com/AlphaBytez/STING-CE/issues)
+- Got an idea? [Tell us about it](https://github.com/AlphaBytez/STING-CE/issues/new)
 - Want to contribute code? [Check out CONTRIBUTING.md](CONTRIBUTING.md)
 - Docs person? Documentation PRs are especially welcome
 
@@ -90,7 +90,7 @@ This is a community project. Whether you're fixing typos or building features, e
 ### The Easy Way (One Command)
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE-Public/main/bootstrap.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE/main/bootstrap.sh)"
 ```
 
 That's it. The script detects your platform, clones the repo, and fires up a web wizard to walk you through the rest.
@@ -100,8 +100,8 @@ That's it. The script detects your platform, clones the repo, and fires up a web
 If you prefer to see what's happening:
 
 ```bash
-git clone https://github.com/AlphaBytez/STING-CE-Public.git
-cd STING-CE-Public
+git clone https://github.com/AlphaBytez/STING-CE.git
+cd STING-CE
 ./install_sting.sh
 ```
 
@@ -115,7 +115,7 @@ The installer handles everything: checking your system, installing Docker if nee
 ### Already Installed? Upgrading Is Easy
 
 ```bash
-cd STING-CE-Public
+cd STING-CE
 ./manage_sting.sh reinstall          # Keeps your data
 ./manage_sting.sh reinstall --fresh  # Nuclear option: wipes everything
 ```
@@ -125,8 +125,8 @@ cd STING-CE-Public
 For servers without a GUI or CI/CD pipelines:
 
 ```bash
-git clone https://github.com/AlphaBytez/STING-CE-Public.git
-cd STING-CE-Public
+git clone https://github.com/AlphaBytez/STING-CE.git
+cd STING-CE
 cp STING/conf/config.yml.default STING/conf/config.yml
 nano STING/conf/config.yml  # Set your domain, email, etc.
 ./install_sting.sh --non-interactive
@@ -268,7 +268,7 @@ Linux (Ubuntu/Debian) · macOS · WSL2 · Python 3.11+ · React
 *Bee Smart. Bee Secure.*
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE-Public/main/bootstrap.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE/main/bootstrap.sh)"
 ```
 
 </div>

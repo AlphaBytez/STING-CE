@@ -358,5 +358,5 @@ Existing systems will automatically use the new versioning system when available
 
 For issues or questions:
 - Check logs: `docker logs sting-ce-external-ai`
-- File issue: https://github.com/AlphaBytez/STING-CE-Public/issues
+- File issue: https://github.com/AlphaBytez/STING-CE/issues
 - Documentation: https://docs.sting.local

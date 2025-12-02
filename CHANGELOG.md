@@ -122,7 +122,7 @@ Special thanks to:
 
 - **Security Issues**: security@alphabytez.dev
 - **General Contact**: olliec@alphabytez.dev
-- **GitHub Issues**: https://github.com/AlphaBytez/STING-CE-Public/issues
+- **GitHub Issues**: https://github.com/AlphaBytez/STING-CE/issues
 
 ---
 

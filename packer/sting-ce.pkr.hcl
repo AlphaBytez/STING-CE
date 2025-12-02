@@ -96,7 +96,7 @@ variable "headless" {
 variable "sting_repo" {
   type        = string
   description = "STING-CE Git repository URL"
-  default     = "https://github.com/AlphaBytez/STING-CE-Public.git"
+  default     = "https://github.com/AlphaBytez/STING-CE.git"
 }
 
 variable "output_directory" {
@@ -277,6 +277,22 @@ build {
     execute_command = "echo '${var.ssh_password}' | sudo -S bash '{{.Path}}'"
   }
 
+  # Copy pre-built Docker images tarball (if it exists)
+  # This is created by build-ova.sh on the host for faster VM builds
+  provisioner "file" {
+    source      = "sting-ce-images.tar.gz"
+    destination = "/tmp/sting-ce-images.tar.gz"
+    generated   = true  # Skip if file doesn't exist
+  }
+
+  # Load pre-built Docker images (significantly reduces first-boot install time)
+  # Uses pre-built images from tarball instead of building in VM (avoids slow network)
+  provisioner "shell" {
+    script = "scripts/05-prebuild-containers.sh"
+    execute_command = "echo '${var.ssh_password}' | sudo -S bash '{{.Path}}'"
+    timeout = "90m"
+  }
+
   # Cleanup and minimize image size
   provisioner "shell" {
     script = "scripts/99-cleanup.sh"
@@ -340,17 +356,26 @@ build {
       "        <rasd:VirtualQuantity>8192</rasd:VirtualQuantity>",
       "      </Item>",
       "      <Item>",
+      "        <rasd:Address>0</rasd:Address>",
+      "        <rasd:Description>SATA Controller</rasd:Description>",
+      "        <rasd:ElementName>SATA Controller</rasd:ElementName>",
+      "        <rasd:InstanceID>3</rasd:InstanceID>",
+      "        <rasd:ResourceSubType>AHCI</rasd:ResourceSubType>",
+      "        <rasd:ResourceType>20</rasd:ResourceType>",
+      "      </Item>",
+      "      <Item>",
       "        <rasd:AddressOnParent>0</rasd:AddressOnParent>",
       "        <rasd:ElementName>Hard Disk 1</rasd:ElementName>",
       "        <rasd:HostResource>ovf:/disk/vmdisk1</rasd:HostResource>",
-      "        <rasd:InstanceID>3</rasd:InstanceID>",
+      "        <rasd:InstanceID>4</rasd:InstanceID>",
+      "        <rasd:Parent>3</rasd:Parent>",
       "        <rasd:ResourceType>17</rasd:ResourceType>",
       "      </Item>",
       "      <Item>",
       "        <rasd:AutomaticAllocation>true</rasd:AutomaticAllocation>",
       "        <rasd:Connection>NAT</rasd:Connection>",
       "        <rasd:ElementName>Ethernet adapter on NAT</rasd:ElementName>",
-      "        <rasd:InstanceID>4</rasd:InstanceID>",
+      "        <rasd:InstanceID>5</rasd:InstanceID>",
       "        <rasd:ResourceSubType>E1000</rasd:ResourceSubType>",
       "        <rasd:ResourceType>10</rasd:ResourceType>",
       "      </Item>",

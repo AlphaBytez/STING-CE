@@ -32,7 +32,7 @@ Output:
 ╰──────────────────────────────────────────╯
 
   Current Version: v1.0.0
-  Install Path:    /opt/STING-CE-Public
+  Install Path:    /opt/STING-CE
 ```
 
 ### Check for Updates
@@ -77,7 +77,7 @@ sudo msting upgrade --check-only
 
 STING-CE uses versioned Docker images published to GitHub Container Registry:
 
-1. **Check Current Version**: Read from `/opt/STING-CE-Public/VERSION`
+1. **Check Current Version**: Read from `/opt/STING-CE/VERSION`
 2. **Create Backup**: Backup configuration and environment files
 3. **Pull Images**: Download new Docker images from GHCR
 4. **Run Migrations**: Execute any version-specific migration scripts
@@ -90,11 +90,11 @@ STING-CE uses versioned Docker images published to GitHub Container Registry:
 
 Before each upgrade, the following are backed up:
 
-- `/opt/STING-CE-Public/conf/` - Configuration files
-- `/opt/STING-CE-Public/env/` - Environment variables
-- `/opt/STING-CE-Public/VERSION` - Version file
+- `/opt/STING-CE/conf/` - Configuration files
+- `/opt/STING-CE/env/` - Environment variables
+- `/opt/STING-CE/VERSION` - Version file
 
-Backups are stored in: `/opt/STING-CE-Public/backups/pre-upgrade-YYYYMMDD-HHMMSS.tar.gz`
+Backups are stored in: `/opt/STING-CE/backups/pre-upgrade-YYYYMMDD-HHMMSS.tar.gz`
 
 ### What Gets Preserved
 
@@ -114,12 +114,12 @@ The upgrade process **updates**:
 
 ## Migration Scripts
 
-Version-specific migrations are located in `/opt/STING-CE-Public/migrations/`
+Version-specific migrations are located in `/opt/STING-CE/migrations/`
 
 ### Viewing Migration History
 
 ```bash
-cat /opt/STING-CE-Public/.upgrade_history
+cat /opt/STING-CE/.upgrade_history
 ```
 
 Example output:
@@ -134,7 +134,7 @@ Example output:
 If needed, you can run migrations manually:
 
 ```bash
-sudo bash /opt/STING-CE-Public/migrations/v1.0.0_to_v1.1.0.sh
+sudo bash /opt/STING-CE/migrations/v1.0.0_to_v1.1.0.sh
 ```
 
 ## Rollback
@@ -145,20 +145,20 @@ If an upgrade fails or causes issues, you can rollback:
 
 ```bash
 # Find your backup
-ls -lh /opt/STING-CE-Public/backups/
+ls -lh /opt/STING-CE/backups/
 
 # Restore configuration
-sudo tar -xzf /opt/STING-CE-Public/backups/pre-upgrade-YYYYMMDD-HHMMSS.tar.gz -C /opt/STING-CE-Public/
+sudo tar -xzf /opt/STING-CE/backups/pre-upgrade-YYYYMMDD-HHMMSS.tar.gz -C /opt/STING-CE/
 
 # Restart services
-cd /opt/STING-CE-Public && docker compose restart
+cd /opt/STING-CE && docker compose restart
 ```
 
 ### Rollback to Specific Version
 
 ```bash
 # Stop services
-cd /opt/STING-CE-Public && docker compose down
+cd /opt/STING-CE && docker compose down
 
 # Set version to rollback to
 export STING_VERSION=1.0.0
@@ -224,7 +224,7 @@ docker compose logs app
 docker compose logs frontend
 
 # Restore from backup
-sudo tar -xzf /opt/STING-CE-Public/backups/pre-upgrade-*.tar.gz -C /opt/STING-CE-Public/
+sudo tar -xzf /opt/STING-CE/backups/pre-upgrade-*.tar.gz -C /opt/STING-CE/
 
 # Restart
 docker compose restart
@@ -253,14 +253,14 @@ docker compose logs app | grep -i migration
 **Solution**:
 ```bash
 # Check VERSION file
-cat /opt/STING-CE-Public/VERSION
+cat /opt/STING-CE/VERSION
 
 # Check running image versions
 docker images | grep sting-ce
 
 # If mismatch, force pull
 export STING_VERSION=1.2.0
-cd /opt/STING-CE-Public && docker compose pull
+cd /opt/STING-CE && docker compose pull
 docker compose up -d
 ```
 
@@ -295,7 +295,7 @@ For developers working from source:
 ### Pull Latest Code
 
 ```bash
-cd /path/to/STING-CE-Public
+cd /path/to/STING-CE
 git pull origin main
 ```
 
@@ -325,12 +325,12 @@ To pin to a specific version and prevent automatic upgrades:
 
 ```bash
 # Edit docker-compose override
-cat > /opt/STING-CE-Public/docker-compose.override.yml << EOF
+cat > /opt/STING-CE/docker-compose.override.yml << EOF
 services:
   app:
-    image: ghcr.io/alphabytez/STING-CE-Public-app:1.0.0
+    image: ghcr.io/alphabytez/STING-CE-app:1.0.0
   frontend:
-    image: ghcr.io/alphabytez/STING-CE-Public-frontend:1.0.0
+    image: ghcr.io/alphabytez/STING-CE-frontend:1.0.0
 EOF
 ```
 
@@ -338,7 +338,7 @@ EOF
 
 ```bash
 # Remove override to use latest
-rm /opt/STING-CE-Public/docker-compose.override.yml
+rm /opt/STING-CE/docker-compose.override.yml
 
 # Run upgrade
 sudo msting upgrade
@@ -374,8 +374,8 @@ Plan upgrades during maintenance windows.
 ### Q: What if my custom changes get overwritten?
 
 **A**: Customizations should be in:
-- `/opt/STING-CE-Public/conf/` (preserved)
-- `/opt/STING-CE-Public/env/` (preserved)
+- `/opt/STING-CE/conf/` (preserved)
+- `/opt/STING-CE/env/` (preserved)
 - `docker-compose.override.yml` (never touched)
 
 Docker images contain default code only.
@@ -383,8 +383,8 @@ Docker images contain default code only.
 ## Support
 
 - 📖 Documentation: https://docs.sting.local
-- 🐛 Issues: https://github.com/alphabytez/STING-CE-Public/issues
-- 💬 Discussions: https://github.com/alphabytez/STING-CE-Public/discussions
+- 🐛 Issues: https://github.com/alphabytez/STING-CE/issues
+- 💬 Discussions: https://github.com/alphabytez/STING-CE/discussions
 - 📧 Email: support@sting.local
 
 ## Version History
@@ -392,7 +392,7 @@ Docker images contain default code only.
 Track your upgrade history:
 
 ```bash
-cat /opt/STING-CE-Public/.upgrade_history
+cat /opt/STING-CE/.upgrade_history
 ```
 
 ## Related Documentation
