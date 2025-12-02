@@ -4,21 +4,9 @@ set -e
 
 echo "=== STING-CE OVA Build: First Boot Service Setup ==="
 
-# Install systemd service
-echo "Installing first-boot systemd service..."
-cp /tmp/sting-first-boot.service /etc/systemd/system/
-chmod 644 /etc/systemd/system/sting-first-boot.service
-
-# Install first-boot script
-echo "Installing first-boot script..."
-mkdir -p /opt/sting-ce-source/packer/files
-cp /tmp/sting-first-boot.sh /opt/sting-ce-source/packer/files/
-chmod +x /opt/sting-ce-source/packer/files/sting-first-boot.sh
-
-# Enable the service
-echo "Enabling first-boot service..."
-systemctl daemon-reload
-systemctl enable sting-first-boot.service
+# Note: We use bashrc-triggered install (Path B) instead of systemd service
+# This gives users visibility into the install process via console
+# The systemd service files are kept but NOT enabled to avoid race conditions
 
 # Create a simpler auto-login getty override for console
 # This shows the STING banner and instructions on the VM console
@@ -42,13 +30,9 @@ if [ ! -f /opt/sting-ce/.installed ] && [ -z "$STING_INSTALLER_RUNNING" ]; then
     echo "║  🐝 STING-CE Quick Start - First Time Setup               ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
-    echo "STING-CE has not been installed yet."
+    echo "Starting STING installer..."
     echo ""
-    echo "Starting the installer now..."
-    echo "(You can also access the web wizard once it starts)"
-    echo ""
-    sleep 2
-    sudo /opt/sting-ce-source/install_sting.sh || true
+    sudo /opt/sting-ce-source/STING/install_sting.sh || true
 fi
 EOF
 
