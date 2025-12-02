@@ -994,11 +994,15 @@ install_msting() {
         fix_docker_credential_helper
     fi
 
-    # Pull base Docker images
-    log_message "Pulling base Docker images..."
-    docker pull postgres:16-alpine
-    docker pull node:20-alpine
-    docker pull python:3.11-slim
+    # Pull base Docker images (skip in OVA mode - images are pre-built)
+    if [ -f "/opt/sting-ce-source/.ova-prebuild" ] || [ "${STING_SKIP_PULL:-}" = "1" ]; then
+        log_message "Skipping base image pull (OVA with pre-built images)" "SUCCESS"
+    else
+        log_message "Pulling base Docker images..."
+        docker pull postgres:16-alpine
+        docker pull node:20-alpine
+        docker pull python:3.11-slim
+    fi
     
     # Initialize STING using the master initialization function
     if ! initialize_sting; then
