@@ -61,13 +61,13 @@ EOF
 
     log "Building all Docker images (this may take 20-30 minutes)..."
 
-    # Build all services - continue on failure (some may be pre-built images)
-    docker compose build --parallel 2>&1 || warn "Some builds failed (may be pre-built images)"
+    # Build all services including utils (installation profile) - continue on failure (some may be pre-built images)
+    docker compose --profile installation build --parallel 2>&1 || warn "Some builds failed (may be pre-built images)"
 
     log "Saving Docker images to tarball..."
 
-    # Get list of images
-    IMAGES=$(docker compose config --images 2>/dev/null | sort -u)
+    # Get list of images (include installation profile for utils)
+    IMAGES=$(docker compose --profile installation config --images 2>/dev/null | sort -u)
 
     log "Images to save:"
     echo "$IMAGES" | head -10
