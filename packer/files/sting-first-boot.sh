@@ -41,15 +41,8 @@ for i in {1..30}; do
     sleep 2
 done
 
-# Clean up any stale wizard processes from previous runs
-# This prevents "port 8335 already in use" errors after reboots
-log "Cleaning up any stale processes..."
-pkill -f "python.*app.py" 2>/dev/null || true
-pkill -f "web-setup" 2>/dev/null || true
-if command -v lsof &> /dev/null; then
-    lsof -ti :8335 2>/dev/null | xargs -r kill -9 2>/dev/null || true
-fi
-sleep 1
+# NOTE: Port 8335 cleanup is handled by the installer (install_sting.sh lines 373-384)
+# No need to duplicate that logic here
 
 # Get network info for display
 PRIMARY_IP=$(hostname -I | awk '{print $1}')

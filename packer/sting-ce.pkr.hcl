@@ -293,6 +293,13 @@ build {
     timeout = "90m"
   }
 
+  # Pre-build wizard Python venv (avoids pip install on first boot)
+  # This ensures the wizard can start immediately without network access
+  provisioner "shell" {
+    script = "scripts/06-prebuild-wizard.sh"
+    execute_command = "echo '${var.ssh_password}' | sudo -S bash '{{.Path}}'"
+  }
+
   # Cleanup and minimize image size
   provisioner "shell" {
     script = "scripts/99-cleanup.sh"
