@@ -41,6 +41,16 @@ for i in {1..30}; do
     sleep 2
 done
 
+# Clean up any stale wizard processes from previous runs
+# This prevents "port 8335 already in use" errors after reboots
+log "Cleaning up any stale processes..."
+pkill -f "python.*app.py" 2>/dev/null || true
+pkill -f "web-setup" 2>/dev/null || true
+if command -v lsof &> /dev/null; then
+    lsof -ti :8335 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+fi
+sleep 1
+
 # Get network info for display
 PRIMARY_IP=$(hostname -I | awk '{print $1}')
 HOSTNAME=$(hostname)
@@ -93,15 +103,26 @@ chmod +x "${INSTALLER}"
 
 # Launch the installer
 log "Launching STING installer..."
-log "The web-based setup wizard will be available at:"
-log "  http://${PRIMARY_IP}:5000"
 log ""
-log "Or run the installer manually with:"
-log "  sudo ${INSTALLER}"
+log "=============================================="
+log "  STING-CE First Boot Installation"
+log "=============================================="
+log ""
+log "The installer will guide you through setup."
+log "Please follow the prompts on screen."
+log ""
+log "After installation, access STING at:"
+log "  https://${PRIMARY_IP}:8443"
 log ""
 
 # Change to source directory and run installer
 cd "${STING_SOURCE}"
+
+# Set environment for OVA mode:
+# - Skip image pre-pull (images are pre-built in OVA)
+# - Skip Docker pull during build (images exist)
+export STING_SKIP_PREPULL=1
+export STING_SKIP_PULL=1
 
 # Run installer (it will handle the rest)
 # Using exec to replace this script with the installer
