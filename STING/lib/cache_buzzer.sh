@@ -99,7 +99,13 @@ clear_docker_cache() {
 build_docker_services_nocache() {
     local service="$1"
     local cache_level="${2:-moderate}"  # full, moderate, minimal, skip
-    
+
+    # Skip builds in OVA mode - images are pre-built
+    if [ -f "/opt/sting-ce-source/.ova-prebuild" ]; then
+        echo -e "${GREEN}✅ Skipping build (OVA with pre-built images)${NC}"
+        return 0
+    fi
+
     echo -e "${BLUE}🔨 Building ${service:-all} services with enhanced cache busting...${NC}"
     
     # Clear cache if requested

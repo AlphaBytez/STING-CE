@@ -52,6 +52,12 @@ build_docker_services() {
     local no_cache="$2"
     local cache_level="${3:-moderate}"  # full, moderate, minimal for enhanced cache buzzing
 
+    # Skip builds in OVA mode - images are pre-built
+    if [ -f "/opt/sting-ce-source/.ova-prebuild" ]; then
+        log_message "Skipping docker build (OVA with pre-built images)" "SUCCESS"
+        return 0
+    fi
+
     # Use full cache clearing when updating ALL services
     if [ -z "$service" ] && [ "$no_cache" = "true" ]; then
         cache_level="full"

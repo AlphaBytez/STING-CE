@@ -700,6 +700,12 @@ manage_services() {
             fi
             ;;
         build)
+            # Skip builds in OVA mode - images are pre-built
+            if [ -f "/opt/sting-ce-source/.ova-prebuild" ]; then
+                log_message "Skipping build (OVA with pre-built images)" "SUCCESS"
+                return 0
+            fi
+
             log_message "Building ${service:-all} services with options: ${no_cache}"
 
             # Always build the llm-base image first if we're building an LLM service
