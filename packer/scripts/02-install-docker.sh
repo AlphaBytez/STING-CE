@@ -59,7 +59,8 @@ cat > /etc/docker/daemon.json << 'EOF'
     "max-file": "3"
   },
   "storage-driver": "overlay2",
-  "live-restore": true
+  "live-restore": true,
+  "dns": ["8.8.8.8", "8.8.4.4", "1.1.1.1"]
 }
 EOF
 

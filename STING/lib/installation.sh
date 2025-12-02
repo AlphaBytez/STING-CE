@@ -3979,66 +3979,79 @@ build_and_start_services() {
     log_message "Building core service images..."
     
     # Split build strategy: Core services first, then observability
-    log_message "🏗️ Building services in phases for improved reliability..."
-    
-    # Phase 1: Core Standard Services (essential for basic operation)
-    log_message "📦 Phase 1: Building core standard services..."
-    local core_services="vault db app frontend report-worker kratos messaging"
-    
-    if [ "$FRESH_INSTALL" = "true" ]; then
-        # Fresh install: standard build for core services
-        if ! docker compose build --no-cache $core_services; then
-            log_message "Failed to build core standard services" "ERROR"
-            return 1
-        fi
-    elif [ -f "${SOURCE_DIR}/lib/docker.sh" ]; then
-        # Update/reinstall: use cache buzzer if available
-        source "${SOURCE_DIR}/lib/docker.sh"
-        log_message "🐝 Using cache buzzer for core services (level: ${cache_level:-moderate})"
-        if ! build_docker_services "$core_services" "true" "${cache_level:-moderate}"; then
-            log_message "Cache buzzer build failed for core services, falling back to standard build" "WARNING"
+    # Skip ALL builds in OVA mode - images are pre-built and loaded from tarball
+    if [ -f "/opt/sting-ce-source/.ova-prebuild" ] || [ "${STING_SKIP_PULL:-}" = "1" ]; then
+        log_message "🏗️ Skipping all service builds (OVA with pre-built images)" "SUCCESS"
+        log_message "📦 Phase 1: Skipping core services build (pre-built)" "SUCCESS"
+        log_message "🤖 Phase 2: Skipping AI services build (pre-built)" "SUCCESS"
+    else
+        log_message "🏗️ Building services in phases for improved reliability..."
+
+        # Phase 1: Core Standard Services (essential for basic operation)
+        log_message "📦 Phase 1: Building core standard services..."
+        local core_services="vault db app frontend report-worker kratos messaging"
+
+        if [ "$FRESH_INSTALL" = "true" ]; then
+            # Fresh install: standard build for core services
+            if ! docker compose build --no-cache $core_services; then
+                log_message "Failed to build core standard services" "ERROR"
+                return 1
+            fi
+        elif [ -f "${SOURCE_DIR}/lib/docker.sh" ]; then
+            # Update/reinstall: use cache buzzer if available
+            source "${SOURCE_DIR}/lib/docker.sh"
+            log_message "🐝 Using cache buzzer for core services (level: ${cache_level:-moderate})"
+            if ! build_docker_services "$core_services" "true" "${cache_level:-moderate}"; then
+                log_message "Cache buzzer build failed for core services, falling back to standard build" "WARNING"
+                if ! docker compose build --no-cache $core_services; then
+                    log_message "Failed to build core standard services" "ERROR"
+                    return 1
+                fi
+            fi
+        else
+            # Standard build for core services
             if ! docker compose build --no-cache $core_services; then
                 log_message "Failed to build core standard services" "ERROR"
                 return 1
             fi
         fi
-    else
-        # Standard build for core services
-        if ! docker compose build --no-cache $core_services; then
-            log_message "Failed to build core standard services" "ERROR"
-            return 1
+
+        # Phase 2: AI and Knowledge Services (can be optional)
+        log_message "🤖 Phase 2: Building AI and knowledge services..."
+        local ai_services="chroma knowledge external-ai chatbot llm-gateway-proxy profile-sync-worker public-bee"
+
+        if ! docker compose build --no-cache $ai_services; then
+            log_message "⚠️  Failed to build some AI services - continuing installation" "WARNING"
+            log_message "You may need to manually rebuild AI services later with: msting update" "WARNING"
+            # Don't fail installation for AI services
+        else
+            log_message "✅ AI and knowledge services built successfully"
         fi
     fi
     
-    # Phase 2: AI and Knowledge Services (can be optional)
-    log_message "🤖 Phase 2: Building AI and knowledge services..."
-    local ai_services="chroma knowledge external-ai chatbot llm-gateway-proxy profile-sync-worker public-bee"
-    
-    if ! docker compose build --no-cache $ai_services; then
-        log_message "⚠️  Failed to build some AI services - continuing installation" "WARNING"
-        log_message "You may need to manually rebuild AI services later with: msting update" "WARNING"
-        # Don't fail installation for AI services
-    else
-        log_message "✅ AI and knowledge services built successfully"
-    fi
-    
     # Phase 3: Observability Services (optional, can fail without breaking installation)
-    log_message "📊 Phase 3: Building observability services..."
-    local observability_services="loki promtail grafana"
-    
-    if ! docker compose build --no-cache $observability_services; then
-        log_message "⚠️  Failed to build observability services - continuing installation" "WARNING"
-        log_message "Observability features will be disabled. You can enable them later with: msting update" "WARNING"
-        log_message "This is common on resource-constrained systems and won't affect core functionality" "INFO"
-        # Don't fail installation for observability services
+    # Skip builds in OVA mode - images are pre-built
+    if [ -f "/opt/sting-ce-source/.ova-prebuild" ] || [ "${STING_SKIP_PULL:-}" = "1" ]; then
+        log_message "📊 Phase 3: Skipping observability build (OVA with pre-built images)" "SUCCESS"
+        log_message "✅ Skipping utils rebuild (OVA with pre-built images)" "SUCCESS"
     else
-        log_message "✅ Observability services built successfully"
-    fi
-    
-    # Build utils service with installation profile
-    if ! docker compose --profile installation build --no-cache utils; then
-        log_message "Failed to build utils service" "WARNING"
-        # Don't fail installation if utils service fails to build
+        log_message "📊 Phase 3: Building observability services..."
+        local observability_services="loki promtail grafana"
+
+        if ! docker compose build --no-cache $observability_services; then
+            log_message "⚠️  Failed to build observability services - continuing installation" "WARNING"
+            log_message "Observability features will be disabled. You can enable them later with: msting update" "WARNING"
+            log_message "This is common on resource-constrained systems and won't affect core functionality" "INFO"
+            # Don't fail installation for observability services
+        else
+            log_message "✅ Observability services built successfully"
+        fi
+
+        # Build utils service with installation profile
+        if ! docker compose --profile installation build --no-cache utils; then
+            log_message "Failed to build utils service" "WARNING"
+            # Don't fail installation if utils service fails to build
+        fi
     fi
     
     # Modern LLM stack - no legacy services to build
