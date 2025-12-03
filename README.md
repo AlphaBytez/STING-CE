@@ -81,7 +81,7 @@ This is a community project. Whether you're fixing typos or building features, e
 
 ### What You'll Need
 
-- **A Linux box** (Ubuntu 20.04+, Debian 11+), macOS, or WSL2
+- **A Linux box** (Ubuntu 20.04+, Debian 11+), macOS, or WSL2, or Windows w/ an OVA capatibale hypervisor
 - **8GB RAM** minimum (16GB is better, especially for running local LLMs)
 - **4 CPU cores**
 - **50GB disk space**
@@ -259,16 +259,18 @@ Linux (Ubuntu/Debian) · macOS · WSL2 · Python 3.11+ · React
 
 <br/>
 
+Brought to you by:
+
 <a href="https://github.com/alphabytez">
   <img src="docs/assets/alphabytez-logo.svg" alt="AlphaBytez" width="300">
 </a>
 
 <br/>
 
-*Bee Smart. Bee Secure.*
+<br/>
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE/main/bootstrap.sh)"
 ```
-
+*Bee Smart. Bee Secure.*
 </div>
