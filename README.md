@@ -259,16 +259,18 @@ Linux (Ubuntu/Debian) · macOS · WSL2 · Python 3.11+ · React
 
 <br/>
 
+Brought to you by:
+
 <a href="https://github.com/alphabytez">
   <img src="docs/assets/alphabytez-logo.svg" alt="AlphaBytez" width="300">
 </a>
 
 <br/>
 
-*Bee Smart. Bee Secure.*
+<br/>
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlphaBytez/STING-CE/main/bootstrap.sh)"
 ```
-
+*Bee Smart. Bee Secure.*
 </div>
