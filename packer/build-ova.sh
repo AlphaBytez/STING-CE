@@ -1,12 +1,14 @@
 #!/bin/bash
 # build-ova.sh - End-to-end OVA build script for STING-CE
-# Creates a VirtualBox/VMware compatible OVA from scratch
+# Creates a VirtualBox/VMware/UTM compatible OVA from scratch
+# Supports both amd64 (x86_64) and arm64 (Apple Silicon) architectures
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_DIR="${SCRIPT_DIR}/output/qemu"
 VERSION="${VERSION:-1.0.0}"
-OVA_NAME="sting-ce-quickstart-${VERSION}"
+ARCH="${ARCH:-amd64}"  # Default to amd64, can be arm64 for Apple Silicon
+OVA_NAME="sting-ce-quickstart-${VERSION}-${ARCH}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -37,7 +39,9 @@ header() {
 }
 
 STING_DIR="$(dirname "$SCRIPT_DIR")/STING"
+REPO_DIR="$(dirname "$SCRIPT_DIR")"
 IMAGES_TARBALL="${SCRIPT_DIR}/sting-ce-images.tar.gz"
+SOURCE_TARBALL="${SCRIPT_DIR}/sting-ce-source.tar.gz"
 
 # Pre-build Docker images on host (fast network)
 prebuild_docker_images() {
@@ -64,10 +68,15 @@ EOF
     # Build all services including utils (installation profile) - continue on failure (some may be pre-built images)
     docker compose --profile installation build --parallel 2>&1 || warn "Some builds failed (may be pre-built images)"
 
+    log "Pulling external images (mailpit, etc.)..."
+    # Pull external images that aren't built (mailpit, postgres, redis, etc.)
+    # Include dev profile for mailpit (needed for OVA evaluation)
+    docker compose --profile installation --profile dev pull --ignore-buildable 2>&1 || warn "Some pulls failed"
+
     log "Saving Docker images to tarball..."
 
-    # Get list of images (include installation profile for utils)
-    IMAGES=$(docker compose --profile installation config --images 2>/dev/null | sort -u)
+    # Get list of images (include installation and dev profiles for utils + mailpit)
+    IMAGES=$(docker compose --profile installation --profile dev config --images 2>/dev/null | sort -u)
 
     log "Images to save:"
     echo "$IMAGES" | head -10
@@ -82,11 +91,50 @@ EOF
     cd "$SCRIPT_DIR"
 }
 
+# Create source tarball from local repo (for dev builds)
+create_source_tarball() {
+    header "Creating Local Source Tarball"
+
+    log "Creating tarball from local repository..."
+    log "Source: ${REPO_DIR}"
+
+    cd "$REPO_DIR"
+
+    # Create tarball excluding dev/build artifacts and secrets
+    # Exclude .git entirely (saves ~3GB, not needed in OVA)
+    # Exclude env/ files (generated with secrets, not needed)
+    tar --exclude='.git' \
+        --exclude='packer/output' \
+        --exclude='packer/*.tar.gz' \
+        --exclude='packer/*.log' \
+        --exclude='STING/frontend/node_modules' \
+        --exclude='STING/frontend/dist' \
+        --exclude='STING/frontend/build' \
+        --exclude='STING/env' \
+        --exclude='STING/conf/config.yml' \
+        --exclude='STING/**/__pycache__' \
+        --exclude='STING/**/*.pyc' \
+        --exclude='STING/web-setup/venv' \
+        --exclude='*.ova' \
+        --exclude='*.vmdk' \
+        --exclude='*.qcow2' \
+        --warning=no-file-changed \
+        -czf "$SOURCE_TARBALL" \
+        --transform 's,^,STING-CE/,' \
+        . 2>/dev/null || true
+
+    local tarball_size=$(du -h "$SOURCE_TARBALL" | cut -f1)
+    log "Source tarball created: $SOURCE_TARBALL ($tarball_size)"
+
+    cd "$SCRIPT_DIR"
+}
+
 # Check prerequisites
 check_prerequisites() {
     header "Checking Prerequisites"
 
     local missing=()
+    local os_type=$(uname -s)
 
     if ! command -v packer &> /dev/null; then
         missing+=("packer")
@@ -96,26 +144,47 @@ check_prerequisites() {
         missing+=("docker")
     fi
 
-    if ! command -v qemu-system-x86_64 &> /dev/null; then
-        missing+=("qemu-system-x86_64 (qemu-kvm package)")
-    fi
-
     if ! command -v qemu-img &> /dev/null; then
         missing+=("qemu-img")
     fi
 
-    if [ ${#missing[@]} -ne 0 ]; then
-        error "Missing required tools: ${missing[*]}\nInstall with: sudo apt install packer qemu-kvm qemu-utils"
+    # Check for architecture-appropriate QEMU
+    if [ "$ARCH" = "arm64" ]; then
+        if ! command -v qemu-system-aarch64 &> /dev/null; then
+            missing+=("qemu-system-aarch64")
+        fi
+    else
+        if ! command -v qemu-system-x86_64 &> /dev/null; then
+            missing+=("qemu-system-x86_64 (qemu-kvm package)")
+        fi
     fi
 
-    # Check KVM availability
-    if [ ! -e /dev/kvm ]; then
-        warn "/dev/kvm not found - build will be SLOW without hardware acceleration"
-        echo "  To enable KVM: sudo modprobe kvm_intel (or kvm_amd)"
-        read -p "Continue without KVM? [y/N] " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
+    if [ ${#missing[@]} -ne 0 ]; then
+        if [ "$os_type" = "Darwin" ]; then
+            error "Missing required tools: ${missing[*]}\nInstall with: brew install packer qemu docker"
+        else
+            error "Missing required tools: ${missing[*]}\nInstall with: sudo apt install packer qemu-kvm qemu-utils"
+        fi
+    fi
+
+    # Check hardware acceleration availability
+    if [ "$os_type" = "Darwin" ]; then
+        # macOS uses HVF (Hypervisor Framework)
+        if [ "$ARCH" = "arm64" ]; then
+            log "Using HVF (Hypervisor Framework) for ARM64 on macOS"
+        else
+            warn "Building amd64 on macOS ARM will use emulation (slow)"
+        fi
+    else
+        # Linux uses KVM
+        if [ ! -e /dev/kvm ]; then
+            warn "/dev/kvm not found - build will be SLOW without hardware acceleration"
+            echo "  To enable KVM: sudo modprobe kvm_intel (or kvm_amd)"
+            read -p "Continue without KVM? [y/N] " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                exit 1
+            fi
         fi
     fi
 
@@ -137,7 +206,8 @@ run_packer_build() {
     log "Output directory: ${OUTPUT_DIR}"
 
     # Run packer with force to overwrite existing
-    packer build -force -var-file=variables.pkrvars.hcl sting-ce.pkr.hcl
+    log "Building for architecture: ${ARCH}"
+    packer build -force -var-file=variables.pkrvars.hcl -var "arch=${ARCH}" sting-ce.pkr.hcl
 
     log "Packer build complete"
 }
@@ -159,106 +229,10 @@ fix_ovf_for_virtualbox() {
 
     # The issue: Packer's QEMU post-processor creates an OVF where the disk item
     # references a parent that doesn't exist. VirtualBox requires a proper
-    # SATA controller hierarchy.
+    # SATA controller hierarchy. We also add VirtualBox-specific settings
+    # to enable Host I/O Cache for better disk performance.
 
-    # Create a Python script to fix the OVF (more reliable than sed for XML)
-    python3 << 'PYTHON_SCRIPT'
-import xml.etree.ElementTree as ET
-import sys
-
-ovf_file = sys.argv[1] if len(sys.argv) > 1 else None
-if not ovf_file:
-    print("Usage: fix_ovf.py <ovf_file>")
-    sys.exit(1)
-
-# Parse OVF
-tree = ET.parse(ovf_file)
-root = tree.getroot()
-
-# Define namespaces
-ns = {
-    'ovf': 'http://schemas.dmtf.org/ovf/envelope/1',
-    'rasd': 'http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData',
-    'vssd': 'http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData',
-    'vbox': 'http://www.virtualbox.org/ovf/machine'
-}
-
-# Register namespaces to preserve them in output
-for prefix, uri in ns.items():
-    ET.register_namespace(prefix, uri)
-ET.register_namespace('', ns['ovf'])
-
-# Find VirtualHardwareSection
-vhs = root.find('.//ovf:VirtualHardwareSection', ns)
-if vhs is None:
-    print("ERROR: VirtualHardwareSection not found")
-    sys.exit(1)
-
-# Check if SATA controller already exists
-sata_exists = False
-for item in vhs.findall('ovf:Item', ns):
-    res_type = item.find('rasd:ResourceType', ns)
-    res_subtype = item.find('rasd:ResourceSubType', ns)
-    if res_type is not None and res_type.text == '20':  # Storage controller
-        if res_subtype is not None and 'AHCI' in res_subtype.text:
-            sata_exists = True
-            print("SATA controller already exists, skipping...")
-            break
-
-if not sata_exists:
-    print("Adding SATA controller...")
-
-    # Find the position to insert (after existing controllers, before disk)
-    insert_pos = 0
-    for i, item in enumerate(vhs.findall('ovf:Item', ns)):
-        res_type = item.find('rasd:ResourceType', ns)
-        if res_type is not None:
-            # Insert after CPU (3), Memory (4), IDE (5) but before disk (17)
-            if res_type.text in ['3', '4', '5', '6']:
-                insert_pos = i + 1
-
-    # Create SATA Controller item
-    sata_item = ET.SubElement(vhs, '{http://schemas.dmtf.org/ovf/envelope/1}Item')
-
-    ET.SubElement(sata_item, '{http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData}Address').text = '0'
-    ET.SubElement(sata_item, '{http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData}Description').text = 'SATA Controller'
-    ET.SubElement(sata_item, '{http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData}ElementName').text = 'SATA Controller'
-    ET.SubElement(sata_item, '{http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData}InstanceID').text = '3'
-    ET.SubElement(sata_item, '{http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData}ResourceSubType').text = 'AHCI'
-    ET.SubElement(sata_item, '{http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData}ResourceType').text = '20'
-
-# Fix Hard Disk item - add Parent reference and update InstanceID
-for item in vhs.findall('ovf:Item', ns):
-    res_type = item.find('rasd:ResourceType', ns)
-    if res_type is not None and res_type.text == '17':  # Hard Disk
-        print("Fixing Hard Disk item...")
-
-        # Update InstanceID to 4 (after SATA controller which is 3)
-        instance_id = item.find('rasd:InstanceID', ns)
-        if instance_id is not None:
-            instance_id.text = '4'
-
-        # Add Parent reference to SATA controller (InstanceID 3)
-        parent = item.find('rasd:Parent', ns)
-        if parent is None:
-            parent = ET.SubElement(item, '{http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData}Parent')
-        parent.text = '3'
-
-# Fix Network Adapter InstanceID (should be 5 now)
-for item in vhs.findall('ovf:Item', ns):
-    res_type = item.find('rasd:ResourceType', ns)
-    if res_type is not None and res_type.text == '10':  # Network Adapter
-        print("Fixing Network Adapter InstanceID...")
-        instance_id = item.find('rasd:InstanceID', ns)
-        if instance_id is not None and instance_id.text == '3':
-            instance_id.text = '5'
-
-# Write fixed OVF
-tree.write(ovf_file, xml_declaration=True, encoding='UTF-8')
-print(f"OVF fixed successfully: {ovf_file}")
-PYTHON_SCRIPT
-
-    # Run the Python fix
+    # Run Python script to fix the OVF
     python3 -c "
 import xml.etree.ElementTree as ET
 import sys
@@ -341,6 +315,11 @@ for item in vhs.findall('ovf:Item', ns):
         if instance_id is not None and instance_id.text in ['3', '4']:
             print('Fixing Network Adapter InstanceID...')
             instance_id.text = '5'
+
+# Note: VirtualBox-specific extensions (vbox:Machine) were removed as they
+# cause import errors. Users must manually enable Host I/O Cache in VirtualBox:
+# Settings → Storage → SATA Controller → Use Host I/O Cache
+# This is documented in the VirtualBox OVA guide.
 
 tree.write(ovf_file, xml_declaration=True, encoding='UTF-8')
 print('OVF fixed successfully')
@@ -431,11 +410,12 @@ main() {
     header "STING-CE OVA Builder v${VERSION}"
 
     echo "This script will:"
-    echo "  1. Check prerequisites (packer, qemu, kvm, docker)"
-    echo "  2. Pre-build Docker images on host (fast network)"
-    echo "  3. Build VM using Packer (~15-30 minutes)"
-    echo "  4. Fix OVF for VirtualBox compatibility"
-    echo "  5. Package as OVA with checksum"
+    echo "  1. Check prerequisites (packer, qemu, kvm/hvf, docker)"
+    echo "  2. Create source tarball from local repo (includes uncommitted changes)"
+    echo "  3. Pre-build Docker images on host (fast network)"
+    echo "  4. Build VM using Packer (~15-30 minutes)"
+    echo "  5. Fix OVF for VirtualBox/UTM compatibility"
+    echo "  6. Package as OVA with checksum"
     echo ""
 
     # Parse arguments
@@ -454,17 +434,32 @@ main() {
             --version)
                 shift
                 VERSION="$1"
-                OVA_NAME="sting-ce-quickstart-${VERSION}"
+                OVA_NAME="sting-ce-quickstart-${VERSION}-${ARCH}"
+                shift
+                ;;
+            --arch)
+                shift
+                ARCH="$1"
+                if [[ "$ARCH" != "amd64" && "$ARCH" != "arm64" ]]; then
+                    error "Invalid architecture: $ARCH (must be amd64 or arm64)"
+                fi
+                OVA_NAME="sting-ce-quickstart-${VERSION}-${ARCH}"
                 shift
                 ;;
             --help|-h)
                 echo "Usage: $0 [OPTIONS]"
                 echo ""
                 echo "Options:"
+                echo "  --arch ARCH      Target architecture: amd64 (default) or arm64"
                 echo "  --skip-build     Skip Packer build (use existing output)"
                 echo "  --skip-prebuild  Skip Docker image pre-build (use existing tarball)"
                 echo "  --version VER    Set version string (default: 1.0.0)"
                 echo "  --help           Show this help"
+                echo ""
+                echo "Examples:"
+                echo "  $0                          # Build amd64 OVA (default)"
+                echo "  $0 --arch arm64             # Build arm64 OVA for Apple Silicon"
+                echo "  $0 --arch arm64 --version 1.1.0  # ARM64 with custom version"
                 exit 0
                 ;;
             *)
@@ -473,7 +468,15 @@ main() {
         esac
     done
 
+    # Display build configuration
+    log "Target architecture: ${ARCH}"
+    log "Output: ${OVA_NAME}.ova"
+    echo ""
+
     check_prerequisites
+
+    # Always create fresh source tarball from local repo
+    create_source_tarball
 
     # Pre-build Docker images on host (unless skipped or tarball exists)
     if [ "$SKIP_PREBUILD" = false ]; then

@@ -9,14 +9,13 @@ autoinstall:
 
   # Network - DHCP
   network:
-    network:
-      version: 2
-      ethernets:
-        id0:
-          match:
-            driver: "*"
-          dhcp4: true
-          dhcp-identifier: mac
+    version: 2
+    ethernets:
+      id0:
+        match:
+          driver: "*"
+        dhcp4: true
+        dhcp-identifier: mac
 
   # Storage - use entire disk
   storage:
@@ -57,16 +56,6 @@ autoinstall:
     - open-vm-tools
     - python3
     - python3-pip
-
-  # User configuration
-  user-data:
-    disable_root: true
-    users:
-      - name: sting
-        groups: [sudo, docker]
-        shell: /bin/bash
-        sudo: ALL=(ALL) NOPASSWD:ALL
-        lock_passwd: false
 
   # Late commands - run after installation
   late-commands:

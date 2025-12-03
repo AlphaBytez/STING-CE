@@ -1,0 +1,16 @@
+[Unit]
+Description=Periodically fix Docker bridge veth attachment (VirtualBox workaround)
+After=docker.service
+
+[Timer]
+# Run 5 seconds after boot
+OnBootSec=5sec
+# Then every 5 seconds (fast to catch new containers quickly)
+OnUnitActiveSec=5sec
+# High accuracy for quick response
+AccuracySec=1sec
+# Keep running
+Persistent=true
+
+[Install]
+WantedBy=timers.target

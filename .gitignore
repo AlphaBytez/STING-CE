@@ -144,3 +144,4 @@ client-certs/install-ca-windows.ps1
 *config.yml
 packer/output/
 packer/sting-ce-images.tar.gz
+packer/sting-ce-source.tar.gz

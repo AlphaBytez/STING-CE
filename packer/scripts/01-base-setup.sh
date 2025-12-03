@@ -114,4 +114,19 @@ if [ -f /etc/default/grub ]; then
     update-grub
 fi
 
+# Install Docker bridge veth fix for VirtualBox
+# This fixes a VirtualBox-specific bug where veth interfaces don't auto-attach to the bridge
+echo "Installing Docker bridge veth fix (VirtualBox workaround)..."
+if [ -f /tmp/docker-veth-fix.sh ]; then
+    install -m 755 /tmp/docker-veth-fix.sh /usr/local/bin/docker-veth-fix.sh
+fi
+if [ -f /tmp/docker-veth-fix.service ]; then
+    install -m 644 /tmp/docker-veth-fix.service /etc/systemd/system/docker-veth-fix.service
+fi
+if [ -f /tmp/docker-veth-fix.timer ]; then
+    install -m 644 /tmp/docker-veth-fix.timer /etc/systemd/system/docker-veth-fix.timer
+    systemctl daemon-reload
+    systemctl enable docker-veth-fix.timer
+fi
+
 echo "=== Base setup complete ==="

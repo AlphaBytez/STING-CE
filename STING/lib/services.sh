@@ -95,6 +95,87 @@ sync_database_password() {
     fi
 }
 
+# Fix Docker bridge networking for VirtualBox environments
+# VirtualBox can cause two issues with Docker bridge networks:
+# 1. Bridge interface loses its gateway IP address
+# 2. Container veth interfaces are not attached to the bridge (NO-CARRIER state)
+# This function checks and fixes both issues
+fix_docker_bridge_networking() {
+    local network_name="${1:-sting_local}"
+    local fixed_something=false
+
+    # Check if network exists
+    if ! docker network inspect "$network_name" >/dev/null 2>&1; then
+        return 0  # Network doesn't exist yet, nothing to fix
+    fi
+
+    # Get the gateway and subnet from Docker network config
+    local gateway=$(docker network inspect "$network_name" --format '{{range .IPAM.Config}}{{.Gateway}}{{end}}' 2>/dev/null)
+    local subnet=$(docker network inspect "$network_name" --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}' 2>/dev/null)
+    local network_id=$(docker network inspect "$network_name" --format '{{.Id}}' 2>/dev/null | cut -c1-12)
+
+    if [ -z "$gateway" ] || [ -z "$subnet" ] || [ -z "$network_id" ]; then
+        return 0  # Can't determine network config
+    fi
+
+    # Find the bridge interface
+    local bridge_iface="br-${network_id}"
+    if ! ip link show "$bridge_iface" >/dev/null 2>&1; then
+        return 0  # Bridge interface doesn't exist
+    fi
+
+    # Fix 1: Check if gateway IP is assigned to bridge
+    if ! ip addr show "$bridge_iface" | grep -q "inet ${gateway}"; then
+        log_message "Fixing Docker bridge networking: adding gateway ${gateway} to ${bridge_iface}..."
+
+        # Calculate CIDR from subnet (e.g., 172.18.0.0/16 -> /16)
+        local cidr=$(echo "$subnet" | grep -oE '/[0-9]+$')
+
+        if ip addr add "${gateway}${cidr}" dev "$bridge_iface" 2>/dev/null; then
+            log_message "Docker bridge gateway IP fixed successfully"
+            fixed_something=true
+        else
+            log_message "Warning: Could not add gateway IP to bridge" "WARNING"
+        fi
+    fi
+
+    # Fix 2: Check if bridge is in NO-CARRIER/DOWN state (veths not attached)
+    # This happens in VirtualBox when Docker creates veths but doesn't attach them
+    local bridge_state=$(ip link show "$bridge_iface" 2>/dev/null | grep -oE 'state (UP|DOWN)' | awk '{print $2}')
+    if [ "$bridge_state" = "DOWN" ]; then
+        log_message "Docker bridge $bridge_iface is DOWN - attaching container veth interfaces..."
+
+        # Find all veth interfaces and attach them to the bridge
+        local veth_count=0
+        for veth in $(ip link show type veth 2>/dev/null | grep -oE 'veth[a-f0-9]+'); do
+            # Check if veth already has a master
+            if ! ip link show "$veth" 2>/dev/null | grep -q "master"; then
+                if ip link set "$veth" master "$bridge_iface" 2>/dev/null; then
+                    ((veth_count++))
+                fi
+            fi
+        done
+
+        if [ $veth_count -gt 0 ]; then
+            log_message "Attached $veth_count veth interfaces to bridge $bridge_iface"
+            fixed_something=true
+        fi
+
+        # Verify bridge is now UP
+        bridge_state=$(ip link show "$bridge_iface" 2>/dev/null | grep -oE 'state (UP|DOWN)' | awk '{print $2}')
+        if [ "$bridge_state" = "UP" ]; then
+            log_message "Docker bridge networking fixed successfully"
+        else
+            log_message "Warning: Bridge still DOWN after attaching veths" "WARNING"
+        fi
+    fi
+
+    if [ "$fixed_something" = "true" ]; then
+        return 0
+    fi
+    return 0
+}
+
 # Ensure SSL certificates exist for HTTPS operation
 ensure_ssl_certificates() {
     local cert_dir="${INSTALL_DIR}/certs"
@@ -190,6 +271,10 @@ wait_for_service() {
     local interval=${HEALTH_CHECK_INTERVAL:-5s}
     local ignore_failure=${2:-"false"}
 
+    # Fix Docker bridge networking (VirtualBox workaround)
+    # This ensures the Docker bridge has its gateway IP for host-to-container communication
+    fix_docker_bridge_networking "sting_local" 2>/dev/null || true
+
     # For Kratos during fresh install, increase timeout to handle migrations
     if [ "$service" = "kratos" ] && [ "${FRESH_INSTALL:-false}" = "true" ]; then
         max_attempts=60  # 5 minutes for fresh install migrations
@@ -215,9 +300,9 @@ wait_for_service() {
                 fi
                 ;;
             "app")
-                # Check container is up and application health over HTTPS
+                # Check container is up and application health over HTTPS (with 3s timeout)
                 if docker ps --format "table {{.Names}}" | grep -q "sting-ce-app" && \
-                   curl -k -s "https://localhost:5050/health" > /dev/null 2>&1; then
+                   curl -k -s --connect-timeout 2 -m 3 "https://localhost:5050/health" > /dev/null 2>&1; then
                     log_message "Flask application is fully operational"
                     return 0
                 fi
@@ -248,8 +333,8 @@ wait_for_service() {
                 # Check Kratos container and readiness endpoint via admin port (HTTPS)
                 # Use docker ps directly to avoid compose warnings about env files
                 if docker ps --format "table {{.Names}}" | grep -q "sting-ce-kratos"; then
-                    # Container is running, check health endpoint
-                    if curl -s -f -k https://localhost:4434/admin/health/ready > /dev/null 2>&1; then
+                    # Container is running, check health endpoint (with 3s timeout to avoid long hangs)
+                    if curl -s -f -k --connect-timeout 2 -m 3 https://localhost:4434/admin/health/ready > /dev/null 2>&1; then
                         log_message "Kratos is fully operational"
                         return 0
                     else
@@ -287,25 +372,25 @@ wait_for_service() {
                         return 0
                     fi
                     
-                    # Check health endpoint
-                    if curl -s -f "http://localhost:8081/health" > /dev/null; then
+                    # Check health endpoint (with timeout)
+                    if curl -s -f --connect-timeout 2 -m 3 "http://localhost:8081/health" > /dev/null; then
                         log_message "Chatbot service is fully operational"
                         return 0
                     fi
                 fi
                 ;;
             "nectar-worker")
-                # Check nectar-worker container and health endpoint
+                # Check nectar-worker container and health endpoint (with timeout)
                 if docker ps --format "table {{.Names}}" | grep -q "sting-ce-nectar-worker" && \
-                   curl -s -f "http://localhost:9002/health" > /dev/null 2>&1; then
+                   curl -s -f --connect-timeout 2 -m 3 "http://localhost:9002/health" > /dev/null 2>&1; then
                     log_message "Nectar Worker service is fully operational"
                     return 0
                 fi
                 ;;
             "knowledge")
-                # Check knowledge service container and health endpoint
+                # Check knowledge service container and health endpoint (with timeout)
                 if docker ps --format "table {{.Names}}" | grep -q "sting-ce-knowledge" && \
-                   curl -s -f "http://localhost:8090/health" > /dev/null 2>&1; then
+                   curl -s -f --connect-timeout 2 -m 3 "http://localhost:8090/health" > /dev/null 2>&1; then
                     log_message "Knowledge service is fully operational"
                     return 0
                 fi
@@ -325,41 +410,41 @@ wait_for_service() {
                 fi
                 ;;
             "loki")
-                # Check Loki container and health endpoint
+                # Check Loki container and health endpoint (with timeout)
                 if docker ps --format "table {{.Names}}" | grep -q "sting-ce-loki" && \
-                   curl -s -f "http://localhost:3100/ready" > /dev/null 2>&1; then
+                   curl -s -f --connect-timeout 2 -m 3 "http://localhost:3100/ready" > /dev/null 2>&1; then
                     log_message "Loki log aggregation service is fully operational"
                     return 0
                 fi
                 ;;
             "grafana")
-                # Check Grafana container and health endpoint
+                # Check Grafana container and health endpoint (with timeout)
                 if docker ps --format "table {{.Names}}" | grep -q "sting-ce-grafana" && \
-                   curl -s -f "http://localhost:3001/api/health" > /dev/null 2>&1; then
+                   curl -s -f --connect-timeout 2 -m 3 "http://localhost:3001/api/health" > /dev/null 2>&1; then
                     log_message "Grafana dashboard service is fully operational"
                     return 0
                 fi
                 ;;
             "promtail")
-                # Check Promtail container and health endpoint
+                # Check Promtail container and health endpoint (with timeout)
                 if docker ps --format "table {{.Names}}" | grep -q "sting-ce-promtail" && \
-                   curl -s -f "http://localhost:9080/ready" > /dev/null 2>&1; then
+                   curl -s -f --connect-timeout 2 -m 3 "http://localhost:9080/ready" > /dev/null 2>&1; then
                     log_message "Promtail log collection service is fully operational"
                     return 0
                 fi
                 ;;
             "public-bee")
-                # Check Public Bee container and health endpoint
+                # Check Public Bee container and health endpoint (with timeout)
                 if docker ps --format "table {{.Names}}" | grep -q "sting-ce-public-bee" && \
-                   curl -s -f "http://localhost:8092/health" > /dev/null 2>&1; then
+                   curl -s -f --connect-timeout 2 -m 3 "http://localhost:8092/health" > /dev/null 2>&1; then
                     log_message "Public Bee (Nectar Bot) service is fully operational"
                     return 0
                 fi
                 ;;
             "headscale")
-                # Check Headscale container and health endpoint
+                # Check Headscale container and health endpoint (with timeout)
                 if docker ps --format "table {{.Names}}" | grep -q "sting-ce-headscale" && \
-                   curl -s -f "http://localhost:8070/health" > /dev/null 2>&1; then
+                   curl -s -f --connect-timeout 2 -m 3 "http://localhost:8070/health" > /dev/null 2>&1; then
                     log_message "Headscale support tunnel service is fully operational"
                     return 0
                 fi

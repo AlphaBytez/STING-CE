@@ -628,6 +628,29 @@ const EmailFirstLogin = () => {
             </div>
           )}
 
+          {/* Development Mode Banner - Show Mailpit link for verification codes */}
+          {isDevelopment && mailpitEnabled && (
+            <div className="mb-6 p-4 bg-orange-500/20 border border-orange-500/50 rounded-lg">
+              <div className="flex items-start gap-3">
+                <div className="text-orange-300 text-2xl">📬</div>
+                <div className="flex-1">
+                  <h3 className="text-orange-300 font-medium mb-1">Check Mailpit for Code</h3>
+                  <p className="text-orange-200 text-sm mb-2">
+                    In development mode, verification emails are sent to Mailpit
+                  </p>
+                  <a
+                    href={mailpitUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded text-sm font-medium transition-colors"
+                  >
+                    📧 Open Mailpit Inbox
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleCodeSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">

@@ -34,13 +34,19 @@ def get_environment():
         smtp_host = email_config.get('smtp_host', '')
         is_mailpit = 'mailpit' in smtp_host.lower() or smtp_host == 'localhost'
 
+        # Get hostname from config or environment
+        hostname = config.get('system', {}).get('hostname', '') or os.environ.get('HOSTNAME', 'localhost')
+
+        # Mailpit URL through nginx reverse proxy (HTTPS)
+        mailpit_url = f"https://{hostname}:8443/mailpit/"
+
         return jsonify({
             'success': True,
             'environment': environment,
             'is_development': is_development,
             'mailpit': {
                 'enabled': is_mailpit,
-                'url': f"http://{os.environ.get('HOSTNAME', 'localhost')}:8025"
+                'url': mailpit_url
             }
         })
 

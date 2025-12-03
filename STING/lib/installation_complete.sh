@@ -62,6 +62,13 @@ display_installation_complete() {
         echo "$domain" > "${STING_INSTALL_DIR}/.sting_domain"
         echo "https://${domain}:8443" > "${STING_INSTALL_DIR}/.sting_url"
     fi
+
+    # Create marker file to prevent re-running first-boot installer on OVA
+    # This is checked by sting-first-boot.service ConditionPathExists
+    local install_dir="${STING_INSTALL_DIR:-${INSTALL_DIR:-/opt/sting-ce}}"
+    if [[ -d "$install_dir" ]]; then
+        touch "${install_dir}/.installed"
+    fi
 }
 
 # Export function

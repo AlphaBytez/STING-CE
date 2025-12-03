@@ -133,6 +133,14 @@ generate_initial_configuration() {
             
             # Check if utils image exists, build it if not
             if ! docker images | grep -q "sting-ce-utils"; then
+                # In OVA mode, images should be pre-built - don't try to build
+                if [ -f "/opt/sting-ce-source/.ova-prebuild" ]; then
+                    log_message "OVA mode: Utils image not found but should be pre-built!" "ERROR"
+                    log_message "Available images:" "ERROR"
+                    docker images --format "{{.Repository}}:{{.Tag}}" | head -20
+                    log_message "This may indicate Docker storage issue. Try: sudo systemctl restart docker" "ERROR"
+                    return 1
+                fi
                 log_message "Utils image not found, building it first..."
                 if ! docker compose --profile installation build utils; then
                     log_message "Failed to build utils container" "ERROR"

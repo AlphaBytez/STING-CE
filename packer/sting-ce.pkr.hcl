@@ -38,16 +38,26 @@ variable "ubuntu_version" {
   default     = "24.04"
 }
 
+variable "arch" {
+  type        = string
+  description = "Target architecture: amd64 or arm64"
+  default     = "amd64"
+  validation {
+    condition     = contains(["amd64", "arm64"], var.arch)
+    error_message = "Architecture must be 'amd64' or 'arm64'."
+  }
+}
+
 variable "iso_url" {
   type        = string
-  description = "Ubuntu Server ISO URL"
-  default     = "https://releases.ubuntu.com/24.04/ubuntu-24.04.1-live-server-amd64.iso"
+  description = "Ubuntu Server ISO URL (auto-set based on arch if not specified)"
+  default     = ""  # Will be computed in locals
 }
 
 variable "iso_checksum" {
   type        = string
-  description = "Ubuntu ISO SHA256 checksum"
-  default     = "sha256:e240e4b801f7bb68c20d1356b60571d2d7d4e1e1c3c2e9d4a2a3b5c8d9e0f1a2"  # Update with actual checksum
+  description = "Ubuntu ISO SHA256 checksum (auto-set based on arch if not specified)"
+  default     = ""  # Will be computed in locals
 }
 
 variable "vm_name" {
@@ -111,7 +121,30 @@ variable "output_directory" {
 
 locals {
   build_timestamp = formatdate("YYYYMMDD-hhmmss", timestamp())
-  vm_description  = "STING-CE Quick Start v${var.sting_version} - Pre-configured Ubuntu with Docker and STING installer ready. Boot and access the web installer at https://<VM_IP>:5000"
+  vm_description  = "STING-CE Quick Start v${var.sting_version} (${var.arch}) - Pre-configured Ubuntu with Docker and STING installer ready. Boot and access the web installer at https://<VM_IP>:5000"
+
+  # Architecture-specific ISO URLs and checksums
+  iso_urls = {
+    amd64 = "https://releases.ubuntu.com/24.04/ubuntu-24.04.1-live-server-amd64.iso"
+    arm64 = "https://cdimage.ubuntu.com/releases/24.04/release/ubuntu-24.04.1-live-server-arm64.iso"
+  }
+
+  iso_checksums = {
+    amd64 = "sha256:e240e4b801f7bb68c20d1356b60571d2d7d4e1e1c3c2e9d4a2a3b5c8d9e0f1a2"
+    arm64 = "sha256:d2d9986ada3864d30960e2c5a8f74e3f1e3e7e4f6a5b4c3d2e1f0a9b8c7d6e5f"  # Update with actual checksum
+  }
+
+  # Use provided values or auto-detect from arch
+  effective_iso_url      = var.iso_url != "" ? var.iso_url : local.iso_urls[var.arch]
+  effective_iso_checksum = var.iso_checksum != "" ? var.iso_checksum : local.iso_checksums[var.arch]
+
+  # Architecture-specific QEMU settings
+  qemu_binary = var.arch == "arm64" ? "qemu-system-aarch64" : "qemu-system-x86_64"
+  qemu_machine = var.arch == "arm64" ? "virt" : "q35"
+  qemu_accelerator = var.arch == "arm64" ? "hvf" : "kvm"  # hvf for macOS ARM, kvm for Linux x86
+
+  # Output filename includes architecture
+  output_name = "${var.vm_name}-${var.sting_version}-${var.arch}"
 }
 
 # =============================================================================
@@ -119,20 +152,22 @@ locals {
 # =============================================================================
 
 source "qemu" "sting-ce" {
-  vm_name          = "${var.vm_name}-${var.sting_version}"
+  vm_name          = local.output_name
   headless         = var.headless
 
-  # ISO configuration
-  iso_url          = var.iso_url
-  iso_checksum     = var.iso_checksum
+  # ISO configuration (auto-detected based on arch)
+  iso_url          = local.effective_iso_url
+  iso_checksum     = local.effective_iso_checksum
 
   # VM resources
   disk_size        = var.disk_size
   memory           = var.memory
   cpus             = var.cpus
 
-  # Use KVM hardware acceleration (supported on GitHub Actions runners)
-  accelerator      = "kvm"
+  # Architecture-specific QEMU settings
+  qemu_binary      = local.qemu_binary
+  machine_type     = local.qemu_machine
+  accelerator      = local.qemu_accelerator
 
   # Disk settings
   format           = "qcow2"
@@ -234,6 +269,22 @@ build {
     ]
   }
 
+  # Copy Docker veth fix files (VirtualBox workaround)
+  provisioner "file" {
+    source      = "files/docker-veth-fix.sh"
+    destination = "/tmp/docker-veth-fix.sh"
+  }
+
+  provisioner "file" {
+    source      = "files/docker-veth-fix.service"
+    destination = "/tmp/docker-veth-fix.service"
+  }
+
+  provisioner "file" {
+    source      = "files/docker-veth-fix.timer"
+    destination = "/tmp/docker-veth-fix.timer"
+  }
+
   # Base system setup
   provisioner "shell" {
     script = "scripts/01-base-setup.sh"
@@ -249,7 +300,15 @@ build {
     ]
   }
 
-  # Clone STING repository
+  # Copy local source tarball (created by build-ova.sh from local repo)
+  # This allows testing with uncommitted changes without pushing to GitHub
+  provisioner "file" {
+    source      = "sting-ce-source.tar.gz"
+    destination = "/tmp/sting-ce-source.tar.gz"
+    generated   = true  # Skip if file doesn't exist (fallback to git clone)
+  }
+
+  # Install STING source (extracts from tarball or clones from git as fallback)
   provisioner "shell" {
     script = "scripts/03-clone-sting.sh"
     execute_command = "echo '${var.ssh_password}' | sudo -S -E bash '{{.Path}}'"
@@ -314,14 +373,15 @@ build {
   post-processor "shell-local" {
     inline = [
       "echo 'Converting qcow2 to OVA format...'",
+      "echo 'Architecture: ${var.arch}'",
       "cd ${var.output_directory}/qemu",
-      "qemu-img convert -f qcow2 -O vmdk ${var.vm_name}-${var.sting_version} ${var.vm_name}-${var.sting_version}.vmdk",
+      "qemu-img convert -f qcow2 -O vmdk ${var.vm_name}-${var.sting_version}-${var.arch} ${var.vm_name}-${var.sting_version}-${var.arch}.vmdk",
       "echo 'Creating OVF descriptor...'",
-      "cat > ${var.vm_name}-${var.sting_version}.ovf << 'OVFEOF'",
+      "cat > ${var.vm_name}-${var.sting_version}-${var.arch}.ovf << 'OVFEOF'",
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
       "<Envelope xmlns=\"http://schemas.dmtf.org/ovf/envelope/1\" xmlns:ovf=\"http://schemas.dmtf.org/ovf/envelope/1\" xmlns:rasd=\"http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData\" xmlns:vssd=\"http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">",
       "  <References>",
-      "    <File ovf:href=\"${var.vm_name}-${var.sting_version}.vmdk\" ovf:id=\"file1\"/>",
+      "    <File ovf:href=\"${var.vm_name}-${var.sting_version}-${var.arch}.vmdk\" ovf:id=\"file1\"/>",
       "  </References>",
       "  <DiskSection>",
       "    <Info>Virtual disk information</Info>",
@@ -333,9 +393,9 @@ build {
       "      <Description>NAT network</Description>",
       "    </Network>",
       "  </NetworkSection>",
-      "  <VirtualSystem ovf:id=\"${var.vm_name}\">",
-      "    <Info>STING-CE Quick Start VM</Info>",
-      "    <Name>${var.vm_name}-${var.sting_version}</Name>",
+      "  <VirtualSystem ovf:id=\"${var.vm_name}-${var.arch}\">",
+      "    <Info>STING-CE Quick Start VM (${var.arch})</Info>",
+      "    <Name>${var.vm_name}-${var.sting_version}-${var.arch}</Name>",
       "    <OperatingSystemSection ovf:id=\"96\">",
       "      <Info>Ubuntu 64-bit</Info>",
       "    </OperatingSystemSection>",
@@ -391,15 +451,15 @@ build {
       "</Envelope>",
       "OVFEOF",
       "echo 'Creating OVA archive...'",
-      "tar -cvf ${var.vm_name}-${var.sting_version}.ova ${var.vm_name}-${var.sting_version}.ovf ${var.vm_name}-${var.sting_version}.vmdk",
+      "tar -cvf ${var.vm_name}-${var.sting_version}-${var.arch}.ova ${var.vm_name}-${var.sting_version}-${var.arch}.ovf ${var.vm_name}-${var.sting_version}-${var.arch}.vmdk",
       "echo 'OVA created successfully!'",
-      "ls -lh ${var.vm_name}-${var.sting_version}.ova"
+      "ls -lh ${var.vm_name}-${var.sting_version}-${var.arch}.ova"
     ]
   }
 
   post-processor "checksum" {
     checksum_types = ["sha256"]
-    output         = "${var.output_directory}/{{.BuildName}}-${var.sting_version}.{{.ChecksumType}}"
+    output         = "${var.output_directory}/{{.BuildName}}-${var.sting_version}-${var.arch}.{{.ChecksumType}}"
   }
 
   post-processor "manifest" {

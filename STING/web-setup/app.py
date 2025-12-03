@@ -735,8 +735,8 @@ def transform_wizard_data_to_config(wizard_data):
 
     This ensures wizard-tested configuration is actually used!
     """
-    # Load default config.yml as base
-    default_config_path = os.path.join(STING_SOURCE, 'conf', 'config.yml')
+    # Load default config.yml.default as base template
+    default_config_path = os.path.join(STING_SOURCE, 'conf', 'config.yml.default')
 
     with open(default_config_path, 'r') as f:
         config = yaml.safe_load(f)
@@ -754,6 +754,14 @@ def transform_wizard_data_to_config(wizard_data):
     # Transform LLM configuration
     if 'llm' in wizard_data:
         llm_data = wizard_data['llm']
+        # Initialize llm_service section if it doesn't exist (config.yml.default may not have it)
+        if 'llm_service' not in config:
+            config['llm_service'] = {}
+        if 'ollama' not in config['llm_service']:
+            config['llm_service']['ollama'] = {}
+        if 'external_ai' not in config['llm_service']:
+            config['llm_service']['external_ai'] = {}
+
         config['llm_service']['ollama']['endpoint'] = llm_data.get('endpoint', 'http://localhost:11434')
         config['llm_service']['ollama']['default_model'] = llm_data.get('model', 'phi3:mini')
         config['llm_service']['ollama']['enabled'] = True
@@ -764,6 +772,9 @@ def transform_wizard_data_to_config(wizard_data):
     # Transform report generation LLM configuration
     if 'report_llm' in wizard_data:
         report_llm_data = wizard_data['report_llm']
+        # Ensure llm_service exists
+        if 'llm_service' not in config:
+            config['llm_service'] = {}
         if 'report_generation' not in config['llm_service']:
             config['llm_service']['report_generation'] = {}
 
@@ -1202,6 +1213,16 @@ def run_installation_background(install_id, config_data, admin_email):
             installations[install_id]['success'] = True
             installations[install_id]['progress'] = 100
             installations[install_id]['status'] = 'Installation complete!'
+
+            # Create .installed marker to prevent re-running installer on next login
+            install_dir = os.environ.get('STING_INSTALL_DIR', '/opt/sting-ce')
+            installed_marker = os.path.join(install_dir, '.installed')
+            try:
+                subprocess.run(['sudo', 'touch', installed_marker], check=True, timeout=10)
+                installations[install_id]['log'] += f"\n✓ Installation marker created at {installed_marker}\n"
+            except Exception as e:
+                installations[install_id]['log'] += f"\n⚠️ Warning: Could not create installation marker: {e}\n"
+
             # Always set redirect URL even if admin creation failed
             # Use configured hostname for WebAuthn/Passkey compatibility (must match Kratos RP ID)
             configured_hostname = config_data.get('system', {}).get('hostname', '').strip()

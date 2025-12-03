@@ -41,6 +41,7 @@ Debugging guides and issue resolution
 
 #### 📖 [Guides](./guides/)
 Step-by-step setup and usage guides
+- **VirtualBox OVA Quick Start** - Importing and configuring the OVA ([VIRTUALBOX_OVA_QUICKSTART.md](./guides/VIRTUALBOX_OVA_QUICKSTART.md))
 - Ollama setup
 - Headscale community support
 - Testing procedures
