@@ -140,8 +140,11 @@ locals {
 
   # Architecture-specific QEMU settings
   qemu_binary = var.arch == "arm64" ? "qemu-system-aarch64" : "qemu-system-x86_64"
-  qemu_machine = var.arch == "arm64" ? "virt" : "q35"
+  qemu_machine = var.arch == "arm64" ? "virt,highmem=on" : "q35"
   qemu_accelerator = var.arch == "arm64" ? "hvf" : "kvm"  # hvf for macOS ARM, kvm for Linux x86
+
+  # ARM64 requires UEFI firmware (homebrew location on macOS)
+  efi_firmware = "/opt/homebrew/share/qemu/edk2-aarch64-code.fd"
 
   # Output filename includes architecture
   output_name = "${var.vm_name}-${var.sting_version}-${var.arch}"
@@ -168,6 +171,17 @@ source "qemu" "sting-ce" {
   qemu_binary      = local.qemu_binary
   machine_type     = local.qemu_machine
   accelerator      = local.qemu_accelerator
+
+  # ARM64-specific: UEFI firmware and CPU settings
+  # Only apply these for ARM64 builds on macOS
+  qemuargs = var.arch == "arm64" ? [
+    ["-cpu", "host"],
+    ["-bios", local.efi_firmware],
+    ["-device", "virtio-gpu-pci"],
+    ["-device", "usb-ehci"],
+    ["-device", "usb-kbd"],
+    ["-device", "usb-mouse"]
+  ] : []
 
   # Disk settings
   format           = "qcow2"
