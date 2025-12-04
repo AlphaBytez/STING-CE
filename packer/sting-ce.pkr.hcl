@@ -123,15 +123,15 @@ locals {
   build_timestamp = formatdate("YYYYMMDD-hhmmss", timestamp())
   vm_description  = "STING-CE Quick Start v${var.sting_version} (${var.arch}) - Pre-configured Ubuntu with Docker and STING installer ready. Boot and access the web installer at https://<VM_IP>:5000"
 
-  # Architecture-specific ISO URLs and checksums
+  # Architecture-specific ISO URLs and checksums (Ubuntu 24.04.3 LTS)
   iso_urls = {
-    amd64 = "https://releases.ubuntu.com/24.04/ubuntu-24.04.1-live-server-amd64.iso"
-    arm64 = "https://cdimage.ubuntu.com/releases/24.04/release/ubuntu-24.04.1-live-server-arm64.iso"
+    amd64 = "https://releases.ubuntu.com/24.04/ubuntu-24.04.3-live-server-amd64.iso"
+    arm64 = "https://cdimage.ubuntu.com/releases/24.04/release/ubuntu-24.04.3-live-server-arm64.iso"
   }
 
   iso_checksums = {
-    amd64 = "sha256:e240e4b801f7bb68c20d1356b60571d2d7d4e1e1c3c2e9d4a2a3b5c8d9e0f1a2"
-    arm64 = "sha256:d2d9986ada3864d30960e2c5a8f74e3f1e3e7e4f6a5b4c3d2e1f0a9b8c7d6e5f"  # Update with actual checksum
+    amd64 = "sha256:c3514bf0056180d09376462a7a1b4f213c1d6e8ea67fae5c25099c6fd3d8274b"
+    arm64 = "sha256:2ee2163c9b901ff5926400e80759088ff3b879982a3956c02100495b489fd555"
   }
 
   # Use provided values or auto-detect from arch
