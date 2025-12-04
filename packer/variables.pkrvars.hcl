@@ -4,10 +4,11 @@
 # STING Version (should match git tag)
 sting_version = "1.0.0"
 
-# Ubuntu 24.04.3 LTS Server ISO (latest point release)
+# Ubuntu 24.04 LTS Server
+# NOTE: Do NOT set iso_url/iso_checksum here - they are auto-selected based on --arch
+# The build script passes -var "arch=arm64" or "arch=amd64" which selects the right ISO
 ubuntu_version = "24.04"
-iso_url        = "https://releases.ubuntu.com/24.04/ubuntu-24.04.3-live-server-amd64.iso"
-iso_checksum   = "sha256:c3514bf0056180d09376462a7a1b4f213c1d6e8ea67fae5c25099c6fd3d8274b"
+# iso_url and iso_checksum are dynamically set in sting-ce.pkr.hcl based on arch variable
 
 # VM Configuration (aligned with docs minimum requirements)
 vm_name   = "sting-ce-quickstart"
