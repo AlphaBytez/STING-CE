@@ -205,6 +205,10 @@ setup_environment() {
         # Source security.sh to get generate_ssl_certs function
         source "${SCRIPT_DIR}/security.sh"
         generate_ssl_certs
+
+        # Export client certificates for web UI download (passkey setup)
+        log_message "Exporting client certificates for web UI..."
+        export_ca_certificate "${INSTALL_DIR}/client-certs" || log_message "Warning: Could not export client certs" "WARNING"
     fi
     
     # Ensure certificates are in Docker volume (source services.sh for the function)

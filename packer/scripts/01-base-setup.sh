@@ -41,8 +41,23 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3-pip \
     python3-venv
 
-# Configure avahi for .local hostname resolution
+# Configure avahi for .local hostname resolution (IPv4 preferred)
 echo "Configuring Avahi/mDNS..."
+
+# Disable IPv6 in Avahi to ensure clients resolve to IPv4
+# Many networks/clients have issues with IPv6 mDNS resolution
+if [ -f /etc/avahi/avahi-daemon.conf ]; then
+    sed -i 's/^#*use-ipv4=.*/use-ipv4=yes/' /etc/avahi/avahi-daemon.conf
+    sed -i 's/^#*use-ipv6=.*/use-ipv6=no/' /etc/avahi/avahi-daemon.conf
+    # If the settings don't exist, add them under [server]
+    if ! grep -q "^use-ipv4=" /etc/avahi/avahi-daemon.conf; then
+        sed -i '/^\[server\]/a use-ipv4=yes' /etc/avahi/avahi-daemon.conf
+    fi
+    if ! grep -q "^use-ipv6=" /etc/avahi/avahi-daemon.conf; then
+        sed -i '/^\[server\]/a use-ipv6=no' /etc/avahi/avahi-daemon.conf
+    fi
+fi
+
 systemctl enable avahi-daemon
 systemctl start avahi-daemon || true
 

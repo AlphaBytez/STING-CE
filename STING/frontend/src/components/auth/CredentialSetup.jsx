@@ -225,6 +225,13 @@ const CredentialSetup = () => {
                       >
                         🐧 Linux
                       </a>
+                      <a
+                        href="/api/config/cert/download"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white rounded text-xs font-medium"
+                        download="sting-ca.pem"
+                      >
+                        📜 .pem file
+                      </a>
                     </div>
                     <details className="text-xs">
                       <summary className="text-purple-300 cursor-pointer hover:text-purple-200">How to install</summary>

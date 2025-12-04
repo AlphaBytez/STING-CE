@@ -20,7 +20,7 @@ CORS(config_bp, supports_credentials=True)
 def get_environment():
     """Get environment information (dev/prod mode, mailpit status)"""
     try:
-        from flask import current_app
+        from flask import current_app, request
 
         # Get config
         config = current_app.config.get('CONFIG', {})
@@ -31,11 +31,33 @@ def get_environment():
 
         # Get email config to detect Mailpit
         email_config = config.get('email', {})
-        smtp_host = email_config.get('smtp_host', '')
-        is_mailpit = 'mailpit' in smtp_host.lower() or smtp_host == 'localhost'
+        # Check both 'smtp_host' and 'host' keys (YAML uses 'host')
+        smtp_host = email_config.get('smtp_host', '') or email_config.get('host', '')
+        email_provider = email_config.get('provider', '')
 
-        # Get hostname from config or environment
-        hostname = config.get('system', {}).get('hostname', '') or os.environ.get('HOSTNAME', 'localhost')
+        # Detect Mailpit by provider name, host name, or development mode with mailpit container
+        is_mailpit = (
+            'mailpit' in smtp_host.lower() or
+            smtp_host == 'localhost' or
+            email_provider.lower() == 'mailpit' or
+            (is_development and os.environ.get('EMAIL_PROVIDER', '').lower() == 'mailpit')
+        )
+
+        # For OVA/development mode, default to mailpit enabled
+        if is_development and not smtp_host:
+            is_mailpit = True
+
+        # Get hostname from request (most reliable) or fallback to config/env
+        # Use request.host to get the actual hostname the user is accessing
+        try:
+            request_host = request.host.split(':')[0]  # Remove port if present
+            # Ignore container IDs and localhost variations
+            if request_host and not request_host.startswith(('localhost', '127.', 'a', 'b', 'c', 'd', 'e', 'f', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9')):
+                hostname = request_host
+            else:
+                hostname = config.get('system', {}).get('hostname', '') or 'localhost'
+        except:
+            hostname = config.get('system', {}).get('hostname', '') or os.environ.get('HOSTNAME', 'localhost')
 
         # Mailpit URL through nginx reverse proxy (HTTPS)
         mailpit_url = f"https://{hostname}:8443/mailpit/"

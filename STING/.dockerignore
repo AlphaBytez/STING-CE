@@ -1,0 +1,54 @@
+# Exclude development/local configuration files
+# These should be generated fresh on each deployment
+conf/config.yml
+env/
+
+# Git
+.git
+.gitignore
+
+# Python cache
+**/__pycache__
+**/*.pyc
+**/*.pyo
+*.egg-info
+
+# Node modules (frontend has its own)
+node_modules
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Build artifacts
+*.log
+*.tmp
+dist/
+build/
+
+# Secrets and credentials (should never be in images)
+*.pem
+*.key
+*.crt
+.env
+*.env.local
+
+# Documentation (not needed in images)
+docs/
+*.md
+!README.md
+
+# Test files
+tests/
+test/
+**/*_test.py
+**/test_*.py
+
+# Packer/OVA build artifacts
+packer/output/
+packer/*.tar.gz
+*.ova
+*.vmdk
+*.qcow2

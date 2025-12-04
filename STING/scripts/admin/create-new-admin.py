@@ -42,7 +42,8 @@ def sync_sting_database(email, kratos_id):
     """Sync user with STING database"""
     try:
         # Use STING API to create/update user record (localhost when running from host)
-        sting_api_url = os.getenv("STING_API_URL", "http://localhost:5050")
+        # Note: Uses HTTPS with verify=False for self-signed certs
+        sting_api_url = os.getenv("STING_API_URL", "https://localhost:5050")
         sync_response = requests.post(
             f"{sting_api_url}/api/admin/sync-user",
             json={
@@ -54,7 +55,8 @@ def sync_sting_database(email, kratos_id):
                 'Content-Type': 'application/json',
                 'X-API-Key': 'sk_XG0Ya4nWFCHn-FLSiPclK58zida1Xsj4w7f-XBQV8I0'
             },
-            timeout=10
+            timeout=10,
+            verify=False
         )
         
         return sync_response.status_code in [200, 201]

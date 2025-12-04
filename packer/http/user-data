@@ -7,15 +7,17 @@ autoinstall:
   keyboard:
     layout: us
 
-  # Network - DHCP
+  # Network - DHCP on primary interface only
+  # Using name match instead of driver wildcard to avoid multi-interface issues in VirtualBox
   network:
     version: 2
     ethernets:
-      id0:
+      primary:
         match:
-          driver: "*"
+          name: "en*"  # Matches enp0s*, ens*, enx* (standard Linux ethernet naming)
         dhcp4: true
         dhcp-identifier: mac
+        optional: true  # Don't hang boot if DHCP fails
 
   # Storage - use entire disk
   storage:
