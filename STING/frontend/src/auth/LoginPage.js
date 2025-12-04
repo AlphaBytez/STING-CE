@@ -176,9 +176,9 @@ const LoginPage = () => {
       <div className="relative w-full max-w-md">
         <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-cyan-400 shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
         <div className="relative bg-slate-700/90 backdrop-blur-xl p-8 rounded-2xl shadow-2xl border border-slate-600/50">
-          <img src="/sting-logo.png" alt="STING Logo" className="w-32 h-32 mx-auto mb-6 drop-shadow-2xl" />
+          <img src="/sting-logo.png" alt="Hive Logo" className="w-32 h-32 mx-auto mb-6 drop-shadow-2xl" />
           <h2 className="text-3xl font-bold text-center mb-2 text-slate-100">Welcome Back</h2>
-          <p className="text-center text-slate-300 mb-6">Sign in to your STING account</p>
+          <p className="text-center text-slate-300 mb-6">Sign in to your Hive account</p>
           
           {successMessage && (
             <div className="mb-4 p-3 bg-green-500/20 backdrop-blur-sm border border-green-500/50 text-green-200 rounded-lg">

@@ -93,7 +93,7 @@ const DashboardV2 = () => {
           </Text>
         </div>
         <Text type="secondary">
-          Welcome to your STING command center - monitor activity, manage your intelligent swarm, and stay ahead of threats
+          Welcome to your Hive command center - monitor activity, manage your intelligent swarm, and stay ahead of threats
         </Text>
       </div>
       

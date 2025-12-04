@@ -39,12 +39,12 @@ const Teams = () => {
         lastActive: "2 hours ago",
         specialization: "Infrastructure",
         recentActivity: [
-          "Updated STING deployment scripts",
+          "Updated Hive deployment scripts",
           "Added new monitoring dashboards",
           "Optimized database performance"
         ],
         HoneyJarAccess: [
-          { name: "STING Platform Knowledge", role: "admin" },
+          { name: "Hive Platform Knowledge", role: "admin" },
           { name: "DevOps Best Practices", role: "admin" },
           { name: "Security Protocols", role: "viewer" }
         ],
@@ -73,7 +73,7 @@ const Teams = () => {
         HoneyJarAccess: [
           { name: "AI Research Papers", role: "admin" },
           { name: "Model Training Data", role: "admin" },
-          { name: "STING Platform Knowledge", role: "viewer" }
+          { name: "Hive Platform Knowledge", role: "viewer" }
         ],
         members_list: [
           { name: "Dr. Emma Wilson", role: "Queen", status: "online", avatar: "👑" },

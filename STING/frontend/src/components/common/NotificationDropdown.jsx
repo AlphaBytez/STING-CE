@@ -12,7 +12,7 @@ const NotificationDropdown = ({ isOpen, onClose, notificationCount = 5, onClearA
     {
       id: 1,
       type: 'info',
-      title: 'Welcome to STING!',
+      title: 'Welcome to Hive!',
       message: 'Your secure AI platform is ready. Start by uploading documents to create your first Honey Jar.',
       time: '2 minutes ago',
       unread: true
@@ -45,7 +45,7 @@ const NotificationDropdown = ({ isOpen, onClose, notificationCount = 5, onClearA
       id: 5,
       type: 'system',
       title: 'System Update',
-      message: 'STING platform updated with improved security and glass morphism UI enhancements.',
+      message: 'Hive platform updated with improved security and glass morphism UI enhancements.',
       time: '2 days ago',
       unread: false
     }

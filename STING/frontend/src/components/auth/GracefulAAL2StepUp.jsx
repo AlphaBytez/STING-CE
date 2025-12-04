@@ -102,7 +102,7 @@ const GracefulAAL2StepUp = () => {
       <div className="sting-glass-card sting-glass-default sting-elevation-medium p-8 w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <img src="/sting-logo.png" alt="STING" className="w-20 h-20 mx-auto mb-4" />
+          <img src="/sting-logo.png" alt="Hive" className="w-20 h-20 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-white mb-2">
             {isNewUserFlow ? 'Enhance Your Security' : 'Enhanced Security Available'}
           </h1>

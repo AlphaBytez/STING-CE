@@ -221,7 +221,7 @@ const SimplifiedKratosLogin = () => {
       <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 w-full max-w-md border border-white/20">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">
-            {isAAL2 ? 'Additional Security Required' : 'Welcome to STING'}
+            {isAAL2 ? 'Additional Security Required' : 'Welcome to Hive'}
           </h1>
           <p className="text-gray-300">
             {isAAL2 ? 'Please authenticate with your second factor' : 'Sign in to continue'}

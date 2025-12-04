@@ -148,7 +148,7 @@ const IntegratedTOTPSetup = ({ onComplete, onSetupComplete, onCancel }) => {
    * Generate TOTP URI if not provided
    */
   const generateTOTPURI = (secret) => {
-    const issuer = 'STING Platform';
+    const issuer = 'Hive';
     const accountName = flowData?.identity?.traits?.email || 'user';
     return `otpauth://totp/${issuer}:${accountName}?secret=${secret}&issuer=${issuer}`;
   };

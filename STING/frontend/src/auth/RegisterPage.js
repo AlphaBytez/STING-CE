@@ -376,8 +376,8 @@ const RegisterPage = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900">
       <div className="w-full max-w-md bg-gray-800 p-8 rounded-lg shadow-lg text-white">
-        <img src="/sting-logo.png" alt="STING Logo" className="w-32 h-32 mx-auto mb-6" />
-        <h2 className="text-2xl font-bold text-center mb-6">Create your STING account</h2>
+        <img src="/sting-logo.png" alt="Hive Logo" className="w-32 h-32 mx-auto mb-6" />
+        <h2 className="text-2xl font-bold text-center mb-6">Create your Hive account</h2>
         {error && <div className="mb-4 p-2 bg-red-600 text-white rounded">{error}</div>}
         {flow && flow.ui?.nodes?.some(n => n.attributes?.type === 'webauthn') && (
           <button

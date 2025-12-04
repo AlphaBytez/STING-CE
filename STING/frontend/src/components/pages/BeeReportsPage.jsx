@@ -571,7 +571,7 @@ ${report.description || 'No description provided'}
 - **Downloads:** ${report.download_count || 0}
 
 ---
-*This report was exported to your Basket from STING Bee Reports.*
+*This report was exported to your Basket from Hive Bee Reports.*
 *For the full report content, use the Download feature.*
 `;
 

@@ -213,7 +213,7 @@ const PasskeyKratosEmbed = () => {
                   <iframe
                     src={flowUrl + '&ui_theme=sting'}
                     className="w-full h-96 bg-transparent"
-                    title="STING Passkey Management"
+                    title="Hive Passkey Management"
                     sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
                     style={{
                       colorScheme: 'dark',
@@ -228,13 +228,13 @@ const PasskeyKratosEmbed = () => {
                   </div>
                 </div>
                 
-                {/* STING branding integration */}
+                {/* Hive branding integration */}
                 <div className="p-3 bg-slate-800/30 border-t border-gray-600/30">
                   <div className="flex items-center justify-between text-xs text-gray-400">
                     <span>Passkey management interface</span>
                     <div className="flex items-center gap-1">
                       <span>Themed for</span>
-                      <span className="text-yellow-500 font-medium">STING</span>
+                      <span className="text-yellow-500 font-medium">Hive</span>
                     </div>
                   </div>
                 </div>
@@ -246,7 +246,7 @@ const PasskeyKratosEmbed = () => {
               <div className="text-sm">
                 <p className="text-amber-200 font-medium mb-1">Enhanced Security Interface</p>
                 <p className="text-amber-300/80">
-                  This interface is styled to match STING's design system. Use the form above to add or remove passkeys securely. Changes will be reflected after refreshing.
+                  This interface is styled to match Hive's design system. Use the form above to add or remove passkeys securely. Changes will be reflected after refreshing.
                 </p>
               </div>
             </div>

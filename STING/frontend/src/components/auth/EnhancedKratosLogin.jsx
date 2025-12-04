@@ -1982,9 +1982,9 @@ const EnhancedKratosLogin = () => {
         {/* Glass card container */}
         <div className="relative z-10 w-full max-w-md p-8 sting-glass-card sting-glass-strong sting-elevation-floating animate-fade-in-up">
           <div className="text-center mb-6">
-            <img src="/sting-logo.png" alt="STING Logo" className="w-24 h-24 mx-auto mb-2" />
+            <img src="/sting-logo.png" alt="Hive Logo" className="w-24 h-24 mx-auto mb-2" />
             <h2 className="text-2xl font-bold">
-              {needsAAL2 ? 'Complete Two-Factor Authentication' : 'Sign in to STING'}
+              {needsAAL2 ? 'Complete Two-Factor Authentication' : 'Sign in to Hive'}
             </h2>
             {needsAAL2 && (
               <p className="text-sm text-blue-300 mt-2">

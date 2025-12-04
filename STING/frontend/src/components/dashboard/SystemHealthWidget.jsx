@@ -20,7 +20,7 @@ const SystemHealthWidget = () => {
       console.log('System health API failed, using fallback data:', error.message);
       // Use fallback service data immediately on any error
       setServices([
-        { name: 'STING Core API', status: 'healthy', uptime: '99.9%', responseTime: '32ms', description: 'Main application server' },
+        { name: 'Hive Core API', status: 'healthy', uptime: '99.9%', responseTime: '32ms', description: 'Main application server' },
         { name: 'Kratos Auth', status: 'healthy', uptime: '99.8%', responseTime: '28ms', description: 'Authentication service' },
         { name: 'PostgreSQL DB', status: 'healthy', uptime: '99.9%', responseTime: '8ms', description: 'Primary database' },
         { name: 'Knowledge Service', status: 'healthy', uptime: '99.7%', responseTime: '95ms', description: 'Honey jar storage' },

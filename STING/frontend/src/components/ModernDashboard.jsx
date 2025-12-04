@@ -222,7 +222,7 @@ const ModernDashboard = () => {
     {
       id: 'beeacon-monitoring',
       title: 'Beeacon Monitoring',
-      description: 'Real-time visibility into your STING hive with intelligent observability',
+      description: 'Real-time visibility into your Hive with intelligent observability',
       icon: TrendingUp,
       locked: !isUserAdmin && userLevel < 4,
       requirement: isUserAdmin ? 'Admin Access' : 'Reach Level 4',
@@ -427,7 +427,7 @@ const ModernDashboard = () => {
             <StorageWidget />
             <ActivityTimeline activities={[
               {
-                title: 'Welcome to STING!',
+                title: 'Welcome to Hive!',
                 description: 'Your security hive is now active',
                 time: 'Just now',
                 color: 'bg-yellow-500'

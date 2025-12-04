@@ -117,7 +117,7 @@ const CredentialSetup = () => {
         {/* Header Card */}
         <div className="sting-glass-card sting-glass-default sting-elevation-medium p-6 mb-6">
           <div className="text-center mb-4">
-            <img src="/sting-logo.png" alt="STING" className="w-16 h-16 mx-auto mb-3" />
+            <img src="/sting-logo.png" alt="Hive" className="w-16 h-16 mx-auto mb-3" />
             <h1 className="text-2xl font-bold text-white mb-2">
               🔒 Security Setup Required
             </h1>

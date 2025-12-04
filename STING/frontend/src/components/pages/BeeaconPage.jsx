@@ -171,7 +171,7 @@ const BeeaconPage = () => {
           )}
         </div>
         <p className="text-gray-400">
-          Real-time visibility into your STING hive with intelligent log sanitization and observability
+          Real-time visibility into your Hive with intelligent log sanitization and observability
         </p>
       </div>
       
@@ -360,7 +360,7 @@ const BeeaconPage = () => {
           <span className="px-2 py-1 bg-amber-500 text-black text-xs font-bold rounded-full">ENTERPRISE</span>
         </div>
         <p className="text-gray-300 mb-4">
-          Unlock AI-powered insights, anomaly detection, and predictive analytics for your STING hive.
+          Unlock AI-powered insights, anomaly detection, and predictive analytics for your Hive.
         </p>
         <button 
           onClick={() => setShowHiveMindModal(true)}
@@ -374,7 +374,7 @@ const BeeaconPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <NativeDashboard
           dashboardType="system-overview"
-          title="STING System Overview"
+          title="Hive System Overview"
           description="High-level system health and performance metrics"
         />
         
@@ -423,9 +423,9 @@ const BeeaconPage = () => {
             <div className="grid md:grid-cols-2 gap-8">
               {/* Left Column - Overview */}
               <div>
-                <h3 className="text-xl font-bold text-white mb-4">Intelligent STING Observability</h3>
+                <h3 className="text-xl font-bold text-white mb-4">Intelligent Hive Observability</h3>
                 <p className="text-gray-300 mb-6">
-                  HiveMind is STING's next-generation AI-powered observability platform that transforms 
+                  HiveMind is Hive's next-generation AI-powered observability platform that transforms
                   raw system data into actionable intelligence for your security operations.
                 </p>
 
@@ -507,7 +507,7 @@ const BeeaconPage = () => {
                   <h4 className="text-amber-400 font-semibold mb-2">🚀 Coming Soon</h4>
                   <p className="text-gray-300 text-sm">
                     HiveMind is currently in development. Enable observability services below to prepare 
-                    your STING deployment for AI-enhanced monitoring capabilities.
+                    your Hive deployment for AI-enhanced monitoring capabilities.
                   </p>
                 </div>
               </div>

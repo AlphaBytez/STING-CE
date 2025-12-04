@@ -381,7 +381,7 @@ const PasskeySetup = () => {
           
           <div className="mb-6 p-4 bg-yellow-900 bg-opacity-30 border border-yellow-700 rounded">
             <p className="text-yellow-300">
-              Your browser doesn't support passkeys, but you can still use STING with your password.
+              Your browser doesn't support passkeys, but you can still use Hive with your password.
             </p>
           </div>
           
@@ -409,7 +409,7 @@ const PasskeySetup = () => {
               </svg>
               <h3 className="text-lg font-semibold text-green-400 mb-2">Passkey Created Successfully!</h3>
               <p className="text-gray-300">
-                You can now sign in to STING using your biometrics or security key.
+                You can now sign in to Hive using your biometrics or security key.
               </p>
             </div>
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-400 mx-auto mb-4"></div>
@@ -454,7 +454,7 @@ const PasskeySetup = () => {
                 {error.includes('registration session') && (
                   <div className="mt-2 pt-2 border-t border-red-800">
                     <p className="text-red-200 text-xs">
-                      You can still use STING with your password. You can set up a passkey later in your account settings.
+                      You can still use Hive with your password. You can set up a passkey later in your account settings.
                     </p>
                   </div>
                 )}

@@ -392,13 +392,13 @@ const MainInterface = () => {
           <div className="flex items-center gap-4">
             <img 
               src="/sting-logo.png" 
-              alt="STING Logo" 
+              alt="Hive Logo" 
               className="w-12 h-12 object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200"
               onClick={() => navigate('/dashboard')}
               title="Go to Dashboard"
             />
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold m-0" style={{ color: 'var(--color-text)' }}>STING CE</h1>
+              <h1 className="text-xl font-bold m-0" style={{ color: 'var(--color-text)' }}>Hive</h1>
               <span style={{ color: 'var(--color-text-tertiary)' }}>|</span>
               <h2 className="text-lg font-medium m-0" style={{ color: 'var(--color-text)' }}>
                 {menuItems.find(item => item.path === currentPath)?.name || 'Dashboard'}

@@ -69,8 +69,8 @@ const HoneyJarContextBar = ({ currentHoneyJar, onHoneyJarChange, onSearchStateCh
         setHoneyJars([
           {
             id: 'sample-1',
-            name: 'STING Platform Documentation',
-            description: 'Core documentation and guides for the STING platform',
+            name: 'Hive Platform Documentation',
+            description: 'Core documentation and guides for the Hive platform',
             type: 'public',
             tags: ['documentation', 'platform', 'guides'],
             stats: { document_count: 0 }
@@ -131,7 +131,7 @@ const HoneyJarContextBar = ({ currentHoneyJar, onHoneyJarChange, onSearchStateCh
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full">
                 {currentHoneyJar.isSystemDefault ? (
-                  <Shield className="w-4 h-4" title="STING System Knowledge (Auto-loaded)" />
+                  <Shield className="w-4 h-4" title="Hive System Knowledge (Auto-loaded)" />
                 ) : (
                   <Database className="w-4 h-4" />
                 )}

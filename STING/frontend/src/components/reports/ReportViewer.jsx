@@ -91,7 +91,7 @@ ${reportData.result_summary ? Object.entries(reportData.result_summary)
 - **Completed:** ${reportData.completed_at ? new Date(reportData.completed_at).toLocaleString() : 'N/A'}
 
 ---
-*This report was exported to your Basket from STING Bee Reports.*
+*This report was exported to your Basket from Hive Bee Reports.*
 *For the full report content, use the Download feature.*
 `;
 

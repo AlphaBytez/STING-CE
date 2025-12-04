@@ -477,9 +477,9 @@ const EmailFirstLogin = () => {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 w-full max-w-md border border-white/20">
           <div className="text-center mb-8">
-            <img src="/sting-logo.png" alt="STING Logo" className="w-24 h-24 mx-auto mb-4" />
+            <img src="/sting-logo.png" alt="Hive Logo" className="w-24 h-24 mx-auto mb-4" />
             <h1 className="text-3xl font-bold text-white mb-2">
-              {isAAL2 ? 'Additional Security Required' : 'Welcome to STING'}
+              {isAAL2 ? 'Additional Security Required' : 'Welcome to Hive'}
             </h1>
             <p className="text-gray-300">
               {isAAL2 ? 'Please verify your identity' : 'Sign in with your email address'}
@@ -526,7 +526,7 @@ const EmailFirstLogin = () => {
                 <div className="flex-1">
                   <h3 className="text-yellow-300 font-medium mb-2">No Users Found</h3>
                   <p className="text-yellow-200 text-sm mb-3">
-                    This appears to be a fresh STING installation. You need to create an admin account first.
+                    This appears to be a fresh Hive installation. You need to create an admin account first.
                   </p>
                   <div className="bg-black/30 rounded p-3 font-mono text-xs text-yellow-100 mb-2">
                     sudo msting create admin admin@sting.local
@@ -614,7 +614,7 @@ const EmailFirstLogin = () => {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 w-full max-w-md border border-white/20">
           <div className="text-center mb-8">
-            <img src="/sting-logo.png" alt="STING Logo" className="w-20 h-20 mx-auto mb-4" />
+            <img src="/sting-logo.png" alt="Hive Logo" className="w-20 h-20 mx-auto mb-4" />
             <h1 className="text-3xl font-bold text-white mb-2">Check Your Email</h1>
             <p className="text-gray-300">
               Enter the verification code sent to
@@ -724,7 +724,7 @@ const EmailFirstLogin = () => {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 w-full max-w-md border border-white/20">
           <div className="text-center mb-8">
-            <img src="/sting-logo.png" alt="STING Logo" className="w-20 h-20 mx-auto mb-4" />
+            <img src="/sting-logo.png" alt="Hive Logo" className="w-20 h-20 mx-auto mb-4" />
             <h1 className="text-3xl font-bold text-white mb-2">Two-Factor Authentication</h1>
             <p className="text-gray-300 mb-2">
               You're accessing sensitive data that requires additional verification

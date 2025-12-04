@@ -236,7 +236,7 @@ const TOTPAuth = ({ onSuccess, onCancel }) => {
             </summary>
             <div className="mt-3 text-xs space-y-2 text-left bg-slate-800/30 rounded-lg p-3">
               <p>• Open your authenticator app (Google Authenticator, Authy, etc.)</p>
-              <p>• Find the entry for "STING" or "{window.location.hostname}"</p>
+              <p>• Find the entry for "Hive" or "{window.location.hostname}"</p>
               <p>• Enter the current 6-digit code</p>
               <p>• Code changes every 30 seconds</p>
             </div>

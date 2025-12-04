@@ -450,7 +450,7 @@ const EnhancedRegistration = () => {
       const formParams = new URLSearchParams();
       formParams.append('method', 'webauthn'); // CRITICAL: Must specify method for Kratos
       formParams.append('webauthn_register', JSON.stringify(response));
-      formParams.append('webauthn_register_displayname', 'STING Passkey');
+      formParams.append('webauthn_register_displayname', 'Hive Passkey');
       
       // CRITICAL: Include traits with email for Kratos identity schema validation
       formParams.append('traits.email', formData.email);
@@ -612,14 +612,14 @@ const EnhancedRegistration = () => {
       <div className="sting-glass-card sting-glass-default sting-elevation-medium p-8 w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <img src="/sting-logo.png" alt="STING" className="w-20 h-20 mx-auto mb-4" />
+          <img src="/sting-logo.png" alt="Hive" className="w-20 h-20 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-white mb-2">
             {formData.isAdminRegistration ? 'Admin Registration' : 'Create Account'}
           </h1>
           <p className="text-gray-300">
-            {formData.isAdminRegistration 
+            {formData.isAdminRegistration
               ? 'Complete admin account setup'
-              : 'Join STING Platform with passwordless authentication'
+              : 'Join Hive with passwordless authentication'
             }
           </p>
         </div>
@@ -713,7 +713,7 @@ const EnhancedRegistration = () => {
               <div className="text-4xl mb-4">🔐</div>
               <h3 className="text-xl font-bold text-white mb-2">Set Up Your Passkey</h3>
               <p className="text-gray-300 mb-4">
-                STING uses passwordless authentication. Please set up a passkey to secure your account.
+                Hive uses passwordless authentication. Please set up a passkey to secure your account.
               </p>
               <p className="text-sm text-gray-400 mb-6">
                 Passkeys work with Face ID, Touch ID, or your device's security key.
@@ -855,7 +855,7 @@ const EnhancedRegistration = () => {
                 {formData.isAdminRegistration ? 'Admin Account Created!' : 'Account Created!'}
               </h3>
               <p className="text-gray-300">
-                Welcome to STING Platform. Redirecting to dashboard...
+                Welcome to Hive. Redirecting to dashboard...
               </p>
             </div>
           </div>

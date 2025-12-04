@@ -177,7 +177,7 @@ const ReportTemplateManager = () => {
           updated_at: new Date().toISOString(),
           metadata: {
             version: '1.0',
-            author: 'STING Security Team',
+            author: 'Hive Security Team',
             tags: ['incident', 'security', 'response']
           }
         },
@@ -193,7 +193,7 @@ const ReportTemplateManager = () => {
           updated_at: new Date().toISOString(),
           metadata: {
             version: '1.2',
-            author: 'STING Compliance Team',
+            author: 'Hive Compliance Team',
             tags: ['compliance', 'audit', 'recommendations']
           }
         },
@@ -209,7 +209,7 @@ const ReportTemplateManager = () => {
           updated_at: new Date().toISOString(),
           metadata: {
             version: '2.1',
-            author: 'STING Analytics Team', 
+            author: 'Hive Analytics Team', 
             tags: ['threat', 'analytics', 'intelligence']
           }
         },

@@ -269,7 +269,7 @@ const PasskeySettingsIntegrated = () => {
                   Email Verification Required
                 </p>
                 <p className="text-sm text-gray-300">
-                  Please verify your email address to enable passkey setup. Check your inbox for a verification email from STING Platform.
+                  Please verify your email address to enable passkey setup. Check your inbox for a verification email from Hive.
                 </p>
                 <ul className="text-sm text-gray-400 mt-2 space-y-1">
                   <li>• Check your email inbox and spam folder</li>

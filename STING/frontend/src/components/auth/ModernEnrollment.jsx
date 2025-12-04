@@ -197,7 +197,7 @@ const ModernEnrollment = () => {
         <div className="w-full max-w-2xl bg-gray-800 rounded-lg shadow-xl p-8 text-white">
           <div className="text-center mb-8">
             <Shield className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-            <h1 className="text-3xl font-bold mb-2">Welcome to STING Security</h1>
+            <h1 className="text-3xl font-bold mb-2">Welcome to Hive Security</h1>
             <p className="text-gray-300 text-lg">
               {isAdmin ? 'Admin' : 'User'} account security setup required
             </p>
@@ -206,7 +206,7 @@ const ModernEnrollment = () => {
           <div className="bg-blue-950 border border-blue-700 rounded-lg p-6 mb-6">
             <h2 className="text-xl font-semibold text-blue-200 mb-4">🔒 Universal 3-Factor Security</h2>
             <p className="text-blue-300 mb-4">
-              STING uses 3-factor authentication to ensure you never get locked out while maintaining maximum security:
+              Hive uses 3-factor authentication to ensure you never get locked out while maintaining maximum security:
             </p>
             
             <div className="space-y-3">

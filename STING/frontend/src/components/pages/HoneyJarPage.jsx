@@ -277,8 +277,8 @@ const HoneyJarPage = () => {
   const mockHoneyJars = [
     {
       id: 1,
-      name: "STING Platform Knowledge",
-      description: "Core documentation and API references for STING platform",
+      name: "Hive Platform Knowledge",
+      description: "Core documentation and API references for Hive platform",
       documents: 42,
       embeddings: 1250,
       lastUpdated: "2025-06-20",
@@ -1673,7 +1673,7 @@ const HoneyJarPage = () => {
                         <Hexagon className="w-4 h-4 text-yellow-400" />
                         <div>
                           <div className="font-medium">HJX Format</div>
-                          <div className="text-xs text-gray-400">STING Honey Jar Export (Recommended)</div>
+                          <div className="text-xs text-gray-400">Hive Honey Jar Export (Recommended)</div>
                         </div>
                       </button>
                       <button

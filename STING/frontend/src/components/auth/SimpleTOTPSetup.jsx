@@ -36,7 +36,7 @@ const SimpleTOTPSetup = ({ onSetupComplete, onCancel }) => {
         setTotpSecret(totp_secret);
         
         // Generate QR code
-        const totpUrl = `otpauth://totp/STING:${getUserEmail()}?secret=${totp_secret}&issuer=STING`;
+        const totpUrl = `otpauth://totp/Hive:${getUserEmail()}?secret=${totp_secret}&issuer=Hive`;
         const qrDataUrl = await QRCode.toDataURL(totpUrl);
         setQrCodeDataURL(qrDataUrl);
         

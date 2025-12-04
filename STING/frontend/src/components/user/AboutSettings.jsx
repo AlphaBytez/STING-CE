@@ -4,14 +4,14 @@ import { ExternalLink, Heart, Code, Shield, Globe } from 'lucide-react';
 const AboutSettings = () => {
   return (
     <div className="space-y-6">
-      {/* STING Information */}
+      {/* Hive Information */}
       <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-gradient-to-br from-yellow-500/20 to-amber-500/20 rounded-lg">
             <Shield className="w-6 h-6 text-yellow-400" />
           </div>
           <div>
-            <h3 className="text-xl font-semibold text-white">STING Platform</h3>
+            <h3 className="text-xl font-semibold text-white">Hive Platform</h3>
             <p className="text-slate-400 text-sm">Secure, Transparent, Intelligent, Natural Gateway</p>
           </div>
         </div>
@@ -91,8 +91,8 @@ const AboutSettings = () => {
         </div>
         
         <p className="text-slate-300 text-sm mb-4">
-          STING is proudly open source and community-driven. We believe in transparency, collaboration, 
-          and building tools that serve the greater good. Contributions, feedback, and community involvement 
+          Hive is proudly open source and community-driven. We believe in transparency, collaboration,
+          and building tools that serve the greater good. Contributions, feedback, and community involvement
           are always welcome and appreciated.
         </p>
         
@@ -127,7 +127,7 @@ const AboutSettings = () => {
             © {new Date().getFullYear()} AlphaBytez. All rights reserved.
           </p>
           <p className="text-slate-500 text-xs">
-            STING Community Edition is released under the MIT License.
+            Hive Community Edition is released under the MIT License.
             See the LICENSE file in the source repository for full terms.
           </p>
         </div>

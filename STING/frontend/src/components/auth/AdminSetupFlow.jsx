@@ -253,7 +253,7 @@ const AdminSetupFlow = () => {
       <div className="relative z-10 w-full max-w-md p-8 sting-glass-card sting-glass-strong animate-fade-in-up">
         {/* Header */}
         <div className="text-center mb-8">
-          <img src="/sting-logo.png" alt="STING Logo" className="w-20 h-20 mx-auto mb-4" />
+          <img src="/sting-logo.png" alt="Hive Logo" className="w-20 h-20 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-white">Admin Setup</h1>
           <p className="text-gray-400 mt-2">
             Set up your administrator account with passwordless authentication

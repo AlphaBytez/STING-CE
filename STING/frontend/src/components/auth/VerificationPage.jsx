@@ -534,7 +534,7 @@ const VerificationPage = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#161922]">
         <div className="w-full max-w-md bg-gray-800 p-8 rounded-lg shadow-lg text-white">
-          <img src="/sting-logo.png" alt="STING Logo" className="w-32 h-32 mx-auto mb-6" />
+          <img src="/sting-logo.png" alt="Hive Logo" className="w-32 h-32 mx-auto mb-6" />
           <h2 className="text-2xl font-bold text-center mb-6">Email Verified</h2>
           
           <div className="mb-6 p-4 bg-green-800 bg-opacity-30 border border-green-700 rounded text-center">
@@ -570,7 +570,7 @@ const VerificationPage = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#161922]">
         <div className="w-full max-w-md bg-gray-800 p-8 rounded-lg shadow-lg text-white">
-          <img src="/sting-logo.png" alt="STING Logo" className="w-32 h-32 mx-auto mb-6" />
+          <img src="/sting-logo.png" alt="Hive Logo" className="w-32 h-32 mx-auto mb-6" />
           <h2 className="text-2xl font-bold text-center mb-6">Verification Email Sent</h2>
           
           <div className="mb-6 p-4 bg-blue-800 bg-opacity-30 border border-blue-700 rounded text-center">
@@ -599,7 +599,7 @@ const VerificationPage = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#161922]">
         <div className="w-full max-w-md bg-gray-800 p-8 rounded-lg shadow-lg text-white">
-          <img src="/sting-logo.png" alt="STING Logo" className="w-32 h-32 mx-auto mb-6" />
+          <img src="/sting-logo.png" alt="Hive Logo" className="w-32 h-32 mx-auto mb-6" />
           <h2 className="text-2xl font-bold text-center mb-6">Verification Failed</h2>
           
           <div className="mb-6 p-4 bg-red-900 bg-opacity-30 border border-red-800 rounded text-center">
@@ -646,7 +646,7 @@ const VerificationPage = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#161922]">
         <div className="w-full max-w-md bg-gray-800 p-8 rounded-lg shadow-lg text-white">
-          <img src="/sting-logo.png" alt="STING Logo" className="w-32 h-32 mx-auto mb-6" />
+          <img src="/sting-logo.png" alt="Hive Logo" className="w-32 h-32 mx-auto mb-6" />
           <h2 className="text-2xl font-bold text-center mb-6">Enter Verification Code</h2>
           
           {flow.ui.messages?.map((message, idx) => (
@@ -838,7 +838,7 @@ const VerificationPage = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#161922]">
       <div className="w-full max-w-md bg-gray-800 p-8 rounded-lg shadow-lg text-white">
-        <img src="/sting-logo.png" alt="STING Logo" className="w-32 h-32 mx-auto mb-6" />
+        <img src="/sting-logo.png" alt="Hive Logo" className="w-32 h-32 mx-auto mb-6" />
         <h2 className="text-2xl font-bold text-center mb-6">Verify Your Email</h2>
         
         {error && <div className="mb-4 p-3 bg-red-900 bg-opacity-30 border border-red-800 text-white rounded">{error}</div>}

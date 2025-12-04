@@ -35,7 +35,7 @@ const featureIcons = {
 
 // Feature descriptions
 const featureDescriptions = {
-  marketplace: 'Access the STING Marketplace to discover and deploy pre-built AI agents, integrations, and workflows created by the community and certified partners.',
+  marketplace: 'Access the Hive Marketplace to discover and deploy pre-built AI agents, integrations, and workflows created by the community and certified partners.',
   teams: 'Collaborate with your organization using advanced team management, role-based access control, and shared workspaces.',
   swarm: 'Orchestrate distributed AI workloads across multiple nodes with intelligent load balancing and resource optimization.',
   'advanced-pii': 'Ensure compliance with advanced PII detection, automated redaction, and comprehensive audit trails for HIPAA, GDPR, and other regulations.',

@@ -533,7 +533,7 @@ const BeeChat = () => {
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       try {
-        console.log('🍯 Auto-loading STING system jar for BeeChat context...');
+        console.log('🍯 Auto-loading Hive system jar for BeeChat context...');
         
         // Get system jar configuration
         const jarConfig = await systemApi.getSystemJarConfig();
@@ -545,8 +545,8 @@ const BeeChat = () => {
           // Set system jar as default context
           const systemContext = {
             id: honeyJarDetails.id,
-            name: honeyJarDetails.name || '🛡️ STING System Knowledge',
-            description: honeyJarDetails.description || 'Core STING platform knowledge and documentation',
+            name: honeyJarDetails.name || '🛡️ Hive System Knowledge',
+            description: honeyJarDetails.description || 'Core Hive platform knowledge and documentation',
             isSystemDefault: true
           };
           
@@ -556,7 +556,7 @@ const BeeChat = () => {
           const welcomeMessage = {
             id: `system_welcome_${Date.now()}`,
             sender: 'system',
-            text: '🐝 **Welcome to Bee Chat!** I\'m connected to the STING system knowledge base and ready to help you with STING features, security insights, and platform guidance.',
+            text: '🐝 **Welcome to Bee Chat!** I\'m connected to the Hive system knowledge base and ready to help you with Hive features, security insights, and platform guidance.',
             timestamp: new Date().toISOString(),
             isAction: true
           };
@@ -571,12 +571,12 @@ const BeeChat = () => {
           
           console.log('✅ System jar auto-loaded:', systemContext.name);
         } else {
-          // Set up default STING knowledge context even without configured system jar
-          console.log('📚 Setting up default STING knowledge context...');
+          // Set up default Hive knowledge context even without configured system jar
+          console.log('📚 Setting up default Hive knowledge context...');
           const defaultContext = {
-            id: 'default_sting_knowledge',
-            name: '🛡️ STING Platform Knowledge',
-            description: 'Core STING platform features, security guidance, and documentation',
+            id: 'default_hive_knowledge',
+            name: '🛡️ Hive Platform Knowledge',
+            description: 'Core Hive platform features, security guidance, and documentation',
             isSystemDefault: true,
             isBuiltIn: true
           };
@@ -586,7 +586,7 @@ const BeeChat = () => {
           const welcomeMessage = {
             id: `default_welcome_${Date.now()}`,
             sender: 'system',
-            text: '🐝 **Welcome to Bee Chat!** I\'m here to help you with STING platform features, authentication, security guidance, and general support. Ask me anything about STING!',
+            text: '🐝 **Welcome to Bee Chat!** I\'m here to help you with Hive platform features, authentication, security guidance, and general support. Ask me anything about Hive!',
             timestamp: new Date().toISOString(),
             isAction: true
           };
@@ -598,7 +598,7 @@ const BeeChat = () => {
             return prev;
           });
           
-          console.log('✅ Default STING knowledge context loaded');
+          console.log('✅ Default Hive knowledge context loaded');
         }
         
         // Mark that we attempted auto-load for this session

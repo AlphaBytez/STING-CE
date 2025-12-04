@@ -148,7 +148,7 @@ const PostRegistration = () => {
   // Original verification/completion flow
   return (
     <GlassLoginLayout 
-      title="Welcome to STING!" 
+      title="Welcome to Hive!" 
       subtitle="Your account has been created successfully"
     >
       <div className="text-center">

@@ -574,7 +574,7 @@ const EnhancedKratosRegistration = () => {
           {webAuthnSupported && (
             <>
               <p className="text-center mb-6 text-gray-300">
-                STING supports passkeys, a more secure and easier way to sign in
+                Hive supports passkeys, a more secure and easier way to sign in
                 without remembering passwords.
               </p>
               
