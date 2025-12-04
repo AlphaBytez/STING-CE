@@ -144,10 +144,28 @@ locals {
   qemu_accelerator = var.arch == "arm64" ? "hvf" : "kvm"  # hvf for macOS ARM, kvm for Linux x86
 
   # ARM64 requires UEFI firmware (homebrew location on macOS)
-  efi_firmware = "/opt/homebrew/share/qemu/edk2-aarch64-code.fd"
+  efi_firmware_code = "/opt/homebrew/share/qemu/edk2-aarch64-code.fd"
+  efi_firmware_vars = "/opt/homebrew/share/qemu/edk2-arm-vars.fd"
 
   # Output filename includes architecture
   output_name = "${var.vm_name}-${var.sting_version}-${var.arch}"
+
+  # Architecture-specific boot timing (UEFI takes longer to initialize)
+  boot_wait_time = var.arch == "arm64" ? "30s" : "10s"
+
+  # Architecture-specific boot command
+  # ARM64 UEFI uses slightly different GRUB editing
+  boot_cmd = var.arch == "arm64" ? [
+    "e<wait5>",                                # Edit boot entry (longer wait for UEFI GRUB)
+    "<down><down><down><end>",                 # Navigate to linux line
+    " autoinstall ds=nocloud-net\\;s=http://{{.HTTPIP}}:{{.HTTPPort}}/",
+    "<wait><f10>"                              # Boot
+  ] : [
+    "e<wait3>",                                # Edit boot entry
+    "<down><down><down><end>",                 # Navigate to linux line
+    " autoinstall ds=nocloud-net\\;s=http://{{.HTTPIP}}:{{.HTTPPort}}/",
+    "<f10>"                                    # Boot
+  ]
 }
 
 # =============================================================================
@@ -172,15 +190,20 @@ source "qemu" "sting-ce" {
   machine_type     = local.qemu_machine
   accelerator      = local.qemu_accelerator
 
-  # ARM64-specific: UEFI firmware and CPU settings
-  # Only apply these for ARM64 builds on macOS
+  # ARM64 EFI boot configuration (uses native packer options)
+  efi_boot          = var.arch == "arm64"
+  efi_firmware_code = var.arch == "arm64" ? local.efi_firmware_code : null
+  efi_firmware_vars = var.arch == "arm64" ? local.efi_firmware_vars : null
+
+  # ARM64-specific QEMU args (CPU, display devices, and boot menu)
+  # Note: Don't include pflash here - use efi_* options above
   qemuargs = var.arch == "arm64" ? [
     ["-cpu", "host"],
-    ["-bios", local.efi_firmware],
     ["-device", "virtio-gpu-pci"],
     ["-device", "usb-ehci"],
     ["-device", "usb-kbd"],
-    ["-device", "usb-mouse"]
+    ["-device", "usb-mouse"],
+    ["-boot", "menu=on"]
   ] : []
 
   # Disk settings
@@ -196,13 +219,9 @@ source "qemu" "sting-ce" {
   host_port_max    = 2229
 
   # Boot command for Ubuntu 24.04 autoinstall (GRUB menu)
-  boot_wait        = "10s"
-  boot_command     = [
-    "e<wait3>",
-    "<down><down><down><end>",
-    " autoinstall ds=nocloud-net\\;s=http://{{.HTTPIP}}:{{.HTTPPort}}/",
-    "<f10>"
-  ]
+  # Uses architecture-specific timing from locals
+  boot_wait        = local.boot_wait_time
+  boot_command     = local.boot_cmd
 
   # SSH configuration
   ssh_username     = var.ssh_username

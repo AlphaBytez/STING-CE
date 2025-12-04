@@ -102,8 +102,9 @@ create_source_tarball() {
 
     # Create tarball excluding dev/build artifacts and secrets
     # Exclude .git entirely (saves ~3GB, not needed in OVA)
-    # Exclude env/ files (generated with secrets, not needed)
-    tar --exclude='.git' \
+    # Note: Uses BSD tar syntax for macOS compatibility (-s for transform)
+    tar -czf "$SOURCE_TARBALL" \
+        --exclude='.git' \
         --exclude='packer/output' \
         --exclude='packer/*.tar.gz' \
         --exclude='packer/*.log' \
@@ -112,19 +113,18 @@ create_source_tarball() {
         --exclude='STING/frontend/build' \
         --exclude='STING/env' \
         --exclude='STING/conf/config.yml' \
-        --exclude='STING/**/__pycache__' \
-        --exclude='STING/**/*.pyc' \
-        --exclude='STING/web-setup/venv' \
         --exclude='*.ova' \
         --exclude='*.vmdk' \
         --exclude='*.qcow2' \
-        --warning=no-file-changed \
-        -czf "$SOURCE_TARBALL" \
-        --transform 's,^,STING-CE/,' \
-        . 2>/dev/null || true
+        -s ',^,STING-CE/,' \
+        .
 
-    local tarball_size=$(du -h "$SOURCE_TARBALL" | cut -f1)
-    log "Source tarball created: $SOURCE_TARBALL ($tarball_size)"
+    if [ -f "$SOURCE_TARBALL" ]; then
+        local tarball_size=$(du -h "$SOURCE_TARBALL" | cut -f1)
+        log "Source tarball created: $SOURCE_TARBALL ($tarball_size)"
+    else
+        error "Failed to create source tarball"
+    fi
 
     cd "$SCRIPT_DIR"
 }
@@ -206,6 +206,7 @@ run_packer_build() {
     log "Output directory: ${OUTPUT_DIR}"
 
     # Run packer with force to overwrite existing
+    # ARM64 UEFI firmware is handled automatically by packer via efi_* options
     log "Building for architecture: ${ARCH}"
     packer build -force -var-file=variables.pkrvars.hcl -var "arch=${ARCH}" sting-ce.pkr.hcl
 
