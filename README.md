@@ -1,4 +1,4 @@
-# STING CE (Community Edition)
+# STING Assistant
 
 > **Secure Trusted Intelligence and Networking Guardian**
 >
