@@ -46,10 +46,10 @@ echo ""
 
 # Check mDNS support
 if check_mdns_support; then
-    echo -e "${GREEN}✅ mDNS support detected - domain will be accessible from other devices${NC}"
+    echo -e "${GREEN}[+] mDNS support detected - domain will be accessible from other devices${NC}"
     mdns_available=true
 else
-    echo -e "${YELLOW}⚠️  mDNS not available - will use hosts file (local access only)${NC}"
+    echo -e "${YELLOW}[!]  mDNS not available - will use hosts file (local access only)${NC}"
     mdns_available=false
 fi
 echo ""
@@ -182,7 +182,7 @@ fi
 
 # Show final information
 echo ""
-echo -e "${GREEN}✅ Domain setup complete!${NC}"
+echo -e "${GREEN}[+] Domain setup complete!${NC}"
 echo ""
 show_domain_info
 

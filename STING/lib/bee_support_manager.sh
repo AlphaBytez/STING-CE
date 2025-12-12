@@ -142,8 +142,8 @@ create_smart_honey_jar() {
     flags=$(echo "$analysis_output" | grep "FLAGS:" | cut -d: -f2-)
     
     log_message "🎯 Issue type detected: $issue_type"
-    log_message "🔍 Target services: $services"
-    log_message "🚀 Diagnostic flags: $flags"
+    log_message " Target services: $services"
+    log_message " Diagnostic flags: $flags"
     
     # Capture targeted logs
     local log_dir
@@ -164,7 +164,7 @@ create_smart_honey_jar() {
         honey_jar_cmd="$honey_jar_cmd --ticket $ticket_id"
     fi
     
-    log_message "🍯 Creating intelligent honey jar..."
+    log_message " Creating intelligent honey jar..."
     log_message "Command: $honey_jar_cmd"
     
     # Execute honey jar creation
@@ -196,7 +196,7 @@ create_secure_download_link() {
     local duration="${3:-48h}"
     
     if [ ! -f "$bundle_path" ]; then
-        log_message "⚠️  Bundle file not found: $bundle_path" "WARNING"
+        log_message "[!]  Bundle file not found: $bundle_path" "WARNING"
         return 1
     fi
     
@@ -215,11 +215,11 @@ create_secure_download_link() {
         --test 2>/dev/null || echo '{"error": "Failed to generate link"}')
     
     if echo "$link_info" | grep -q "error"; then
-        log_message "❌ Failed to create secure download link" "ERROR"
+        log_message "[-] Failed to create secure download link" "ERROR"
         return 1
     fi
     
-    log_message "✅ Secure download link created"
+    log_message "[+] Secure download link created"
     log_message "🔗 Valid for: ${duration_hours} hours"
     return 0
 }
@@ -254,12 +254,12 @@ analysis:
   diagnostic_flags: []
 EOF
     
-    log_message "✅ Support ticket created: $ticket_id"
+    log_message "[+] Support ticket created: $ticket_id"
     
     if [ "$create_honey_jar" = "true" ]; then
-        log_message "🍯 Creating intelligent diagnostic bundle..."
+        log_message " Creating intelligent diagnostic bundle..."
         if create_smart_honey_jar "$issue_description" "$ticket_id"; then
-            log_message "✅ Diagnostic bundle created successfully"
+            log_message "[+] Diagnostic bundle created successfully"
             
             # Update ticket to indicate honey jar was created
             sed -i.bak "s/honey_jar_created: .*/honey_jar_created: true/" "$ticket_file" 2>/dev/null || true
@@ -274,14 +274,14 @@ EOF
             log_message "  3. 📱 Share in Discord #support-help channel"  
             log_message "  4. 🐛 Attach to GitHub issue (if reproducible bug)"
             log_message ""
-            log_message "🔒 **Secure Bundle Access:**"
+            log_message " **Secure Bundle Access:**"
             log_message "  • 48-hour time-limited download"
             log_message "  • Fully sanitized (no passwords, keys, PII)"
             log_message "  • Bundle integrity verification"
             log_message "  • Download attempt logging"
             
         else
-            log_message "⚠️  Diagnostic bundle creation failed, but ticket exists" "WARNING"
+            log_message "[!]  Diagnostic bundle creation failed, but ticket exists" "WARNING"
         fi
     fi
     
@@ -290,7 +290,7 @@ EOF
     log_message "  🎫 Ticket ID: $ticket_id"
     log_message "  📝 Description: $issue_description"
     log_message "  📁 Location: $ticket_file"
-    log_message "  🍯 Honey Jar: $([ "$create_honey_jar" = "true" ] && echo "Created" || echo "Not created")"
+    log_message "   Honey Jar: $([ "$create_honey_jar" = "true" ] && echo "Created" || echo "Not created")"
     
     echo "$ticket_id"
 }
@@ -333,7 +333,7 @@ list_support_tickets() {
 
 # Analyze system for potential issues
 analyze_system() {
-    log_message "🔍 Analyzing STING system for potential issues..."
+    log_message " Analyzing STING system for potential issues..."
     
     # Check service health
     log_message "📊 Service Health Check:"
@@ -345,7 +345,7 @@ analyze_system() {
         local current_dir
         current_dir=$(pwd)
         cd "${INSTALL_DIR}" 2>/dev/null || {
-            log_message "⚠️  Cannot access install directory: ${INSTALL_DIR}" "WARNING"
+            log_message "[!]  Cannot access install directory: ${INSTALL_DIR}" "WARNING"
             return 1
         }
         
@@ -355,9 +355,9 @@ analyze_system() {
         
         for service in $services; do
             if docker compose ps "$service" 2>/dev/null | grep -q "Up"; then
-                log_message "  ✅ $service: Healthy"
+                log_message "  [+] $service: Healthy"
             else
-                log_message "  ❌ $service: Unhealthy" "WARNING"
+                log_message "  [-] $service: Unhealthy" "WARNING"
                 unhealthy_services=$((unhealthy_services + 1))
             fi
         done
@@ -365,20 +365,20 @@ analyze_system() {
         # Return to original directory
         cd "$current_dir" || true
     else
-        log_message "⚠️  Docker not available for health checks" "WARNING"
+        log_message "[!]  Docker not available for health checks" "WARNING"
         return 1
     fi
     
     # Summary and suggestions
     if [ $unhealthy_services -eq 0 ]; then
-        log_message "✅ System Analysis: All services appear healthy"
-        log_message "💡 If you're experiencing issues, try:"
+        log_message "[+] System Analysis: All services appear healthy"
+        log_message "TIP: If you're experiencing issues, try:"
         log_message "   - Clear description of the problem"
         log_message "   - Recent changes or updates"
         log_message "   - Error messages you're seeing"
     else
-        log_message "⚠️  System Analysis: $unhealthy_services service(s) need attention" "WARNING"
-        log_message "💡 Recommended actions:"
+        log_message "[!]  System Analysis: $unhealthy_services service(s) need attention" "WARNING"
+        log_message "TIP: Recommended actions:"
         log_message "   1. Create support ticket with service health focus"
         log_message "   2. Check logs of unhealthy services"
         log_message "   3. Consider restarting unhealthy services"
@@ -388,7 +388,7 @@ analyze_system() {
 # Show help for bee support commands
 show_bee_support_help() {
     cat << 'EOF'
-🐝 Bee Support - AI-Powered Support Request System
+ Bee Support - AI-Powered Support Request System
 
 USAGE:
     ./manage_sting.sh bee support COMMAND [OPTIONS]
@@ -430,7 +430,7 @@ INTEGRATION:
     This system works alongside Bee Chat for natural language support requests.
     In Bee Chat, you can use: "@bee I need help with [description]"
 
-🍯 AI-POWERED FEATURES:
+ AI-POWERED FEATURES:
     - Intelligent issue analysis and service correlation
     - Automated diagnostic bundle creation with targeted logs
     - Smart honey jar generation based on problem type
@@ -441,7 +441,7 @@ EOF
 
 # Provide troubleshooting suggestions
 show_support_suggestions() {
-    log_message "💡 Bee Support Suggestions:"
+    log_message "TIP: Bee Support Suggestions:"
     log_message ""
     log_message "🔐 Authentication Issues:"
     log_message "   • Login failures, redirect loops, session problems"
@@ -478,9 +478,9 @@ show_support_status() {
     
     # Check if support system is configured
     if [ -f "${BEE_SUPPORT_DIR}/support_config.yml" ]; then
-        log_message "✅ Support system: Configured"
+        log_message "[+] Support system: Configured"
     else
-        log_message "⚠️  Support system: Not configured" "WARNING"
+        log_message "[!]  Support system: Not configured" "WARNING"
     fi
     
     # Count tickets
@@ -492,20 +492,20 @@ show_support_status() {
     
     # Check honey jar system
     if [ -f "${SOURCE_DIR}/lib/hive_diagnostics/honey_collector.sh" ]; then
-        log_message "✅ Honey jar system: Available"
+        log_message "[+] Honey jar system: Available"
     else
-        log_message "❌ Honey jar system: Not available" "ERROR"
+        log_message "[-] Honey jar system: Not available" "ERROR"
     fi
     
     # Check Bee Chat integration
     if docker compose ps chatbot 2>/dev/null | grep -q "Up"; then
-        log_message "✅ Bee Chat: Running"
+        log_message "[+] Bee Chat: Running"
     else
-        log_message "⚠️  Bee Chat: Not running" "WARNING"
+        log_message "[!]  Bee Chat: Not running" "WARNING"
     fi
     
     log_message ""
-    log_message "💡 Ready for AI-powered support requests!"
+    log_message "TIP: Ready for AI-powered support requests!"
 }
 
 # Main function to handle bee support commands
@@ -538,7 +538,7 @@ main() {
             done
             
             if [ -z "$issue_description" ]; then
-                log_message "❌ Please provide an issue description" "ERROR"
+                log_message "[-] Please provide an issue description" "ERROR"
                 log_message "Usage: bee support create 'issue description'" "INFO"
                 return 1
             fi
@@ -559,7 +559,7 @@ main() {
             ;;
         *)
             if [ -n "$command" ]; then
-                log_message "❌ Unknown bee support command: $command" "ERROR"
+                log_message "[-] Unknown bee support command: $command" "ERROR"
             fi
             show_bee_support_help
             return 1

@@ -25,7 +25,7 @@ clear_docker_cache() {
     case "$clear_level" in
         "service")
             if [ -z "$service_name" ]; then
-                echo -e "${RED}❌ Service name required for service-specific cache clearing${NC}"
+                echo -e "${RED}[-] Service name required for service-specific cache clearing${NC}"
                 return 1
             fi
             echo -e "${YELLOW}Service-specific cache clear for: $service_name${NC}"
@@ -43,7 +43,7 @@ clear_docker_cache() {
             ;;
             
         "full")
-            echo -e "${YELLOW}⚠️  Full cache clear - this will remove ALL unused Docker data${NC}"
+            echo -e "${YELLOW}[!]  Full cache clear - this will remove ALL unused Docker data${NC}"
             # Stop all STING containers first
             docker ps --format '{{.Names}}' | grep '^sting-ce-' | xargs -r docker stop
             
@@ -92,7 +92,7 @@ clear_docker_cache() {
             ;;
     esac
     
-    echo -e "${GREEN}✅ Cache clearing complete${NC}"
+    echo -e "${GREEN}[+] Cache clearing complete${NC}"
 }
 
 # Enhanced build function with proper cache busting
@@ -102,7 +102,7 @@ build_docker_services_nocache() {
 
     # Skip builds in OVA mode - images are pre-built
     if [ -f "/opt/sting-ce-source/.ova-prebuild" ]; then
-        echo -e "${GREEN}✅ Skipping build (OVA with pre-built images)${NC}"
+        echo -e "${GREEN}[+] Skipping build (OVA with pre-built images)${NC}"
         return 0
     fi
 
@@ -125,13 +125,13 @@ build_docker_services_nocache() {
     # Ensure we're in the right directory
     local compose_dir="${INSTALL_DIR:-/Users/captain-wolf/.sting-ce}"
     if [ ! -f "$compose_dir/docker-compose.yml" ]; then
-        echo -e "${RED}❌ docker-compose.yml not found in $compose_dir${NC}"
+        echo -e "${RED}[-] docker-compose.yml not found in $compose_dir${NC}"
         return 1
     fi
     
     # Change to the compose directory
     cd "$compose_dir" || {
-        echo -e "${RED}❌ Failed to change to directory: $compose_dir${NC}"
+        echo -e "${RED}[-] Failed to change to directory: $compose_dir${NC}"
         return 1
     }
     
@@ -151,12 +151,12 @@ build_docker_services_nocache() {
             local buildkit_config="$SCRIPT_DIR/buildkitd.toml"
             if [ -f "$buildkit_config" ]; then
                 docker buildx create --name sting-builder --driver docker-container --config "$buildkit_config" --use || {
-                    echo -e "${YELLOW}⚠️  Failed to create custom builder, using default${NC}"
+                    echo -e "${YELLOW}[!]  Failed to create custom builder, using default${NC}"
                     docker buildx use default || true
                 }
             else
                 docker buildx create --name sting-builder --driver docker-container --use || {
-                    echo -e "${YELLOW}⚠️  Failed to create custom builder, using default${NC}"
+                    echo -e "${YELLOW}[!]  Failed to create custom builder, using default${NC}"
                     docker buildx use default || true
                 }
             fi
@@ -206,9 +206,9 @@ build_docker_services_nocache() {
     local exit_code=$?
     
     if [ $exit_code -eq 0 ]; then
-        echo -e "${GREEN}✅ Build completed successfully${NC}"
+        echo -e "${GREEN}[+] Build completed successfully${NC}"
     else
-        echo -e "${RED}❌ Build failed with exit code $exit_code${NC}"
+        echo -e "${RED}[-] Build failed with exit code $exit_code${NC}"
     fi
     
     return $exit_code
@@ -220,7 +220,7 @@ verify_file_sync() {
     local project_dir="${PROJECT_DIR:-/Users/captain-wolf/Documents/GitHub/STING-CE/STING}"
     local install_dir="${INSTALL_DIR:-/Users/captain-wolf/.sting-ce}"
     
-    echo -e "${BLUE}🔍 Verifying file sync for ${service:-all services}...${NC}"
+    echo -e "${BLUE} Verifying file sync for ${service:-all services}...${NC}"
     
     # Map service names to directories
     case "$service" in
@@ -238,14 +238,14 @@ verify_file_sync() {
             ;;
         *)
             # For other services or all services, skip verification
-            echo -e "${YELLOW}⚠️  File sync verification not implemented for: ${service:-all}${NC}"
+            echo -e "${YELLOW}[!]  File sync verification not implemented for: ${service:-all}${NC}"
             return 0
             ;;
     esac
     
     # Check if source directory exists
     if [ ! -d "$src_dir" ]; then
-        echo -e "${RED}❌ Source directory not found: $src_dir${NC}"
+        echo -e "${RED}[-] Source directory not found: $src_dir${NC}"
         return 1
     fi
     
@@ -260,11 +260,11 @@ verify_file_sync() {
         
         if [ -f "$dst_file" ]; then
             if ! cmp -s "$file" "$dst_file"; then
-                echo -e "${YELLOW}⚠️  File differs: $rel_path${NC}"
+                echo -e "${YELLOW}[!]  File differs: $rel_path${NC}"
                 files_differ=true
             fi
         else
-            echo -e "${YELLOW}⚠️  File missing in install dir: $rel_path${NC}"
+            echo -e "${YELLOW}[!]  File missing in install dir: $rel_path${NC}"
             files_differ=true
         fi
     done
@@ -272,9 +272,9 @@ verify_file_sync() {
     if [ "$files_differ" = "true" ]; then
         echo -e "${YELLOW}📋 Copying updated files...${NC}"
         rsync -av --delete "$src_dir/" "$dst_dir/"
-        echo -e "${GREEN}✅ Files synced successfully${NC}"
+        echo -e "${GREEN}[+] Files synced successfully${NC}"
     else
-        echo -e "${GREEN}✅ Files are already in sync${NC}"
+        echo -e "${GREEN}[+] Files are already in sync${NC}"
     fi
     
     return 0
@@ -286,13 +286,13 @@ validate_fresh_build() {
     local max_age_minutes="${2:-30}"  # Consider fresh if built within last 30 minutes
     
     if ! docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
-        echo -e "${RED}❌ Container $container not running${NC}"
+        echo -e "${RED}[-] Container $container not running${NC}"
         return 1
     fi
     
     local created=$(docker inspect "$container" --format='{{.Created}}' 2>/dev/null)
     if [ -z "$created" ]; then
-        echo -e "${RED}❌ Could not get creation time for $container${NC}"
+        echo -e "${RED}[-] Could not get creation time for $container${NC}"
         return 1
     fi
     
@@ -302,10 +302,10 @@ validate_fresh_build() {
     local age_minutes=$(((current_unix - created_unix) / 60))
     
     if [ $age_minutes -le $max_age_minutes ]; then
-        echo -e "${GREEN}✅ Container $container is fresh (${age_minutes}m old)${NC}"
+        echo -e "${GREEN}[+] Container $container is fresh (${age_minutes}m old)${NC}"
         return 0
     else
-        echo -e "${YELLOW}⚠️  Container $container might be stale (${age_minutes}m old)${NC}"
+        echo -e "${YELLOW}[!]  Container $container might be stale (${age_minutes}m old)${NC}"
         return 1
     fi
 }
@@ -315,7 +315,7 @@ fresh_rebuild() {
     local service="$1"
     local cache_level="${2:-full}"
     
-    echo -e "${BLUE}🚀 Starting fresh rebuild process...${NC}"
+    echo -e "${BLUE} Starting fresh rebuild process...${NC}"
     
     # Step 1: Clear cache
     clear_docker_cache "$cache_level"
@@ -325,7 +325,7 @@ fresh_rebuild() {
     local build_result=$?
     
     if [ $build_result -ne 0 ]; then
-        echo -e "${RED}❌ Fresh rebuild failed${NC}"
+        echo -e "${RED}[-] Fresh rebuild failed${NC}"
         return $build_result
     fi
     
@@ -351,10 +351,10 @@ fresh_rebuild() {
     fi
     
     if [ "$validation_failed" = "true" ]; then
-        echo -e "${YELLOW}⚠️  Some containers may not be fresh - consider running validation script${NC}"
+        echo -e "${YELLOW}[!]  Some containers may not be fresh - consider running validation script${NC}"
         return 2
     fi
     
-    echo -e "${GREEN}✅ Fresh rebuild completed successfully${NC}"
+    echo -e "${GREEN}[+] Fresh rebuild completed successfully${NC}"
     return 0
 }

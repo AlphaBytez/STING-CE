@@ -78,19 +78,19 @@ echo ""
 
 # Check if Docker is available
 if ! command -v docker &> /dev/null; then
-    echo -e "${RED}❌ Docker is not installed or not in PATH${NC}"
+    echo -e "${RED}[-] Docker is not installed or not in PATH${NC}"
     echo "Please install Docker and try again"
     exit 1
 fi
 
 # Check if Docker daemon is running
 if ! docker info &> /dev/null; then
-    echo -e "${RED}❌ Docker daemon is not running${NC}"
+    echo -e "${RED}[-] Docker daemon is not running${NC}"
     echo "Please start Docker and try again"
     exit 1
 fi
 
-echo -e "${GREEN}✅ Docker is available${NC}"
+echo -e "${GREEN}[+] Docker is available${NC}"
 
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
@@ -105,7 +105,7 @@ mkdir -p output
 echo -e "${YELLOW}🔨 Building test data generator container...${NC}"
 docker build -t sting-test-data-generator . 
 
-echo -e "${YELLOW}🚀 Starting test data generation...${NC}"
+echo -e "${YELLOW} Starting test data generation...${NC}"
 echo "This may take 5-15 minutes depending on dataset size..."
 echo ""
 
@@ -121,7 +121,7 @@ docker run --rm \
 # Check if generation was successful
 if [ $? -eq 0 ]; then
     echo ""
-    echo -e "${GREEN}🎉 Test data generation completed successfully!${NC}"
+    echo -e "${GREEN} Test data generation completed successfully!${NC}"
     echo "=================================================="
     
     # Display summary if available
@@ -138,7 +138,7 @@ with open('$OUTPUT_DIR/generation_summary.json', 'r') as f:
 print(f'   🏥 Medical Files: {data[\"datasets\"][\"medical\"][\"files_generated\"]}')
 print(f'   ⚖️  Legal Files: {data[\"datasets\"][\"legal\"][\"files_generated\"]}') 
 print(f'   💳 Financial Files: {data[\"datasets\"][\"financial\"][\"files_generated\"]}')
-print(f'   🔍 Total PII Elements: {data[\"total_estimated_pii\"]:,}')
+print(f'    Total PII Elements: {data[\"total_estimated_pii\"]:,}')
 print(f'   📅 Generated: {data[\"generated_at\"][:19]}')
 "
         else
@@ -160,7 +160,7 @@ print(f'   📅 Generated: {data[\"generated_at\"][:19]}')
     
 else
     echo ""
-    echo -e "${RED}❌ Test data generation failed${NC}"
+    echo -e "${RED}[-] Test data generation failed${NC}"
     echo "Check the Docker logs for details"
     exit 1
 fi
@@ -170,4 +170,4 @@ echo ""
 echo -e "${YELLOW}🧹 Cleaning up...${NC}"
 rm -rf "$DOCKER_DIR/output" 2>/dev/null || true
 
-echo -e "${GREEN}✅ Test data generation script completed!${NC}"
+echo -e "${GREEN}[+] Test data generation script completed!${NC}"

@@ -24,7 +24,7 @@ EXTERNAL_AI_DIR="${INSTALL_DIR}/external_ai_service"
 BEE_BRAINS_DIR="${EXTERNAL_AI_DIR}/bee_brains"
 GENERATOR_SCRIPT="${EXTERNAL_AI_DIR}/bee_brain_generator.py"
 
-echo -e "${BLUE}🐝 STING Bee Brain Updater${NC}"
+echo -e "${BLUE} STING Bee Brain Updater${NC}"
 echo "=================================="
 echo ""
 
@@ -44,7 +44,7 @@ fi
 # Read STING version
 if [ -f "${INSTALL_DIR}/VERSION" ]; then
     STING_VERSION=$(cat "${INSTALL_DIR}/VERSION" | tr -d '[:space:]')
-    echo -e "${GREEN}✓${NC} STING Version: ${STING_VERSION}"
+    echo -e "${GREEN}[+]${NC} STING Version: ${STING_VERSION}"
 else
     echo -e "${YELLOW}Warning: VERSION file not found, using 1.0.0${NC}"
     STING_VERSION="1.0.0"
@@ -55,7 +55,7 @@ mkdir -p "$BEE_BRAINS_DIR"
 
 # Check if generator exists
 if [ ! -f "$GENERATOR_SCRIPT" ]; then
-    echo -e "${YELLOW}⚠ Bee Brain generator not found${NC}"
+    echo -e "${YELLOW}[!] Bee Brain generator not found${NC}"
     echo "Downloading latest generator from GitHub..."
 
     REPO_URL="https://raw.githubusercontent.com/AlphaBytez/STING-CE/main/STING/external_ai_service"
@@ -64,7 +64,7 @@ if [ ! -f "$GENERATOR_SCRIPT" ]; then
     curl -fsSL "${REPO_URL}/bee_brain_generator.py" -o "${GENERATOR_SCRIPT}"
     curl -fsSL "${REPO_URL}/bee_brain_manager.py" -o "${EXTERNAL_AI_DIR}/bee_brain_manager.py"
 
-    echo -e "${GREEN}✓${NC} Downloaded bee_brain generator"
+    echo -e "${GREEN}[+]${NC} Downloaded bee_brain generator"
 fi
 
 # Check Python dependencies
@@ -75,7 +75,7 @@ if ! python3 -c "import packaging" 2>/dev/null; then
     pip3 install packaging -q
 fi
 
-echo -e "${GREEN}✓${NC} Dependencies OK"
+echo -e "${GREEN}[+]${NC} Dependencies OK"
 
 # Generate/update bee_brain
 echo ""
@@ -86,10 +86,10 @@ cd "$INSTALL_DIR"
 
 if python3 "$GENERATOR_SCRIPT" --version "$STING_VERSION"; then
     echo ""
-    echo -e "${GREEN}✓${NC} Bee Brain generated successfully"
+    echo -e "${GREEN}[+]${NC} Bee Brain generated successfully"
 else
     echo ""
-    echo -e "${RED}✗ Bee Brain generation failed${NC}"
+    echo -e "${RED}[-] Bee Brain generation failed${NC}"
     exit 1
 fi
 
@@ -99,7 +99,7 @@ echo "Reloading Bee AI service..."
 
 # Try API reload first
 if curl -f -X POST http://localhost:5050/api/admin/bee-brain/reload -s > /dev/null 2>&1; then
-    echo -e "${GREEN}✓${NC} Bee Brain reloaded via API"
+    echo -e "${GREEN}[+]${NC} Bee Brain reloaded via API"
 elif command -v docker &> /dev/null; then
     # Fallback: restart external_ai container
     echo -e "${YELLOW}API not available, restarting container...${NC}"
@@ -107,19 +107,19 @@ elif command -v docker &> /dev/null; then
     if docker ps --format '{{.Names}}' | grep -q 'external-ai\|external_ai'; then
         CONTAINER_NAME=$(docker ps --format '{{.Names}}' | grep -E 'external-ai|external_ai' | head -n1)
         docker restart "$CONTAINER_NAME" > /dev/null 2>&1
-        echo -e "${GREEN}✓${NC} Bee AI container restarted"
+        echo -e "${GREEN}[+]${NC} Bee AI container restarted"
     else
-        echo -e "${YELLOW}⚠ External AI container not running${NC}"
+        echo -e "${YELLOW}[!] External AI container not running${NC}"
         echo "Bee Brain will be loaded on next startup"
     fi
 else
-    echo -e "${YELLOW}⚠ Could not reload service automatically${NC}"
+    echo -e "${YELLOW}[!] Could not reload service automatically${NC}"
     echo "Please restart the external_ai service manually"
 fi
 
 # Show status
 echo ""
-echo -e "${GREEN}✅ Bee Brain Update Complete!${NC}"
+echo -e "${GREEN}[+] Bee Brain Update Complete!${NC}"
 echo ""
 echo "📊 Status:"
 ls -lh "${BEE_BRAINS_DIR}/bee_brain_v${STING_VERSION}.json" 2>/dev/null | awk '{print "   Size: " $5}'
@@ -131,13 +131,13 @@ echo "📚 Available Bee Brain versions:"
 ls -1 "${BEE_BRAINS_DIR}/" 2>/dev/null | grep "bee_brain_v.*\.json" | sed 's/bee_brain_v//g' | sed 's/.json//g' | awk '{print "   - " $0}' || echo "   None"
 
 echo ""
-echo -e "${BLUE}💡 Tip:${NC} Ask Bee AI to verify the update:"
+echo -e "${BLUE}TIP: Tip:${NC} Ask Bee AI to verify the update:"
 echo '   "What version of Bee Brain are you using?"'
 echo ""
 
 # Check API status (non-blocking)
 if curl -f -s http://localhost:5050/api/admin/bee-brain/status > /dev/null 2>&1; then
-    echo -e "${GREEN}✓${NC} Bee AI API is responding"
+    echo -e "${GREEN}[+]${NC} Bee AI API is responding"
     echo ""
     echo "Full status: curl http://localhost:5050/api/admin/bee-brain/status | jq"
 fi

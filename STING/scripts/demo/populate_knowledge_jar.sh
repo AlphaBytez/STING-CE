@@ -10,7 +10,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${YELLOW}🐝 Populating General Knowledge Honey Jar...${NC}"
+echo -e "${YELLOW} Populating General Knowledge Honey Jar...${NC}"
 
 # Source directory
 DOCS_DIR="/Users/captain-wolf/Documents/GitHub/STING-CE/STING/docs"
@@ -86,7 +86,7 @@ EOF
 
 # Count files
 FILE_COUNT=$(find "$TEMP_DIR" -type f -name "*.md" | wc -l)
-echo -e "${GREEN}✅ Collected $FILE_COUNT documentation files${NC}"
+echo -e "${GREEN}[+] Collected $FILE_COUNT documentation files${NC}"
 
 # Now we need to upload these to the knowledge jar
 # This would typically involve calling the knowledge service API
@@ -102,7 +102,7 @@ JAR_ID="general"  # The general knowledge jar
 
 # Check if knowledge service is accessible
 if curl -s -o /dev/null -w "%{http_code}" "$KNOWLEDGE_URL/health" | grep -q "200"; then
-    echo -e "${GREEN}✅ Knowledge service is accessible${NC}"
+    echo -e "${GREEN}[+] Knowledge service is accessible${NC}"
     
     # Upload documents (this is a placeholder - actual API may differ)
     for file in "$TEMP_DIR"/*.md; do
@@ -134,9 +134,9 @@ EOF
         fi
     done
     
-    echo -e "${GREEN}✅ Documentation uploaded to General Knowledge honey jar${NC}"
+    echo -e "${GREEN}[+] Documentation uploaded to General Knowledge honey jar${NC}"
 else
-    echo -e "${YELLOW}⚠️  Knowledge service not accessible. Manual upload required.${NC}"
+    echo -e "${YELLOW}[!]  Knowledge service not accessible. Manual upload required.${NC}"
     echo -e "${YELLOW}   Archive saved at: $TEMP_DIR/sting_docs.tar.gz${NC}"
     
     # Copy archive to a persistent location
@@ -144,4 +144,4 @@ else
     echo -e "${YELLOW}   Archive copied to: /tmp/sting_docs_for_knowledge.tar.gz${NC}"
 fi
 
-echo -e "${GREEN}🎉 Knowledge jar population complete!${NC}"
+echo -e "${GREEN} Knowledge jar population complete!${NC}"

@@ -16,7 +16,7 @@ echo "🖼️  Cleaning unused images..."
 docker image prune -f --filter until=24h
 
 # Clean up unused containers
-echo "📦 Cleaning unused containers..."
+echo " Cleaning unused containers..."
 docker container prune -f --filter until=24h
 
 # Clean up unused volumes (be careful with this)
@@ -28,7 +28,7 @@ echo "🌐 Cleaning unused networks..."
 docker network prune -f
 
 # Show space after cleanup
-echo "✅ Space usage after cleanup:"
+echo "[+] Space usage after cleanup:"
 docker system df
 
-echo "🎉 Docker cleanup complete!"
+echo " Docker cleanup complete!"

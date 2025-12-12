@@ -188,7 +188,7 @@ get_sting_hostname() {
         # Platform-specific guidance
         case "$platform" in
             codespaces)
-                echo "📦 Platform: GitHub Codespaces" >&2
+                echo " Platform: GitHub Codespaces" >&2
                 echo "   Recommendation: Use 'localhost' (option 2)" >&2
                 echo "   Note: .local domains don't work in Codespaces" >&2
                 default_option="2"
@@ -222,7 +222,7 @@ get_sting_hostname() {
                     # mDNS not available - recommend sting.local and note Avahi installation
                     echo "   Recommendation: Use sting.local (option 1)" >&2
                     echo "   Note: Avahi will be installed automatically for .local hostname support" >&2
-                    echo "   ⚠️  IP addresses are NOT compatible with WebAuthn/passkeys (except localhost)" >&2
+                    echo "   [!]  IP addresses are NOT compatible with WebAuthn/passkeys (except localhost)" >&2
                     default_option="1"
                 fi
                 ;;
@@ -235,7 +235,7 @@ get_sting_hostname() {
                 else
                     echo "   Recommendation: Use sting.local (option 1)" >&2
                     echo "   Note: Avahi will be installed for .local hostname support" >&2
-                    echo "   ⚠️  IP addresses are NOT compatible with WebAuthn/passkeys (except localhost)" >&2
+                    echo "   [!]  IP addresses are NOT compatible with WebAuthn/passkeys (except localhost)" >&2
                     default_option="1"
                 fi
                 ;;
@@ -274,7 +274,7 @@ get_sting_hostname() {
         if [ -n "$detected_hostname" ]; then
             # Show different label if detected hostname is an IP vs domain
             if is_ip_address "$detected_hostname"; then
-                echo "  3) $detected_hostname  - IP address ⚠️  WebAuthn incompatible${star3}" >&2
+                echo "  3) $detected_hostname  - IP address [!]  WebAuthn incompatible${star3}" >&2
             else
                 echo "  3) $detected_hostname  - Detected hostname${star3}" >&2
             fi
@@ -347,11 +347,11 @@ show_hostname_instructions() {
     echo ""
 
     if [ "$hostname" = "localhost" ]; then
-        echo "✅ Using localhost - no additional setup needed"
-        echo "⚠️  NOTE: Passkeys will only work on this machine"
+        echo "[+] Using localhost - no additional setup needed"
+        echo "[!]  NOTE: Passkeys will only work on this machine"
         echo "   For multi-device access, use an IP address or hostname"
     elif is_ip_address "$hostname"; then
-        echo "✅ Using IP address: $hostname"
+        echo "[+] Using IP address: $hostname"
         echo ""
         echo "✨ No additional setup needed!"
         echo "   Access STING from any device on your network at:"
@@ -360,7 +360,7 @@ show_hostname_instructions() {
         echo ""
         echo "   IP addresses work without DNS or /etc/hosts configuration"
     else
-        echo "✅ Using hostname: $hostname"
+        echo "[+] Using hostname: $hostname"
         echo ""
         echo "For remote access, add this to /etc/hosts on client machines:"
         echo ""
@@ -435,9 +435,9 @@ update_windows_hosts() {
 
         # Try to remove old entry (may fail due to permissions)
         if sudo sed -i.backup "/$hostname/d" "$windows_hosts" 2>/dev/null; then
-            echo "  ✓ Removed old entry" >&2
+            echo "  [+] Removed old entry" >&2
         else
-            echo "  ⚠ Could not remove old entry (permission denied)" >&2
+            echo "  [!] Could not remove old entry (permission denied)" >&2
             echo "  Please manually edit: C:\\Windows\\System32\\drivers\\etc\\hosts" >&2
             echo "  Remove lines containing: $hostname" >&2
             return 1
@@ -446,10 +446,10 @@ update_windows_hosts() {
 
     # Add new entry
     if echo "$ip_address  $hostname  # Added by STING installer" | sudo tee -a "$windows_hosts" >/dev/null 2>&1; then
-        echo "  ✅ Windows hosts file updated successfully" >&2
+        echo "  [+] Windows hosts file updated successfully" >&2
         return 0
     else
-        echo "  ⚠ Could not update Windows hosts file (permission denied)" >&2
+        echo "  [!] Could not update Windows hosts file (permission denied)" >&2
         echo "" >&2
         echo "  📝 Manual step required:" >&2
         echo "  1. Open Notepad as Administrator (Windows)" >&2
@@ -479,14 +479,14 @@ verify_hostname_resolves() {
 
     # Try ping (may be blocked by firewall)
     if ping -c 1 -W 2 "$hostname" >/dev/null 2>&1; then
-        echo "✅ Hostname resolves via ping" >&2
+        echo "[+] Hostname resolves via ping" >&2
         return 0
     fi
 
     # Try getent hosts (DNS lookup)
     if command -v getent &>/dev/null; then
         if getent hosts "$hostname" >/dev/null 2>&1; then
-            echo "✅ Hostname resolves via DNS" >&2
+            echo "[+] Hostname resolves via DNS" >&2
             return 0
         fi
     fi
@@ -494,18 +494,18 @@ verify_hostname_resolves() {
     # Try nslookup
     if command -v nslookup &>/dev/null; then
         if nslookup "$hostname" >/dev/null 2>&1; then
-            echo "✅ Hostname resolves via nslookup" >&2
+            echo "[+] Hostname resolves via nslookup" >&2
             return 0
         fi
     fi
 
     # Check /etc/hosts manually
     if grep -q "[[:space:]]$hostname" /etc/hosts 2>/dev/null; then
-        echo "✅ Hostname found in /etc/hosts" >&2
+        echo "[+] Hostname found in /etc/hosts" >&2
         return 0
     fi
 
-    echo "⚠ Could not verify hostname resolution" >&2
+    echo "[!] Could not verify hostname resolution" >&2
     return 1
 }
 

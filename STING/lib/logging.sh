@@ -182,10 +182,10 @@ execute_with_logging() {
             printf "%s... " "$operation_name"
             ;;
         default)
-            log_message "🔄 $operation_name..." "INFO" true
+            log_message " $operation_name..." "INFO" true
             ;;
         verbose)
-            log_message "🔄 $operation_name..." "INFO" true
+            log_message " $operation_name..." "INFO" true
             log_message "Executing: $cmd" "INFO" true
             ;;
     esac
@@ -221,19 +221,19 @@ execute_with_logging() {
     case "$VERBOSITY_LEVEL" in
         quiet)
             if [ $exit_code -eq 0 ]; then
-                echo " ✅"
+                echo " [+]"
             else
-                echo " ❌"
+                echo " [-]"
                 # Show error in quiet mode
-                log_message "❌ $operation_name failed (exit code: $exit_code)" "ERROR" true
+                log_message "[-] $operation_name failed (exit code: $exit_code)" "ERROR" true
                 log_message "📄 Full log: $log_file" "ERROR" true
             fi
             ;;
         default|verbose)
             if [ $exit_code -eq 0 ]; then
-                log_message "✅ $operation_name completed successfully" "SUCCESS" true
+                log_message "[+] $operation_name completed successfully" "SUCCESS" true
             else
-                log_message "❌ $operation_name failed (exit code: $exit_code)" "ERROR" true
+                log_message "[-] $operation_name failed (exit code: $exit_code)" "ERROR" true
                 log_message "📄 Full log: $log_file" "ERROR" true
             fi
             ;;

@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo -e "${BLUE}🚀 STING COMPLETE PII DETECTION DEMO PIPELINE${NC}"
+echo -e "${BLUE} STING COMPLETE PII DETECTION DEMO PIPELINE${NC}"
 echo "=============================================================="
 
 # Parse arguments
@@ -68,11 +68,11 @@ fi
 
 # Check if data generation was successful
 if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Test data generation failed${NC}"
+    echo -e "${RED}[-] Test data generation failed${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✅ Test data generation completed${NC}"
+echo -e "${GREEN}[+] Test data generation completed${NC}"
 echo ""
 
 # Step 2: Run PII Detection Tests
@@ -83,11 +83,11 @@ echo "---------------------------------------"
 
 # Check if testing was successful
 if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ PII detection testing failed${NC}"
+    echo -e "${RED}[-] PII detection testing failed${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✅ PII detection testing completed${NC}"
+echo -e "${GREEN}[+] PII detection testing completed${NC}"
 echo ""
 
 # Step 3: Generate Demo Summary
@@ -144,11 +144,11 @@ cat > "$DEMO_SUMMARY_FILE" << EOF
 }
 EOF
 
-echo -e "${GREEN}✅ Demo summary created: $DEMO_SUMMARY_FILE${NC}"
+echo -e "${GREEN}[+] Demo summary created: $DEMO_SUMMARY_FILE${NC}"
 echo ""
 
 # Final Results
-echo -e "${GREEN}🎉 COMPLETE PII DETECTION DEMO PIPELINE FINISHED!${NC}"
+echo -e "${GREEN} COMPLETE PII DETECTION DEMO PIPELINE FINISHED!${NC}"
 echo "=============================================================="
 echo ""
 echo -e "${BLUE}📊 Demo Summary:${NC}"
@@ -156,11 +156,11 @@ echo "   🎯 Configuration: $DEMO_SIZE dataset"
 echo "   📁 Data Location: $DATA_DIR"
 echo "   📋 Summary File: $DEMO_SUMMARY_FILE"
 echo ""
-echo -e "${BLUE}🚀 What's Ready:${NC}"
-echo "   ✅ Synthetic test data generated (medical, legal, financial)"
-echo "   ✅ PII detection tested across all compliance frameworks"
-echo "   ✅ Performance benchmarks completed"
-echo "   ✅ Demo scenarios validated"
+echo -e "${BLUE} What's Ready:${NC}"
+echo "   [+] Synthetic test data generated (medical, legal, financial)"
+echo "   [+] PII detection tested across all compliance frameworks"
+echo "   [+] Performance benchmarks completed"
+echo "   [+] Demo scenarios validated"
 echo ""
 echo -e "${BLUE}🎭 Demo Scenarios Available:${NC}"
 echo "   🏥 Medical Office (HIPAA): Upload patient records → Show PHI detection"
@@ -175,7 +175,7 @@ echo "   • Compliance: HIPAA, GDPR, PCI-DSS, Attorney-Client coverage"
 echo ""
 echo -e "${GREEN}🎯 STING is now ready for impressive product demonstrations!${NC}"
 echo ""
-echo -e "${YELLOW}💡 Quick Start Commands:${NC}"
+echo -e "${YELLOW}TIP: Quick Start Commands:${NC}"
 echo "   # Test specific scenario:"
 echo "   ./scripts/test_pii_detection.sh --scenario medical"
 echo ""

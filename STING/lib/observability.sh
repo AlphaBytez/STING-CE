@@ -90,12 +90,12 @@ start_observability_services() {
     local running_count=$(docker ps --format "{{.Names}}" | grep -E "loki|grafana|promtail" | wc -l)
     
     if [ "$running_count" -eq 3 ]; then
-        log_message "✅ All observability services started successfully" "SUCCESS"
+        log_message "[+] All observability services started successfully" "SUCCESS"
         log_message "  Grafana: http://localhost:3000"
         log_message "  Loki: http://localhost:3100"
         return 0
     else
-        log_message "⚠️ Only $running_count/3 observability services running" "WARNING"
+        log_message "[!] Only $running_count/3 observability services running" "WARNING"
         docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "loki|grafana|promtail"
         return 1
     fi
@@ -139,12 +139,12 @@ restart_observability_services() {
 check_observability_status() {
     local all_healthy=true
     
-    echo "🔍 Observability Service Status:"
+    echo " Observability Service Status:"
     echo "================================"
     
     # Check if enabled
     if ! is_observability_enabled; then
-        echo "  ⚠️  Observability is disabled in configuration"
+        echo "  [!]  Observability is disabled in configuration"
         return 0
     fi
     
@@ -155,27 +155,27 @@ check_observability_status() {
         
         if [ -n "$status" ]; then
             if echo "$status" | grep -q "healthy"; then
-                echo "  ✅ $service: $status"
+                echo "  [+] $service: $status"
             elif echo "$status" | grep -q "starting"; then
-                echo "  🔄 $service: $status"
+                echo "   $service: $status"
                 all_healthy=false
             else
-                echo "  ⚠️  $service: $status"
+                echo "  [!]  $service: $status"
                 all_healthy=false
             fi
         else
-            echo "  ❌ $service: not running"
+            echo "  [-] $service: not running"
             all_healthy=false
         fi
     done
     
     echo ""
     if [ "$all_healthy" = true ]; then
-        echo "✅ All observability services are healthy"
+        echo "[+] All observability services are healthy"
         echo "  📊 Grafana: http://localhost:3000"
         echo "  📝 Loki API: http://localhost:3100"
     else
-        echo "⚠️  Some observability services need attention"
+        echo "[!]  Some observability services need attention"
     fi
 }
 

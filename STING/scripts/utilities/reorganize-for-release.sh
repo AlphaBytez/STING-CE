@@ -11,7 +11,7 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo "🐝 STING-CE Public Release Reorganization"
+echo " STING-CE Public Release Reorganization"
 echo "========================================"
 
 # Create archive directories
@@ -199,7 +199,7 @@ This directory contains files that were moved during the public release preparat
 - Legacy code will be reviewed for any useful patterns before permanent deletion
 EOF
 
-echo -e "\n${GREEN}✅ Reorganization complete!${NC}"
+echo -e "\n${GREEN}[+] Reorganization complete!${NC}"
 echo -e "\nSummary:"
 echo "- Files moved to: $ARCHIVE_BASE/"
 echo "- .gitignore updated with exclusions"
@@ -208,7 +208,7 @@ echo -e "\n${YELLOW}Next steps:${NC}"
 echo "1. Review the archives to ensure nothing critical was moved"
 echo "2. Test that manage_sting.sh still works correctly"
 echo "3. Commit the cleaned repository"
-echo -e "\n🍯 STING-CE is ready for public release!"
+echo -e "\n STING-CE is ready for public release!"
 EOF
 
 chmod +x reorganize-for-release.sh

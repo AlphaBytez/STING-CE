@@ -23,7 +23,7 @@ safe_mkdir() {
             log_message "ERROR: Failed to create critical directory: $dir_path" "ERROR"
             log_message "Attempting with elevated permissions..." "ERROR"
             if sudo mkdir -p "$dir_path" 2>/dev/null; then
-                log_message "✓ Created with sudo: $dir_path"
+                log_message "[+] Created with sudo: $dir_path"
                 return 0
             else
                 log_message "CRITICAL: Cannot create required directory: $dir_path" "ERROR"
@@ -52,7 +52,7 @@ safe_rm() {
             log_message "ERROR: Failed to remove critical path: $path" "ERROR"
             log_message "Attempting with elevated permissions..." "ERROR"
             if sudo rm -rf "$path" 2>/dev/null; then
-                log_message "✓ Removed with sudo: $path"
+                log_message "[+] Removed with sudo: $path"
                 return 0
             else
                 log_message "CRITICAL: Cannot remove required path: $path" "ERROR"
@@ -78,7 +78,7 @@ safe_chmod() {
             log_message "ERROR: Failed to set permissions $perms on: $path" "ERROR"
             log_message "Attempting with elevated permissions..." "ERROR"
             if sudo chmod "$perms" "$path" 2>/dev/null; then
-                log_message "✓ Set permissions with sudo: $perms on $path"
+                log_message "[+] Set permissions with sudo: $perms on $path"
                 return 0
             else
                 log_message "CRITICAL: Cannot set required permissions on: $path" "ERROR"
@@ -591,7 +591,7 @@ generate_ssl_certs() {
             # Check if running interactively (TTY available)
             if [ -t 0 ] && [ -z "$NO_PROMPT" ] && [ -z "$WIZARD_CONFIG_PATH" ]; then
                 # Interactive mode - prompt user
-                log_message "⚠️  IMPORTANT: You will be prompted for your sudo password to install mkcert"
+                log_message "[!]  IMPORTANT: You will be prompted for your sudo password to install mkcert"
                 log_message "    This is required to add the local Certificate Authority to your system trust store"
                 echo ""
                 echo "Press ENTER to continue with mkcert installation (you will be prompted for sudo password)..."
@@ -627,7 +627,7 @@ generate_ssl_certs() {
                 log_message "ERROR: mkcert certificate generation failed"
                 return 1
             }
-            log_message "✅ Generated locally-trusted certificates with mkcert"
+            log_message "[+] Generated locally-trusted certificates with mkcert"
             log_message "NOTE: These certificates are trusted by your system's browsers"
         else
             log_message "ERROR: mkcert not found after installation" "ERROR"
@@ -919,31 +919,31 @@ export_ca_certificate() {
     # Copy certificates to install directory for web UI access
     local install_cert_dir="${INSTALL_DIR}/client-certs"
     if [ -d "${INSTALL_DIR}" ]; then
-        log_message "📦 Copying certificates to install directory for web UI access..."
+        log_message " Copying certificates to install directory for web UI access..."
         safe_mkdir "${install_cert_dir}" "true" || {
-            log_message "⚠️  Warning: Could not create ${install_cert_dir}" "WARNING"
+            log_message "[!]  Warning: Could not create ${install_cert_dir}" "WARNING"
         }
 
         if [ -d "${install_cert_dir}" ]; then
             cp -f "${output_dir}"/* "${install_cert_dir}/" 2>/dev/null || {
-                log_message "⚠️  Warning: Could not copy certificates to ${install_cert_dir}" "WARNING"
+                log_message "[!]  Warning: Could not copy certificates to ${install_cert_dir}" "WARNING"
             }
 
             if [ -f "${install_cert_dir}/sting-ca.pem" ]; then
-                log_message "✅ Certificates copied to: ${install_cert_dir}/"
+                log_message "[+] Certificates copied to: ${install_cert_dir}/"
                 log_message "   These are now accessible via the STING web UI"
             fi
         fi
     fi
 
-    log_message "✅ CA certificate exported to: ${output_dir}/"
+    log_message "[+] CA certificate exported to: ${output_dir}/"
     log_message "📋 Files created:"
     log_message "   - sting-ca.pem (CA certificate)"
     log_message "   - install-ca-mac.sh (macOS installer)"
     log_message "   - install-ca-linux.sh (Linux installer)"
     log_message "   - install-ca-windows.ps1 (Windows installer)"
     log_message ""
-    log_message "💡 Share the ${output_dir} folder with client machines"
+    log_message "TIP: Share the ${output_dir} folder with client machines"
     log_message "   Clients can run the appropriate install script for their OS"
     log_message "   Or download them from the web UI: Certificate Management page"
 
@@ -997,7 +997,7 @@ echo ""
 
 # Check if CA file exists
 if [ ! -f "\$CA_FILE" ]; then
-    echo "❌ Error: \$CA_FILE not found"
+    echo "[-] Error: \$CA_FILE not found"
     echo "Please run this script from the directory containing the CA certificate"
     exit 1
 fi
@@ -1005,7 +1005,7 @@ fi
 # Install CA certificate
 echo "📋 Installing CA certificate..."
 sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "\$CA_FILE"
-echo "✅ CA certificate installed successfully"
+echo "[+] CA certificate installed successfully"
 
 # Add domain to hosts file if needed
 echo ""
@@ -1013,15 +1013,15 @@ echo "🌐 Setting up domain resolution..."
 if ! grep -q "\$DOMAIN" /etc/hosts; then
     echo "Adding \$DOMAIN to /etc/hosts..."
     echo "\$VM_IP \$DOMAIN" | sudo tee -a /etc/hosts > /dev/null
-    echo "✅ Domain added to /etc/hosts"
+    echo "[+] Domain added to /etc/hosts"
 else
-    echo "✅ Domain already in /etc/hosts"
+    echo "[+] Domain already in /etc/hosts"
 fi
 
 echo ""
-echo "🎉 Installation complete!"
+echo " Installation complete!"
 echo "You can now access STING securely at: https://\$DOMAIN:8443"
-echo "⚠️  Please restart your browser to load the new certificate"
+echo "[!]  Please restart your browser to load the new certificate"
 EOF
 
     # Linux installation script
@@ -1040,7 +1040,7 @@ echo ""
 
 # Check if CA file exists
 if [ ! -f "\$CA_FILE" ]; then
-    echo "❌ Error: \$CA_FILE not found"
+    echo "[-] Error: \$CA_FILE not found"
     echo "Please run this script from the directory containing the CA certificate"
     exit 1
 fi
@@ -1051,20 +1051,20 @@ if [ -d "/etc/ssl/certs" ] && [ -d "/usr/local/share/ca-certificates" ]; then
     # Ubuntu/Debian
     sudo cp "\$CA_FILE" /usr/local/share/ca-certificates/sting-ca.crt
     sudo update-ca-certificates
-    echo "✅ CA certificate installed (Ubuntu/Debian)"
+    echo "[+] CA certificate installed (Ubuntu/Debian)"
 elif [ -d "/etc/pki/ca-trust/source/anchors" ]; then
     # RHEL/CentOS/Fedora
     sudo cp "\$CA_FILE" /etc/pki/ca-trust/source/anchors/sting-ca.crt
     sudo update-ca-trust
-    echo "✅ CA certificate installed (RHEL/CentOS/Fedora)"
+    echo "[+] CA certificate installed (RHEL/CentOS/Fedora)"
 elif [ -d "/usr/share/ca-certificates" ]; then
     # Generic approach
     sudo cp "\$CA_FILE" /usr/share/ca-certificates/sting-ca.crt
     echo "sting-ca.crt" | sudo tee -a /etc/ca-certificates.conf
     sudo update-ca-certificates
-    echo "✅ CA certificate installed (Generic Linux)"
+    echo "[+] CA certificate installed (Generic Linux)"
 else
-    echo "⚠️  Unsupported Linux distribution"
+    echo "[!]  Unsupported Linux distribution"
     echo "Please manually add \$CA_FILE to your system's certificate store"
 fi
 
@@ -1074,15 +1074,15 @@ echo "🌐 Setting up domain resolution..."
 if ! grep -q "\$DOMAIN" /etc/hosts; then
     echo "Adding \$DOMAIN to /etc/hosts..."
     echo "\$VM_IP \$DOMAIN" | sudo tee -a /etc/hosts > /dev/null
-    echo "✅ Domain added to /etc/hosts"
+    echo "[+] Domain added to /etc/hosts"
 else
-    echo "✅ Domain already in /etc/hosts"
+    echo "[+] Domain already in /etc/hosts"
 fi
 
 echo ""
-echo "🎉 Installation complete!"
+echo " Installation complete!"
 echo "You can now access STING securely at: https://\$DOMAIN:8443"
-echo "⚠️  Please restart your browser to load the new certificate"
+echo "[!]  Please restart your browser to load the new certificate"
 EOF
 
     # Windows PowerShell installation script
@@ -1102,7 +1102,7 @@ Write-Host ""
 
 # Check if running as administrator
 if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-    Write-Host "❌ Error: This script must be run as Administrator" -ForegroundColor Red
+    Write-Host "[-] Error: This script must be run as Administrator" -ForegroundColor Red
     Write-Host "Right-click PowerShell and select 'Run as Administrator'" -ForegroundColor Yellow
     Read-Host "Press Enter to exit"
     exit 1
@@ -1110,7 +1110,7 @@ if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 
 # Check if CA file exists
 if (-not (Test-Path \$CAFile)) {
-    Write-Host "❌ Error: \$CAFile not found" -ForegroundColor Red
+    Write-Host "[-] Error: \$CAFile not found" -ForegroundColor Red
     Write-Host "Please run this script from the directory containing the CA certificate" -ForegroundColor Yellow
     Read-Host "Press Enter to exit"
     exit 1
@@ -1120,9 +1120,9 @@ if (-not (Test-Path \$CAFile)) {
 Write-Host "📋 Installing CA certificate..." -ForegroundColor Yellow
 try {
     Import-Certificate -FilePath \$CAFile -CertStoreLocation Cert:\LocalMachine\Root
-    Write-Host "✅ CA certificate installed successfully" -ForegroundColor Green
+    Write-Host "[+] CA certificate installed successfully" -ForegroundColor Green
 } catch {
-    Write-Host "❌ Error installing certificate: \$_" -ForegroundColor Red
+    Write-Host "[-] Error installing certificate: \$_" -ForegroundColor Red
     Read-Host "Press Enter to exit"
     exit 1
 }
@@ -1135,15 +1135,15 @@ Write-Host "🌐 Setting up domain resolution..." -ForegroundColor Yellow
 if (\$hostsContent -notmatch \$Domain) {
     Write-Host "Adding \$Domain to hosts file..." -ForegroundColor Yellow
     Add-Content -Path \$hostsFile -Value "\$VMIP \$Domain"
-    Write-Host "✅ Domain added to hosts file" -ForegroundColor Green
+    Write-Host "[+] Domain added to hosts file" -ForegroundColor Green
 } else {
-    Write-Host "✅ Domain already in hosts file" -ForegroundColor Green
+    Write-Host "[+] Domain already in hosts file" -ForegroundColor Green
 }
 
 Write-Host ""
-Write-Host "🎉 Installation complete!" -ForegroundColor Green
+Write-Host " Installation complete!" -ForegroundColor Green
 Write-Host "You can now access STING securely at: https://\$Domain:8443" -ForegroundColor Cyan
-Write-Host "⚠️  Please restart your browser to load the new certificate" -ForegroundColor Yellow
+Write-Host "[!]  Please restart your browser to load the new certificate" -ForegroundColor Yellow
 Read-Host "Press Enter to exit"
 EOF
 
@@ -1159,20 +1159,20 @@ copy_certs_to_host() {
     local source_dir="$3"
     
     if [[ -z "$target_host" || -z "$remote_path" ]]; then
-        log_message "❌ Target host and remote path required"
+        log_message "[-] Target host and remote path required"
         log_message ""
         log_message "📋 Usage: msting copy-certs <user@host> <remote_path> [source_dir]"
         log_message ""
-        log_message "🔍 Available certificate sources:"
+        log_message " Available certificate sources:"
         [[ -d "./sting-certs-export" ]] && log_message "  • ./sting-certs-export (default)"
         [[ -f "/opt/sting-ce/certs/server.crt" ]] && log_message "  • /opt/sting-ce/certs/ (server certificates)"
         [[ -f "/opt/sting-ce/sting-ca.pem" ]] && log_message "  • /opt/sting-ce/ (CA certificate)"
         log_message ""
-        log_message "💡 Examples:"
+        log_message "TIP: Examples:"
         log_message "  msting copy-certs user@hostname.local /home/user/certs"
         log_message "  msting copy-certs user@192.168.1.100 /opt/certs ./sting-certs-export"
         log_message ""
-        log_message "ℹ️  Run 'msting export-certs' first to create certificate bundle"
+        log_message "[*]  Run 'msting export-certs' first to create certificate bundle"
         return 1
     fi
     
@@ -1204,9 +1204,9 @@ copy_certs_to_host() {
     if command -v rsync &> /dev/null; then
         log_message "Using rsync for secure copy..."
         if rsync -avz --progress "$source_dir/" "$target_host:$remote_path/"; then
-            log_message "✅ Certificates copied successfully using rsync"
+            log_message "[+] Certificates copied successfully using rsync"
         else
-            log_message "❌ rsync failed, falling back to scp..."
+            log_message "[-] rsync failed, falling back to scp..."
             scp -r "$source_dir" "$target_host:$remote_path/" || {
                 log_message "ERROR: Failed to copy certificates to remote host"
                 return 1
@@ -1219,7 +1219,7 @@ copy_certs_to_host() {
             log_message "ERROR: Failed to copy certificates to remote host"
             return 1
         }
-        log_message "✅ Certificates copied successfully using scp"
+        log_message "[+] Certificates copied successfully using scp"
     fi
     
     log_message ""

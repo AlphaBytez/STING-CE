@@ -48,11 +48,11 @@ safe_timeout() {
 
 # Enhanced restart all services with proper dependency ordering
 restart_all_services_enhanced() {
-    log_message "🔄 Starting enhanced full system restart..." "INFO"
+    log_message "[*] Starting enhanced full system restart..." "INFO"
     
     # Pre-restart validation
     if ! validate_restart_conditions; then
-        log_message "❌ Pre-restart validation failed" "ERROR"
+        log_message "Pre-restart validation failed" "ERROR"
         return 1
     fi
     
@@ -72,11 +72,11 @@ restart_all_services_enhanced() {
     
     # Execute restart with dependency awareness
     if restart_with_dependency_order; then
-        log_message "✅ Full system restart completed successfully" "SUCCESS"
+        log_message "[+] Full system restart completed successfully" "SUCCESS"
         cd "$original_dir"
         return 0
     else
-        log_message "❌ Full system restart failed" "ERROR"
+        log_message "Full system restart failed" "ERROR"
         cd "$original_dir"
         return 1
     fi
@@ -84,7 +84,7 @@ restart_all_services_enhanced() {
 
 # Validate conditions for restart
 validate_restart_conditions() {
-    log_message "🔍 Validating restart conditions..."
+    log_message "[*] Validating restart conditions..."
     
     # Store current directory and change to install directory for compose operations
     local original_dir="$(pwd)"
@@ -117,14 +117,14 @@ validate_restart_conditions() {
         fi
     done
     
-    log_message "✅ Pre-restart validation passed"
+    log_message "[+] Pre-restart validation passed"
     cd "$original_dir"
     return 0
 }
 
 # Restart with proper dependency ordering
 restart_with_dependency_order() {
-    log_message "🔄 Restarting services in dependency order..."
+    log_message "[*] Restarting services in dependency order..."
     
     # Phase 1: Stop all services gracefully
     log_message "📥 Phase 1: Graceful shutdown of all services..."
@@ -133,7 +133,7 @@ restart_with_dependency_order() {
     fi
     
     # Phase 2: Start services in dependency order
-    log_message "🚀 Phase 2: Starting services in dependency order..."
+    log_message "Phase 2: Starting services in dependency order..."
     
     # Tier 1: Core infrastructure (no dependencies)
     if ! start_service_tier "Infrastructure" vault db redis; then
@@ -168,7 +168,7 @@ restart_with_dependency_order() {
     # Tier 6: Observability (if enabled)
     start_observability_services_if_enabled
     
-    log_message "✅ All service tiers restarted successfully"
+    log_message "[+] All service tiers restarted successfully"
     return 0
 }
 
@@ -178,10 +178,10 @@ graceful_stop_all_services() {
     
     # First attempt: graceful docker compose stop
     if safe_timeout 60 docker compose stop; then
-        log_message "✅ All services stopped gracefully"
+        log_message "[+] All services stopped gracefully"
         return 0
     else
-        log_message "⚠️  Graceful stop timed out, forcing stop..." "WARNING"
+        log_message "Graceful stop timed out, forcing stop..." "WARNING"
         # Force stop any remaining containers
         local running_containers=$(docker ps -q --filter "name=sting-ce")
         if [ -n "$running_containers" ]; then
@@ -197,7 +197,7 @@ start_service_tier() {
     shift
     local services=("$@")
     
-    log_message "🚀 Starting $tier_name tier: ${services[*]}"
+    log_message "Starting $tier_name tier: ${services[*]}"
     
     # Start all services in this tier simultaneously
     for service in "${services[@]}"; do
@@ -208,7 +208,7 @@ start_service_tier() {
                 return 1
             }
         else
-            log_message "⚠️  Service $service not found in compose, skipping..." "WARNING"
+            log_message "Service $service not found in compose, skipping..." "WARNING"
         fi
     done
     
@@ -219,19 +219,19 @@ start_service_tier() {
     for service in "${services[@]}"; do
         if docker compose ps --format "{{.Service}}" | grep -q "^${service}$"; then
             if ! wait_for_service_enhanced "$service"; then
-                log_message "❌ $service failed health check" "ERROR"
+                log_message "$service failed health check" "ERROR"
                 tier_healthy=false
             else
-                log_message "✅ $service is healthy"
+                log_message "[+] $service is healthy"
             fi
         fi
     done
     
     if [ "$tier_healthy" = true ]; then
-        log_message "✅ $tier_name tier is fully healthy"
+        log_message "[+] $tier_name tier is fully healthy"
         return 0
     else
-        log_message "❌ $tier_name tier has unhealthy services" "ERROR"
+        log_message "$tier_name tier has unhealthy services" "ERROR"
         return 1
     fi
 }
@@ -307,7 +307,7 @@ wait_for_service_enhanced() {
         attempt=$((attempt + 1))
     done
     
-    log_message "❌ $service failed to become healthy after ${max_attempts} attempts" "ERROR"
+    log_message "$service failed to become healthy after ${max_attempts} attempts" "ERROR"
     return 1
 }
 
@@ -318,37 +318,37 @@ start_observability_services_if_enabled() {
         . "${INSTALL_DIR}/env/observability.env" 2>/dev/null
         
         if [ "${OBSERVABILITY_ENABLED:-false}" = "true" ]; then
-            log_message "🔍 Starting observability services (enabled in config)..."
+            log_message "[*] Starting observability services (enabled in config)..."
             
             # Start observability services
             docker compose --profile observability up -d loki grafana promtail 2>/dev/null || {
-                log_message "⚠️  Some observability services failed to start" "WARNING"
+                log_message "Some observability services failed to start" "WARNING"
             }
             
             # Optional log forwarding
             if [ "${LOG_FORWARDING_ENABLED:-false}" = "true" ]; then
-                log_message "🔄 Starting log forwarding service..."
+                log_message "[*] Starting log forwarding service..."
                 docker compose --profile log-forwarding up -d log-forwarder 2>/dev/null || {
-                    log_message "⚠️  Log forwarder failed to start (this is non-critical)" "WARNING"
+                    log_message "Log forwarder failed to start (this is non-critical)" "WARNING"
                 }
             fi
             
-            log_message "✅ Observability services started"
+            log_message "[+] Observability services started"
         else
-            log_message "ℹ️  Observability services disabled in configuration"
+            log_message "Observability services disabled in configuration"
         fi
     else
-        log_message "ℹ️  No observability configuration found"
+        log_message "No observability configuration found"
     fi
 }
 
 # Function to replace the default restart_all_services
 enhanced_restart_all() {
-    log_message "🔄 Enhanced full system restart initiated..."
+    log_message "[*] Enhanced full system restart initiated..."
     
     # Use the enhanced restart function
     if restart_all_services_enhanced; then
-        log_message "✅ Enhanced full system restart completed successfully" "SUCCESS"
+        log_message "[+] Enhanced full system restart completed successfully" "SUCCESS"
         
         # Show final status
         log_message "📊 Final system status:"
@@ -357,10 +357,10 @@ enhanced_restart_all() {
         
         return 0
     else
-        log_message "❌ Enhanced full system restart failed" "ERROR"
+        log_message "Enhanced full system restart failed" "ERROR"
         
         # Show what went wrong
-        log_message "🔍 Current service status after failed restart:"
+        log_message "[*] Current service status after failed restart:"
         docker compose ps 2>/dev/null || true
         
         return 1

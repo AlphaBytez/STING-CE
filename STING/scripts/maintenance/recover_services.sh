@@ -31,9 +31,9 @@ display_service_status() {
         case "$state" in
             "running")
                 if [[ "$health" == "healthy" ]] || check_service_health "$service" 1 >/dev/null 2>&1; then
-                    echo -e "  ${GREEN}✓${NC} $service: ${GREEN}running (healthy)${NC}"
+                    echo -e "  ${GREEN}[+]${NC} $service: ${GREEN}running (healthy)${NC}"
                 else
-                    echo -e "  ${YELLOW}⚠${NC} $service: ${YELLOW}running (unhealthy)${NC}"
+                    echo -e "  ${YELLOW}[!]${NC} $service: ${YELLOW}running (unhealthy)${NC}"
                 fi
                 ;;
             "created")
@@ -41,10 +41,10 @@ display_service_status() {
                 ;;
             "exited")
                 local exit_code=$(docker inspect "$container_name" --format='{{.State.ExitCode}}' 2>/dev/null || echo "?")
-                echo -e "  ${RED}✗${NC} $service: ${RED}exited (code: $exit_code)${NC}"
+                echo -e "  ${RED}[-]${NC} $service: ${RED}exited (code: $exit_code)${NC}"
                 ;;
             "missing")
-                echo -e "  ${RED}✗${NC} $service: ${RED}missing${NC}"
+                echo -e "  ${RED}[-]${NC} $service: ${RED}missing${NC}"
                 ;;
             *)
                 echo -e "  ${YELLOW}?${NC} $service: ${YELLOW}$state${NC}"
@@ -89,7 +89,7 @@ check_docker_daemon() {
     echo -e "${BLUE}=== Docker Daemon Check ===${NC}"
     
     if docker info >/dev/null 2>&1; then
-        echo -e "  ${GREEN}✓ Docker daemon is running${NC}"
+        echo -e "  ${GREEN}[+] Docker daemon is running${NC}"
         
         # Check Docker disk usage
         local docker_usage=$(docker system df --format "table {{.Type}}\t{{.Size}}\t{{.Reclaimable}}")
@@ -97,7 +97,7 @@ check_docker_daemon() {
         echo "  Docker disk usage:"
         echo "$docker_usage" | sed 's/^/    /'
     else
-        echo -e "  ${RED}✗ Docker daemon is not responding${NC}"
+        echo -e "  ${RED}[-] Docker daemon is not responding${NC}"
         return 1
     fi
     echo
@@ -156,10 +156,10 @@ recreate_service() {
     
     # Check health
     if check_service_health "$service"; then
-        echo -e "${GREEN}✓ $service recreated successfully${NC}"
+        echo -e "${GREEN}[+] $service recreated successfully${NC}"
         return 0
     else
-        echo -e "${RED}✗ $service recreated but not healthy${NC}"
+        echo -e "${RED}[-] $service recreated but not healthy${NC}"
         return 1
     fi
 }

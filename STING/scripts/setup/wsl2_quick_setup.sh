@@ -45,7 +45,7 @@ check_wsl2() {
         error "This appears to be WSL1. Please upgrade to WSL2"
     fi
     
-    log "✅ WSL2 environment detected"
+    log "[+] WSL2 environment detected"
 }
 
 # Prompt for domain
@@ -117,7 +117,7 @@ config['kratos']['methods']['webauthn']['origin'] = 'https://$DOMAIN:8443'
 with open('$config_file', 'w') as f:
     yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
-print("✅ Configuration updated successfully")
+print("[+] Configuration updated successfully")
 EOF
     else
         warning "config.yml not found, will use environment variables only"
@@ -245,7 +245,7 @@ main() {
     # Final instructions
     echo ""
     echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
-    echo -e "${GREEN}✅ WSL2 setup complete!${NC}"
+    echo -e "${GREEN}[+] WSL2 setup complete!${NC}"
     echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
     echo ""
     echo -e "${YELLOW}Next steps:${NC}"
@@ -255,7 +255,7 @@ main() {
     echo ""
     echo -e "${INFO}Your custom domain:${NC} https://$DOMAIN:8443"
     echo ""
-    echo -e "${GREEN}Happy STINGing! 🐝${NC}"
+    echo -e "${GREEN}Happy STINGing! ${NC}"
 }
 
 # Run main

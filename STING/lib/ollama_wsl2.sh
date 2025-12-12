@@ -36,7 +36,7 @@ install_ollama_wsl2_enhanced() {
     
     # Run the WSL2-specific installer
     if bash "${SCRIPT_DIR}/scripts/check_and_install_ollama_wsl2.sh" install; then
-        log_message "✅ Ollama installed successfully for WSL2"
+        log_message "[+] Ollama installed successfully for WSL2"
         
         # Configure for custom domain if needed
         if [[ "$use_custom_domain" == "true" ]]; then
@@ -122,7 +122,7 @@ ensure_models_installed_wsl2() {
         fi
     done
     
-    log_message "✅ All required models are available"
+    log_message "[+] All required models are available"
 }
 
 # Integration with STING's installation process

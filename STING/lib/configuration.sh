@@ -97,7 +97,7 @@ generate_initial_configuration() {
         # Check for wizard-generated config first
         if [ -f "/tmp/sting-setup-state/config.yml" ]; then
             cp "/tmp/sting-setup-state/config.yml" "${CONFIG_DIR}/config.yml"
-            log_message "✅ Using wizard-configured config.yml"
+            log_message "[+] Using wizard-configured config.yml"
         elif [ -f "${SOURCE_DIR}/conf/config.yml.default" ]; then
             cp "${SOURCE_DIR}/conf/config.yml.default" "${CONFIG_DIR}/config.yml"
             log_message "Created default config.yml"
@@ -226,10 +226,10 @@ generate_initial_configuration() {
             # Test basic connectivity
             log_message "Testing basic container connectivity:" "ERROR"
             if docker compose --profile installation exec utils echo "Container accessible" 2>/dev/null; then
-                echo "✓ Container is accessible"
-                docker compose --profile installation exec utils python3 --version 2>/dev/null || echo "✗ Python not available"
+                echo "[+] Container is accessible"
+                docker compose --profile installation exec utils python3 --version 2>/dev/null || echo "[-] Python not available"
             else
-                echo "✗ Cannot connect to container"
+                echo "[-] Cannot connect to container"
             fi
             
             log_message "You can manually test with: docker compose --profile installation exec utils python3 -c 'import hvac; import yaml; import requests'" "ERROR"
@@ -623,18 +623,18 @@ ask_for_hf_token() {
         
         # Allow skipping
         if [ -z "$token" ]; then
-            echo "✓ Skipping HuggingFace token configuration"
+            echo "[+] Skipping HuggingFace token configuration"
             return 0
         fi
         
         if [[ ! "$token" =~ ^hf_ ]]; then
-            echo "❌ Invalid token format. HuggingFace tokens start with 'hf_'"
+            echo "ERROR: Invalid token format. HuggingFace tokens start with 'hf_'"
             echo "   Please check your token and try again."
             continue
         fi
         
         if [ ${#token} -lt 10 ]; then
-            echo "❌ Token appears too short. Please check and try again."
+            echo "ERROR: Token appears too short. Please check and try again."
             continue
         fi
         
@@ -645,7 +645,7 @@ ask_for_hf_token() {
         if [ "$token" = "$confirm_token" ]; then
             break
         else
-            echo "❌ Tokens don't match. Please try again."
+            echo "ERROR: Tokens don't match. Please try again."
             echo ""
         fi
     done
@@ -653,12 +653,12 @@ ask_for_hf_token() {
     # Save the token
     if save_hf_token "$token"; then
         echo ""
-        echo "✅ HuggingFace token configured successfully!"
+        echo "HuggingFace token configured successfully!"
         echo ""
         return 0
     else
         echo ""
-        echo "❌ Failed to save HuggingFace token. Please try again."
+        echo "ERROR: Failed to save HuggingFace token. Please try again."
         echo ""
         return 1
     fi
@@ -763,18 +763,18 @@ validate_env_files() {
     
     # Report results
     if [ ${#missing_files[@]} -eq 0 ]; then
-        log_message "✅ All required environment files are present" "SUCCESS"
+        log_message "[+] All required environment files are present" "SUCCESS"
         
         # List found env files for confirmation
         log_message "Found environment files:" "INFO"
         for env_file in $required_env_files; do
             if [ -f "${env_dir}/${env_file}" ]; then
-                log_message "   ✓ $env_file" "SUCCESS"
+                log_message "   [+] $env_file" "SUCCESS"
             fi
         done
         return 0
     else
-        log_message "❌ Missing required environment files:" "ERROR"
+        log_message "ERROR: Missing required environment files:" "ERROR"
         for file in "${missing_files[@]}"; do
             log_message "   - $file" "ERROR"
         done

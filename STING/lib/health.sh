@@ -190,17 +190,17 @@ check_services_health() {
     
     # Report results
     if [ ${#failed_essential[@]} -eq 0 ]; then
-        log_message "✅ All essential services are running" "SUCCESS"
+        log_message "[+] All essential services are running" "SUCCESS"
     else
-        log_message "❌ Failed essential services: ${failed_essential[*]}" "ERROR"
+        log_message "[-] Failed essential services: ${failed_essential[*]}" "ERROR"
     fi
     
     if [ ${#failed_important[@]} -gt 0 ]; then
-        log_message "⚠️  Failed important services: ${failed_important[*]}" "WARNING"
+        log_message "[!]  Failed important services: ${failed_important[*]}" "WARNING"
     fi
     
     if [ ${#failed_optional[@]} -gt 0 ]; then
-        log_message "ℹ️  Optional services not running: ${failed_optional[*]}" "INFO"
+        log_message "[*]  Optional services not running: ${failed_optional[*]}" "INFO"
     fi
     
     # Return failure only if essential services are down
@@ -269,7 +269,7 @@ check_port_availability() {
     
 #     if [ "$has_models" = "false" ]; then
 #         echo ""
-#         echo "❌ ERROR: No LLM models found!"
+#         echo "[-] ERROR: No LLM models found!"
 #         echo ""
 #         echo "The installation REQUIRES pre-downloaded LLM models."
 #         echo ""

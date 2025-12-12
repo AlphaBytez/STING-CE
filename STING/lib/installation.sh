@@ -111,7 +111,7 @@ prompt_smtp_configuration() {
         esac
 
         log_message ""
-        log_message "✅ SMTP configuration saved"
+        log_message "[+] SMTP configuration saved"
         log_message "   Host: $smtp_host:$smtp_port"
         log_message "   From: $smtp_from"
     else
@@ -126,7 +126,7 @@ prompt_smtp_configuration() {
         export SMTP_STARTTLS_ENABLED="false"
 
         log_message ""
-        log_message "✅ Using Mailpit for development"
+        log_message "[+] Using Mailpit for development"
         log_message "   Emails will be caught at http://localhost:8025"
     fi
 
@@ -143,7 +143,7 @@ configure_avahi_for_sting() {
     primary_iface=$(ip route | grep default | head -1 | awk '{print $5}')
 
     if [ -z "$primary_iface" ]; then
-        log_message "⚠️  Could not detect primary network interface, using defaults" "WARNING"
+        log_message "[!]  Could not detect primary network interface, using defaults" "WARNING"
         primary_iface="eth0,ens33,enp0s3"
     else
         log_message "  Primary network interface detected: $primary_iface"
@@ -207,12 +207,12 @@ EOF
 
     # Verify it's running correctly
     if systemctl is-active --quiet avahi-daemon; then
-        log_message "✅ Avahi configured successfully"
+        log_message "[+] Avahi configured successfully"
         log_message "   • IPv4-only mode (prevents IPv6 routing issues)"
         log_message "   • Interface filtering (prevents Docker/Tailscale conflicts)"
         log_message "   • Primary interface: $primary_iface"
     else
-        log_message "⚠️  Warning: Avahi may not have restarted correctly" "WARNING"
+        log_message "[!]  Warning: Avahi may not have restarted correctly" "WARNING"
         log_message "   You may need to manually restart: sudo systemctl restart avahi-daemon"
     fi
 }
@@ -285,7 +285,7 @@ prompt_llm_configuration() {
                 llm_provider="ollama"
                 # Check if Ollama is installed
                 if command -v ollama >/dev/null 2>&1; then
-                    log_message "✅ Ollama is already installed"
+                    log_message "[+] Ollama is already installed"
                     read -p "Ollama Endpoint [http://localhost:11434]: " llm_endpoint
                     llm_endpoint=${llm_endpoint:-http://localhost:11434}
                 else
@@ -305,10 +305,10 @@ prompt_llm_configuration() {
             # Test OpenAI-compatible /v1/models endpoint
             local test_url="${llm_endpoint%/}/v1/models"
             if curl -sf --max-time 5 "$test_url" >/dev/null 2>&1; then
-                log_message "✅ LLM endpoint is reachable at: $llm_endpoint"
+                log_message "[+] LLM endpoint is reachable at: $llm_endpoint"
                 endpoint_valid=true
             else
-                log_message "⚠️  Could not reach LLM endpoint at: $llm_endpoint" "WARNING"
+                log_message "[!]  Could not reach LLM endpoint at: $llm_endpoint" "WARNING"
                 log_message "   Testing: $test_url"
                 log_message "   The endpoint may not be running, or the URL may be incorrect"
                 echo ""
@@ -353,7 +353,7 @@ prompt_llm_configuration() {
 
     if available_models=$(curl -s "$llm_endpoint/v1/models" 2>/dev/null | jq -r '.data[]?.id' 2>/dev/null | sort); then
         if [ -n "$available_models" ]; then
-            log_message "✅ Found models on $llm_endpoint:"
+            log_message "[+] Found models on $llm_endpoint:"
             local i=1
             declare -A model_map
 
@@ -380,10 +380,10 @@ prompt_llm_configuration() {
                 default_model="${model_map[1]}"
             fi
         else
-            log_message "⚠️  No models found on endpoint. Using default: $default_model" "WARNING"
+            log_message "[!]  No models found on endpoint. Using default: $default_model" "WARNING"
         fi
     else
-        log_message "⚠️  Could not fetch models from $llm_endpoint" "WARNING"
+        log_message "[!]  Could not fetch models from $llm_endpoint" "WARNING"
         log_message "   This is normal if the LLM service isn't running yet."
         log_message "   Using default model: $default_model"
         log_message ""
@@ -393,7 +393,7 @@ prompt_llm_configuration() {
     export LLM_MODEL="$default_model"
 
     log_message ""
-    log_message "✅ LLM configuration saved"
+    log_message "[+] LLM configuration saved"
     log_message "   Provider: $llm_provider"
     log_message "   Endpoint: $llm_endpoint"
     log_message "   Default model: $default_model"
@@ -409,7 +409,7 @@ prompt_report_llm_configuration() {
     log_message "STING can use a separate LLM endpoint for report generation."
     log_message "This is useful for using larger models with high token output limits."
     log_message ""
-    log_message "💡 TIP: Using a different model for reports is only recommended when:"
+    log_message "TIP: TIP: Using a different model for reports is only recommended when:"
     log_message "   • You have limited VRAM (<24GB) and need a lightweight model for chat"
     log_message "   • You want specialized models (e.g., code-focused for reports)"
     log_message "   • You're managing 100+ concurrent users and need efficiency"
@@ -462,10 +462,10 @@ prompt_report_llm_configuration() {
         # Test OpenAI-compatible /v1/models endpoint
         local test_url="${report_llm_endpoint%/}/v1/models"
         if curl -sf --max-time 5 "$test_url" >/dev/null 2>&1; then
-            log_message "✅ Report LLM endpoint is reachable at: $report_llm_endpoint"
+            log_message "[+] Report LLM endpoint is reachable at: $report_llm_endpoint"
             endpoint_valid=true
         else
-            log_message "⚠️  Could not reach report LLM endpoint at: $report_llm_endpoint" "WARNING"
+            log_message "[!]  Could not reach report LLM endpoint at: $report_llm_endpoint" "WARNING"
             log_message "   Testing: $test_url"
             log_message "   The endpoint may not be running, or the URL may be incorrect"
             echo ""
@@ -510,7 +510,7 @@ prompt_report_llm_configuration() {
 
     if available_models=$(curl -s "$report_llm_endpoint/v1/models" 2>/dev/null | jq -r '.data[]?.id' 2>/dev/null | sort); then
         if [ -n "$available_models" ]; then
-            log_message "✅ Found models on $report_llm_endpoint:"
+            log_message "[+] Found models on $report_llm_endpoint:"
             local i=1
             declare -A model_map
 
@@ -548,10 +548,10 @@ prompt_report_llm_configuration() {
                 fallback_model="${model_map[$fallback_choice]}"
             fi
         else
-            log_message "⚠️  No models found on endpoint. Using defaults" "WARNING"
+            log_message "[!]  No models found on endpoint. Using defaults" "WARNING"
         fi
     else
-        log_message "⚠️  Could not fetch models from $report_llm_endpoint" "WARNING"
+        log_message "[!]  Could not fetch models from $report_llm_endpoint" "WARNING"
         log_message "   This is normal if the LLM service isn't running yet."
         log_message "   Using default models: $report_model (fallback: $fallback_model)"
         log_message ""
@@ -578,7 +578,7 @@ prompt_report_llm_configuration() {
     export REPORT_MAX_TOKENS="$max_tokens"
 
     log_message ""
-    log_message "✅ Report generation LLM configuration saved"
+    log_message "[+] Report generation LLM configuration saved"
     log_message "   Endpoint: $report_llm_endpoint"
     log_message "   Primary model: $report_model"
     log_message "   Fallback model: $fallback_model"
@@ -635,7 +635,7 @@ prompt_admin_configuration() {
     export ADMIN_EMAIL="$admin_email"
 
     log_message ""
-    log_message "✅ Admin configuration saved"
+    log_message "[+] Admin configuration saved"
     log_message "   Email: $admin_email"
     log_message "   Authentication: Passwordless (email verification)"
     log_message ""
@@ -684,7 +684,7 @@ SETUP_ADMIN=${SETUP_ADMIN:-false}
 STING_HOSTNAME=${STING_HOSTNAME:-localhost}
 EOF
 
-    log_message "✅ Configuration saved to .env file"
+    log_message "[+] Configuration saved to .env file"
 }
 
 # Update config.yml with CLI configuration values
@@ -692,7 +692,7 @@ update_config_yml_from_cli() {
     local config_file="${INSTALL_DIR}/conf/config.yml"
 
     if [ ! -f "$config_file" ]; then
-        log_message "⚠️ config.yml not found, skipping CLI configuration update" "WARNING"
+        log_message "[!] config.yml not found, skipping CLI configuration update" "WARNING"
         return 0
     fi
 
@@ -761,12 +761,12 @@ update_config_yml_from_cli() {
             fi
         fi
 
-        log_message "  ✓ Report generation model: ${REPORT_LLM_MODEL}"
-        log_message "  ✓ Fallback model: ${REPORT_LLM_FALLBACK_MODEL}"
-        log_message "  ✓ Max tokens: ${REPORT_MAX_TOKENS}"
+        log_message "  [+] Report generation model: ${REPORT_LLM_MODEL}"
+        log_message "  [+] Fallback model: ${REPORT_LLM_FALLBACK_MODEL}"
+        log_message "  [+] Max tokens: ${REPORT_MAX_TOKENS}"
     fi
 
-    log_message "✅ config.yml updated with CLI configuration"
+    log_message "[+] config.yml updated with CLI configuration"
 }
 
 # Prompt for hostname configuration
@@ -796,7 +796,7 @@ prompt_hostname_configuration() {
     if [ -n "$hostname_script" ]; then
         source "$hostname_script"
     else
-        log_message "⚠️ hostname_detection.sh not found, using localhost as fallback" "WARNING"
+        log_message "[!] hostname_detection.sh not found, using localhost as fallback" "WARNING"
         export STING_HOSTNAME="localhost"
         return 0
     fi
@@ -807,13 +807,13 @@ prompt_hostname_configuration() {
     STING_HOSTNAME=$(get_sting_hostname true)
 
     if [ -z "$STING_HOSTNAME" ]; then
-        log_message "⚠️ No hostname selected, defaulting to localhost" "WARNING"
+        log_message "[!] No hostname selected, defaulting to localhost" "WARNING"
         STING_HOSTNAME="localhost"
     fi
 
     export STING_HOSTNAME
     log_message ""
-    log_message "✅ Hostname configured: $STING_HOSTNAME"
+    log_message "[+] Hostname configured: $STING_HOSTNAME"
     log_message ""
 }
 
@@ -845,16 +845,16 @@ run_cli_configuration_prompts() {
 
     # Add helpful notes about authentication methods based on hostname
     if [ "$hostname_value" = "localhost" ]; then
-        log_message "     ℹ️  WebAuthn/passkeys: Local device only"
-        log_message "     ℹ️  Email codes/TOTP: Available from any device"
+        log_message "     [*]  WebAuthn/passkeys: Local device only"
+        log_message "     [*]  Email codes/TOTP: Available from any device"
     elif [[ "$hostname_value" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        log_message "     ℹ️  Access: https://$hostname_value:8443"
-        log_message "     ℹ️  WebAuthn/passkeys: Will work after installing CA cert"
-        log_message "     ℹ️  Email codes/TOTP: Available without cert"
+        log_message "     [*]  Access: https://$hostname_value:8443"
+        log_message "     [*]  WebAuthn/passkeys: Will work after installing CA cert"
+        log_message "     [*]  Email codes/TOTP: Available without cert"
     else
-        log_message "     ℹ️  Access: https://$hostname_value:8443"
-        log_message "     ℹ️  WebAuthn/passkeys: Will work after installing CA cert"
-        log_message "     ℹ️  Email codes/TOTP: Available without cert"
+        log_message "     [*]  Access: https://$hostname_value:8443"
+        log_message "     [*]  WebAuthn/passkeys: Will work after installing CA cert"
+        log_message "     [*]  Email codes/TOTP: Available without cert"
     fi
 
     log_message "  📧 Email Mode: ${EMAIL_MODE:-development}"
@@ -1406,11 +1406,11 @@ uninstall_msting() {
 
 # Uninstall with confirmation
 uninstall_msting_with_confirmation() {
-    echo "⚠️  WARNING: This will remove STING installation!"
+    echo "[!]  WARNING: This will remove STING installation!"
     echo "   - Installation directory: ${INSTALL_DIR}"
     echo "   - Docker containers, images, and volumes"
     echo ""
-    echo "   ℹ️  User data (admin password, etc.) will be PRESERVED"
+    echo "   [*]  User data (admin password, etc.) will be PRESERVED"
     echo "   Add --purge to remove ALL data including:"
     echo "     - User data and admin credentials"
     echo "     - All configuration files"
@@ -1438,10 +1438,10 @@ uninstall_msting_with_confirmation() {
             *)
                 attempts=$((attempts + 1))
                 if [ $attempts -lt $max_attempts ]; then
-                    echo "❌ Invalid input: '$confirm'. Please type 'yes' or 'no' (attempt $attempts/$max_attempts)"
+                    echo "[-] Invalid input: '$confirm'. Please type 'yes' or 'no' (attempt $attempts/$max_attempts)"
                     echo ""
                 else
-                    echo "❌ Too many invalid attempts. Uninstall cancelled."
+                    echo "[-] Too many invalid attempts. Uninstall cancelled."
                     log_message "Uninstall cancelled after $max_attempts invalid attempts"
                     return 1
                 fi
@@ -1723,7 +1723,7 @@ check_docker_ipv6() {
     local test_result=$(docker run --rm busybox:latest wget --spider --timeout=5 https://registry-1.docker.io 2>&1)
 
     if echo "$test_result" | grep -q "network is unreachable\|Connection refused"; then
-        log_message "⚠️  Docker IPv6 connectivity issue detected" "WARNING"
+        log_message "[!]  Docker IPv6 connectivity issue detected" "WARNING"
         log_message "Configuring Docker to use IPv4..." "INFO"
 
         # Backup existing daemon.json if it exists
@@ -1751,12 +1751,12 @@ EOF
 
         # Verify fix
         if docker run --rm busybox:latest wget --spider --timeout=5 https://registry-1.docker.io >/dev/null 2>&1; then
-            log_message "✅ Docker networking fixed" "SUCCESS"
+            log_message "[+] Docker networking fixed" "SUCCESS"
         else
-            log_message "⚠️  Docker networking may still have issues, but continuing..." "WARNING"
+            log_message "[!]  Docker networking may still have issues, but continuing..." "WARNING"
         fi
     else
-        log_message "✅ Docker networking is working correctly" "SUCCESS"
+        log_message "[+] Docker networking is working correctly" "SUCCESS"
     fi
 }
 
@@ -1807,7 +1807,7 @@ prepull_docker_images() {
 
         for ((i=1; i<=retries; i++)); do
             if docker pull "$primary_image" >/dev/null 2>&1; then
-                log_message "  ✓ $description from primary registry" "SUCCESS"
+                log_message "  [+] $description from primary registry" "SUCCESS"
                 success=true
                 break
             else
@@ -1824,13 +1824,13 @@ prepull_docker_images() {
             if docker pull "$fallback_image" >/dev/null 2>&1; then
                 # Tag fallback image as primary for docker-compose compatibility
                 docker tag "$fallback_image" "$primary_image" >/dev/null 2>&1
-                log_message "  ✓ $description from fallback registry (tagged as $primary_image)" "SUCCESS"
+                log_message "  [+] $description from fallback registry (tagged as $primary_image)" "SUCCESS"
                 success=true
             fi
         fi
 
         if [ "$success" = false ]; then
-            log_message "  ✗ Failed to pull $description after trying all registries" "ERROR"
+            log_message "  [-] Failed to pull $description after trying all registries" "ERROR"
             pull_failed=1
         fi
     done
@@ -1841,7 +1841,7 @@ prepull_docker_images() {
         return 1
     fi
 
-    log_message "✅ All Docker images pulled successfully" "SUCCESS"
+    log_message "[+] All Docker images pulled successfully" "SUCCESS"
     return 0
 }
 
@@ -2083,9 +2083,9 @@ check_and_install_dependencies() {
 
                 # Verify it's running
                 if sudo systemctl is-active --quiet avahi-daemon; then
-                    log_message "✅ Avahi is running - .local hostname resolution is available" "SUCCESS"
+                    log_message "[+] Avahi is running - .local hostname resolution is available" "SUCCESS"
                 else
-                    log_message "⚠️  Avahi service is not running - WebAuthn may not work properly" "WARNING"
+                    log_message "[!]  Avahi service is not running - WebAuthn may not work properly" "WARNING"
                 fi
             fi
 
@@ -2102,9 +2102,9 @@ check_and_install_dependencies() {
                 sudo systemctl start avahi-daemon >/dev/null 2>&1 || sudo systemctl restart avahi-daemon >/dev/null 2>&1 || true
 
                 if sudo systemctl is-active --quiet avahi-daemon; then
-                    log_message "✅ Avahi is running" "SUCCESS"
+                    log_message "[+] Avahi is running" "SUCCESS"
                 else
-                    log_message "⚠️  Avahi service is not running" "WARNING"
+                    log_message "[!]  Avahi service is not running" "WARNING"
                 fi
             fi
         else
@@ -2825,19 +2825,19 @@ apply_database_migrations() {
         if [[ "$migration_file" == *.py ]]; then
             # Apply Python migration
             if apply_python_migration "$migration_file"; then
-                log_message "✅ Applied $migration_name"
+                log_message "[+] Applied $migration_name"
                 ((applied_count++))
             else
-                log_message "❌ Failed to apply $migration_name" "WARNING"
+                log_message "[-] Failed to apply $migration_name" "WARNING"
                 ((failed_count++))
             fi
         elif [[ "$migration_file" == *.sql ]]; then
             # Apply SQL migration
             if apply_sql_migration "$migration_file"; then
-                log_message "✅ Applied $migration_name"
+                log_message "[+] Applied $migration_name"
                 ((applied_count++))
             else
-                log_message "❌ Failed to apply $migration_name" "WARNING"
+                log_message "[-] Failed to apply $migration_name" "WARNING"
                 ((failed_count++))
             fi
         else
@@ -2965,13 +2965,13 @@ check_core_services_health() {
             if docker compose ps --format "{{.Name}}\t{{.Status}}" 2>/dev/null | grep "sting-ce-${service}" | grep -q "Up"; then
                 # Service is up, check if it's healthy
                 if docker compose exec -T "$service" echo "health check" >/dev/null 2>&1; then
-                    log_message "✅ Service $service is healthy"
+                    log_message "[+] Service $service is healthy"
                     break
                 fi
             fi
             
             if [ $attempt -eq $max_attempts ]; then
-                log_message "❌ Service $service failed health check after $max_attempts attempts" "ERROR"
+                log_message "[-] Service $service failed health check after $max_attempts attempts" "ERROR"
                 failed_services+=("$service")
                 break
             fi
@@ -2983,12 +2983,12 @@ check_core_services_health() {
     done
     
     if [ ${#failed_services[@]} -gt 0 ]; then
-        log_message "❌ Failed services: ${failed_services[*]}" "ERROR"
+        log_message "[-] Failed services: ${failed_services[*]}" "ERROR"
         log_message "LLM service startup aborted due to unhealthy core services" "ERROR"
         return 1
     fi
     
-    log_message "✅ All core services are healthy" "SUCCESS"
+    log_message "[+] All core services are healthy" "SUCCESS"
     return 0
 }
 
@@ -3012,21 +3012,21 @@ start_llm_service_post_install() {
     fi
     
     # Start the native LLM service
-    log_message "🚀 Starting native LLM service..."
+    log_message " Starting native LLM service..."
     if start_native_llm_service; then
-        log_message "✅ LLM service started successfully!" "SUCCESS"
+        log_message "[+] LLM service started successfully!" "SUCCESS"
         
         # Verify the service is responding
         if verify_llm_service_ready; then
-            log_message "🐝 Bee chatbot is now ready to use!" "SUCCESS"
+            log_message " Bee chatbot is now ready to use!" "SUCCESS"
             
             # Set up knowledge base with STING documentation
             setup_knowledge_base
         else
-            log_message "⚠️  LLM service started but may not be fully ready" "WARNING"
+            log_message "[!]  LLM service started but may not be fully ready" "WARNING"
         fi
     else
-        log_message "❌ Failed to start LLM service" "ERROR"
+        log_message "[-] Failed to start LLM service" "ERROR"
         # show_llm_startup_notice  # Deprecated - LLM service is no longer used
         return 1
     fi
@@ -3040,7 +3040,7 @@ prompt_llm_service_startup() {
     fi
     
     echo ""
-    echo -e "\033[1;33m🐝 STING installation completed successfully! \033[0m"
+    echo -e "\033[1;33m STING installation completed successfully! \033[0m"
     echo ""
     echo -e "\033[1;36mWould you like to start the LLM service now to enable the Bee chatbot?\033[0m"
     echo ""
@@ -3049,7 +3049,7 @@ prompt_llm_service_startup() {
     echo "  • Start the native LLM service with Metal Performance Shaders (MPS)"
     echo "  • Enable the Bee chatbot for immediate use"
     echo ""
-    echo "  ⚠️  Note: This uses significant memory/CPU resources"
+    echo "  [!]  Note: This uses significant memory/CPU resources"
     echo ""
     
     local choice
@@ -3083,7 +3083,7 @@ prompt_llm_service_startup() {
 # Setup comprehensive knowledge base for fresh installations
 setup_knowledge_base() {
     echo ""
-    echo -e "\033[1;33m🍯 Setting up STING knowledge base...\033[0m"
+    echo -e "\033[1;33m Setting up STING knowledge base...\033[0m"
     echo ""
     
     # Wait a moment for services to be fully ready
@@ -3101,30 +3101,30 @@ setup_knowledge_base() {
             
             if [ $setup_result -eq 0 ]; then
                 echo ""
-                echo -e "\033[1;32m✅ Knowledge base setup completed!\033[0m"
+                echo -e "\033[1;32m[+] Knowledge base setup completed!\033[0m"
                 echo ""
-                echo "  🐝 Bee Chat is now ready with comprehensive STING knowledge!"
+                echo "   Bee Chat is now ready with comprehensive STING knowledge!"
                 echo ""
-                echo "  💡 Try these test queries:"
+                echo "  TIP: Try these test queries:"
                 echo "     • 'What is STING and how does it work?'"
                 echo "     • 'How can STING help my law firm?'"
                 echo "     • 'What are STING's enterprise security features?'"
                 echo ""
             else
                 echo ""
-                echo -e "\033[1;33m⚠️  Knowledge base setup encountered issues\033[0m"
-                echo "  🔧 You can run it manually later:"
+                echo -e "\033[1;33m[!]  Knowledge base setup encountered issues\033[0m"
+                echo "   You can run it manually later:"
                 echo "     python3 scripts/setup_default_honey_jars.py"
                 echo ""
             fi
         else
-            echo -e "\033[1;33m⚠️  Python3 not found, skipping knowledge base setup\033[0m"
-            echo "  🔧 You can run it manually after installing Python3:"
+            echo -e "\033[1;33m[!]  Python3 not found, skipping knowledge base setup\033[0m"
+            echo "   You can run it manually after installing Python3:"
             echo "     python3 scripts/setup_default_honey_jars.py"
             echo ""
         fi
     else
-        echo -e "\033[1;33m⚠️  Setup script not found at: ${PROJECT_DIR}/scripts/setup_default_honey_jars.py\033[0m"
+        echo -e "\033[1;33m[!]  Setup script not found at: ${PROJECT_DIR}/scripts/setup_default_honey_jars.py\033[0m"
         echo ""
     fi
 }
@@ -3134,7 +3134,7 @@ show_llm_startup_notice() {
         echo ""
         echo -e "\033[1;36m╔═══════════════════════════════════════════════════════════════════════════════╗\033[0m"
         echo -e "\033[1;36m║                                                                               ║\033[0m"
-        echo -e "\033[1;36m║  \033[1;33m🐝 IMPORTANT: Native LLM Service Setup Required for Bee Chatbot 🐝\033[1;36m        ║\033[0m"
+        echo -e "\033[1;36m║  \033[1;33m IMPORTANT: Native LLM Service Setup Required for Bee Chatbot \033[1;36m        ║\033[0m"
         echo -e "\033[1;36m║                                                                               ║\033[0m"
         echo -e "\033[1;36m║  \033[1;37mThe native LLM service was not started during installation to prevent\033[1;36m      ║\033[0m"
         echo -e "\033[1;36m║  \033[1;37mDocker crashes. To enable the Bee chatbot, start it manually:\033[1;36m           ║\033[0m"
@@ -3148,16 +3148,16 @@ show_llm_startup_notice() {
         echo -e "\033[1;36m║  \033[1;32m📋 Stop LLM Service:\033[1;36m                                                    ║\033[0m"
         echo -e "\033[1;36m║     \033[1;97m./sting-llm stop\033[1;36m                                                     ║\033[0m"
         echo -e "\033[1;36m║                                                                               ║\033[0m"
-        echo -e "\033[1;36m║  \033[1;33m💡 Features:\033[1;36m                                                             ║\033[0m"
+        echo -e "\033[1;36m║  \033[1;33mTIP: Features:\033[1;36m                                                             ║\033[0m"
         echo -e "\033[1;36m║     \033[1;37m• Metal Performance Shaders (MPS) GPU acceleration\033[1;36m                    ║\033[0m"
         echo -e "\033[1;36m║     \033[1;37m• Phi-3 and TinyLlama models from HuggingFace\033[1;36m                       ║\033[0m"
         echo -e "\033[1;36m║     \033[1;37m• Dynamic context system support\033[1;36m                                    ║\033[0m"
         echo -e "\033[1;36m║     \033[1;37m• Automatic model downloading on first use\033[1;36m                          ║\033[0m"
         echo -e "\033[1;36m║                                                                               ║\033[0m"
-        echo -e "\033[1;36m║  \033[1;31m⚠️  Note: Starting the LLM service uses significant memory/CPU.\033[1;36m          ║\033[0m"
+        echo -e "\033[1;36m║  \033[1;31m[!]  Note: Starting the LLM service uses significant memory/CPU.\033[1;36m          ║\033[0m"
         echo -e "\033[1;36m║     \033[1;37mConsider stopping Docker services if you experience issues.\033[1;36m          ║\033[0m"
         echo -e "\033[1;36m║                                                                               ║\033[0m"
-        echo -e "\033[1;36m║  \033[1;32m💡 Quick Start Options:\033[1;36m                                              ║\033[0m"
+        echo -e "\033[1;36m║  \033[1;32mTIP: Quick Start Options:\033[1;36m                                              ║\033[0m"
         echo -e "\033[1;36m║     \033[1;37m• Install with LLM: ./install_sting.sh install --start-llm\033[1;36m           ║\033[0m"
         echo -e "\033[1;36m║     \033[1;37m• Install without prompts: ./install_sting.sh install --no-prompt\033[1;36m   ║\033[0m"
         echo -e "\033[1;36m║                                                                               ║\033[0m"
@@ -3213,7 +3213,7 @@ install_ollama_if_enabled() {
     if command -v ollama >/dev/null 2>&1; then
         log_message \"Ollama is already installed, checking status...\"
         if curl -sf http://localhost:11434/v1/models >/dev/null 2>&1; then
-            log_message \"✅ Ollama is running and ready\"
+            log_message \"[+] Ollama is running and ready\"
             return 0
         else
             log_message \"Ollama is installed but not running, attempting to start...\"
@@ -3230,9 +3230,9 @@ install_ollama_if_enabled() {
             export OLLAMA_MODELS_TO_INSTALL=\"phi3:mini,deepseek-r1:latest\"
             
             if bash \"${SOURCE_DIR}/scripts/install_ollama.sh\"; then
-                log_message \"✅ Ollama installation completed successfully\"
+                log_message \"[+] Ollama installation completed successfully\"
             else
-                log_message \"❌ Ollama installation failed\" \"ERROR\"
+                log_message \"[-] Ollama installation failed\" \"ERROR\"
                 log_message \"You can install manually later with: ./manage_sting.sh install-ollama\" \"INFO\"
                 return 1
             fi
@@ -3262,17 +3262,17 @@ generate_env_js_files() {
     # Generate env.js for frontend build (used during build time)
     if [ -f "${INSTALL_DIR}/frontend/public/env.js.template" ]; then
         sed "s/__HOST_IP__/$host_ip/g" "${INSTALL_DIR}/frontend/public/env.js.template" > "${INSTALL_DIR}/frontend/public/env.js"
-        log_message "✅ Generated frontend/public/env.js"
+        log_message "[+] Generated frontend/public/env.js"
     else
-        log_message "⚠️ frontend/public/env.js.template not found, skipping" "WARNING"
+        log_message "[!] frontend/public/env.js.template not found, skipping" "WARNING"
     fi
 
     # Generate env.js for app static files (served by Flask)
     if [ -f "${INSTALL_DIR}/app/static/env.js.template" ]; then
         sed "s/__HOST_IP__/$host_ip/g" "${INSTALL_DIR}/app/static/env.js.template" > "${INSTALL_DIR}/app/static/env.js"
-        log_message "✅ Generated app/static/env.js"
+        log_message "[+] Generated app/static/env.js"
     else
-        log_message "⚠️ app/static/env.js.template not found, skipping" "WARNING"
+        log_message "[!] app/static/env.js.template not found, skipping" "WARNING"
     fi
 }
 
@@ -3280,7 +3280,7 @@ generate_env_js_files() {
 # This catches hostname/RP ID mismatches BEFORE Docker build starts
 validate_auth_config_consistency() {
     log_message "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    log_message "🔍 Validating authentication configuration consistency..."
+    log_message " Validating authentication configuration consistency..."
     log_message "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
     # Trim whitespace from hostname to avoid comparison issues
@@ -3290,8 +3290,8 @@ validate_auth_config_consistency() {
 
     # 1. Verify Kratos config exists
     if [ ! -f "${INSTALL_DIR}/kratos/kratos.yml" ]; then
-        errors+=("❌ Kratos config not found at ${INSTALL_DIR}/kratos/kratos.yml")
-        log_message "❌ CRITICAL: Kratos configuration validation failed!"
+        errors+=("[-] Kratos config not found at ${INSTALL_DIR}/kratos/kratos.yml")
+        log_message "[-] CRITICAL: Kratos configuration validation failed!"
         for error in "${errors[@]}"; do
             log_message "   $error"
         done
@@ -3300,7 +3300,7 @@ validate_auth_config_consistency() {
 
     # 2. Check for unsubstituted placeholders (critical error)
     if grep -q "__STING_HOSTNAME__" "${INSTALL_DIR}/kratos/kratos.yml"; then
-        errors+=("❌ Kratos config still contains __STING_HOSTNAME__ placeholder!")
+        errors+=("[-] Kratos config still contains __STING_HOSTNAME__ placeholder!")
         errors+=("   Template substitution may have failed")
     fi
 
@@ -3308,43 +3308,43 @@ validate_auth_config_consistency() {
     # Use more specific pattern to match webauthn rp: section only, trim all whitespace
     local rp_id=$(grep -A20 "webauthn:" "${INSTALL_DIR}/kratos/kratos.yml" | grep -A10 "rp:" | grep "id:" | head -1 | awk '{print $2}' | tr -d '"' | tr -d "'" | tr -d '\r' | tr -d '\n' | xargs)
     if [ -z "$rp_id" ]; then
-        errors+=("❌ WebAuthn RP ID not found in Kratos config")
+        errors+=("[-] WebAuthn RP ID not found in Kratos config")
     elif [ "$rp_id" != "$hostname" ]; then
-        errors+=("❌ WebAuthn RP ID mismatch!")
+        errors+=("[-] WebAuthn RP ID mismatch!")
         errors+=("   Expected: ${hostname}")
         errors+=("   Got: ${rp_id}")
         errors+=("   This WILL cause passkey/WebAuthn failures!")
     else
-        log_message "   ✅ WebAuthn RP ID: $rp_id"
+        log_message "   [+] WebAuthn RP ID: $rp_id"
     fi
 
     # 4. Verify WebAuthn origins include the hostname
     if ! grep -A20 "webauthn:" "${INSTALL_DIR}/kratos/kratos.yml" | grep -A10 "rp:" | grep "origins:" -A5 | grep -q "$hostname"; then
-        errors+=("❌ WebAuthn origins don't include hostname '$hostname'")
+        errors+=("[-] WebAuthn origins don't include hostname '$hostname'")
     else
-        log_message "   ✅ WebAuthn origins configured correctly"
+        log_message "   [+] WebAuthn origins configured correctly"
     fi
 
     # 5. Verify CORS allowed_origins match hostname
     if ! grep -A5 "allowed_origins:" "${INSTALL_DIR}/kratos/kratos.yml" | grep -q "$hostname"; then
-        errors+=("❌ CORS allowed_origins doesn't include '$hostname'")
+        errors+=("[-] CORS allowed_origins doesn't include '$hostname'")
     else
-        log_message "   ✅ CORS origins configured correctly"
+        log_message "   [+] CORS origins configured correctly"
     fi
 
     # 6. Check frontend env.js (non-critical - might not exist yet)
     if [ -f "${INSTALL_DIR}/frontend/public/env.js" ]; then
         if ! grep -q "$hostname" "${INSTALL_DIR}/frontend/public/env.js"; then
-            warnings+=("⚠️  Frontend env.js doesn't contain hostname '$hostname'")
+            warnings+=("[!]  Frontend env.js doesn't contain hostname '$hostname'")
         else
-            log_message "   ✅ Frontend configuration matches hostname"
+            log_message "   [+] Frontend configuration matches hostname"
         fi
     fi
 
     # 7. Check for URL consistency (all should use same hostname)
     local unique_hosts=$(grep -E "https?://" "${INSTALL_DIR}/kratos/kratos.yml" | grep -o "https\?://[^:]*" | sort -u | wc -l)
     if [ "$unique_hosts" -gt 2 ]; then  # Allow both http:// and https:// variants
-        warnings+=("⚠️  Multiple different hostnames found in Kratos config")
+        warnings+=("[!]  Multiple different hostnames found in Kratos config")
         warnings+=("   This may cause redirect/CORS issues")
     fi
 
@@ -3353,14 +3353,14 @@ validate_auth_config_consistency() {
         # Count localhost occurrences (excluding comments)
         local localhost_count=$(grep -v "^#" "${INSTALL_DIR}/kratos/kratos.yml" | grep -c "localhost" || true)
         if [ "$localhost_count" -gt 0 ]; then
-            warnings+=("⚠️  Found 'localhost' in config despite hostname being '$hostname'")
+            warnings+=("[!]  Found 'localhost' in config despite hostname being '$hostname'")
             warnings+=("   This may cause issues with remote access")
         fi
     fi
 
     # 9. DNS Resolution Check (for non-localhost/non-IP hostnames)
     if [ "$hostname" != "localhost" ] && [[ ! "$hostname" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        log_message "   🔍 Checking DNS resolution for '$hostname'..."
+        log_message "    Checking DNS resolution for '$hostname'..."
 
         # Try multiple resolution methods for best compatibility
         local dns_resolved=false
@@ -3370,7 +3370,7 @@ validate_auth_config_consistency() {
             if getent hosts "$hostname" &>/dev/null; then
                 dns_resolved=true
                 local resolved_ip=$(getent hosts "$hostname" | head -1 | awk '{print $1}')
-                log_message "   ✅ DNS resolution successful via getent: $resolved_ip"
+                log_message "   [+] DNS resolution successful via getent: $resolved_ip"
             fi
         fi
 
@@ -3378,7 +3378,7 @@ validate_auth_config_consistency() {
         if [ "$dns_resolved" = false ] && command -v ping &>/dev/null; then
             if ping -c 1 -W 2 "$hostname" &>/dev/null 2>&1; then
                 dns_resolved=true
-                log_message "   ✅ DNS resolution successful via ping"
+                log_message "   [+] DNS resolution successful via ping"
             fi
         fi
 
@@ -3386,12 +3386,12 @@ validate_auth_config_consistency() {
         if [ "$dns_resolved" = false ] && command -v host &>/dev/null; then
             if host "$hostname" &>/dev/null 2>&1; then
                 dns_resolved=true
-                log_message "   ✅ DNS resolution successful via host"
+                log_message "   [+] DNS resolution successful via host"
             fi
         fi
 
         if [ "$dns_resolved" = false ]; then
-            warnings+=("⚠️  Hostname '$hostname' does not currently resolve via DNS")
+            warnings+=("[!]  Hostname '$hostname' does not currently resolve via DNS")
             warnings+=("   This is OK if you plan to add it to /etc/hosts on client machines")
 
             # Special warning for .local domains
@@ -3403,29 +3403,29 @@ validate_auth_config_consistency() {
 
     # 10. .local domain special checks (mDNS/Avahi requirements)
     if [[ "$hostname" =~ \.local$ ]]; then
-        log_message "   🔍 Checking .local domain mDNS support..."
+        log_message "    Checking .local domain mDNS support..."
 
         local mdns_available=false
 
         # Check for systemd-resolved (Linux)
         if command -v resolvectl &>/dev/null && systemctl is-active --quiet systemd-resolved 2>/dev/null; then
             mdns_available=true
-            log_message "   ✅ systemd-resolved active (supports .local via mDNS)"
+            log_message "   [+] systemd-resolved active (supports .local via mDNS)"
         # Check for Avahi (Linux alternative)
         elif command -v avahi-daemon &>/dev/null || systemctl is-active --quiet avahi-daemon 2>/dev/null; then
             mdns_available=true
-            log_message "   ✅ Avahi daemon detected (supports .local via mDNS)"
+            log_message "   [+] Avahi daemon detected (supports .local via mDNS)"
 
             # Configure Avahi for optimal STING compatibility
             configure_avahi_for_sting
         # macOS always supports .local via Bonjour
         elif [[ "$(uname)" == "Darwin" ]]; then
             mdns_available=true
-            log_message "   ✅ macOS detected (native .local support via Bonjour)"
+            log_message "   [+] macOS detected (native .local support via Bonjour)"
         fi
 
         if [ "$mdns_available" = false ]; then
-            log_message "⚠️  .local hostname selected but mDNS/Avahi not detected" "WARNING"
+            log_message "[!]  .local hostname selected but mDNS/Avahi not detected" "WARNING"
             log_message ""
             log_message "For .local domains to work across your network, you need mDNS support."
             log_message ""
@@ -3441,7 +3441,7 @@ validate_auth_config_consistency() {
                     if sudo apt-get update -qq && sudo apt-get install -y avahi-daemon avahi-utils; then
                         sudo systemctl enable avahi-daemon
                         sudo systemctl start avahi-daemon
-                        log_message "✅ Avahi installed and started successfully"
+                        log_message "[+] Avahi installed and started successfully"
 
                         # Configure Avahi for optimal VMware/Docker compatibility
                         configure_avahi_for_sting
@@ -3450,17 +3450,17 @@ validate_auth_config_consistency() {
                         # Clear the warning since we fixed it
                         mdns_available=true
                     else
-                        warnings+=("⚠️  Failed to install avahi-daemon automatically")
+                        warnings+=("[!]  Failed to install avahi-daemon automatically")
                         warnings+=("   Install manually: sudo apt install avahi-daemon")
                     fi
                 else
-                    warnings+=("⚠️  .local hostname used but mDNS/Avahi not installed")
+                    warnings+=("[!]  .local hostname used but mDNS/Avahi not installed")
                     warnings+=("   .local domains may not resolve without:")
                     warnings+=("   - Avahi daemon (install: sudo apt install avahi-daemon)")
                     warnings+=("   - OR manual /etc/hosts entries on all client machines")
                 fi
             else
-                warnings+=("⚠️  .local hostname used but mDNS/Avahi not detected")
+                warnings+=("[!]  .local hostname used but mDNS/Avahi not detected")
                 warnings+=("   .local domains may not resolve without:")
                 warnings+=("   - systemd-resolved (usually enabled by default on Ubuntu)")
                 warnings+=("   - Avahi daemon (install via package manager)")
@@ -3473,29 +3473,29 @@ validate_auth_config_consistency() {
     # Ensure session cookies will work with the configured hostname
     local cookie_domain=$(grep -A5 "session:" "${INSTALL_DIR}/kratos/kratos.yml" | grep "domain:" | awk '{print $2}')
     if [ -n "$cookie_domain" ] && [ "$cookie_domain" != "$hostname" ]; then
-        warnings+=("⚠️  Session cookie domain '$cookie_domain' differs from hostname '$hostname'")
+        warnings+=("[!]  Session cookie domain '$cookie_domain' differs from hostname '$hostname'")
         warnings+=("   This may cause session/login issues")
     else
-        log_message "   ✅ Session cookie configuration compatible with hostname"
+        log_message "   [+] Session cookie configuration compatible with hostname"
     fi
 
     # 12. SSL/TLS hostname validation check
     if [ "$hostname" != "localhost" ]; then
-        log_message "   ℹ️  SSL certificates will be self-signed for hostname: $hostname"
-        log_message "   ℹ️  Browsers will show security warnings until you install custom certs"
+        log_message "   [*]  SSL certificates will be self-signed for hostname: $hostname"
+        log_message "   [*]  Browsers will show security warnings until you install custom certs"
     fi
 
     # Report results
     log_message ""
     if [ ${#errors[@]} -eq 0 ]; then
-        log_message "✅ Authentication configuration validation PASSED"
+        log_message "[+] Authentication configuration validation PASSED"
         log_message "   Configured hostname: $hostname"
         log_message "   WebAuthn RP ID: $rp_id"
         log_message "   All critical checks passed"
 
         if [ ${#warnings[@]} -gt 0 ]; then
             log_message ""
-            log_message "⚠️  Warnings (non-critical):"
+            log_message "[!]  Warnings (non-critical):"
             for warning in "${warnings[@]}"; do
                 log_message "   $warning"
             done
@@ -3505,7 +3505,7 @@ validate_auth_config_consistency() {
         log_message ""
         return 0
     else
-        log_message "❌ Authentication configuration validation FAILED"
+        log_message "[-] Authentication configuration validation FAILED"
         log_message ""
         log_message "Critical errors found:"
         for error in "${errors[@]}"; do
@@ -3522,7 +3522,7 @@ validate_auth_config_consistency() {
 
         log_message ""
         log_message "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        log_message "⚠️  These configuration issues WILL cause authentication failures!"
+        log_message "[!]  These configuration issues WILL cause authentication failures!"
         log_message "   - Passkeys/WebAuthn will not work"
         log_message "   - Login/registration may fail"
         log_message "   - CORS errors may occur"
@@ -3547,7 +3547,7 @@ configure_hostname() {
     if [ -f "$script_lib_dir/hostname_detection.sh" ]; then
         source "$script_lib_dir/hostname_detection.sh"
     else
-        log_message "⚠️ hostname_detection.sh not found, using localhost as fallback" "WARNING"
+        log_message "[!] hostname_detection.sh not found, using localhost as fallback" "WARNING"
         export STING_HOSTNAME="localhost"
         return 0
     fi
@@ -3561,7 +3561,7 @@ configure_hostname() {
     fi
 
     if [ -z "$STING_HOSTNAME" ]; then
-        log_message "⚠️ No hostname detected, defaulting to localhost" "WARNING"
+        log_message "[!] No hostname detected, defaulting to localhost" "WARNING"
         STING_HOSTNAME="localhost"
     fi
 
@@ -3574,9 +3574,9 @@ configure_hostname() {
         sed "s/__STING_HOSTNAME__/$STING_HOSTNAME/g" \
             "${INSTALL_DIR}/kratos/kratos.yml.template" > \
             "${INSTALL_DIR}/kratos/kratos.yml"
-        log_message "✅ Generated kratos/kratos.yml with hostname: $STING_HOSTNAME"
+        log_message "[+] Generated kratos/kratos.yml with hostname: $STING_HOSTNAME"
     else
-        log_message "⚠️ kratos/kratos.yml.template not found, skipping Kratos config generation" "WARNING"
+        log_message "[!] kratos/kratos.yml.template not found, skipping Kratos config generation" "WARNING"
     fi
 
     # Update env.js files with hostname instead of IP for WebAuthn compatibility
@@ -3602,7 +3602,7 @@ configure_hostname() {
             sed -i "s|REACT_APP_API_URL: '[^']*'|REACT_APP_API_URL: 'https://$STING_HOSTNAME:5050'|g" "${INSTALL_DIR}/frontend/public/env.js"
             sed -i "s|REACT_APP_KRATOS_PUBLIC_URL: '[^']*'|REACT_APP_KRATOS_PUBLIC_URL: 'https://$STING_HOSTNAME:4433'|g" "${INSTALL_DIR}/frontend/public/env.js"
         fi
-        log_message "✅ Updated frontend/public/env.js with hostname"
+        log_message "[+] Updated frontend/public/env.js with hostname"
     fi
 
     # Update app/static/env.js
@@ -3616,7 +3616,7 @@ configure_hostname() {
             sed -i "s|REACT_APP_API_URL: '[^']*'|REACT_APP_API_URL: 'https://$STING_HOSTNAME:5050'|g" "${INSTALL_DIR}/app/static/env.js"
             sed -i "s|REACT_APP_KRATOS_PUBLIC_URL: '[^']*'|REACT_APP_KRATOS_PUBLIC_URL: 'https://$STING_HOSTNAME:4433'|g" "${INSTALL_DIR}/app/static/env.js"
         fi
-        log_message "✅ Updated app/static/env.js with hostname"
+        log_message "[+] Updated app/static/env.js with hostname"
     fi
 
     # Update config.yml domain setting
@@ -3639,23 +3639,23 @@ configure_hostname() {
             # Update WebAuthn origins
             sed -i "s|https://[^:\"]*:8443|https://$STING_HOSTNAME:8443|g" "${INSTALL_DIR}/conf/config.yml"
         fi
-        log_message "✅ Updated config.yml domain and WebAuthn RP_ID to: $STING_HOSTNAME"
+        log_message "[+] Updated config.yml domain and WebAuthn RP_ID to: $STING_HOSTNAME"
     else
-        log_message "⚠️ config.yml not found, skipping domain update" "WARNING"
+        log_message "[!] config.yml not found, skipping domain update" "WARNING"
     fi
 
     # Save hostname to .sting_domain file for future reference
     if [ "$STING_HOSTNAME" != "localhost" ]; then
         echo "$STING_HOSTNAME" > "${INSTALL_DIR}/.sting_domain"
         echo "https://${STING_HOSTNAME}:8443" > "${INSTALL_DIR}/.sting_url"
-        log_message "✅ Saved hostname to .sting_domain file"
+        log_message "[+] Saved hostname to .sting_domain file"
     fi
 
     # CRITICAL: Validate auth configuration consistency BEFORE Docker build
     # This catches hostname/RP ID mismatches early, saving time
     log_message ""
     validate_auth_config_consistency || {
-        log_message "⚠️  Authentication validation failed, but continuing installation..."
+        log_message "[!]  Authentication validation failed, but continuing installation..."
         log_message "   You may need to run './update_hostname.sh' after installation to fix issues"
         log_message ""
     }
@@ -3664,10 +3664,10 @@ configure_hostname() {
     log_message ""
     log_message "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     if [ "$STING_HOSTNAME" = "localhost" ]; then
-        log_message "✅ Using localhost - WebAuthn will work on this machine only"
+        log_message "[+] Using localhost - WebAuthn will work on this machine only"
         log_message "   For remote access with passkeys, run: ./update_hostname.sh"
     else
-        log_message "✅ Hostname configured: $STING_HOSTNAME"
+        log_message "[+] Hostname configured: $STING_HOSTNAME"
         log_message ""
         log_message "📝 For remote access, add to /etc/hosts on client machines:"
         log_message "   <SERVER_IP>  $STING_HOSTNAME"
@@ -3982,13 +3982,13 @@ build_and_start_services() {
     # Skip ALL builds in OVA mode - images are pre-built and loaded from tarball
     if [ -f "/opt/sting-ce-source/.ova-prebuild" ] || [ "${STING_SKIP_PULL:-}" = "1" ]; then
         log_message "🏗️ Skipping all service builds (OVA with pre-built images)" "SUCCESS"
-        log_message "📦 Phase 1: Skipping core services build (pre-built)" "SUCCESS"
+        log_message " Phase 1: Skipping core services build (pre-built)" "SUCCESS"
         log_message "🤖 Phase 2: Skipping AI services build (pre-built)" "SUCCESS"
     else
         log_message "🏗️ Building services in phases for improved reliability..."
 
         # Phase 1: Core Standard Services (essential for basic operation)
-        log_message "📦 Phase 1: Building core standard services..."
+        log_message " Phase 1: Building core standard services..."
         local core_services="vault db app frontend report-worker kratos messaging"
 
         if [ "$FRESH_INSTALL" = "true" ]; then
@@ -4000,7 +4000,7 @@ build_and_start_services() {
         elif [ -f "${SOURCE_DIR}/lib/docker.sh" ]; then
             # Update/reinstall: use cache buzzer if available
             source "${SOURCE_DIR}/lib/docker.sh"
-            log_message "🐝 Using cache buzzer for core services (level: ${cache_level:-moderate})"
+            log_message " Using cache buzzer for core services (level: ${cache_level:-moderate})"
             if ! build_docker_services "$core_services" "true" "${cache_level:-moderate}"; then
                 log_message "Cache buzzer build failed for core services, falling back to standard build" "WARNING"
                 if ! docker compose build --no-cache $core_services; then
@@ -4021,11 +4021,11 @@ build_and_start_services() {
         local ai_services="chroma knowledge external-ai chatbot llm-gateway-proxy profile-sync-worker public-bee"
 
         if ! docker compose build --no-cache $ai_services; then
-            log_message "⚠️  Failed to build some AI services - continuing installation" "WARNING"
+            log_message "[!]  Failed to build some AI services - continuing installation" "WARNING"
             log_message "You may need to manually rebuild AI services later with: msting update" "WARNING"
             # Don't fail installation for AI services
         else
-            log_message "✅ AI and knowledge services built successfully"
+            log_message "[+] AI and knowledge services built successfully"
         fi
     fi
     
@@ -4033,18 +4033,18 @@ build_and_start_services() {
     # Skip builds in OVA mode - images are pre-built
     if [ -f "/opt/sting-ce-source/.ova-prebuild" ] || [ "${STING_SKIP_PULL:-}" = "1" ]; then
         log_message "📊 Phase 3: Skipping observability build (OVA with pre-built images)" "SUCCESS"
-        log_message "✅ Skipping utils rebuild (OVA with pre-built images)" "SUCCESS"
+        log_message "[+] Skipping utils rebuild (OVA with pre-built images)" "SUCCESS"
     else
         log_message "📊 Phase 3: Building observability services..."
         local observability_services="loki promtail grafana"
 
         if ! docker compose build --no-cache $observability_services; then
-            log_message "⚠️  Failed to build observability services - continuing installation" "WARNING"
+            log_message "[!]  Failed to build observability services - continuing installation" "WARNING"
             log_message "Observability features will be disabled. You can enable them later with: msting update" "WARNING"
             log_message "This is common on resource-constrained systems and won't affect core functionality" "INFO"
             # Don't fail installation for observability services
         else
-            log_message "✅ Observability services built successfully"
+            log_message "[+] Observability services built successfully"
         fi
 
         # Build utils service with installation profile
@@ -4072,21 +4072,21 @@ build_and_start_services() {
     # Wait for Vault to be ready before initializing
     log_message "Waiting for Vault to be ready..."
     if ! wait_for_service "vault"; then
-        log_message "⚠️ Vault service is not responding, continuing with initialization attempt..."
+        log_message "[!] Vault service is not responding, continuing with initialization attempt..."
     fi
 
     # Initialize Vault automatically using the dedicated script
     log_message "Initializing Vault with enhanced error handling..."
     # Don't redirect output so we can see what's happening
     if docker exec sting-ce-vault /vault/scripts/auto-init-vault.sh; then
-        log_message "✅ Vault initialized successfully"
+        log_message "[+] Vault initialized successfully"
     else
-        log_message "⚠️ Vault auto-initialization failed, will try config_loader as fallback..."
+        log_message "[!] Vault auto-initialization failed, will try config_loader as fallback..."
         # Fallback to config_loader method
         if docker exec sting-ce-utils sh -c "cd /app/conf && INSTALL_DIR=/app python3 config_loader.py config.yml --mode initialize" >/dev/null 2>&1; then
-            log_message "✅ Vault initialized via config_loader"
+            log_message "[+] Vault initialized via config_loader"
         else
-            log_message "⚠️ Both initialization methods failed, checking if already initialized..."
+            log_message "[!] Both initialization methods failed, checking if already initialized..."
         fi
     fi
 
@@ -4095,9 +4095,9 @@ build_and_start_services() {
     # CRITICAL: Regenerate env files after Vault initialization to pick up the new token
     log_message "Regenerating environment files with Vault token..."
     if docker exec sting-ce-utils sh -c "cd /app/conf && INSTALL_DIR=/app python3 config_loader.py config.yml --mode runtime" >/dev/null 2>&1; then
-        log_message "✅ Environment files regenerated with Vault token"
+        log_message "[+] Environment files regenerated with Vault token"
     else
-        log_message "⚠️ Failed to regenerate env files - services may have incorrect tokens" "WARNING"
+        log_message "[!] Failed to regenerate env files - services may have incorrect tokens" "WARNING"
     fi
 
     # Force recreate utils service to pick up new environment variables
@@ -4152,12 +4152,12 @@ build_and_start_services() {
     if docker exec sting-ce-vault vault status 2>/dev/null | grep -q "Sealed.*true"; then
         log_message "Vault is sealed, attempting to unseal..."
         if docker exec sting-ce-vault /vault/scripts/auto-init-vault.sh >/dev/null 2>&1; then
-            log_message "✅ Vault unsealed for application services"
+            log_message "[+] Vault unsealed for application services"
         else
-            log_message "⚠️ Could not unseal Vault - app services may fail to start" "WARNING"
+            log_message "[!] Could not unseal Vault - app services may fail to start" "WARNING"
         fi
     else
-        log_message "✅ Vault is already unsealed"
+        log_message "[+] Vault is already unsealed"
     fi
 
     # Start Redis before app since app depends on it for session storage
@@ -4292,12 +4292,12 @@ verify_services_for_admin() {
     local attempt=1
     while [ $attempt -le $max_attempts ]; do
         if curl $ssl_options -s https://localhost:4434/admin/health/ready >/dev/null 2>&1; then
-            log_message "✅ Kratos service is healthy"
+            log_message "[+] Kratos service is healthy"
             break
         fi
         
         if [ $attempt -eq $max_attempts ]; then
-            log_message "❌ Kratos service not ready after $max_attempts attempts" "ERROR"
+            log_message "[-] Kratos service not ready after $max_attempts attempts" "ERROR"
             return 1
         fi
         
@@ -4310,12 +4310,12 @@ verify_services_for_admin() {
     attempt=1
     while [ $attempt -le $max_attempts ]; do
         if curl $ssl_options -s https://localhost:5050/health >/dev/null 2>&1; then
-            log_message "✅ STING app service is healthy"
+            log_message "[+] STING app service is healthy"
             return 0
         fi
         
         if [ $attempt -eq $max_attempts ]; then
-            log_message "❌ STING app service not ready after $max_attempts attempts" "ERROR"
+            log_message "[-] STING app service not ready after $max_attempts attempts" "ERROR"
             return 1
         fi
         
@@ -4329,7 +4329,7 @@ verify_services_for_admin() {
 setup_admin_user_post_install() {
     local admin_email="$1"
     
-    log_message "🐝 Setting up admin user..." "INFO"
+    log_message " Setting up admin user..." "INFO"
     
     # Verify services are ready
     if ! verify_services_for_admin; then
@@ -4491,14 +4491,14 @@ show_existing_admin_notice() {
     local mailpit_url="http://${host_ip:-localhost}:8025"
 
     echo ""
-    echo "🐝 STING installation completed successfully!"
+    echo " STING installation completed successfully!"
     echo ""
-    echo "✅ Admin user already configured"
+    echo "[+] Admin user already configured"
     echo ""
     echo "Your existing admin user has been preserved."
     echo "🔗 Access STING at: $sting_url"
     echo ""
-    echo "🚀 PASSWORDLESS LOGIN: Enter your admin email to receive a login code"
+    echo " PASSWORDLESS LOGIN: Enter your admin email to receive a login code"
     echo "📧 Check magic links at: $mailpit_url"
     echo ""
     echo "📌 IMPORTANT: If you encounter permission errors with 'msting' commands:"
@@ -4513,14 +4513,14 @@ show_reinstall_admin_notice() {
     local mailpit_url="http://${host_ip:-localhost}:8025"
 
     echo ""
-    echo -e "🐝 STING reinstallation completed successfully!"
+    echo -e " STING reinstallation completed successfully!"
     echo ""
-    echo -e "✅ Your existing admin user has been preserved"
+    echo -e "[+] Your existing admin user has been preserved"
     echo ""
     echo "All your admin settings and credentials remain intact."
     echo "🔗 Access STING at: $sting_url"
     echo ""
-    echo "🚀 PASSWORDLESS LOGIN: Enter your admin email to receive a login code"
+    echo " PASSWORDLESS LOGIN: Enter your admin email to receive a login code"
     echo "📧 Check magic links at: $mailpit_url"
     echo ""
     echo "📌 IMPORTANT: If you encounter permission errors with 'msting' commands:"
@@ -4535,9 +4535,9 @@ show_upgrade_admin_notice() {
     local mailpit_url="http://${host_ip:-localhost}:8025"
 
     echo ""
-    echo -e "\033[1;33m🐝 STING upgrade completed successfully! \033[0m"
+    echo -e "\033[1;33m STING upgrade completed successfully! \033[0m"
     echo ""
-    echo -e "\033[1;32m✅ Your admin user has been preserved during upgrade\033[0m"
+    echo -e "\033[1;32m[+] Your admin user has been preserved during upgrade\033[0m"
     echo ""
     echo "You can continue using your existing credentials."
     echo "Login at: \033[1;97m${sting_url}/login\033[0m"
@@ -4548,12 +4548,12 @@ show_upgrade_admin_notice() {
 # Prompt for admin recovery during reinstall
 prompt_admin_recovery_setup() {
     echo ""
-    echo -e "\033[1;33m🐝 STING reinstallation completed! \033[0m"
+    echo -e "\033[1;33m STING reinstallation completed! \033[0m"
     echo ""
     echo "📌 IMPORTANT: If you encounter permission errors with 'msting' commands:"
     echo "   Please run: ./fix_permissions.sh"
     echo ""
-    echo -e "\033[1;33m⚠️  Admin Recovery Needed\033[0m"
+    echo -e "\033[1;33m[!]  Admin Recovery Needed\033[0m"
     echo ""
     echo "Your admin user appears to be missing or corrupted."
     echo "This can happen if:"
@@ -4568,7 +4568,7 @@ prompt_admin_recovery_setup() {
         case "$choice" in
             [Yy]* )
                 echo ""
-                echo -e "\033[1;36m🔧 Creating new admin user...\033[0m"
+                echo -e "\033[1;36m Creating new admin user...\033[0m"
                 setup_admin_user_interactive
                 break
                 ;;
@@ -4636,9 +4636,9 @@ except Exception as e:
     local mailpit_url="http://${host_ip:-localhost}:8025"
 
     echo ""
-    echo "🐝 STING installation completed successfully!"
+    echo " STING installation completed successfully!"
     echo ""
-    echo "✅ Admin user recreated successfully"
+    echo "[+] Admin user recreated successfully"
     echo ""
     echo "Your broken admin user has been replaced with a fresh one."
     echo "You can log in at: ${sting_url}/login"
@@ -4657,7 +4657,7 @@ prompt_admin_setup() {
     local mailpit_url="http://${host_ip:-localhost}:8025"
 
     echo ""
-    echo -e "\033[1;33m🐝 STING installation completed successfully! \033[0m"
+    echo -e "\033[1;33m STING installation completed successfully! \033[0m"
     echo ""
     echo "🔗 Access STING at: $sting_url"
     echo "📧 Check magic links at: $mailpit_url"
@@ -4672,9 +4672,9 @@ prompt_admin_setup() {
     echo "  • Generate a secure temporary password"
     echo "  • Set email verification requirement"
     echo "  • Force password change on first login"
-    echo "  • Enable access to 🐝 admin features and LLM Settings"
+    echo "  • Enable access to  admin features and LLM Settings"
     echo ""
-    echo "  💡 Note: You can also create admin users later with manual setup"
+    echo "  TIP: Note: You can also create admin users later with manual setup"
     echo ""
     
     local choice
@@ -4715,7 +4715,7 @@ setup_admin_user_interactive() {
         if [[ "$admin_email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
             break
         else
-            echo "❌ Invalid email format. Please enter a valid email address."
+            echo "[-] Invalid email format. Please enter a valid email address."
         fi
     done
     
@@ -4723,9 +4723,9 @@ setup_admin_user_interactive() {
     echo ""
     echo "Creating admin user with:"
     echo "  📧 Email: $admin_email"
-    echo "  🚀 Authentication: Passwordless (email verification)"
+    echo "   Authentication: Passwordless (email verification)"
     echo "  📧 Login process: Enter email → Receive verification → Complete login"
-    echo "  🔧 Next steps: Passkey setup (primary), then TOTP backup (admin only)"
+    echo "   Next steps: Passkey setup (primary), then TOTP backup (admin only)"
     echo ""
     
     read -p "Proceed with admin user creation? (y/n): " confirm
@@ -4781,7 +4781,7 @@ except Exception as e:
     done
     
     if [ $attempt -gt $max_attempts ]; then
-        log_message "❌ Services failed to become ready within timeout" "ERROR"
+        log_message "[-] Services failed to become ready within timeout" "ERROR"
         return 1
     fi
     
@@ -4839,14 +4839,14 @@ except Exception as e:
 
         echo ""
         echo -e "\033[1;37m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
-        echo -e "\033[1;32m                            🐝 ADMIN USER CREATED                             \033[0m"
+        echo -e "\033[1;32m                             ADMIN USER CREATED                             \033[0m"
         echo -e "\033[1;37m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
         echo ""
         echo -e "\033[1;36m📧 Email:      \033[1;97m$email\033[0m"
-        echo -e "\033[1;36m🚀 Auth Type:  \033[1;97mPasswordless (Email Code)\033[0m"
+        echo -e "\033[1;36m Auth Type:  \033[1;97mPasswordless (Email Code)\033[0m"
         echo -e "\033[1;36m🔗 Login URL:  \033[1;97m$sting_url\033[0m"
         echo ""
-        echo -e "\033[1;33m🔧 NEXT STEPS:\033[0m"
+        echo -e "\033[1;33m NEXT STEPS:\033[0m"
         echo -e "\033[1;97m   1. Visit $sting_url\033[0m"
         echo -e "\033[1;97m   2. Enter your email: $email\033[0m"
         echo -e "\033[1;97m   3. Check your email for the verification link/code\033[0m"
@@ -4854,7 +4854,7 @@ except Exception as e:
         echo -e "\033[1;97m   5. Set up passkey (primary authentication)\033[0m"
         echo -e "\033[1;97m   6. Set up TOTP (admin backup/recovery)\033[0m"
         echo ""
-        echo -e "\033[1;31m⚠️  IMPORTANT:\033[0m"
+        echo -e "\033[1;31m[!]  IMPORTANT:\033[0m"
         echo -e "\033[1;97m   • Check your email (including spam folder) for login verification\033[0m"
         echo -e "\033[1;97m   • No password needed - fully passwordless + hardware security\033[0m"
         echo -e "\033[1;97m   • Passkeys provide phishing-resistant primary authentication\033[0m"
@@ -4863,7 +4863,7 @@ except Exception as e:
         echo ""
         log_message "Passwordless admin user created: $email" "SUCCESS"
     else
-        log_message "❌ Passwordless admin user creation failed: $result" "ERROR"
+        log_message "[-] Passwordless admin user creation failed: $result" "ERROR"
         return 1
     fi
 }
@@ -4875,7 +4875,7 @@ except Exception as e:
 create_admin_user_with_verification() {
     local email="${1:-admin@sting.local}"
 
-    log_message "⚠️  WARNING: Creating admin with PASSWORD (legacy method)" "WARNING"
+    log_message "[!]  WARNING: Creating admin with PASSWORD (legacy method)" "WARNING"
     log_message "Use create_passwordless_admin_user() for passwordless auth" "WARNING"
     log_message "Creating admin user with email verification: $email"
     
@@ -4915,7 +4915,7 @@ except Exception as e:
     done
     
     if [ $attempt -gt $max_attempts ]; then
-        log_message "❌ Kratos is not ready. Admin user creation failed." "ERROR"
+        log_message "[-] Kratos is not ready. Admin user creation failed." "ERROR"
         return 1
     fi
     
@@ -5011,7 +5011,7 @@ except Exception as e:
         local sting_url=$(get_sting_url)
 
         echo ""
-        echo -e "\033[1;32m✅ Admin user created successfully!\033[0m"
+        echo -e "\033[1;32m[+] Admin user created successfully!\033[0m"
         echo ""
         echo -e "\033[1;33m📋 ADMIN CREDENTIALS\033[0m"
         echo -e "\033[1;37m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
@@ -5046,7 +5046,7 @@ except Exception as e:
             fi
         fi
         
-        echo -e "\033[1;33m⚠️  SECURITY NOTES:\033[0m"
+        echo -e "\033[1;33m[!]  SECURITY NOTES:\033[0m"
         echo -e "   • Password saved to: \033[1;97m$actual_password_location\033[0m"
         echo -e "   • \033[1;31mPassword change REQUIRED on first login\033[0m"
         echo -e "   • \033[1;31mEmail verification REQUIRED before full access\033[0m"
@@ -5057,7 +5057,7 @@ except Exception as e:
         # but the UI expects it at /.sting-ce/admin_password.txt, so copy it there too
         docker exec sting-ce-app cp /opt/sting-ce/admin_password.txt /.sting-ce/admin_password.txt 2>/dev/null || true
     else
-        log_message "❌ Admin user creation failed: $result" "ERROR"
+        log_message "[-] Admin user creation failed: $result" "ERROR"
         return 1
     fi
 }
@@ -5067,7 +5067,7 @@ show_admin_setup_notice() {
     echo ""
     echo -e "\033[1;36m╔═══════════════════════════════════════════════════════════════════════════════╗\033[0m"
     echo -e "\033[1;36m║                                                                               ║\033[0m"
-    echo -e "\033[1;36m║  \033[1;33m🐝 IMPORTANT: Admin User Setup Required for Full STING Access 🐝\033[1;36m        ║\033[0m"
+    echo -e "\033[1;36m║  \033[1;33m IMPORTANT: Admin User Setup Required for Full STING Access \033[1;36m        ║\033[0m"
     echo -e "\033[1;36m║                                                                               ║\033[0m"
     echo -e "\033[1;36m║  \033[1;37mTo access admin features like LLM Settings, you need an admin user.\033[1;36m      ║\033[0m"
     echo -e "\033[1;36m║                                                                               ║\033[0m"
@@ -5080,16 +5080,16 @@ show_admin_setup_notice() {
     echo -e "\033[1;36m║  \033[1;32m📋 Check Admin Status:\033[1;36m                                                  ║\033[0m"
     echo -e "\033[1;36m║     \033[1;97mpython3 check_admin.py\033[1;36m                                               ║\033[0m"
     echo -e "\033[1;36m║                                                                               ║\033[0m"
-    echo -e "\033[1;36m║  \033[1;33m💡 Admin Features:\033[1;36m                                                      ║\033[0m"
-    echo -e "\033[1;36m║     \033[1;37m• 🐝 LLM Settings tab in Settings page\033[1;36m                              ║\033[0m"
+    echo -e "\033[1;36m║  \033[1;33mTIP: Admin Features:\033[1;36m                                                      ║\033[0m"
+    echo -e "\033[1;36m║     \033[1;37m•  LLM Settings tab in Settings page\033[1;36m                              ║\033[0m"
     echo -e "\033[1;36m║     \033[1;37m• Model management with progress tracking\033[1;36m                           ║\033[0m"
     echo -e "\033[1;36m║     \033[1;37m• User management capabilities\033[1;36m                                     ║\033[0m"
     echo -e "\033[1;36m║     \033[1;37m• System administration features\033[1;36m                                   ║\033[0m"
     echo -e "\033[1;36m║                                                                               ║\033[0m"
-    echo -e "\033[1;36m║  \033[1;31m⚠️  Security Note: Use temporary passwords for initial admin setup.\033[1;36m      ║\033[0m"
+    echo -e "\033[1;36m║  \033[1;31m[!]  Security Note: Use temporary passwords for initial admin setup.\033[1;36m      ║\033[0m"
     echo -e "\033[1;36m║     \033[1;37mAdmins should change passwords on first login.\033[1;36m                      ║\033[0m"
     echo -e "\033[1;36m║                                                                               ║\033[0m"
-    echo -e "\033[1;36m║  \033[1;32m💡 Quick Setup Options:\033[1;36m                                              ║\033[0m"
+    echo -e "\033[1;36m║  \033[1;32mTIP: Quick Setup Options:\033[1;36m                                              ║\033[0m"
     echo -e "\033[1;36m║     \033[1;37m• Install with admin: ./install_sting.sh install --setup-admin\033[1;36m      ║\033[0m"
     echo -e "\033[1;36m║     \033[1;37m• Install without prompts: ./install_sting.sh install --no-prompt\033[1;36m   ║\033[0m"
     echo -e "\\033[1;36m║                                                                               ║\\033[0m"
@@ -5134,7 +5134,7 @@ verify_python_dependencies() {
     local failed_imports=()
     
     for import_name in "${test_imports[@]}"; do
-        if ! docker compose exec -T utils python3 -c "import $import_name; print('✓ $import_name')" 2>/dev/null; then
+        if ! docker compose exec -T utils python3 -c "import $import_name; print('[+] $import_name')" 2>/dev/null; then
             failed_imports+=("$import_name")
             log_message "Failed to import: $import_name" "WARNING"
         fi
@@ -5180,7 +5180,7 @@ check_msting_path_conflicts() {
     local msting_locations=($(which -a msting 2>/dev/null || true))
     
     if [ ${#msting_locations[@]} -gt 1 ]; then
-        log_message "⚠️  WARNING: Multiple msting commands found in PATH!" "WARNING"
+        log_message "[!]  WARNING: Multiple msting commands found in PATH!" "WARNING"
         log_message "This can cause confusion about which version is being used:" "WARNING"
         for loc in "${msting_locations[@]}"; do
             log_message "  - $loc" "WARNING"
@@ -5196,7 +5196,7 @@ check_msting_path_conflicts() {
     # Check if current msting is from a virtual environment
     local current_msting=$(which msting 2>/dev/null || true)
     if [[ "$current_msting" == *".venv"* ]] || [[ "$current_msting" == *"venv"* ]]; then
-        log_message "⚠️  NOTICE: Current msting command is from a virtual environment" "WARNING"
+        log_message "[!]  NOTICE: Current msting command is from a virtual environment" "WARNING"
         log_message "Location: $current_msting" "WARNING"
         log_message "This may be an outdated version. Consider using: /usr/local/bin/msting" "WARNING"
         log_message ""
@@ -5228,21 +5228,21 @@ check_msting_path_conflicts() {
                 chmod +x "$tmp_script"
                 # Run with sudo to ensure permission commands work
                 if sudo bash "$tmp_script" 2>&1; then
-                    log_message "✅ Permission fixes applied successfully" "SUCCESS"
+                    log_message "[+] Permission fixes applied successfully" "SUCCESS"
                 else
-                    log_message "⚠️  WARNING: Permission fix script failed (non-fatal)" "WARNING"
+                    log_message "[!]  WARNING: Permission fix script failed (non-fatal)" "WARNING"
                 fi
                 rm -f "$tmp_script"
             else
                 # Run with sudo to ensure permission commands work
                 if sudo bash "$fix_script" 2>&1; then
-                    log_message "✅ Permission fixes applied successfully" "SUCCESS"
+                    log_message "[+] Permission fixes applied successfully" "SUCCESS"
                 else
-                    log_message "⚠️  WARNING: Permission fix script failed (non-fatal)" "WARNING"
+                    log_message "[!]  WARNING: Permission fix script failed (non-fatal)" "WARNING"
                 fi
             fi
         else
-            log_message "⚠️  WARNING: fix_permissions.sh not found (non-fatal)" "WARNING"
+            log_message "[!]  WARNING: fix_permissions.sh not found (non-fatal)" "WARNING"
         fi
     fi
     
@@ -5250,9 +5250,9 @@ check_msting_path_conflicts() {
     if command -v msting >/dev/null 2>&1; then
         # Try the msting command with a timeout to avoid hanging
         if timeout 10 msting --help 2>&1 | grep -q "update.*service"; then
-            log_message "✅ msting command appears to be working correctly" "SUCCESS"
+            log_message "[+] msting command appears to be working correctly" "SUCCESS"
         else
-            log_message "⚠️  WARNING: msting command may need permission fixes or PATH adjustment" "WARNING"
+            log_message "[!]  WARNING: msting command may need permission fixes or PATH adjustment" "WARNING"
             log_message "This is common on macOS installations." "WARNING"
             log_message "" 
             log_message "To fix msting command issues:" "WARNING"
@@ -5263,7 +5263,7 @@ check_msting_path_conflicts() {
             log_message "This warning can be safely ignored if installation completed successfully." "WARNING"
         fi
     else
-        log_message "⚠️  msting command not found in PATH" "WARNING"
+        log_message "[!]  msting command not found in PATH" "WARNING"
         log_message "You may need to run ./fix_permissions.sh after installation" "WARNING"
     fi
 }

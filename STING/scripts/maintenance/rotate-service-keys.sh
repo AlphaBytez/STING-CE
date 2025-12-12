@@ -9,7 +9,7 @@ VAULT_TOKEN="${VAULT_TOKEN:-hvs.TqEboPUVWPzt9HHXHgaVvMjV}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-echo "🔄 STING Service API Key Rotation"
+echo " STING Service API Key Rotation"
 echo "=================================="
 
 # Function to generate secure API key
@@ -59,19 +59,19 @@ else:
 with open('$PROJECT_DIR/knowledge_service/config/security.py', 'w') as f:
     f.write(content)
 
-print("✅ Knowledge service security.py updated")
+print("[+] Knowledge service security.py updated")
 EOF
 }
 
 # Main rotation process
 main() {
-    echo "🔍 Checking current configuration..."
+    echo " Checking current configuration..."
 
     # Get current key from chatbot.env
     CURRENT_KEY=$(grep "STING_SERVICE_API_KEY" ~/.sting-ce/env/chatbot.env 2>/dev/null | cut -d'"' -f2 || echo "")
 
     if [ -z "$CURRENT_KEY" ]; then
-        echo "❌ No current service key found. Run initial setup first."
+        echo "[-] No current service key found. Run initial setup first."
         exit 1
     fi
 
@@ -87,9 +87,9 @@ main() {
     docker exec sting-ce-vault sh -c "VAULT_TOKEN=$VAULT_TOKEN vault kv put sting/service_auth api_key=$NEW_KEY" > /dev/null
 
     if [ $? -eq 0 ]; then
-        echo "✅ New key stored in Vault"
+        echo "[+] New key stored in Vault"
     else
-        echo "❌ Failed to store key in Vault"
+        echo "[-] Failed to store key in Vault"
         exit 1
     fi
 
@@ -102,12 +102,12 @@ main() {
         ~/.sting-ce/env/chatbot.env
 
     # Update services
-    echo "🔄 Updating affected services..."
+    echo " Updating affected services..."
     cd "$PROJECT_DIR"
     ./manage_sting.sh update knowledge chatbot
 
     echo ""
-    echo "✅ Service API key rotation completed successfully!"
+    echo "[+] Service API key rotation completed successfully!"
     echo "🔑 New key: ...${NEW_KEY: -8}"
     echo "📝 Old key backup: knowledge_service/config/security.py.backup.*"
     echo "🧪 Test with: node scripts/test-bee-chat-auth.js"

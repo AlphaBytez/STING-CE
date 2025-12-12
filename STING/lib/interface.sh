@@ -41,9 +41,9 @@ check_admin_creation_privileges() {
             log_message "Please authenticate to continue..." "INFO"
             if ! sudo -v; then
                 # Sudo authentication failed or was interrupted
-                log_message "❌ SECURITY: Admin creation denied - insufficient privileges" "ERROR"
-                log_message "⚠️  This operation requires root or sudo access for security reasons" "ERROR"
-                log_message "💡 Solution: Run as root or ensure your user is in the sudo group" "INFO"
+                log_message "[-] SECURITY: Admin creation denied - insufficient privileges" "ERROR"
+                log_message "[!]  This operation requires root or sudo access for security reasons" "ERROR"
+                log_message "TIP: Solution: Run as root or ensure your user is in the sudo group" "INFO"
                 return 1
             fi
         fi
@@ -52,9 +52,9 @@ check_admin_creation_privileges() {
     fi
 
     # Access denied
-    log_message "❌ SECURITY: Admin creation denied - insufficient privileges" "ERROR"
-    log_message "⚠️  This operation requires root or sudo access for security reasons" "ERROR"
-    log_message "💡 Solution: Run as root or ensure your user is in the sudo group" "INFO"
+    log_message "[-] SECURITY: Admin creation denied - insufficient privileges" "ERROR"
+    log_message "[!]  This operation requires root or sudo access for security reasons" "ERROR"
+    log_message "TIP: Solution: Run as root or ensure your user is in the sudo group" "INFO"
     return 1
 }
 
@@ -105,14 +105,14 @@ show_help() {
     echo "  backup --import-key <file>    Import backup encryption key from file"
     echo "                                Keys stored in system keychain/keyring when available"
     echo "  verbose, -v                   Enable verbose mode"
-    echo "  bee support [command]         🐝 AI-Powered Support Assistant - Create intelligent support requests"
+    echo "  bee support [command]          AI-Powered Support Assistant - Create intelligent support requests"
     echo "  support tunnel [command]      🔗 Support Tunnel Management - Secure access via Headscale"
-    echo "  bundle [list|extract|copy]    📦 Local Bundle Management - Download and share your bundles"
-    echo "  buzz [collect|list|clean]     🐝 Hive Diagnostics - Create honey jars for support"
-    echo "  cache-buzz, cb [options]      🐝 Cache Buzzer - Clear Docker cache and rebuild"
-    echo "  build-analytics [service] [hours]  🐝 Build Intelligence - View Docker build logs & performance"
+    echo "  bundle [list|extract|copy]     Local Bundle Management - Download and share your bundles"
+    echo "  buzz [collect|list|clean]      Hive Diagnostics - Create honey jars for support"
+    echo "  cache-buzz, cb [options]       Cache Buzzer - Clear Docker cache and rebuild"
+    echo "  build-analytics [service] [hours]   Build Intelligence - View Docker build logs & performance"
     echo ""
-    echo "📦 Volume Management:"
+    echo " Volume Management:"
     echo "  volumes list                  List STING volumes with safety classification"
     echo "  volumes purge <type>          Remove volumes by type (database, config, logs, etc.)"
     echo "  volumes backup [dir]          Backup volumes to directory"
@@ -185,14 +185,14 @@ show_help() {
     echo "    --version <version>         Specify version (default: read from version.txt)"
     echo "    --dry-run                   Show what would be uploaded without actually doing it"
     echo
-    echo "🐝 Bee AI Support Assistant:"
+    echo " Bee AI Support Assistant:"
     echo "  bee support analyze           Analyze system health and suggest improvements"
     echo "  bee support create \"issue\"     Create AI-guided support ticket with intelligent diagnostics"
     echo "  bee support suggest           Get troubleshooting suggestions for common issues"  
     echo "  bee support list              List existing support tickets"
     echo "  bee support status            Show support system status and configuration"
     echo ""
-    echo "  💡 Examples:"
+    echo "  TIP: Examples:"
     echo "    bee support create \"login issues after update\""
     echo "    bee support create \"dashboard loading slowly\""
     echo "    bee support create \"ai chat not responding\""
@@ -204,23 +204,23 @@ show_help() {
     echo "  support tunnel close TICKET_ID   Close tunnel and revoke access"
     echo "  support tunnel help              Show tunnel management help"
     echo ""
-    echo "  💡 Examples:"
+    echo "  TIP: Examples:"
     echo "    support tunnel create ST-2025-001      # 30min community tunnel"
     echo "    support tunnel create ST-2025-002 4h   # 4hr enterprise tunnel"
     echo ""
-    echo "📦 Local Bundle Management:"
+    echo " Local Bundle Management:"
     echo "  bundle list                      List available diagnostic bundles"
     echo "  bundle extract BUNDLE_FILE       Extract bundle for manual review"
     echo "  bundle copy BUNDLE_FILE [DEST]   Copy bundle to location for sharing"
     echo "  bundle inspect BUNDLE_FILE       Preview bundle contents"
     echo "  bundle package TICKET_ID         Create shareable package with docs"
     echo ""
-    echo "  💡 Examples:"
+    echo "  TIP: Examples:"
     echo "    bundle copy auth-ST-2025-001.tar.gz ~/Desktop   # Copy for email"
     echo "    bundle extract perf-ST-2025-002.tar.gz          # Extract for review"
     echo "    bundle package ST-2025-001                      # Create shareable package"
     echo ""
-    echo "🐝 Hive Diagnostics (Buzz Commands):"
+    echo " Hive Diagnostics (Buzz Commands):"
     echo "  buzz collect [--hours 24]     Create diagnostic honey jar (default: 24 hours)"
     echo "  buzz collect --auth-focus     Focus on authentication issues"  
     echo "  buzz collect --llm-focus      Focus on LLM service issues"
@@ -231,9 +231,9 @@ show_help() {
     echo "  buzz hive-status              Show hive diagnostic status"
     echo "  buzz filter-test              Test data sanitization filters"
     echo ""
-    echo "  💡 Need help? Just 'buzz' to create a sanitized diagnostic bundle!"
+    echo "  TIP: Need help? Just 'buzz' to create a sanitized diagnostic bundle!"
     echo ""
-    echo "🐝 Cache Buzzer Examples:"
+    echo " Cache Buzzer Examples:"
     echo "  cache-buzz                    Moderate cache clear and rebuild all services"
     echo "  cache-buzz --full             Full cache clear (removes all STING containers/images)"
     echo "  cache-buzz --minimal          Minimal cache clear (build cache only)"
@@ -286,12 +286,12 @@ main() {
         log_message "Checking configuration file: $config_path"
         
         if ! python3 "${SOURCE_DIR}/conf/check_config.py" --config-path="$config_path" --project-root="$SOURCE_DIR" >/dev/null 2>&1; then
-            log_message "❌ Configuration check failed!" "ERROR"
+            log_message "[-] Configuration check failed!" "ERROR"
             log_message "Run the following to see detailed configuration help:" "INFO"
             log_message "python3 ${SOURCE_DIR}/conf/check_config.py --config-path=\"$config_path\" --project-root=\"$SOURCE_DIR\" --speed-tips"
             return 1
         fi
-        log_message "✅ Configuration check passed"
+        log_message "[+] Configuration check passed"
     fi
 
     # Handle standalone actions that don't need full setup
@@ -358,9 +358,9 @@ main() {
                 local services=("sting-ce-db" "sting-ce-vault-1" "sting-ce-kratos-1" "sting-ce-app-1" "sting-ce-frontend-1")
                 for service in "${services[@]}"; do
                     if docker compose ps --format "{{.Name}}\t{{.Status}}" 2>/dev/null | grep "$service" | grep -q "Up"; then
-                        log_message "$service: Running ✓" "SUCCESS"
+                        log_message "$service: Running [+]" "SUCCESS"
                     else
-                        log_message "$service: Not running ✗" "ERROR"
+                        log_message "$service: Not running [-]" "ERROR"
                     fi
                 done
                 
@@ -517,14 +517,14 @@ main() {
             if docker exec sting-ce-vault vault status 2>/dev/null | grep -q "Sealed.*true"; then
                 log_message "Vault is sealed, attempting to unseal..."
                 if docker exec sting-ce-vault sh /vault/scripts/auto-init-vault.sh 2>&1; then
-                    log_message "✅ Vault unsealed successfully" "SUCCESS"
+                    log_message "[+] Vault unsealed successfully" "SUCCESS"
                 else
-                    log_message "❌ Failed to unseal Vault automatically" "ERROR"
+                    log_message "[-] Failed to unseal Vault automatically" "ERROR"
                     log_message "Try manual unseal with: docker exec sting-ce-vault vault operator unseal <key>"
                     return 1
                 fi
             else
-                log_message "✅ Vault is already unsealed" "SUCCESS"
+                log_message "[+] Vault is already unsealed" "SUCCESS"
             fi
             return 0
             ;;
@@ -567,13 +567,13 @@ main() {
         sync-config)
             load_required_module "file_operations"
             sync_config_files
-            log_message "💡 Tip: Restart affected services to apply configuration changes" "INFO"
+            log_message "TIP: Tip: Restart affected services to apply configuration changes" "INFO"
             return 0
             ;;
         reset-config)
             load_required_module "file_operations"
             reset_config_files
-            log_message "💡 Tip: Run './manage_sting.sh regenerate-env' to apply the fresh configuration" "INFO"
+            log_message "TIP: Tip: Run './manage_sting.sh regenerate-env' to apply the fresh configuration" "INFO"
             return 0
             ;;
         regenerate-env)
@@ -620,13 +620,13 @@ main() {
                 export INSTALL_DIR="${INSTALL_DIR}"
 
                 if INSTALL_DIR="${INSTALL_DIR}" $python_cmd "${SOURCE_DIR}/conf/config_loader.py" "${SOURCE_DIR}/conf/config.yml" --mode runtime; then
-                    log_message "✅ Environment files regenerated successfully" "SUCCESS"
+                    log_message "[+] Environment files regenerated successfully" "SUCCESS"
 
                     # Sync database password with newly generated env files
                     # This prevents authentication failures when password changes
-                    sync_database_password || log_message "⚠️  Database password sync had warnings - check logs" "WARNING"
+                    sync_database_password || log_message "[!]  Database password sync had warnings - check logs" "WARNING"
 
-                    log_message "💡 Tip: Restart affected services to apply configuration changes" "INFO"
+                    log_message "TIP: Tip: Restart affected services to apply configuration changes" "INFO"
 
                     # List the generated files for confirmation
                     if [ -d "${INSTALL_DIR}/env" ]; then
@@ -635,13 +635,13 @@ main() {
                         log_message "Generated $env_count environment files in ${INSTALL_DIR}/env/" "INFO"
                     fi
                 else
-                    log_message "❌ Failed to regenerate environment files" "ERROR"
+                    log_message "[-] Failed to regenerate environment files" "ERROR"
                     log_message "Check if Vault and other essential services are running" "ERROR"
                     cd "$original_dir" || true
                     return 1
                 fi
             else
-                log_message "❌ config_loader.py not found at ${SOURCE_DIR}/conf/config_loader.py" "ERROR"
+                log_message "[-] config_loader.py not found at ${SOURCE_DIR}/conf/config_loader.py" "ERROR"
                 cd "$original_dir" || true
                 return 1
             fi
@@ -681,7 +681,7 @@ main() {
                         ;;
                     --sync-only)
                         sync_only=true
-                        log_message_verbose "🔍 Debug: --sync-only flag detected" "INFO"
+                        log_message_verbose " Debug: --sync-only flag detected" "INFO"
                         ;;
                     --force)
                         force_update=true
@@ -699,7 +699,7 @@ main() {
             done
             
             # Debug output (only shown in verbose mode)
-            log_message_verbose "🔍 Debug: sync_only=$sync_only, no_cache=$no_cache, force_update=$force_update, verbosity=$VERBOSITY_LEVEL" "INFO"
+            log_message_verbose " Debug: sync_only=$sync_only, no_cache=$no_cache, force_update=$force_update, verbosity=$VERBOSITY_LEVEL" "INFO"
 
             # Replace arguments with filtered list
             set -- "${new_args[@]}"
@@ -713,18 +713,18 @@ main() {
 
             if [ -n "${PROJECT_DIR:-}" ] && [ "$PROJECT_DIR" != "$INSTALL_DIR" ]; then
                 # Use explicitly set PROJECT_DIR if it's not the install directory
-                log_message_verbose "🔍 Debug: Using explicit PROJECT_DIR: $PROJECT_DIR" "INFO"
+                log_message_verbose " Debug: Using explicit PROJECT_DIR: $PROJECT_DIR" "INFO"
             elif [ "${SOURCE_DIR:-}" != "$INSTALL_DIR" ] && [ -d "${SOURCE_DIR:-}/app" ]; then
                 # Use SOURCE_DIR (where the script was invoked from) if it's a valid project dir
                 PROJECT_DIR="$SOURCE_DIR"
-                log_message_verbose "🔍 Debug: Using SOURCE_DIR as PROJECT_DIR: $PROJECT_DIR" "INFO"
+                log_message_verbose " Debug: Using SOURCE_DIR as PROJECT_DIR: $PROJECT_DIR" "INFO"
             elif [ "$current_dir" != "$INSTALL_DIR" ] && [ -d "$current_dir/app" ]; then
                 # Use current directory if it looks like a project directory
                 PROJECT_DIR="$current_dir"
-                log_message_verbose "🔍 Debug: Using current dir as PROJECT_DIR: $PROJECT_DIR" "INFO"
+                log_message_verbose " Debug: Using current dir as PROJECT_DIR: $PROJECT_DIR" "INFO"
             else
                 # Running from install dir without a source - cannot sync to itself
-                log_message "❌ Cannot update: Running from install directory ($INSTALL_DIR)" "ERROR"
+                log_message "[-] Cannot update: Running from install directory ($INSTALL_DIR)" "ERROR"
                 log_message "   Updates require syncing from a PROJECT directory to the INSTALL directory." "ERROR"
                 log_message "" "INFO"
                 log_message "   Options:" "INFO"
@@ -734,36 +734,36 @@ main() {
                 return 1
             fi
 
-            log_message_verbose "🔍 Debug: PROJECT_DIR=$PROJECT_DIR, INSTALL_DIR=$INSTALL_DIR" "INFO"
+            log_message_verbose " Debug: PROJECT_DIR=$PROJECT_DIR, INSTALL_DIR=$INSTALL_DIR" "INFO"
 
             # Load file operations module for config checking and syncing
             load_required_module "file_operations"
             
             # Perform safety checks unless --force is used
             if [ "$force_update" != "true" ]; then
-                log_message "🔍 Performing safety checks..."
+                log_message " Performing safety checks..."
                 check_structural_changes
                 local safety_result=$?
                 
                 case $safety_result in
                     2)
                         # Critical changes - abort unless forced
-                        log_message "❌ Update aborted due to critical structural changes" "ERROR"
+                        log_message "[-] Update aborted due to critical structural changes" "ERROR"
                         log_message "Use --force to override (not recommended)" "ERROR"
                         return 1
                         ;;
                     1)
                         # Minor changes - warn but continue
-                        log_message "⚠️  Proceeding with update despite structural changes" "WARNING"
+                        log_message "[!]  Proceeding with update despite structural changes" "WARNING"
                         log_message "Monitor closely for issues" "WARNING"
                         ;;
                     0)
                         # No changes - safe to proceed
-                        log_message "✅ Safety checks passed"
+                        log_message "[+] Safety checks passed"
                         ;;
                 esac
             else
-                log_message "⚠️  Force mode enabled - skipping safety checks" "WARNING"
+                log_message "[!]  Force mode enabled - skipping safety checks" "WARNING"
             fi
             
             # Check remaining args for service name
@@ -775,7 +775,7 @@ main() {
                 
                 # Check if user wants to update all services
                 if [ "$service" = "all" ]; then
-                    log_message "🚀 Updating all application services (excluding infrastructure)..."
+                    log_message " Updating all application services (excluding infrastructure)..."
                     
                     # List of application services to update (excluding infrastructure like vault, db, redis, kratos)
                     # These are safe to update without data loss
@@ -783,42 +783,42 @@ main() {
                     local failed_services=()
                     
                     for svc in "${services[@]}"; do
-                        log_message "📦 Updating $svc service..."
+                        log_message " Updating $svc service..."
                         
                         # Check service dependencies
                         check_service_dependencies "$svc"
                         
                         # Copy fresh code for the service
                         if [ "$sync_only" = "true" ]; then
-                            log_message "🔄 Sync-only mode: Syncing only changed files for $svc..."
+                            log_message " Sync-only mode: Syncing only changed files for $svc..."
                         else
                             log_message "Copying fresh code for $svc from project directory..."
                         fi
                         
                         if ! sync_service_code "$svc"; then
                             failed_services+=("$svc")
-                            log_message "⚠️  Failed to sync code for $svc" "WARNING"
+                            log_message "[!]  Failed to sync code for $svc" "WARNING"
                         fi
                         
                         # Build the service
                         if ! build_docker_services "$svc" "$no_cache"; then
                             failed_services+=("$svc")
-                            log_message "⚠️  Failed to build $svc" "WARNING"
+                            log_message "[!]  Failed to build $svc" "WARNING"
                         fi
                     done
                     
                     # Report results
                     if [ ${#failed_services[@]} -gt 0 ]; then
-                        log_message "⚠️  Some services failed to update: ${failed_services[*]}" "WARNING"
+                        log_message "[!]  Some services failed to update: ${failed_services[*]}" "WARNING"
                         return 1
                     else
-                        log_message "✅ All services updated successfully!"
+                        log_message "[+] All services updated successfully!"
 
                         # Post-update vault unsealing safety net
                         load_required_module "services"
-                        ensure_vault_unsealed || log_message "⚠️  Vault unsealing check completed with warnings - manual verification recommended" "WARNING"
+                        ensure_vault_unsealed || log_message "[!]  Vault unsealing check completed with warnings - manual verification recommended" "WARNING"
 
-                        log_message "💡 Tip: Run './manage_sting.sh restart' to apply changes"
+                        log_message "TIP: Tip: Run './manage_sting.sh restart' to apply changes"
                         return 0
                     fi
                 fi
@@ -840,7 +840,7 @@ main() {
 
                 # Copy fresh code for the service
                 if [ "$sync_only" = "true" ]; then
-                    log_message "🔄 Sync-only mode: Syncing only changed files for $service..."
+                    log_message " Sync-only mode: Syncing only changed files for $service..."
                 else
                     log_message "Copying fresh code for $service from project directory..."
                 fi
@@ -884,7 +884,7 @@ main() {
                 # 2. check_config_changes() returns false (no diff)
                 # 3. Env regeneration is skipped, leaving stale values
                 if [ "$config_needs_regen" = "true" ]; then
-                    log_message "🔄 Regenerating environment files due to config changes..."
+                    log_message " Regenerating environment files due to config changes..."
                     # Load config utils for centralized config generation
                     source "${SCRIPT_DIR}/config_utils.sh" || {
                         log_message "Failed to load config utils module" "ERROR"
@@ -905,7 +905,7 @@ main() {
 
                     # Sync database password with newly generated env files
                     # This prevents authentication failures when password changes during updates
-                    sync_database_password || log_message "⚠️  Database password sync had warnings - check logs" "WARNING"
+                    sync_database_password || log_message "[!]  Database password sync had warnings - check logs" "WARNING"
 
                     source_service_envs
                 fi
@@ -918,7 +918,7 @@ main() {
                 }
                 
                 if [ "$sync_only" = "true" ]; then
-                    log_message "🚀 Sync-only mode: Skipping Docker rebuild for $service" "INFO"
+                    log_message " Sync-only mode: Skipping Docker rebuild for $service" "INFO"
                     
                     # For frontend, the optimized sync handles container build directly
                     if [ "$service" = "frontend" ]; then
@@ -929,10 +929,10 @@ main() {
                         # Just verify the service is still healthy
                         log_message "Verifying frontend service health..." "INFO"
                         wait_for_service "$service"
-                        log_message "✅ $service updated successfully with optimized sync-only mode" "SUCCESS"
+                        log_message "[+] $service updated successfully with optimized sync-only mode" "SUCCESS"
                     elif [ "$service" = "app" ]; then
                         # Optimized sync for app service - copy files to running container and restart Python app
-                        log_message "🔄 Optimized sync for app service: copying to running container..." "INFO"
+                        log_message " Optimized sync for app service: copying to running container..." "INFO"
                         
                         # Check if container is running
                         if docker ps --format "{{.Names}}" | grep -q "sting-ce-app"; then
@@ -951,11 +951,11 @@ main() {
                             load_required_module "services"
                             
                             # Verify service health
-                            log_message "🔍 Verifying app service health..." "INFO"
+                            log_message " Verifying app service health..." "INFO"
                             wait_for_service "$service"
-                            log_message "✅ $service updated successfully with optimized sync-only mode (container sync)" "SUCCESS"
+                            log_message "[+] $service updated successfully with optimized sync-only mode (container sync)" "SUCCESS"
                         else
-                            log_message "⚠️  App container not running, falling back to restart..." "WARNING"
+                            log_message "[!]  App container not running, falling back to restart..." "WARNING"
                             docker compose restart "$service"
                         fi
                     else
@@ -965,7 +965,7 @@ main() {
                 else
                     # Skip rebuilding utils service if it was already built in the special handling above
                     if [ "$service" = "utils" ]; then
-                        log_message "✅ Utils service already built and started" "SUCCESS"
+                        log_message "[+] Utils service already built and started" "SUCCESS"
                     else
                         log_message "🔨 Full rebuild mode for $service" "INFO"
                         # Stop and remove the service first to avoid conflicts
@@ -1005,7 +1005,7 @@ main() {
                                     log_message "Try manual unseal with: msting unseal" "WARNING"
                                 }
                             else
-                                log_message "✅ Vault is already unsealed" "SUCCESS"
+                                log_message "[+] Vault is already unsealed" "SUCCESS"
                             fi
                         fi
                     fi
@@ -1135,7 +1135,7 @@ main() {
                 # Using the flag set earlier prevents the race condition
                 if [ "$config_needs_regen_all" = "true" ]; then
                     # Regenerate env files using config_loader.py (with venv)
-                    log_message "🔄 Regenerating environment files due to config changes..."
+                    log_message " Regenerating environment files due to config changes..."
                     if [ -f "${CONFIG_DIR}/config_loader.py" ]; then
                         local python_cmd="python3"
                         if [ -f "${INSTALL_DIR}/.venv/bin/python3" ]; then
@@ -1366,13 +1366,13 @@ main() {
 
                     # Compare versions
                     if [[ "$current_version" != "$latest_version" ]]; then
-                        echo "  🎉 Update available!"
+                        echo "   Update available!"
                         echo "  Run 'sudo msting upgrade' to update"
                     else
-                        echo "  ✅ You're up to date!"
+                        echo "  [+] You're up to date!"
                     fi
                 else
-                    echo "  ⚠️  Could not check for updates (offline or API rate limited)"
+                    echo "  [!]  Could not check for updates (offline or API rate limited)"
                 fi
             fi
 
@@ -1451,9 +1451,9 @@ main() {
                     2>/dev/null || log_message "Warning: Some files could not be backed up" "WARNING"
 
                 if [[ -f "$backup_file" ]]; then
-                    log_message "✅ Backup created: $backup_file" "SUCCESS"
+                    log_message "[+] Backup created: $backup_file" "SUCCESS"
                 else
-                    log_message "⚠️ Backup failed, but continuing..." "WARNING"
+                    log_message "[!] Backup failed, but continuing..." "WARNING"
                 fi
             fi
 
@@ -1466,9 +1466,9 @@ main() {
             cd "${INSTALL_DIR}" || return 1
 
             if docker compose pull 2>&1 | grep -v "Pulling"; then
-                log_message "✅ Images pulled successfully" "SUCCESS"
+                log_message "[+] Images pulled successfully" "SUCCESS"
             else
-                log_message "❌ Failed to pull images" "ERROR"
+                log_message "[-] Failed to pull images" "ERROR"
                 return 1
             fi
 
@@ -1504,13 +1504,13 @@ main() {
             local frontend_status=$(docker inspect -f '{{.State.Status}}' sting-ce-frontend 2>/dev/null)
 
             if [[ "$app_status" == "running" ]] && [[ "$frontend_status" == "running" ]]; then
-                log_message "✅ Upgrade completed successfully!" "SUCCESS"
+                log_message "[+] Upgrade completed successfully!" "SUCCESS"
                 log_message "STING-CE is now running version: ${target_version}" "INFO"
 
                 # Log upgrade to history
                 echo "$(date '+%Y-%m-%d %H:%M:%S') - Upgraded from v${current_version} to ${target_version}" >> "${INSTALL_DIR}/.upgrade_history"
             else
-                log_message "⚠️ Upgrade completed but some services may not be healthy" "WARNING"
+                log_message "[!] Upgrade completed but some services may not be healthy" "WARNING"
                 log_message "Run 'msting status' to check service health" "INFO"
             fi
 
@@ -1568,29 +1568,29 @@ main() {
             return 0
             ;;
         buzz)
-            # 🐝 Hive Diagnostics - Buzz for Support
+            #  Hive Diagnostics - Buzz for Support
             if [ ! -f "${SOURCE_DIR}/lib/hive_diagnostics/honey_collector.sh" ]; then
                 log_message "Hive Diagnostics not available - honey collector not found" "ERROR"
                 return 1
             fi
             
-            log_message "🐝 Starting Hive Diagnostics (Buzzing for Support)..."
+            log_message " Starting Hive Diagnostics (Buzzing for Support)..."
             
             # Pass all arguments to the honey collector
             "${SOURCE_DIR}/lib/hive_diagnostics/honey_collector.sh" "$@"
             local exit_code=$?
             
             if [ $exit_code -eq 0 ]; then
-                log_message "🍯 Hive Diagnostics completed successfully" "SUCCESS"
+                log_message " Hive Diagnostics completed successfully" "SUCCESS"
             else
-                log_message "❌ Hive Diagnostics failed" "ERROR"
+                log_message "[-] Hive Diagnostics failed" "ERROR"
             fi
             
             return $exit_code
             ;;
         cache-buzz|cb)
-            # 🐝 Cache Buzzer - Clear Docker cache and rebuild
-            log_message "🐝 Starting Cache Buzzer - Enhanced Docker cache clearing..."
+            #  Cache Buzzer - Clear Docker cache and rebuild
+            log_message " Starting Cache Buzzer - Enhanced Docker cache clearing..."
             
             if [ ! -f "${SOURCE_DIR}/lib/cache_buzzer.sh" ]; then
                 log_message "Cache Buzzer not available - cache_buzzer.sh not found" "ERROR"
@@ -1625,7 +1625,7 @@ main() {
                         return $?
                         ;;
                     --validate)
-                        log_message "🔍 Running container validation"
+                        log_message " Running container validation"
                         "${SOURCE_DIR}/lib/validate_containers_simple.sh"
                         return $?
                         ;;
@@ -1650,22 +1650,22 @@ main() {
             local exit_code=$?
             
             if [ $exit_code -eq 0 ]; then
-                log_message "✅ Cache buzzer completed successfully" "SUCCESS"
-                log_message "💡 Run 'cache-buzz --validate' to verify freshness" "INFO"
+                log_message "[+] Cache buzzer completed successfully" "SUCCESS"
+                log_message "TIP: Run 'cache-buzz --validate' to verify freshness" "INFO"
             else
-                log_message "❌ Cache buzzer failed" "ERROR"
+                log_message "[-] Cache buzzer failed" "ERROR"
             fi
             
             return $exit_code
             ;;
         bee)
-            # 🐝 Bee AI Support Assistant
+            #  Bee AI Support Assistant
             if [ ! -f "${SOURCE_DIR}/lib/bee_support_manager.sh" ]; then
                 log_message "Bee Support Manager not available - bee_support_manager.sh not found" "ERROR"
                 return 1
             fi
             
-            log_message "🐝 Starting Bee AI Support Assistant..."
+            log_message " Starting Bee AI Support Assistant..."
             
             # Handle bee sub-commands
             local subcommand="$1"
@@ -1675,7 +1675,7 @@ main() {
                 # Pass remaining arguments to the bee support manager
                 "${SOURCE_DIR}/lib/bee_support_manager.sh" "$@"
             else
-                log_message "❌ Unknown bee command: $subcommand" "ERROR"
+                log_message "[-] Unknown bee command: $subcommand" "ERROR"
                 log_message "Available: bee support [command]" "INFO"
                 "${SOURCE_DIR}/lib/bee_support_manager.sh" help
                 return 1
@@ -1683,9 +1683,9 @@ main() {
             local exit_code=$?
             
             if [ $exit_code -eq 0 ]; then
-                log_message "✅ Bee Support operation completed successfully" "SUCCESS"
+                log_message "[+] Bee Support operation completed successfully" "SUCCESS"
             else
-                log_message "❌ Bee Support operation failed" "ERROR"
+                log_message "[-] Bee Support operation failed" "ERROR"
             fi
             
             return $exit_code
@@ -1706,7 +1706,7 @@ main() {
                 # Pass remaining arguments to the tunnel manager
                 "${SOURCE_DIR}/lib/headscale_tunnel_manager.sh" "$@"
             else
-                log_message "❌ Unknown support command: $subcommand" "ERROR"
+                log_message "[-] Unknown support command: $subcommand" "ERROR"
                 log_message "Available: support tunnel [command]" "INFO"
                 "${SOURCE_DIR}/lib/headscale_tunnel_manager.sh" help
                 return 1
@@ -1714,30 +1714,30 @@ main() {
             local exit_code=$?
             
             if [ $exit_code -eq 0 ]; then
-                log_message "✅ Support tunnel operation completed successfully" "SUCCESS"
+                log_message "[+] Support tunnel operation completed successfully" "SUCCESS"
             else
-                log_message "❌ Support tunnel operation failed" "ERROR"
+                log_message "[-] Support tunnel operation failed" "ERROR"
             fi
             
             return $exit_code
             ;;
         bundle)
-            # 📦 Local Bundle Management - Download and share your bundles
+            #  Local Bundle Management - Download and share your bundles
             if [ ! -f "${SOURCE_DIR}/lib/local_bundle_manager.sh" ]; then
                 log_message "Local bundle manager not available - local_bundle_manager.sh not found" "ERROR"
                 return 1
             fi
             
-            log_message "📦 Starting Local Bundle Manager..."
+            log_message " Starting Local Bundle Manager..."
             
             # Pass all arguments to the local bundle manager
             "${SOURCE_DIR}/lib/local_bundle_manager.sh" "$@"
             local exit_code=$?
             
             if [ $exit_code -eq 0 ]; then
-                log_message "✅ Bundle operation completed successfully" "SUCCESS"
+                log_message "[+] Bundle operation completed successfully" "SUCCESS"
             else
-                log_message "❌ Bundle operation failed" "ERROR"
+                log_message "[-] Bundle operation failed" "ERROR"
             fi
             
             return $exit_code
@@ -1756,14 +1756,14 @@ main() {
             log_message "Checking Ollama status..."
             if command -v ollama >/dev/null 2>&1; then
                 if curl -sf http://localhost:11434/v1/models >/dev/null 2>&1; then
-                    log_message "✅ Ollama is running" "SUCCESS"
+                    log_message "[+] Ollama is running" "SUCCESS"
                     ollama list
                 else
-                    log_message "❌ Ollama is installed but not running" "ERROR"
+                    log_message "[-] Ollama is installed but not running" "ERROR"
                     log_message "Start with: ollama serve" "INFO"
                 fi
             else
-                log_message "❌ Ollama is not installed" "ERROR"
+                log_message "[-] Ollama is not installed" "ERROR"
                 log_message "Install with: ./manage_sting.sh install-ollama" "INFO"
             fi
             return 0
@@ -1772,26 +1772,26 @@ main() {
             log_message "Checking LLM services status..."
             # Check Ollama
             if command -v ollama >/dev/null 2>&1 && curl -sf http://localhost:11434/v1/models >/dev/null 2>&1; then
-                log_message "✅ Ollama: Running" "SUCCESS"
+                log_message "[+] Ollama: Running" "SUCCESS"
             else
-                log_message "❌ Ollama: Not running" "ERROR"
+                log_message "[-] Ollama: Not running" "ERROR"
             fi
             # Check External AI service
             if curl -sf http://localhost:8091/health >/dev/null 2>&1; then
-                log_message "✅ External AI Service: Running" "SUCCESS"
+                log_message "[+] External AI Service: Running" "SUCCESS"
             else
-                log_message "❌ External AI Service: Not running" "ERROR"
+                log_message "[-] External AI Service: Not running" "ERROR"
             fi
             # Check sting-llm script
             if [ -f "${SOURCE_DIR}/sting-llm" ]; then
-                log_message "ℹ️  sting-llm script: Available" "INFO"
+                log_message "[*]  sting-llm script: Available" "INFO"
                 log_message "Run: ./sting-llm status" "INFO"
             fi
             return 0
             ;;
         build-analytics)
             # Build Analytics - View Docker build logs & performance
-            log_message "🐝 Build Intelligence & Analytics" "INFO"
+            log_message " Build Intelligence & Analytics" "INFO"
             
             # Parse arguments: service and hours
             local target_service="${2:-all}"
@@ -1903,12 +1903,12 @@ main() {
                     log_message "Fixing permissions before admin creation..." "INFO"
                     if [[ -f "${INSTALL_DIR}/fix_permissions.sh" ]]; then
                         sudo bash "${INSTALL_DIR}/fix_permissions.sh" > /dev/null 2>&1
-                        log_message "✅ Permissions fixed" "SUCCESS"
+                        log_message "[+] Permissions fixed" "SUCCESS"
                     elif [[ -f "${SOURCE_DIR}/fix_permissions.sh" ]]; then
                         sudo bash "${SOURCE_DIR}/fix_permissions.sh" > /dev/null 2>&1
-                        log_message "✅ Permissions fixed" "SUCCESS"
+                        log_message "[+] Permissions fixed" "SUCCESS"
                     else
-                        log_message "⚠️ fix_permissions.sh not found, skipping..." "WARNING"
+                        log_message "[!] fix_permissions.sh not found, skipping..." "WARNING"
                     fi
 
                     # Call the admin creation script (inside Docker container where dependencies exist)
@@ -2109,7 +2109,7 @@ main() {
                     return 1
                 fi
                 
-                log_message "🔄 Recreating admin user: $email" "INFO"
+                log_message " Recreating admin user: $email" "INFO"
                 log_message "Step 1: Attempting to delete existing user..." "INFO"
                 
                 # Try to delete (ignore failures since user might not exist)
@@ -2119,9 +2119,9 @@ main() {
                 
                 # Create the user
                 if "${SCRIPT_DIR}/manage_sting.sh" create admin --email="$email"; then
-                    log_message "✅ Admin user recreated successfully: $email" "SUCCESS"
+                    log_message "[+] Admin user recreated successfully: $email" "SUCCESS"
                 else
-                    log_message "❌ Failed to recreate admin user" "ERROR"
+                    log_message "[-] Failed to recreate admin user" "ERROR"
                     return 1
                 fi
             else
@@ -2239,9 +2239,9 @@ main() {
             local exit_code=$?
             
             if [ $exit_code -eq 0 ]; then
-                log_message "✅ Knowledge upload completed successfully" "SUCCESS"
+                log_message "[+] Knowledge upload completed successfully" "SUCCESS"
             else
-                log_message "❌ Knowledge upload failed" "ERROR"
+                log_message "[-] Knowledge upload failed" "ERROR"
             fi
             
             return $exit_code
@@ -2256,10 +2256,10 @@ main() {
             
             # Call the export function
             if export_ca_certificate "$output_dir"; then
-                log_message "✅ Certificates exported successfully to: $output_dir" "SUCCESS"
-                log_message "💡 Share this folder with client machines for easy installation" "INFO"
+                log_message "[+] Certificates exported successfully to: $output_dir" "SUCCESS"
+                log_message "TIP: Share this folder with client machines for easy installation" "INFO"
             else
-                log_message "❌ Certificate export failed" "ERROR"
+                log_message "[-] Certificate export failed" "ERROR"
                 return 1
             fi
             
@@ -2268,12 +2268,12 @@ main() {
         copy-certs)
             # 🔐 Copy certificates to remote host
             if [ -z "$1" ] || [ -z "$2" ]; then
-                log_message "❌ Target host and remote path required" "ERROR"
+                log_message "[-] Target host and remote path required" "ERROR"
                 log_message "" "ERROR"
                 log_message "📋 Usage: $0 copy-certs <user@host> <remote_path> [source_dir]" "ERROR"
                 log_message "" "ERROR" 
-                log_message "💡 Example: $0 copy-certs user@hostname.local /home/user/certs" "ERROR"
-                log_message "ℹ️  Run '$0 export-certs' first to create certificate bundle" "ERROR"
+                log_message "TIP: Example: $0 copy-certs user@hostname.local /home/user/certs" "ERROR"
+                log_message "[*]  Run '$0 export-certs' first to create certificate bundle" "ERROR"
                 return 1
             fi
             
@@ -2287,9 +2287,9 @@ main() {
             
             # Call the copy function
             if copy_certs_to_host "$target_host" "$remote_path" "$source_dir"; then
-                log_message "✅ Certificates copied successfully" "SUCCESS"
+                log_message "[+] Certificates copied successfully" "SUCCESS"
             else
-                log_message "❌ Certificate copy failed" "ERROR"
+                log_message "[-] Certificate copy failed" "ERROR"
                 return 1
             fi
             

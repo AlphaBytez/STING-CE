@@ -291,7 +291,7 @@ main() {
     # Test installation
     test_installation
     
-    log "✅ Ollama installation completed!"
+    log "[+] Ollama installation completed!"
     log ""
     log "📝 Quick Start Guide:"
     log "  Start Ollama:  ${OLLAMA_BIN}/ollama-start"
@@ -299,7 +299,7 @@ main() {
     log "  List models:   ${OLLAMA_BIN}/ollama list"
     log "  Chat:          ${OLLAMA_BIN}/ollama run phi3:mini"
     log ""
-    log "🔧 Environment Setup:"
+    log " Environment Setup:"
     log "  Add to your current shell: export PATH=\"${OLLAMA_BIN}:\$PATH\""
     log "  Or reload your shell:      source ~/.bashrc"
     log ""

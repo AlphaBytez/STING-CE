@@ -142,7 +142,7 @@ backup_preflight_checks() {
             log_message "WARNING: Database connectivity check failed" "WARNING"
             log_message "Backup will continue but database backup may fail" "WARNING"
         else
-            log_message "✅ Database connectivity verified"
+            log_message "[+] Database connectivity verified"
         fi
         cd "$original_dir" 2>/dev/null || true
     fi
@@ -150,7 +150,7 @@ backup_preflight_checks() {
             log_message "WARNING: Database connectivity check failed" "WARNING"
             log_message "Backup will continue but database backup may fail" "WARNING"
         else
-            log_message "✅ Database connectivity verified"
+            log_message "[+] Database connectivity verified"
         fi
         cd "$original_dir" 2>/dev/null || true
     fi
@@ -168,7 +168,7 @@ backup_preflight_checks() {
         log_message "Consider cleaning up old backups or freeing disk space." "WARNING"
     fi
     
-    log_message "✅ Pre-flight checks passed"
+    log_message "[+] Pre-flight checks passed"
     return 0
 }
 
@@ -241,7 +241,7 @@ perform_backup() {
             # Validate backup content
             if head -10 "${db_backup_file}" | grep -q "PostgreSQL database dump"; then
                 local backup_size=$(du -h "${db_backup_file}" | cut -f1)
-                log_message "✅ Database backup successful (${backup_size})"
+                log_message "[+] Database backup successful (${backup_size})"
                 db_backup_success=true
                 break
             else
@@ -475,7 +475,7 @@ perform_restore() {
     rm -rf "${INSTALL_DIR}.old" 2>/dev/null || true
     rm -rf "$rollback_backup" 2>/dev/null || true
     
-    log_message "✅ Restore completed successfully" "SUCCESS"
+    log_message "[+] Restore completed successfully" "SUCCESS"
     return 0
 }
 
@@ -488,7 +488,7 @@ restore_rollback() {
         return 1
     fi
     
-    log_message "⚠️  Performing rollback to pre-restore state..." "WARNING"
+    log_message "[!]  Performing rollback to pre-restore state..." "WARNING"
     
     rm -rf "$INSTALL_DIR" 2>/dev/null || true
     mv "$rollback_backup" "$INSTALL_DIR" || {
@@ -528,7 +528,7 @@ restore_docker_volumes() {
                 sh -c "cd /target && tar xzf /backup.tar.gz"; then
                 log_message "WARNING: Failed to restore volume $volume_name" "WARNING"
             else
-                log_message "✅ Volume $volume_name restored" "SUCCESS"
+                log_message "[+] Volume $volume_name restored" "SUCCESS"
             fi
         fi
     done
@@ -558,7 +558,7 @@ restore_database_from_backup() {
     
     # Restore database with timeout
     if timeout 60s docker compose exec -T db psql -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DATABASE_NAME:-sting_app}" < "$db_backup_file"; then
-        log_message "✅ Database restored successfully" "SUCCESS"
+        log_message "[+] Database restored successfully" "SUCCESS"
     else
         log_message "WARNING: Database restore failed or timed out" "WARNING"
     fi
@@ -703,13 +703,13 @@ store_backup_encryption_key() {
     if [[ "$(uname)" == "Darwin" ]]; then
         # macOS: Store in Keychain
         if security add-generic-password -a "$USER" -s "$key_id" -w "$key" 2>/dev/null; then
-            log_message "✅ Backup encryption key stored in macOS Keychain" "SUCCESS"
+            log_message "[+] Backup encryption key stored in macOS Keychain" "SUCCESS"
             stored=true
         fi
     elif command -v keyctl >/dev/null 2>&1; then
         # Linux: Store in kernel keyring
         if echo "$key" | base64 -d | keyctl padd user "$key_id" @u >/dev/null 2>&1; then
-            log_message "✅ Backup encryption key stored in Linux keyring" "SUCCESS"
+            log_message "[+] Backup encryption key stored in Linux keyring" "SUCCESS"
             stored=true
         fi
     fi
@@ -732,7 +732,7 @@ store_backup_encryption_key() {
             chattr +i "$key_file" 2>/dev/null || true
         fi
         
-        log_message "⚠️  Backup key stored in file: $key_file (consider using system keychain)" "WARNING"
+        log_message "[!]  Backup key stored in file: $key_file (consider using system keychain)" "WARNING"
     fi
 }
 
@@ -780,8 +780,8 @@ encrypt_backup() {
         rm "$file"  # Remove unencrypted backup
         
         local encrypted_size=$(du -h "${file}.enc" | cut -f1)
-        log_message "✅ Backup encrypted successfully: ${file}.enc (${encrypted_size})" "SUCCESS"
-        log_message "💡 Keep your encryption key safe - it's required for restore!" "INFO"
+        log_message "[+] Backup encrypted successfully: ${file}.enc (${encrypted_size})" "SUCCESS"
+        log_message "TIP: Keep your encryption key safe - it's required for restore!" "INFO"
         return 0
     else
         log_message "ERROR: Backup encryption failed" "ERROR"
@@ -807,7 +807,7 @@ decrypt_backup() {
             log_message "ERROR: Encrypted backup file integrity check failed" "ERROR"
             return 1
         fi
-        log_message "✅ Encrypted backup integrity verified"
+        log_message "[+] Encrypted backup integrity verified"
     fi
     
     log_message "Decrypting backup: $file"
@@ -835,7 +835,7 @@ decrypt_backup() {
         shred -f "$temp_key_file" 2>/dev/null || rm -f "$temp_key_file"
         
         local decrypted_size=$(du -h "${file%.enc}" | cut -f1)
-        log_message "✅ Backup decrypted successfully: ${file%.enc} (${decrypted_size})" "SUCCESS"
+        log_message "[+] Backup decrypted successfully: ${file%.enc} (${decrypted_size})" "SUCCESS"
         return 0
     else
         log_message "ERROR: Backup decryption failed - wrong key or corrupted file" "ERROR"
@@ -853,7 +853,7 @@ export_backup_key() {
         return 1
     fi
     
-    log_message "⚠️  SECURITY WARNING: Exporting backup encryption key" "WARNING"
+    log_message "[!]  SECURITY WARNING: Exporting backup encryption key" "WARNING"
     log_message "Keep this key file extremely secure - it can decrypt all your backups!" "WARNING"
     
     local encryption_key=$(get_backup_encryption_key)
@@ -874,7 +874,7 @@ export_backup_key() {
     
     chmod 600 "$output_file"
     
-    log_message "✅ Backup encryption key exported to: $output_file" "SUCCESS"
+    log_message "[+] Backup encryption key exported to: $output_file" "SUCCESS"
     log_message "🔐 File permissions set to 600 (owner read/write only)" "INFO"
 }
 
@@ -898,7 +898,7 @@ import_backup_key() {
     log_message "Importing backup encryption key..."
     store_backup_encryption_key "$encryption_key"
     
-    log_message "✅ Backup encryption key imported successfully" "SUCCESS"
+    log_message "[+] Backup encryption key imported successfully" "SUCCESS"
 }
 
 # Perform system maintenance
@@ -1035,7 +1035,7 @@ verify_backup_integrity() {
     
     local backup_size_human
     backup_size_human=$(du -h "$backup_file" | cut -f1)
-    log_message "✅ Backup verification passed (size: ${backup_size_human})" "SUCCESS"
+    log_message "[+] Backup verification passed (size: ${backup_size_human})" "SUCCESS"
     return 0
 }
 

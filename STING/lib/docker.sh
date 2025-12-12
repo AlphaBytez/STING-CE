@@ -61,11 +61,11 @@ build_docker_services() {
     # Use full cache clearing when updating ALL services
     if [ -z "$service" ] && [ "$no_cache" = "true" ]; then
         cache_level="full"
-        log_message_verbose "🐝 Updating all services - using FULL cache clearing" "INFO" true
+        log_message_verbose " Updating all services - using FULL cache clearing" "INFO" true
     elif [ "$service" = "frontend" ] && [ "$no_cache" = "true" ]; then
         # Frontend requires extreme service-specific cache clearing due to persistent caching issues
         cache_level="frontend-extreme"
-        log_message_verbose "🐝 Updating frontend service - using EXTREME service-specific cache clearing (default for frontend)" "INFO" true
+        log_message_verbose " Updating frontend service - using EXTREME service-specific cache clearing (default for frontend)" "INFO" true
     fi
 
     show_build_progress "Building ${service:-all} services"
@@ -75,7 +75,7 @@ build_docker_services() {
         # Source cache buzzer functions
         if [ -f "$(dirname "${BASH_SOURCE[0]}")/cache_buzzer.sh" ]; then
             source "$(dirname "${BASH_SOURCE[0]}")/cache_buzzer.sh"
-            log_message_verbose "🐝 Using enhanced cache buzzer (level: $cache_level)" "INFO"
+            log_message_verbose " Using enhanced cache buzzer (level: $cache_level)" "INFO"
             build_docker_services_nocache "$service" "$cache_level"
             return $?
         else

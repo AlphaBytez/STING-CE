@@ -42,11 +42,11 @@ cp /etc/hosts /etc/hosts.backup.$(date +%Y%m%d_%H%M%S)
 
 # Check if entry already exists
 if grep -q "$CUSTOM_DOMAIN" /etc/hosts; then
-    echo "✅ $CUSTOM_DOMAIN already configured in /etc/hosts"
+    echo "[+] $CUSTOM_DOMAIN already configured in /etc/hosts"
 else
     echo "Adding $CUSTOM_DOMAIN to /etc/hosts..."
     echo "" >> /etc/hosts
-    echo "# STING Local Development - Queen's Hive 🐝" >> /etc/hosts
+    echo "# STING Local Development - Queen's Hive " >> /etc/hosts
     echo "$CUSTOM_IP    $CUSTOM_DOMAIN" >> /etc/hosts
     echo "$CUSTOM_IP    api.$CUSTOM_DOMAIN" >> /etc/hosts
     echo "$CUSTOM_IP    auth.$CUSTOM_DOMAIN" >> /etc/hosts
@@ -55,25 +55,25 @@ else
     echo "$CUSTOM_IP    honey.$CUSTOM_DOMAIN" >> /etc/hosts
     echo "$CUSTOM_IP    vault.$CUSTOM_DOMAIN" >> /etc/hosts
     echo "$CUSTOM_IP    mail.$CUSTOM_DOMAIN" >> /etc/hosts
-    echo "✅ Added $CUSTOM_DOMAIN entries to /etc/hosts"
+    echo "[+] Added $CUSTOM_DOMAIN entries to /etc/hosts"
 fi
 
 echo ""
 echo "📝 Custom domain setup complete!"
 echo ""
-echo "Welcome to the Queen's Hive! 🐝👑"
+echo "Welcome to the Queen's Hive! 👑"
 echo ""
 echo "You can now access STING services at:"
 echo "  🌐 Main App:        https://$CUSTOM_DOMAIN:8443"
 echo "  🔐 Authentication:  https://auth.$CUSTOM_DOMAIN:4433"
-echo "  🔧 API Gateway:     https://api.$CUSTOM_DOMAIN:5050"
-echo "  🍯 Hive Manager:    https://hive.$CUSTOM_DOMAIN:8443/dashboard/hive"
-echo "  🐝 Bee Chat:        https://bee.$CUSTOM_DOMAIN:8443/dashboard/bee-chat"
+echo "   API Gateway:     https://api.$CUSTOM_DOMAIN:5050"
+echo "   Hive Manager:    https://hive.$CUSTOM_DOMAIN:8443/dashboard/hive"
+echo "   Bee Chat:        https://bee.$CUSTOM_DOMAIN:8443/dashboard/bee-chat"
 echo "  🏺 Honey Jars:      https://honey.$CUSTOM_DOMAIN:8443/dashboard/honey-pot"
-echo "  🔒 Vault UI:        http://vault.$CUSTOM_DOMAIN:8200"
+echo "   Vault UI:        http://vault.$CUSTOM_DOMAIN:8200"
 echo "  📧 Mail Testing:    http://mail.$CUSTOM_DOMAIN:8025"
 echo ""
-echo "⚠️  Note: You'll still get SSL certificate warnings since we're using self-signed certs"
+echo "[!]  Note: You'll still get SSL certificate warnings since we're using self-signed certs"
 echo ""
 
 # For network access

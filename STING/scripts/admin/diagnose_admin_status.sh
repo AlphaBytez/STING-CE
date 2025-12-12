@@ -3,7 +3,7 @@
 # STING Admin Account Diagnostic Script
 # Checks current admin account status and identifies issues
 
-echo "🔍 STING Admin Account Diagnostic"
+echo " STING Admin Account Diagnostic"
 echo "================================="
 echo
 
@@ -18,19 +18,19 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}📋 Checking Service Status${NC}"
 echo "----------------------------"
 if ! docker ps | grep -q "sting-ce-kratos"; then
-    echo -e "${RED}❌ Kratos service is not running${NC}"
+    echo -e "${RED}[-] Kratos service is not running${NC}"
     echo "   Run: ./manage_sting.sh start kratos"
     exit 1
 else
-    echo -e "${GREEN}✅ Kratos service is running${NC}"
+    echo -e "${GREEN}[+] Kratos service is running${NC}"
 fi
 
 if ! docker ps | grep -q "sting-ce-app"; then
-    echo -e "${RED}❌ App service is not running${NC}"
+    echo -e "${RED}[-] App service is not running${NC}"
     echo "   Run: ./manage_sting.sh start app"
     exit 1
 else
-    echo -e "${GREEN}✅ App service is running${NC}"
+    echo -e "${GREEN}[+] App service is running${NC}"
 fi
 
 echo
@@ -40,11 +40,11 @@ echo -e "${BLUE}🔑 Checking Admin Credentials${NC}"
 echo "------------------------------"
 ADMIN_PASSWORD_FILE="$HOME/.sting-ce/admin_password.txt"
 if [ -f "$ADMIN_PASSWORD_FILE" ]; then
-    echo -e "${GREEN}✅ Admin password file exists${NC}"
+    echo -e "${GREEN}[+] Admin password file exists${NC}"
     echo "   Location: $ADMIN_PASSWORD_FILE"
     echo "   Password: $(cat $ADMIN_PASSWORD_FILE)"
 else
-    echo -e "${RED}❌ Admin password file missing${NC}"
+    echo -e "${RED}[-] Admin password file missing${NC}"
     echo "   Expected: $ADMIN_PASSWORD_FILE"
 fi
 
@@ -57,7 +57,7 @@ KRATOS_ADMIN_URL="https://localhost:8443"
 IDENTITIES_RESPONSE=$(curl -s -k -X GET "$KRATOS_ADMIN_URL/admin/identities" -H "Accept: application/json" 2>/dev/null)
 
 if [ $? -ne 0 ] || [ -z "$IDENTITIES_RESPONSE" ]; then
-    echo -e "${RED}❌ Failed to connect to Kratos admin API${NC}"
+    echo -e "${RED}[-] Failed to connect to Kratos admin API${NC}"
     echo "   URL: $KRATOS_ADMIN_URL/admin/identities"
     echo "   Check if Kratos is running and accessible"
     exit 1
@@ -67,13 +67,13 @@ fi
 ADMIN_IDENTITY=$(echo "$IDENTITIES_RESPONSE" | jq -r '.[] | select(.traits.email=="admin@sting.local")')
 
 if [ "$ADMIN_IDENTITY" = "null" ] || [ -z "$ADMIN_IDENTITY" ]; then
-    echo -e "${RED}❌ Admin identity not found in Kratos${NC}"
+    echo -e "${RED}[-] Admin identity not found in Kratos${NC}"
     echo "   Expected email: admin@sting.local"
     echo
     echo -e "${YELLOW}📊 All identities found:${NC}"
     echo "$IDENTITIES_RESPONSE" | jq -r '.[] | .traits.email // "no-email"'
 else
-    echo -e "${GREEN}✅ Admin identity found${NC}"
+    echo -e "${GREEN}[+] Admin identity found${NC}"
     
     # Extract key information
     ADMIN_ID=$(echo "$ADMIN_IDENTITY" | jq -r '.id')
@@ -88,7 +88,7 @@ else
     
     # Check for problematic traits
     echo
-    echo -e "${BLUE}🔍 Admin Traits Analysis${NC}"
+    echo -e "${BLUE} Admin Traits Analysis${NC}"
     echo "------------------------"
     
     TRAITS=$(echo "$ADMIN_IDENTITY" | jq '.traits')
@@ -100,15 +100,15 @@ else
     
     echo
     if [ "$FORCE_PASSWORD_CHANGE" = "true" ]; then
-        echo -e "${RED}❌ force_password_change is TRUE - This causes login loops${NC}"
+        echo -e "${RED}[-] force_password_change is TRUE - This causes login loops${NC}"
     else
-        echo -e "${GREEN}✅ force_password_change is FALSE or not set${NC}"
+        echo -e "${GREEN}[+] force_password_change is FALSE or not set${NC}"
     fi
     
     if [ "$ROLE" = "admin" ]; then
-        echo -e "${GREEN}✅ Role is set to admin${NC}"
+        echo -e "${GREEN}[+] Role is set to admin${NC}"
     else
-        echo -e "${YELLOW}⚠️  Role is: $ROLE (should be 'admin')${NC}"
+        echo -e "${YELLOW}[!]  Role is: $ROLE (should be 'admin')${NC}"
     fi
 fi
 
@@ -128,10 +128,10 @@ if [ -n "$ADMIN_ID" ]; then
             echo "$SESSIONS_RESPONSE" | jq -r '.[] | "   Session: \(.id) (expires: \(.expires_at))"'
         fi
     else
-        echo -e "${YELLOW}⚠️  Could not retrieve session information${NC}"
+        echo -e "${YELLOW}[!]  Could not retrieve session information${NC}"
     fi
 else
-    echo -e "${YELLOW}⚠️  No admin ID available to check sessions${NC}"
+    echo -e "${YELLOW}[!]  No admin ID available to check sessions${NC}"
 fi
 
 echo
@@ -157,7 +157,7 @@ except Exception as e:
 if [ $? -eq 0 ]; then
     echo "   $USER_SETTINGS_CHECK"
 else
-    echo -e "${YELLOW}⚠️  Could not check Flask UserSettings database${NC}"
+    echo -e "${YELLOW}[!]  Could not check Flask UserSettings database${NC}"
 fi
 
 echo
@@ -170,33 +170,33 @@ if [ -n "$ADMIN_ID" ]; then
     WEBAUTHN_CREDS=$(curl -s -k -X GET "$KRATOS_ADMIN_URL/admin/identities/$ADMIN_ID/credentials" -H "Accept: application/json" 2>/dev/null)
     
     if [ $? -eq 0 ] && [ -n "$WEBAUTHN_CREDS" ]; then
-        echo -e "${GREEN}✅ Retrieved credential information${NC}"
+        echo -e "${GREEN}[+] Retrieved credential information${NC}"
         
         # Check for TOTP
         TOTP_EXISTS=$(echo "$WEBAUTHN_CREDS" | jq -r 'has("totp")')
         if [ "$TOTP_EXISTS" = "true" ]; then
-            echo -e "${GREEN}✅ TOTP is configured${NC}"
+            echo -e "${GREEN}[+] TOTP is configured${NC}"
         else
-            echo -e "${RED}❌ TOTP is NOT configured${NC}"
+            echo -e "${RED}[-] TOTP is NOT configured${NC}"
         fi
         
         # Check for WebAuthn
         WEBAUTHN_EXISTS=$(echo "$WEBAUTHN_CREDS" | jq -r 'has("webauthn")')
         if [ "$WEBAUTHN_EXISTS" = "true" ]; then
-            echo -e "${GREEN}✅ WebAuthn/Passkeys are configured${NC}"
+            echo -e "${GREEN}[+] WebAuthn/Passkeys are configured${NC}"
         else
-            echo -e "${YELLOW}⚠️  WebAuthn/Passkeys are NOT configured${NC}"
+            echo -e "${YELLOW}[!]  WebAuthn/Passkeys are NOT configured${NC}"
         fi
         
         # Check for password
         PASSWORD_EXISTS=$(echo "$WEBAUTHN_CREDS" | jq -r 'has("password")')
         if [ "$PASSWORD_EXISTS" = "true" ]; then
-            echo -e "${GREEN}✅ Password authentication is configured${NC}"
+            echo -e "${GREEN}[+] Password authentication is configured${NC}"
         else
-            echo -e "${RED}❌ Password authentication is NOT configured${NC}"
+            echo -e "${RED}[-] Password authentication is NOT configured${NC}"
         fi
     else
-        echo -e "${YELLOW}⚠️  Could not retrieve credential information${NC}"
+        echo -e "${YELLOW}[!]  Could not retrieve credential information${NC}"
     fi
 fi
 
@@ -216,12 +216,12 @@ if [ -n "$ADMIN_IDENTITY" ]; then
         echo "   This causes login redirect loops"
         echo "   SOLUTION: Clear UserSettings force_password_change flag"
     else
-        echo -e "${GREEN}✅ Admin account appears to be in good state${NC}"
+        echo -e "${GREEN}[+] Admin account appears to be in good state${NC}"
         echo "   Try logging in with credentials from $ADMIN_PASSWORD_FILE"
     fi
     
     if [ "$USER_SETTINGS_CHECK" = *"No UserSettings found"* ]; then
-        echo -e "${YELLOW}⚠️  UserSettings record missing for admin${NC}"
+        echo -e "${YELLOW}[!]  UserSettings record missing for admin${NC}"
         echo "   This might cause issues with V2 authentication system"
         echo "   SOLUTION: Create UserSettings record"
     fi
@@ -232,7 +232,7 @@ else
 fi
 
 echo
-echo -e "${BLUE}🔧 Available Recovery Actions:${NC}"
+echo -e "${BLUE} Available Recovery Actions:${NC}"
 echo "1. Clear force_password_change flags"
 echo "2. Create missing UserSettings record" 
 echo "3. Reset admin password"

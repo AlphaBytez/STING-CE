@@ -34,7 +34,7 @@ rm -f docker-compose.*.bak*
 
 # Keep test_in_vm.sh - it's useful for users
 
-echo "✓ Cleanup complete!"
+echo "[+] Cleanup complete!"
 echo ""
 echo "Remaining root scripts:"
 ls -lh *.sh 2>/dev/null | grep -v test_in_vm | awk '{print "  " $9}'

@@ -19,7 +19,7 @@ init_local_bundle_management() {
 
 # List available bundles for download
 list_local_bundles() {
-    log_message "📦 Available Diagnostic Bundles:"
+    log_message " Available Diagnostic Bundles:"
     log_message ""
     
     init_local_bundle_management
@@ -43,7 +43,7 @@ list_local_bundles() {
             size=$(ls -lh "$bundle_file" | awk '{print $5}')
             date=$(ls -l "$bundle_file" | awk '{print $6, $7, $8}')
             
-            log_message "  📦 $filename"
+            log_message "   $filename"
             log_message "    💾 Size: $size"
             log_message "    📅 Created: $date"
             log_message "    📁 Path: $bundle_file"
@@ -53,7 +53,7 @@ list_local_bundles() {
     
     if [ $bundles_found -eq 0 ]; then
         log_message "  📭 No diagnostic bundles found"
-        log_message "  💡 Create one with: ./manage_sting.sh buzz collect"
+        log_message "  TIP: Create one with: ./manage_sting.sh buzz collect"
     fi
 }
 
@@ -63,7 +63,7 @@ extract_bundle() {
     local output_dir="$2"
     
     if [ ! -f "$bundle_file" ]; then
-        log_message "❌ Bundle file not found: $bundle_file" "ERROR"
+        log_message "[-] Bundle file not found: $bundle_file" "ERROR"
         return 1
     fi
     
@@ -81,7 +81,7 @@ extract_bundle() {
     
     # Extract bundle
     if tar -xzf "$bundle_file" -C "$output_dir" 2>/dev/null; then
-        log_message "✅ Bundle extracted successfully"
+        log_message "[+] Bundle extracted successfully"
         
         # List extracted contents
         log_message "📋 Extracted contents:"
@@ -102,7 +102,7 @@ extract_bundle() {
         
         log_message ""
         log_message "📁 **Extracted to:** $output_dir"
-        log_message "💡 **Next steps:**"
+        log_message "TIP: **Next steps:**"
         log_message "  • Review logs in extracted folder"
         log_message "  • Share specific log files as needed"
         log_message "  • Archive folder: tar -czf my-bundle.tar.gz extracted-folder/"
@@ -110,7 +110,7 @@ extract_bundle() {
         
         return 0
     else
-        log_message "❌ Failed to extract bundle" "ERROR"
+        log_message "[-] Failed to extract bundle" "ERROR"
         return 1
     fi
 }
@@ -121,7 +121,7 @@ copy_bundle_for_sharing() {
     local destination="${2:-~/Desktop}"
     
     if [ ! -f "$bundle_file" ]; then
-        log_message "❌ Bundle file not found: $bundle_file" "ERROR"
+        log_message "[-] Bundle file not found: $bundle_file" "ERROR"
         return 1
     fi
     
@@ -138,11 +138,11 @@ copy_bundle_for_sharing() {
     
     # Copy to destination
     if cp "$bundle_file" "$dest_path" 2>/dev/null; then
-        log_message "✅ Bundle copied successfully"
+        log_message "[+] Bundle copied successfully"
         log_message "📁 Location: $dest_path"
         log_message "💾 Size: $(ls -lh "$dest_path" | awk '{print $5}')"
         log_message ""
-        log_message "🔒 **Sharing Safety:**"
+        log_message " **Sharing Safety:**"
         log_message "  • Bundle is fully sanitized"
         log_message "  • No passwords, keys, or PII included"
         log_message "  • Safe to share via email, forums, Discord"
@@ -156,7 +156,7 @@ copy_bundle_for_sharing() {
         
         return 0
     else
-        log_message "❌ Failed to copy bundle to $dest_path" "ERROR"
+        log_message "[-] Failed to copy bundle to $dest_path" "ERROR"
         return 1
     fi
 }
@@ -166,11 +166,11 @@ inspect_bundle() {
     local bundle_file="$1"
     
     if [ ! -f "$bundle_file" ]; then
-        log_message "❌ Bundle file not found: $bundle_file" "ERROR"
+        log_message "[-] Bundle file not found: $bundle_file" "ERROR"
         return 1
     fi
     
-    log_message "🔍 Bundle Contents Preview: $(basename "$bundle_file")"
+    log_message " Bundle Contents Preview: $(basename "$bundle_file")"
     log_message ""
     
     # Show bundle structure
@@ -196,7 +196,7 @@ inspect_bundle() {
     log_message "📊 **Bundle Info:**"
     log_message "  💾 Size: $size"
     log_message "  📅 Created: $date"
-    log_message "  🔒 Sanitized: Yes (safe to share)"
+    log_message "   Sanitized: Yes (safe to share)"
     log_message "  📁 Total files: $file_count"
 }
 
@@ -205,14 +205,14 @@ create_shareable_package() {
     local ticket_id="$1"
     local include_summary="${2:-true}"
     
-    log_message "📦 Creating shareable package for ticket: $ticket_id"
+    log_message " Creating shareable package for ticket: $ticket_id"
     
     # Find bundles for this ticket
     local bundle_files
     bundle_files=$(find "$LOCAL_BUNDLES_DIR" -name "*${ticket_id}*" -type f 2>/dev/null)
     
     if [ -z "$bundle_files" ]; then
-        log_message "❌ No bundles found for ticket: $ticket_id" "ERROR"
+        log_message "[-] No bundles found for ticket: $ticket_id" "ERROR"
         return 1
     fi
     
@@ -225,7 +225,7 @@ create_shareable_package() {
             local bundle_name
             bundle_name=$(basename "$bundle_file")
             cp "$bundle_file" "$package_dir/$bundle_name"
-            log_message "✅ Added: $bundle_name"
+            log_message "[+] Added: $bundle_name"
         fi
     done
     
@@ -235,10 +235,10 @@ create_shareable_package() {
 # STING-CE Diagnostic Bundle - $ticket_id
 
 ## 🛡️ Security & Privacy
-- ✅ **Fully Sanitized** - All passwords, API keys, and PII removed
-- ✅ **Safe to Share** - Approved for community forums and email
-- ✅ **No Sensitive Data** - Contains diagnostic logs and system info only
-- ✅ **Integrity Verified** - Bundle created by STING's automated system
+- [+] **Fully Sanitized** - All passwords, API keys, and PII removed
+- [+] **Safe to Share** - Approved for community forums and email
+- [+] **No Sensitive Data** - Contains diagnostic logs and system info only
+- [+] **Integrity Verified** - Bundle created by STING's automated system
 
 ## 📋 Issue Information
 - **Ticket ID**: $ticket_id
@@ -267,10 +267,10 @@ If you're a community member helping with this issue:
 - **Discord**: Share solutions in #support-help
 - **GitHub**: Create issue if this appears to be a bug
 
-Thank you for helping make STING better! 🐝
+Thank you for helping make STING better! 
 EOF
         
-        log_message "✅ Added sharing documentation"
+        log_message "[+] Added sharing documentation"
     fi
     
     # Create final shareable archive
@@ -278,18 +278,18 @@ EOF
     local archive_path="${BUNDLE_EXPORTS_DIR}/$archive_name"
     
     if tar -czf "$archive_path" -C "${BUNDLE_EXPORTS_DIR}" "shareable-${ticket_id}"; then
-        log_message "✅ Shareable package created: $archive_path"
+        log_message "[+] Shareable package created: $archive_path"
         log_message "💾 Size: $(ls -lh "$archive_path" | awk '{print $5}')"
         log_message ""
         log_message "📤 **Ready to Share:**"
         log_message "  📁 Package: $archive_path"
-        log_message "  🔒 Security: Fully sanitized, safe for public sharing"
+        log_message "   Security: Fully sanitized, safe for public sharing"
         log_message "  📋 Documentation: Included in package"
-        log_message "  💡 Usage: Extract and review logs for troubleshooting"
+        log_message "  TIP: Usage: Extract and review logs for troubleshooting"
         
         return 0
     else
-        log_message "❌ Failed to create shareable package" "ERROR"
+        log_message "[-] Failed to create shareable package" "ERROR"
         return 1
     fi
 }
@@ -297,7 +297,7 @@ EOF
 # Show help for local bundle management
 show_local_bundle_help() {
     cat << 'EOF'
-📦 Local Bundle Manager - Download and Share Your Diagnostic Bundles
+ Local Bundle Manager - Download and Share Your Diagnostic Bundles
 
 USAGE:
     ./manage_sting.sh bundle COMMAND [OPTIONS]
@@ -334,10 +334,10 @@ SHARING OPTIONS:
     💾 **USB/Drive**: Copy bundles for offline analysis
 
 SECURITY:
-    ✅ All bundles are pre-sanitized by STING's Pollen Filter
-    ✅ No passwords, API keys, or PII included
-    ✅ Safe to share publicly in community forums
-    ✅ Contains diagnostic data only (logs, configs, metrics)
+    [+] All bundles are pre-sanitized by STING's Pollen Filter
+    [+] No passwords, API keys, or PII included
+    [+] Safe to share publicly in community forums
+    [+] Contains diagnostic data only (logs, configs, metrics)
 
 BUNDLE LOCATIONS:
     📂 Generated bundles: ${LOCAL_BUNDLES_DIR}/
@@ -361,7 +361,7 @@ main() {
             local output_dir="$2"
             
             if [ -z "$bundle_file" ]; then
-                log_message "❌ Bundle file required" "ERROR"
+                log_message "[-] Bundle file required" "ERROR"
                 log_message "Usage: bundle extract BUNDLE_FILE [OUTPUT_DIR]" "INFO"
                 return 1
             fi
@@ -373,7 +373,7 @@ main() {
             local destination="$2"
             
             if [ -z "$bundle_file" ]; then
-                log_message "❌ Bundle file required" "ERROR"
+                log_message "[-] Bundle file required" "ERROR"
                 log_message "Usage: bundle copy BUNDLE_FILE [DESTINATION]" "INFO"
                 return 1
             fi
@@ -384,7 +384,7 @@ main() {
             local bundle_file="$1"
             
             if [ -z "$bundle_file" ]; then
-                log_message "❌ Bundle file required" "ERROR"
+                log_message "[-] Bundle file required" "ERROR"
                 log_message "Usage: bundle inspect BUNDLE_FILE" "INFO"
                 return 1
             fi
@@ -395,7 +395,7 @@ main() {
             local ticket_id="$1"
             
             if [ -z "$ticket_id" ]; then
-                log_message "❌ Ticket ID required" "ERROR"
+                log_message "[-] Ticket ID required" "ERROR"
                 log_message "Usage: bundle package TICKET_ID" "INFO"
                 return 1
             fi
@@ -406,7 +406,7 @@ main() {
             show_local_bundle_help
             ;;
         *)
-            log_message "❌ Unknown bundle command: $command" "ERROR"
+            log_message "[-] Unknown bundle command: $command" "ERROR"
             show_local_bundle_help
             return 1
             ;;

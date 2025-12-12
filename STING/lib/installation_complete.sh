@@ -12,7 +12,7 @@ display_installation_complete() {
     
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "✅ STING Installation Complete!"
+    echo "[+] STING Installation Complete!"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     
@@ -27,9 +27,9 @@ display_installation_complete() {
         
         # Check if mDNS is available
         if command -v dns-sd >/dev/null 2>&1 || command -v avahi-browse >/dev/null 2>&1; then
-            echo "✅ This domain is accessible from any device on your network"
+            echo "[+] This domain is accessible from any device on your network"
         else
-            echo "ℹ️  To access from other devices, add to their /etc/hosts:"
+            echo "[*]  To access from other devices, add to their /etc/hosts:"
             local ip=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "YOUR_IP")
             echo "   ${ip}    ${domain}"
         fi
@@ -39,7 +39,7 @@ display_installation_complete() {
         echo "  API:         https://localhost:5050"
         echo "  Auth:        https://localhost:4433"
         echo ""
-        echo "💡 Tip: Run ./setup_local_domain.sh to enable:"
+        echo "TIP: Tip: Run ./setup_local_domain.sh to enable:"
         echo "   • Unique domain for your installation"
         echo "   • WebAuthn passkeys across devices"
         echo "   • Network-wide access"

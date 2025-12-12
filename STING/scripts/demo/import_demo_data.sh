@@ -22,10 +22,10 @@ check_service() {
     local service_name=$2
     
     if curl -s -f "$service_url/health" > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ $service_name is available${NC}"
+        echo -e "${GREEN}[+] $service_name is available${NC}"
         return 0
     else
-        echo -e "${YELLOW}⚠ $service_name is not available${NC}"
+        echo -e "${YELLOW}[!] $service_name is not available${NC}"
         return 1
     fi
 }
@@ -50,7 +50,7 @@ curl -s -X POST "$API_BASE/honey jars" \
             "banner": "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5",
             "allow_root": false
         }
-    }' > /dev/null && echo -e "${GREEN}✓ Created SSH honey jar${NC}"
+    }' > /dev/null && echo -e "${GREEN}[+] Created SSH honey jar${NC}"
 
 # Web Application Honey Jar
 curl -s -X POST "$API_BASE/honey jars" \
@@ -64,7 +64,7 @@ curl -s -X POST "$API_BASE/honey jars" \
             "applications": ["wordpress", "phpmyadmin", "webmail"],
             "vulnerabilities": ["sql_injection", "xss", "file_upload"]
         }
-    }' > /dev/null && echo -e "${GREEN}✓ Created Web honey jar${NC}"
+    }' > /dev/null && echo -e "${GREEN}[+] Created Web honey jar${NC}"
 
 # Database Honey Jar
 curl -s -X POST "$API_BASE/honey jars" \
@@ -78,7 +78,7 @@ curl -s -X POST "$API_BASE/honey jars" \
             "version": "MySQL 8.0.32",
             "databases": ["customers", "products", "analytics"]
         }
-    }' > /dev/null && echo -e "${GREEN}✓ Created Database honey jar${NC}"
+    }' > /dev/null && echo -e "${GREEN}[+] Created Database honey jar${NC}"
 
 # Import threat intelligence to knowledge base
 echo -e "\n${YELLOW}Importing threat intelligence...${NC}"
@@ -91,7 +91,7 @@ curl -s -X POST "$KNOWLEDGE_API/honey-pots" \
         "description": "Curated threat intelligence from multiple sources",
         "type": "public",
         "tags": ["threats", "iocs", "malware", "campaigns"]
-    }' > /dev/null && echo -e "${GREEN}✓ Created threat intelligence knowledge base${NC}"
+    }' > /dev/null && echo -e "${GREEN}[+] Created threat intelligence knowledge base${NC}"
 
 # Sample threat data
 cat > /tmp/demo_threats.json << EOF
@@ -173,7 +173,7 @@ for days_ago in {7..1}; do
     done
 done
 
-echo -e "${GREEN}✓ Generated 7 days of historical data${NC}"
+echo -e "${GREEN}[+] Generated 7 days of historical data${NC}"
 
 # Create sample security reports
 echo -e "\n${YELLOW}Creating sample reports...${NC}"
@@ -201,10 +201,10 @@ Generated: $(date)
 4. Configure automated IP blocking for repeat offenders
 EOF
 
-echo -e "${GREEN}✓ Created sample security report${NC}"
+echo -e "${GREEN}[+] Created sample security report${NC}"
 
 # Final summary
-echo -e "\n${GREEN}✅ Demo data import complete!${NC}"
+echo -e "\n${GREEN}[+] Demo data import complete!${NC}"
 echo -e "\nLoaded:"
 echo -e "  • 3 honey jars (SSH, Web, Database)"
 echo -e "  • 7 days of historical attack data"

@@ -24,19 +24,19 @@ log() {
 }
 
 success() {
-    echo -e "${GREEN}✅ $*${NC}"
+    echo -e "${GREEN}[+] $*${NC}"
 }
 
 warning() {
-    echo -e "${YELLOW}⚠️  $*${NC}"
+    echo -e "${YELLOW}[!]  $*${NC}"
 }
 
 error() {
-    echo -e "${RED}❌ $*${NC}"
+    echo -e "${RED}[-] $*${NC}"
 }
 
 info() {
-    echo -e "${BLUE}ℹ️  $*${NC}"
+    echo -e "${BLUE}[*]  $*${NC}"
 }
 
 # Check if we're in the right directory
@@ -209,7 +209,7 @@ start_dev() {
     echo "   • Grafana:               http://localhost:3001"
     echo ""
     info "📝 Edit files in project directory for instant updates"
-    info "🔄 Use 'msting dev sync-back' to commit changes"
+    info " Use 'msting dev sync-back' to commit changes"
 }
 
 # Stop development environment

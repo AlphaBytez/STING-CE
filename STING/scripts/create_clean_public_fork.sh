@@ -27,15 +27,15 @@ log_info() {
 }
 
 log_success() {
-    echo -e "${GREEN}[✓]${NC} $*"
+    echo -e "${GREEN}[[+]]${NC} $*"
 }
 
 log_warning() {
-    echo -e "${YELLOW}[⚠]${NC} $*"
+    echo -e "${YELLOW}[[!]]${NC} $*"
 }
 
 log_error() {
-    echo -e "${RED}[✗]${NC} $*"
+    echo -e "${RED}[[-]]${NC} $*"
 }
 
 log_section() {
@@ -287,7 +287,7 @@ if 'volumes' in compose:
 with open('docker-compose.yml', 'w') as f:
     yaml.dump(compose, f, default_flow_style=False, sort_keys=False)
 
-print("✓ Created minimal docker-compose.yml")
+print("[+] Created minimal docker-compose.yml")
 PYTHON_SCRIPT
 
 python3 generate_minimal_compose.py
@@ -461,7 +461,7 @@ content = re.sub(r'.*promtail.*\n', '', content, flags=re.IGNORECASE)
 with open('conf/config_loader.py', 'w') as f:
     f.write(content)
 
-print("✓ Cleaned config_loader.py")
+print("[+] Cleaned config_loader.py")
 CLEAN_LOADER
 
     # Remove backup
@@ -578,9 +578,9 @@ A comprehensive security and authentication platform with AI-powered assistance.
 
 - 🔐 **Multi-Factor Authentication** - TOTP, WebAuthn, Magic Links
 - 🤖 **AI Assistant (B.E.E.)** - Intelligent security companion
-- 🚀 **Passwordless Authentication** - Modern, secure auth flows
+-  **Passwordless Authentication** - Modern, secure auth flows
 - 📧 **Email Verification** - Built-in email handling
-- 🔒 **Vault Integration** - Secure secrets management
+-  **Vault Integration** - Secure secrets management
 - 📊 **Audit Logging** - Comprehensive security logs
 - 🐳 **Docker-Based** - Easy deployment and scaling
 
@@ -710,8 +710,8 @@ Email: security@sting-ce.org
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.x     | ✅ Active          |
-| < 1.0   | ❌ Not Supported   |
+| 1.x     | [+] Active          |
+| < 1.0   | [-] Not Supported   |
 
 ## Security Best Practices
 
@@ -806,22 +806,22 @@ echo ""
 # List remaining services
 echo "Included Services:"
 echo "=================="
-ls -d */ 2>/dev/null | grep -E "(app|frontend|vault|kratos|chatbot|knowledge|llm_service)" | sed 's|/||g' | sort | sed 's/^/  ✓ /'
+ls -d */ 2>/dev/null | grep -E "(app|frontend|vault|kratos|chatbot|knowledge|llm_service)" | sed 's|/||g' | sort | sed 's/^/  [+] /'
 echo ""
 
 echo "Removed Components:"
 echo "==================="
-echo "  ✗ SuperTokens (deprecated auth)"
-echo "  ✗ Archive directories"
-echo "  ✗ Monitoring stack (Loki/Grafana/Promtail)"
-echo "  ✗ Headscale VPN"
-echo "  ✗ Build artifacts"
-echo "  ✗ Virtual environments"
-echo "  ✗ Sensitive files (.env, .key, .pem)"
+echo "  [-] SuperTokens (deprecated auth)"
+echo "  [-] Archive directories"
+echo "  [-] Monitoring stack (Loki/Grafana/Promtail)"
+echo "  [-] Headscale VPN"
+echo "  [-] Build artifacts"
+echo "  [-] Virtual environments"
+echo "  [-] Sensitive files (.env, .key, .pem)"
 echo ""
 
 # Final message
-log_section "✅ Clean Fork Created Successfully!"
+log_section "[+] Clean Fork Created Successfully!"
 
 echo "📁 Location: $TARGET_DIR"
 echo "📊 Size: $FINAL_SIZE (reduced from $ORIGINAL_SIZE)"
@@ -846,5 +846,5 @@ echo "   - Enable Issues & Discussions"
 echo "   - Add topics: security, authentication, mfa, docker"
 echo "   - Create v1.0.0-ce release"
 echo ""
-echo "⚠️  IMPORTANT: Test thoroughly in VM before making public!"
+echo "[!]  IMPORTANT: Test thoroughly in VM before making public!"
 echo ""

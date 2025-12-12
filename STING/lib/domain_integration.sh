@@ -63,17 +63,17 @@ setup_domain_automated() {
     # Register mDNS if available
     if check_mdns_support; then
         register_mdns_service "$new_domain"
-        echo "✅ mDNS service registered"
+        echo "[+] mDNS service registered"
     else
         update_hosts_file "$new_domain" "add"
-        echo "✅ Added to /etc/hosts"
+        echo "[+] Added to /etc/hosts"
     fi
     
     # Update frontend configuration
     update_frontend_config "$new_domain"
     
     echo ""
-    echo "✅ Domain configuration complete: ${new_domain}"
+    echo "[+] Domain configuration complete: ${new_domain}"
     
     return 0
 }
@@ -110,9 +110,9 @@ display_domain_access_info() {
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         
         if check_mdns_support; then
-            echo "✅ Domain accessible from any device on your network"
+            echo "[+] Domain accessible from any device on your network"
         else
-            echo "ℹ️  Domain accessible from this machine only"
+            echo "[*]  Domain accessible from this machine only"
             echo "   To access from other devices, add to their /etc/hosts:"
             echo "   $(hostname -I | awk '{print $1}')    ${domain}"
         fi
@@ -120,7 +120,7 @@ display_domain_access_info() {
         echo ""
         echo "Access STING at: https://localhost:8443"
         echo ""
-        echo "💡 Tip: Run ./setup_local_domain.sh to enable:"
+        echo "TIP: Tip: Run ./setup_local_domain.sh to enable:"
         echo "   • WebAuthn passkeys across devices"
         echo "   • Network-wide access"
     fi

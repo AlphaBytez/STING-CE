@@ -55,7 +55,7 @@ cleanup_old_logs() {
             find /var/log/builds/analytics -name '*.json' -mtime +${analytics_hours}h -print -delete
         " 2>/dev/null || log_message "Warning: Could not clean up old analytics" "WARNING"
     
-    log_message "✅ Build logs maintenance completed" "SUCCESS"
+    log_message "[+] Build logs maintenance completed" "SUCCESS"
 }
 
 # Show build analytics
@@ -80,7 +80,7 @@ show_build_analytics() {
                 find /var/log/builds/analytics -name '*${service}*.json' -newermt '${hours} hours ago'
             fi | head -20 | while read file; do
                 if [ -f \"\$file\" ]; then
-                    echo \"🔍 \$(basename \"\$file\")\"
+                    echo \" \$(basename \"\$file\")\"
                     cat \"\$file\" | grep -E '\"service\"|\"duration_seconds\"|\"success\"|\"error_count\"' | sed 's/^/  /'
                     echo
                 fi
@@ -90,21 +90,21 @@ show_build_analytics() {
 
 # Show build status
 show_build_status() {
-    log_message "🔍 Build Logging Status" "INFO"
+    log_message " Build Logging Status" "INFO"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     
     # Check if volumes exist
     echo "📁 Docker Volumes:"
     if docker volume ls | grep -q "build_logs"; then
-        echo "  ✅ build_logs volume exists"
+        echo "  [+] build_logs volume exists"
     else
-        echo "  ❌ build_logs volume missing"
+        echo "  [-] build_logs volume missing"
     fi
     
     if docker volume ls | grep -q "build_analytics"; then
-        echo "  ✅ build_analytics volume exists"
+        echo "  [+] build_analytics volume exists"
     else
-        echo "  ❌ build_analytics volume missing"
+        echo "  [-] build_analytics volume missing"
     fi
     
     # Check recent builds
@@ -121,15 +121,15 @@ show_build_status() {
     
     # Check Promtail configuration
     echo
-    echo "🔍 Promtail Configuration:"
+    echo " Promtail Configuration:"
     if [ -f "${PROJECT_ROOT}/observability/promtail/config/promtail.yml" ]; then
         if grep -q "sting-build-logs" "${PROJECT_ROOT}/observability/promtail/config/promtail.yml"; then
-            echo "  ✅ Build logs collection configured"
+            echo "  [+] Build logs collection configured"
         else
-            echo "  ❌ Build logs collection not configured"
+            echo "  [-] Build logs collection not configured"
         fi
     else
-        echo "  ❌ Promtail config not found"
+        echo "  [-] Promtail config not found"
     fi
 }
 

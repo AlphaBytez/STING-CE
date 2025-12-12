@@ -131,17 +131,17 @@ copy_files_to_install_dir() {
         # Use regular chown without sudo (user already owns ~/.sting-ce)
         if chown -R "$target_user:$target_group" "$dest_dir" 2>/dev/null; then
             chown_success=true
-            log_message "✓ Ownership set successfully"
+            log_message "[+] Ownership set successfully"
         else
             # If regular chown fails, it's non-critical (files already owned by user)
-            log_message "⚠️  Ownership already correct (files owned by $target_user)"
+            log_message "[!]  Ownership already correct (files owned by $target_user)"
             chown_success=true  # Not critical on macOS since installing to home dir
         fi
     else
         # Linux: Use -n flag safely (it fails fast on Linux)
         if sudo -n chown -R "$target_user:$target_group" "$dest_dir" 2>/dev/null; then
             chown_success=true
-            log_message "✓ Ownership set successfully"
+            log_message "[+] Ownership set successfully"
         else
             log_message "WARNING: Failed to set ownership (non-critical)"
         fi
@@ -163,7 +163,7 @@ copy_files_to_install_dir() {
             log_message "ERROR: Failed to set execute permissions on manage_sting.sh"
             return 1
         }
-        log_message "✓ manage_sting.sh is executable"
+        log_message "[+] manage_sting.sh is executable"
     else
         log_message "ERROR: manage_sting.sh not found at $dest_dir/manage_sting.sh"
         return 1
@@ -187,7 +187,7 @@ copy_files_to_install_dir() {
 
     if [ -d "$dest_dir/app/models" ]; then
         local model_count=$(find "$dest_dir/app/models" -name "*.py" -type f 2>/dev/null | wc -l)
-        log_message "✓ Verified app/models directory copied ($model_count Python files)"
+        log_message "[+] Verified app/models directory copied ($model_count Python files)"
     fi
 
     # Ensure the env directory exists (so touch/chmod on vault.env etc. cannot fail)
@@ -352,7 +352,7 @@ check_structural_changes() {
     
     # Report findings
     if [ ${#structural_changes[@]} -gt 0 ] || [ ${#dependency_changes[@]} -gt 0 ]; then
-        log_message "⚠️  Structural changes detected:" "WARNING"
+        log_message "[!]  Structural changes detected:" "WARNING"
         
         if [ ${#structural_changes[@]} -gt 0 ]; then
             log_message "📋 Infrastructure changes:" "WARNING"
@@ -362,7 +362,7 @@ check_structural_changes() {
         fi
         
         if [ ${#dependency_changes[@]} -gt 0 ]; then
-            log_message "📦 Dependency changes:" "WARNING"
+            log_message " Dependency changes:" "WARNING"
             for change in "${dependency_changes[@]}"; do
                 log_message "  - $change" "WARNING"
             done
@@ -375,14 +375,14 @@ check_structural_changes() {
             log_message "  Alternative: ./manage_sting.sh update --force (risky)" "ERROR"
             return 2  # Critical changes
         else
-            log_message "💡 Recommendation: Consider full reinstall for best reliability" "WARNING"
+            log_message "TIP: Recommendation: Consider full reinstall for best reliability" "WARNING"
             log_message "  Safe option: ./manage_sting.sh reinstall" "WARNING"
             log_message "  Continue anyway: ./manage_sting.sh update --force" "WARNING"
             return 1  # Minor changes
         fi
     fi
     
-    log_message "✅ No structural changes detected - update should be safe"
+    log_message "[+] No structural changes detected - update should be safe"
     return 0  # No changes
 }
 
@@ -404,7 +404,7 @@ check_service_dependencies() {
         external-ai)
             # Check if OpenAI-compatible endpoint is running
             if ! curl -sf http://localhost:11434/v1/models >/dev/null 2>&1; then
-                log_message "⚠️  Warning: AI service not responding - external-ai service may fail" "WARNING"
+                log_message "[!]  Warning: AI service not responding - external-ai service may fail" "WARNING"
                 log_message "Start your AI service (Ollama, LM Studio, etc.)" "INFO"
             fi
             ;;
@@ -421,7 +421,7 @@ check_service_dependencies() {
             dependencies=("app")
             # Check if OpenAI-compatible endpoint is running
             if ! curl -sf http://localhost:11434/v1/models >/dev/null 2>&1; then
-                log_message "⚠️  Warning: AI service not responding - nectar-worker may fail" "WARNING"
+                log_message "[!]  Warning: AI service not responding - nectar-worker may fail" "WARNING"
                 log_message "Start your AI service (Ollama, LM Studio, etc.)" "INFO"
             fi
             ;;
@@ -431,7 +431,7 @@ check_service_dependencies() {
     for dep in "${dependencies[@]}"; do
         # Use docker compose with project name to check service status
         if ! docker compose -p "${COMPOSE_PROJECT_NAME:-sting-ce}" ps "$dep" 2>/dev/null | grep -qE "(Up|running)"; then
-            log_message "⚠️  Warning: Dependency '$dep' not running for service '$service'" "WARNING"
+            log_message "[!]  Warning: Dependency '$dep' not running for service '$service'" "WARNING"
             log_message "Consider starting dependencies first: ./manage_sting.sh start $dep" "INFO"
         fi
     done
@@ -453,17 +453,17 @@ sync_service_code() {
         project_dir="${SOURCE_DIR:-$(pwd)}"
     fi
     
-    log_message "🔍 Debug: Syncing from project_dir: $project_dir to INSTALL_DIR: $INSTALL_DIR" "INFO"
+    log_message " Debug: Syncing from project_dir: $project_dir to INSTALL_DIR: $INSTALL_DIR" "INFO"
     
     case "$service" in
         frontend)
             # DISABLED: Complex container-based build - use standard approach instead
             # Sync-only mode now uses simple file sync without frontend-builder container
             if [ "$sync_only" = "true" ]; then
-                log_message "🚀 Sync-only mode: Simple file sync for frontend..." "INFO"
+                log_message " Sync-only mode: Simple file sync for frontend..." "INFO"
                 
                 # Simple file sync - no container building needed
-                log_message "📦 Syncing frontend files directly..." "INFO"
+                log_message " Syncing frontend files directly..." "INFO"
                 
                 # Create temporary staging directory for changed files
                 local temp_dir=$(mktemp -d)
@@ -487,7 +487,7 @@ sync_service_code() {
                         eval "$rsync_cmd"
                         rm -f "$excludes_file"
                     else
-                        log_message "⚠️ gitignore_sync.sh not found, using manual excludes" "WARNING"
+                        log_message "[!] gitignore_sync.sh not found, using manual excludes" "WARNING"
                         rsync -auc "$project_dir/frontend/" "$temp_dir/" \
                             --exclude node_modules --exclude build --exclude dist \
                             --exclude .git --exclude .gitignore \
@@ -505,7 +505,7 @@ sync_service_code() {
                 
                 # Check if the container is running
                 if ! docker ps | grep -q "sting-ce-frontend"; then
-                    log_message "⚠️ Frontend container not running, falling back to gitignore-aware sync..." "WARNING"
+                    log_message "[!] Frontend container not running, falling back to gitignore-aware sync..." "WARNING"
                     rm -rf "$temp_dir"
                     
                     # Clean artifacts and use gitignore sync for fallback too
@@ -537,27 +537,27 @@ sync_service_code() {
                 docker rm -f "sting-frontend-builder" >/dev/null 2>&1
                 
                 # Step 3: Simple file sync to install directory (no build container)
-                log_message "🔄 Step 3: Syncing files to install directory..." "INFO"
+                log_message " Step 3: Syncing files to install directory..." "INFO"
                 rsync -auc "$project_dir/frontend/" "$INSTALL_DIR/frontend/" \
                     --exclude node_modules --exclude build --exclude dist \
                     --exclude .git --exclude .gitignore \
                     --exclude '*.log' --exclude '.DS_Store'
                 
                 # Step 6: Validate sync completed successfully
-                log_message "🔍 Step 6: Validating sync completion..." "INFO"
+                log_message " Step 6: Validating sync completion..." "INFO"
                 local validation_passed=true
                 
                 # Check that key debugging file was updated with our recent changes
                 local debug_file="$INSTALL_DIR/frontend/src/components/auth/EnhancedKratosLogin.jsx"
                 if [ -f "$debug_file" ]; then
                     if grep -q "EMAIL CODE SUCCESS" "$debug_file" 2>/dev/null; then
-                        log_message "✅ Validation: Recent debugging code found in EnhancedKratosLogin.jsx" "SUCCESS"
+                        log_message "[+] Validation: Recent debugging code found in EnhancedKratosLogin.jsx" "SUCCESS"
                     else
-                        log_message "⚠️ Validation: Recent debugging code NOT found in login component" "WARNING"
+                        log_message "[!] Validation: Recent debugging code NOT found in login component" "WARNING"
                         validation_passed=false
                     fi
                 else
-                    log_message "❌ Validation: Login component file missing after sync" "ERROR"
+                    log_message "[-] Validation: Login component file missing after sync" "ERROR"
                     validation_passed=false
                 fi
                 
@@ -565,39 +565,39 @@ sync_service_code() {
                 local route_file="$INSTALL_DIR/frontend/src/auth/UnifiedProtectedRoute.jsx"
                 if [ -f "$route_file" ]; then
                     if grep -q "TEMPORARY.*bypass" "$route_file" 2>/dev/null; then
-                        log_message "✅ Validation: AAL bypass logic found in UnifiedProtectedRoute.jsx" "SUCCESS"
+                        log_message "[+] Validation: AAL bypass logic found in UnifiedProtectedRoute.jsx" "SUCCESS"
                     else
-                        log_message "⚠️ Validation: AAL bypass logic NOT found in route component" "WARNING"
+                        log_message "[!] Validation: AAL bypass logic NOT found in route component" "WARNING"
                         validation_passed=false
                     fi
                 else
-                    log_message "❌ Validation: Route component file missing after sync" "ERROR"
+                    log_message "[-] Validation: Route component file missing after sync" "ERROR"
                     validation_passed=false
                 fi
                 
                 # Check file sync timestamps (files modified within last 2 minutes)
                 local recent_files=$(find "$INSTALL_DIR/frontend/src" -name "*.jsx" -newermt "2 minutes ago" 2>/dev/null | wc -l)
                 if [ "$recent_files" -gt 0 ]; then
-                    log_message "✅ Validation: $recent_files React files updated in last 2 minutes" "SUCCESS"
+                    log_message "[+] Validation: $recent_files React files updated in last 2 minutes" "SUCCESS"
                 else
-                    log_message "⚠️ Validation: No recent file modifications detected" "WARNING"
+                    log_message "[!] Validation: No recent file modifications detected" "WARNING"
                 fi
                 
                 # Check container build success
                 if docker ps | grep -q "sting-ce-frontend" && [ $? -eq 0 ]; then
-                    log_message "✅ Validation: Frontend container is running" "SUCCESS"
+                    log_message "[+] Validation: Frontend container is running" "SUCCESS"
                 else
-                    log_message "⚠️ Validation: Frontend container not running (may be expected)" "WARNING"
+                    log_message "[!] Validation: Frontend container not running (may be expected)" "WARNING"
                 fi
                 
                 # Report validation results
                 if [ "$validation_passed" = "true" ]; then
-                    log_message "🎉 Code validation: All key changes verified in sync target" "SUCCESS"
+                    log_message " Code validation: All key changes verified in sync target" "SUCCESS"
                 else
-                    log_message "⚠️ Code validation: Some expected changes not found - check sync process" "WARNING"
+                    log_message "[!] Code validation: Some expected changes not found - check sync process" "WARNING"
                 fi
                 
-                log_message "✅ Frontend optimized sync completed successfully" "SUCCESS"
+                log_message "[+] Frontend optimized sync completed successfully" "SUCCESS"
                 return 0
             else
                 log_message "🔨 Full sync mode: Syncing all frontend files..." "INFO"
@@ -613,7 +613,7 @@ sync_service_code() {
                         source "$gitignore_sync_path"
                         gitignore_service_sync "frontend" "$project_dir" "$INSTALL_DIR"
                     else
-                        log_message "⚠️ gitignore_sync.sh not found, using manual excludes" "WARNING"
+                        log_message "[!] gitignore_sync.sh not found, using manual excludes" "WARNING"
                         rsync -a --delete "$project_dir/frontend/" "$INSTALL_DIR/frontend/" \
                             --filter='P node_modules/**' \
                             --filter='P node_modules' \
@@ -640,7 +640,7 @@ sync_service_code() {
             if [ -d "$INSTALL_DIR/frontend/src/theme" ]; then
                 # Sync all theme CSS files
                 cp -f "$INSTALL_DIR/frontend/src/theme"/*-theme.css "$INSTALL_DIR/frontend/public/theme/" 2>/dev/null || true
-                log_message "✅ Theme files synced to public directory ($(ls -1 "$INSTALL_DIR/frontend/public/theme/" 2>/dev/null | wc -l | tr -d ' ') files)" "INFO"
+                log_message "[+] Theme files synced to public directory ($(ls -1 "$INSTALL_DIR/frontend/public/theme/" 2>/dev/null | wc -l | tr -d ' ') files)" "INFO"
             fi
             
             # Also sync themes in the project directory for consistency
@@ -819,7 +819,7 @@ sync_config_files() {
         if [ -f "$compose_file" ]; then
             local filename=$(basename "$compose_file")
             cp -f "$compose_file" "$install_dir/$filename"
-            log_message "  ✓ $filename"
+            log_message "  [+] $filename"
         fi
     done
     
@@ -833,7 +833,7 @@ sync_config_files() {
             --exclude='.DS_Store' \
             --exclude='__pycache__' \
             --exclude='*.pyc'
-        log_message "  ✓ conf/ directory"
+        log_message "  [+] conf/ directory"
     fi
     
     # Sync management scripts
@@ -841,7 +841,7 @@ sync_config_files() {
     if [ -f "$project_dir/manage_sting.sh" ]; then
         cp -f "$project_dir/manage_sting.sh" "$install_dir/manage_sting.sh"
         chmod +x "$install_dir/manage_sting.sh"
-        log_message "  ✓ manage_sting.sh"
+        log_message "  [+] manage_sting.sh"
     fi
     
     # Sync lib directory
@@ -850,7 +850,7 @@ sync_config_files() {
             --exclude='__pycache__' \
             --exclude='*.pyc'
         chmod +x "$install_dir/lib"/*.sh 2>/dev/null || true
-        log_message "  ✓ lib/ directory"
+        log_message "  [+] lib/ directory"
     fi
     
     # Sync scripts directory if exists
@@ -859,13 +859,13 @@ sync_config_files() {
             --exclude='__pycache__' \
             --exclude='*.pyc'
         chmod +x "$install_dir/scripts"/*.sh 2>/dev/null || true
-        log_message "  ✓ scripts/ directory"
+        log_message "  [+] scripts/ directory"
     fi
     
     # Sync .env.example if exists
     if [ -f "$project_dir/.env.example" ]; then
         cp -f "$project_dir/.env.example" "$install_dir/.env.example"
-        log_message "  ✓ .env.example"
+        log_message "  [+] .env.example"
     fi
     
     # Sync msting wrapper command if it exists
@@ -890,9 +890,9 @@ exec \"\$INSTALL_DIR/manage_sting.sh\" \"\$@\"
                 sudo -n cp /tmp/msting_wrapper /usr/local/bin/msting 2>/dev/null
                 sudo -n chmod +x /usr/local/bin/msting 2>/dev/null
                 rm -f /tmp/msting_wrapper
-                log_message "  ✓ msting wrapper command"
+                log_message "  [+] msting wrapper command"
             else
-                log_message "  ⚠  msting wrapper update requires sudo" "WARN"
+                log_message "  [!]  msting wrapper update requires sudo" "WARN"
                 rm -f /tmp/msting_wrapper
             fi
         fi
@@ -909,12 +909,12 @@ exec \"\$INSTALL_DIR/manage_sting.sh\" \"\$@\"
             if ! $python_cmd "${install_dir}/conf/config_loader.py" "${install_dir}/conf/config.yml"; then
                 log_message "Warning: Failed to regenerate env files" "WARN"
             else
-                log_message "  ✓ Environment files regenerated"
+                log_message "  [+] Environment files regenerated"
             fi
         fi
     fi
     
-    log_message "✅ Configuration sync completed successfully" "SUCCESS"
+    log_message "[+] Configuration sync completed successfully" "SUCCESS"
     return 0
 }
 
@@ -928,7 +928,7 @@ reset_config_files() {
     
     # Check if install directory exists
     if [ ! -d "$install_dir" ]; then
-        log_message "❌ Install directory not found: $install_dir" "ERROR"
+        log_message "[-] Install directory not found: $install_dir" "ERROR"
         log_message "Run installation first or check INSTALL_DIR path" "ERROR"
         return 1
     fi
@@ -938,14 +938,14 @@ reset_config_files() {
     
     # Check if config.yml.default exists
     if [ ! -f "$default_config" ]; then
-        log_message "❌ Template file not found: $default_config" "ERROR"
+        log_message "[-] Template file not found: $default_config" "ERROR"
         log_message "Run './manage_sting.sh sync-config' first to sync template files" "ERROR"
         return 1
     fi
     
     # Backup existing config.yml if it exists
     if [ -f "$config_file" ]; then
-        log_message "📦 Backing up existing config.yml..."
+        log_message " Backing up existing config.yml..."
         
         # Find next available backup number
         local backup_num=1
@@ -955,7 +955,7 @@ reset_config_files() {
         
         # Create backup
         cp "$config_file" "$config_file.$backup_num"
-        log_message "  ✓ Backed up to config.yml.$backup_num"
+        log_message "  [+] Backed up to config.yml.$backup_num"
         
         # Clean up old backups (keep last 5)
         local backup_count
@@ -964,24 +964,24 @@ reset_config_files() {
             log_message "🧹 Cleaning up old backups (keeping last 5)..."
             find "$(dirname "$config_file")" -name "config.yml.*" -type f -print0 | \
                 xargs -0 ls -t | tail -n +6 | xargs rm -f
-            log_message "  ✓ Cleaned up old backups"
+            log_message "  [+] Cleaned up old backups"
         fi
     else
         log_message "📝 No existing config.yml found, creating fresh from template"
     fi
     
     # Copy fresh config from template
-    log_message "🔄 Resetting config.yml from template..."
+    log_message " Resetting config.yml from template..."
     cp "$default_config" "$config_file"
-    log_message "  ✓ Fresh config.yml created from config.yml.default"
+    log_message "  [+] Fresh config.yml created from config.yml.default"
     
     # Verify the file was created successfully
     if [ ! -f "$config_file" ] || [ ! -s "$config_file" ]; then
-        log_message "❌ Failed to create config.yml or file is empty" "ERROR"
+        log_message "[-] Failed to create config.yml or file is empty" "ERROR"
         return 1
     fi
     
-    log_message "✅ Configuration reset completed successfully" "SUCCESS"
+    log_message "[+] Configuration reset completed successfully" "SUCCESS"
     log_message "📋 Next steps:" "INFO"
     log_message "  1. Edit $config_file as needed" "INFO"
     log_message "  2. Run './manage_sting.sh regenerate-env' to apply changes" "INFO"

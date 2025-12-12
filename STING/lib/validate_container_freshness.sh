@@ -60,9 +60,9 @@ check_critical_files() {
     
     if [[ -n "$file_path" ]]; then
         if docker exec "$container" test -f "$file_path" 2>/dev/null; then
-            echo -e "${GREEN}✓${NC}"
+            echo -e "${GREEN}[+]${NC}"
         else
-            echo -e "${RED}✗ Missing: $file_path${NC}"
+            echo -e "${RED}[-] Missing: $file_path${NC}"
             return 1
         fi
     else
@@ -145,16 +145,16 @@ echo "----------------------------------------"
 if docker ps --format '{{.Names}}' | grep -q "^sting-ce-app$"; then
     echo -n "Checking passkey models implementation... "
     if docker exec sting-ce-app grep -q "def create_challenge" /app/models/passkey_models.py 2>/dev/null; then
-        echo -e "${GREEN}✓ create_challenge method found${NC}"
+        echo -e "${GREEN}[+] create_challenge method found${NC}"
     else
-        echo -e "${RED}✗ create_challenge method missing${NC}"
+        echo -e "${RED}[-] create_challenge method missing${NC}"
         has_issues=true
     fi
     
     if docker exec sting-ce-app grep -q "def get_valid_challenge" /app/models/passkey_models.py 2>/dev/null; then
-        echo -e "${GREEN}✓ get_valid_challenge method found${NC}"
+        echo -e "${GREEN}[+] get_valid_challenge method found${NC}"
     else
-        echo -e "${RED}✗ get_valid_challenge method missing${NC}"
+        echo -e "${RED}[-] get_valid_challenge method missing${NC}"
         has_issues=true
     fi
 fi
@@ -163,17 +163,17 @@ fi
 if docker ps --format '{{.Names}}' | grep -q "^sting-ce-kratos$"; then
     echo -n "Checking Kratos identity schema... "
     if docker exec sting-ce-kratos test -f /etc/config/kratos/identity.schema.json 2>/dev/null; then
-        echo -e "${GREEN}✓ Identity schema found${NC}"
+        echo -e "${GREEN}[+] Identity schema found${NC}"
     else
-        echo -e "${RED}✗ Identity schema missing${NC}"
+        echo -e "${RED}[-] Identity schema missing${NC}"
         has_issues=true
     fi
     
     echo -n "Checking Kratos config file... "
     if docker exec sting-ce-kratos test -f /etc/config/kratos/kratos.yml 2>/dev/null; then
-        echo -e "${GREEN}✓ Kratos config found${NC}"
+        echo -e "${GREEN}[+] Kratos config found${NC}"
     else
-        echo -e "${RED}✗ Kratos config missing${NC}"
+        echo -e "${RED}[-] Kratos config missing${NC}"
         has_issues=true
     fi
 fi
@@ -182,9 +182,9 @@ fi
 if docker ps --format '{{.Names}}' | grep -q "^sting-ce-frontend$"; then
     echo -n "Checking frontend update script... "
     if docker exec sting-ce-frontend test -f /app/update-env.sh 2>/dev/null; then
-        echo -e "${GREEN}✓ Update script found${NC}"
+        echo -e "${GREEN}[+] Update script found${NC}"
     else
-        echo -e "${RED}✗ Update script missing${NC}"
+        echo -e "${RED}[-] Update script missing${NC}"
         has_issues=true
     fi
 fi
@@ -206,7 +206,7 @@ for container in "${STING_CONTAINERS[@]}"; do
             image_age_hours=$(((current_time - image_unix) / 3600))
             
             if [[ $image_age_hours -gt 24 ]]; then
-                echo -e "${YELLOW}⚠ $container using image older than 24h (${image_age_hours}h old)${NC}"
+                echo -e "${YELLOW}[!] $container using image older than 24h (${image_age_hours}h old)${NC}"
             fi
         fi
     fi
@@ -215,7 +215,7 @@ done
 # Final summary
 echo
 if [[ "$has_issues" == "true" ]]; then
-    echo -e "${RED}❌ VALIDATION FAILED${NC}"
+    echo -e "${RED}[-] VALIDATION FAILED${NC}"
     echo "Issues detected that suggest cached/incomplete builds."
     echo
     echo -e "${YELLOW}Recommended actions:${NC}"
@@ -224,7 +224,7 @@ if [[ "$has_issues" == "true" ]]; then
     echo "3. Re-run this validation script"
     exit 1
 else
-    echo -e "${GREEN}✅ VALIDATION PASSED${NC}"
+    echo -e "${GREEN}[+] VALIDATION PASSED${NC}"
     echo "All containers appear to be freshly built and properly configured."
     exit 0
 fi

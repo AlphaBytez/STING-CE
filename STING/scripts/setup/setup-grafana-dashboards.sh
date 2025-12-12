@@ -11,7 +11,7 @@ GRAFANA_PASS="nL3dfxEy1KgsGQXX"
 echo "⏳ Waiting for Grafana to be ready..."
 for i in {1..30}; do
     if curl -s "${GRAFANA_URL}/api/health" > /dev/null 2>&1; then
-        echo "✅ Grafana is ready!"
+        echo "[+] Grafana is ready!"
         break
     fi
     echo -n "."
@@ -51,15 +51,15 @@ for dashboard in grafana-dashboards/*.json; do
           "${GRAFANA_URL}/api/dashboards/import" > /dev/null 2>&1
           
         if [ $? -eq 0 ]; then
-            echo "    ✅ Imported successfully"
+            echo "    [+] Imported successfully"
         else
-            echo "    ⚠️  Import failed (dashboard might already exist)"
+            echo "    [!]  Import failed (dashboard might already exist)"
         fi
     fi
 done
 
 echo ""
-echo "🎉 Dashboard setup complete!"
+echo " Dashboard setup complete!"
 echo ""
 echo "📊 Access your dashboards at: ${GRAFANA_URL}"
 echo "   Default login: admin / admin"
@@ -68,5 +68,5 @@ echo "Available dashboards:"
 echo "  1. STING System Overview - Overall system health and logs"
 echo "  2. STING Authentication Audit - Login attempts and security events"
 echo ""
-echo "💡 Tip: The dashboards will start populating with data as services generate logs."
+echo "TIP: Tip: The dashboards will start populating with data as services generate logs."
 echo "        Generate some activity by logging in/out or using the application."

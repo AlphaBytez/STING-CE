@@ -3,7 +3,7 @@
 # STING Admin Account Recovery Script
 # Fixes common admin account issues
 
-echo "🔧 STING Admin Account Recovery"
+echo " STING Admin Account Recovery"
 echo "==============================="
 echo
 
@@ -39,12 +39,12 @@ get_admin_identity() {
 
 # Function to clear force_password_change flags
 clear_force_password_change() {
-    echo -e "${BLUE}🔧 Clearing force_password_change flags...${NC}"
+    echo -e "${BLUE} Clearing force_password_change flags...${NC}"
     
     # Get admin identity
     ADMIN_IDENTITY=$(get_admin_identity)
     if [ -z "$ADMIN_IDENTITY" ] || [ "$ADMIN_IDENTITY" = "null" ]; then
-        echo -e "${RED}❌ Admin identity not found${NC}"
+        echo -e "${RED}[-] Admin identity not found${NC}"
         return 1
     fi
     
@@ -64,9 +64,9 @@ clear_force_password_change() {
         -d "$UPDATE_PAYLOAD" 2>/dev/null)
     
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✅ Kratos traits updated${NC}"
+        echo -e "${GREEN}[+] Kratos traits updated${NC}"
     else
-        echo -e "${RED}❌ Failed to update Kratos traits${NC}"
+        echo -e "${RED}[-] Failed to update Kratos traits${NC}"
     fi
     
     # Clear Flask UserSettings
@@ -82,18 +82,18 @@ with app.app_context():
     if admin_setting:
         admin_setting.force_password_change = False
         db.session.commit()
-        print('✅ UserSettings updated')
+        print('[+] UserSettings updated')
     else:
-        print('⚠️  No UserSettings found')
+        print('[!]  No UserSettings found')
 " 2>/dev/null)
     
     echo "   $FLASK_RESULT"
-    echo -e "${GREEN}✅ force_password_change flags cleared${NC}"
+    echo -e "${GREEN}[+] force_password_change flags cleared${NC}"
 }
 
 # Function to create UserSettings record
 create_user_settings() {
-    echo -e "${BLUE}🔧 Creating UserSettings record...${NC}"
+    echo -e "${BLUE} Creating UserSettings record...${NC}"
     
     FLASK_RESULT=$(docker exec sting-ce-app python -c "
 from app import create_app
@@ -104,7 +104,7 @@ app = create_app()
 with app.app_context():
     existing = UserSettings.query.filter_by(email='$ADMIN_EMAIL').first()
     if existing:
-        print('⚠️  UserSettings already exists')
+        print('[!]  UserSettings already exists')
         print(f'   force_password_change: {existing.force_password_change}')
     else:
         new_settings = UserSettings(
@@ -114,7 +114,7 @@ with app.app_context():
         )
         db.session.add(new_settings)
         db.session.commit()
-        print('✅ UserSettings record created')
+        print('[+] UserSettings record created')
 " 2>/dev/null)
     
     echo "   $FLASK_RESULT"
@@ -122,7 +122,7 @@ with app.app_context():
 
 # Function to reset admin password
 reset_admin_password() {
-    echo -e "${BLUE}🔧 Resetting admin password...${NC}"
+    echo -e "${BLUE} Resetting admin password...${NC}"
     
     # Generate new password
     NEW_PASSWORD=$(openssl rand -base64 16 | tr -d "=+/" | cut -c1-12)
@@ -131,7 +131,7 @@ reset_admin_password() {
     # Get admin identity
     ADMIN_IDENTITY=$(get_admin_identity)
     if [ -z "$ADMIN_IDENTITY" ] || [ "$ADMIN_IDENTITY" = "null" ]; then
-        echo -e "${RED}❌ Admin identity not found${NC}"
+        echo -e "${RED}[-] Admin identity not found${NC}"
         return 1
     fi
     
@@ -149,7 +149,7 @@ reset_admin_password() {
         -d "$PASSWORD_PAYLOAD" 2>/dev/null)
     
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✅ Password updated in Kratos${NC}"
+        echo -e "${GREEN}[+] Password updated in Kratos${NC}"
         
         # Save to password file
         ADMIN_PASSWORD_FILE="$HOME/.sting-ce/admin_password.txt"
@@ -159,23 +159,23 @@ reset_admin_password() {
         # Clear any problematic flags
         clear_force_password_change
         
-        echo -e "${GREEN}✅ Admin password reset complete${NC}"
+        echo -e "${GREEN}[+] Admin password reset complete${NC}"
         echo -e "${YELLOW}📋 New credentials:${NC}"
         echo "   Email: $ADMIN_EMAIL"
         echo "   Password: $NEW_PASSWORD"
     else
-        echo -e "${RED}❌ Failed to update password${NC}"
+        echo -e "${RED}[-] Failed to update password${NC}"
     fi
 }
 
 # Function to create new admin identity
 create_admin_identity() {
-    echo -e "${BLUE}🔧 Creating new admin identity...${NC}"
+    echo -e "${BLUE} Creating new admin identity...${NC}"
     
     # Check if admin already exists
     EXISTING_ADMIN=$(get_admin_identity)
     if [ -n "$EXISTING_ADMIN" ] && [ "$EXISTING_ADMIN" != "null" ]; then
-        echo -e "${YELLOW}⚠️  Admin identity already exists${NC}"
+        echo -e "${YELLOW}[!]  Admin identity already exists${NC}"
         echo "   Use action 6 (Full reset) to recreate"
         return 1
     fi
@@ -208,7 +208,7 @@ create_admin_identity() {
     
     if [ $? -eq 0 ]; then
         ADMIN_ID=$(echo "$CREATE_RESPONSE" | jq -r '.id')
-        echo -e "${GREEN}✅ Admin identity created${NC}"
+        echo -e "${GREEN}[+] Admin identity created${NC}"
         echo "   ID: $ADMIN_ID"
         
         # Save password
@@ -219,23 +219,23 @@ create_admin_identity() {
         # Create UserSettings
         create_user_settings
         
-        echo -e "${GREEN}✅ New admin account ready${NC}"
+        echo -e "${GREEN}[+] New admin account ready${NC}"
         echo -e "${YELLOW}📋 Credentials:${NC}"
         echo "   Email: $ADMIN_EMAIL"
         echo "   Password: $NEW_PASSWORD"
     else
-        echo -e "${RED}❌ Failed to create admin identity${NC}"
+        echo -e "${RED}[-] Failed to create admin identity${NC}"
         echo "Response: $CREATE_RESPONSE"
     fi
 }
 
 # Function to clear admin sessions
 clear_admin_sessions() {
-    echo -e "${BLUE}🔧 Clearing admin sessions...${NC}"
+    echo -e "${BLUE} Clearing admin sessions...${NC}"
     
     ADMIN_IDENTITY=$(get_admin_identity)
     if [ -z "$ADMIN_IDENTITY" ] || [ "$ADMIN_IDENTITY" = "null" ]; then
-        echo -e "${RED}❌ Admin identity not found${NC}"
+        echo -e "${RED}[-] Admin identity not found${NC}"
         return 1
     fi
     
@@ -246,9 +246,9 @@ clear_admin_sessions() {
         -H "Accept: application/json" 2>/dev/null)
     
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✅ Admin sessions cleared${NC}"
+        echo -e "${GREEN}[+] Admin sessions cleared${NC}"
     else
-        echo -e "${RED}❌ Failed to clear sessions${NC}"
+        echo -e "${RED}[-] Failed to clear sessions${NC}"
     fi
 }
 
@@ -271,7 +271,7 @@ full_admin_reset() {
         echo "   Deleting existing admin identity..."
         
         curl -s -k -X DELETE "$KRATOS_ADMIN_URL/admin/identities/$ADMIN_ID" 2>/dev/null
-        echo -e "${GREEN}✅ Existing admin deleted${NC}"
+        echo -e "${GREEN}[+] Existing admin deleted${NC}"
     fi
     
     # Clear UserSettings
@@ -287,16 +287,16 @@ with app.app_context():
     if admin_setting:
         db.session.delete(admin_setting)
         db.session.commit()
-        print('✅ UserSettings cleared')
+        print('[+] UserSettings cleared')
     else:
-        print('ℹ️  No UserSettings to clear')
+        print('[*]  No UserSettings to clear')
 " 2>/dev/null
     
     # Create fresh admin
     echo "   Creating fresh admin identity..."
     create_admin_identity
     
-    echo -e "${GREEN}✅ Full admin reset complete${NC}"
+    echo -e "${GREEN}[+] Full admin reset complete${NC}"
 }
 
 # Main logic
@@ -338,6 +338,6 @@ case $ACTION in
 esac
 
 echo
-echo -e "${BLUE}🔍 Running post-recovery diagnostic...${NC}"
+echo -e "${BLUE} Running post-recovery diagnostic...${NC}"
 echo
 ./scripts/diagnose_admin_status.sh

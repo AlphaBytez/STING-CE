@@ -23,11 +23,11 @@ else
             local not_started=$(docker ps -a --filter "status=created" --format "{{.Names}}" | grep "sting-ce-")
             
             if [ -z "$not_started" ]; then
-                echo "✅ All services are running"
+                echo "[+] All services are running"
                 return 0
             fi
             
-            echo "⚠️  Found services not started: $not_started"
+            echo "[!]  Found services not started: $not_started"
             echo "Starting services (attempt $attempt/$max_attempts)..."
             
             # Try to start them
@@ -42,7 +42,7 @@ else
         # Final check
         not_started=$(docker ps -a --filter "status=created" --format "{{.Names}}" | grep "sting-ce-")
         if [ -n "$not_started" ]; then
-            echo "❌ Failed to start services: $not_started"
+            echo "[-] Failed to start services: $not_started"
             echo "You may need to manually start them with: docker start $not_started"
             return 1
         fi

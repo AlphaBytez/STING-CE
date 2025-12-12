@@ -73,16 +73,16 @@ check_service_status() {
         if docker ps --format "{{.Names}}" | grep -q "^${container_name}$"; then
             status=$(docker ps --format "table {{.Status}}" --filter "name=${container_name}" | tail -1)
             if [[ "$format" == "plain" ]]; then
-                echo "✓ $name ($service): Running - $status"
+                echo "[+] $name ($service): Running - $status"
             else
-                echo -e "  ✅ ${GREEN}$name${NC} ($service): Running - $status"
+                echo -e "  [+] ${GREEN}$name${NC} ($service): Running - $status"
             fi
             ((running++))
         else
             if [[ "$format" == "plain" ]]; then
-                echo "✗ $name ($service): Not Running"
+                echo "[-] $name ($service): Not Running"
             else
-                echo -e "  ❌ ${RED}$name${NC} ($service): Not Running"
+                echo -e "  [-] ${RED}$name${NC} ($service): Not Running"
             fi
         fi
     done
@@ -113,33 +113,33 @@ check_auth_system() {
     local public_health=$(curl -k -s -o /dev/null -w "%{http_code}" https://localhost:4433/health/ready 2>/dev/null)
     
     if [[ "$admin_health" == "200" ]]; then
-        echo -e "  ✅ Kratos Admin API: ${GREEN}Healthy${NC} (https://localhost:4434)"
+        echo -e "  [+] Kratos Admin API: ${GREEN}Healthy${NC} (https://localhost:4434)"
     else
-        echo -e "  ❌ Kratos Admin API: ${RED}Unhealthy${NC} (HTTP $admin_health)"
+        echo -e "  [-] Kratos Admin API: ${RED}Unhealthy${NC} (HTTP $admin_health)"
     fi
     
     if [[ "$public_health" == "200" ]]; then
-        echo -e "  ✅ Kratos Public API: ${GREEN}Healthy${NC} (https://localhost:4433)"
+        echo -e "  [+] Kratos Public API: ${GREEN}Healthy${NC} (https://localhost:4433)"
     else
-        echo -e "  ❌ Kratos Public API: ${RED}Unhealthy${NC} (HTTP $public_health)"
+        echo -e "  [-] Kratos Public API: ${RED}Unhealthy${NC} (HTTP $public_health)"
     fi
     
     # Get Kratos version
     local version=$(curl -k -s https://localhost:4434/admin/version 2>/dev/null | jq -r '.version // "Unknown"')
-    echo -e "  📦 Version: ${YELLOW}$version${NC}"
+    echo -e "   Version: ${YELLOW}$version${NC}"
     
     # Check authentication methods
     echo -e "\n  ${BOLD}Authentication Methods:${NC}"
     if docker exec sting-ce-kratos cat /etc/config/kratos/kratos.yml 2>/dev/null | grep -q "password:.*enabled: true"; then
-        echo -e "    ✅ Password authentication: ${GREEN}Enabled${NC}"
+        echo -e "    [+] Password authentication: ${GREEN}Enabled${NC}"
     else
-        echo -e "    ❌ Password authentication: ${RED}Disabled${NC}"
+        echo -e "    [-] Password authentication: ${RED}Disabled${NC}"
     fi
     
     if docker exec sting-ce-kratos cat /etc/config/kratos/kratos.yml 2>/dev/null | grep -q "webauthn:.*enabled: true"; then
-        echo -e "    ✅ WebAuthn/Passkeys: ${GREEN}Enabled${NC}"
+        echo -e "    [+] WebAuthn/Passkeys: ${GREEN}Enabled${NC}"
     else
-        echo -e "    ❌ WebAuthn/Passkeys: ${RED}Disabled${NC}"
+        echo -e "    [-] WebAuthn/Passkeys: ${RED}Disabled${NC}"
     fi
     
     # Count identities
@@ -161,7 +161,7 @@ check_database() {
     fi
     
     if docker exec sting-ce-db pg_isready -U postgres >/dev/null 2>&1; then
-        echo -e "  ✅ PostgreSQL: ${GREEN}Ready${NC}"
+        echo -e "  [+] PostgreSQL: ${GREEN}Ready${NC}"
         
         # Get database size
         local db_size=$(docker exec sting-ce-db psql -U postgres -t -c "SELECT pg_size_pretty(pg_database_size('sting_app'));" 2>/dev/null | tr -d ' ')
@@ -180,7 +180,7 @@ check_database() {
             ORDER BY query_start DESC 
             LIMIT 5;" 2>/dev/null | head -15 || echo "    Could not query activity"
     else
-        echo -e "  ❌ PostgreSQL: ${RED}Not Ready${NC}"
+        echo -e "  [-] PostgreSQL: ${RED}Not Ready${NC}"
     fi
     echo
 }
@@ -199,13 +199,13 @@ check_network() {
     
     # Check Docker network
     if docker network ls | grep -q "sting_local"; then
-        echo -e "  ✅ Docker Network (sting_local): ${GREEN}Exists${NC}"
+        echo -e "  [+] Docker Network (sting_local): ${GREEN}Exists${NC}"
         
         # Count containers on network
         local container_count=$(docker network inspect sting_local -f '{{len .Containers}}' 2>/dev/null || echo "0")
         echo -e "  🔗 Containers on network: ${YELLOW}$container_count${NC}"
     else
-        echo -e "  ❌ Docker Network (sting_local): ${RED}Missing${NC}"
+        echo -e "  [-] Docker Network (sting_local): ${RED}Missing${NC}"
     fi
     
     # Check key endpoints
@@ -223,9 +223,9 @@ check_network() {
         url="${proto}://localhost:${port}"
         
         if curl -k -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null | grep -q "^[23]"; then
-            echo -e "    ✅ $name: ${GREEN}Accessible${NC} at $url"
+            echo -e "    [+] $name: ${GREEN}Accessible${NC} at $url"
         else
-            echo -e "    ❌ $name: ${RED}Not Accessible${NC} at $url"
+            echo -e "    [-] $name: ${RED}Not Accessible${NC} at $url"
         fi
     done
     echo
@@ -249,23 +249,23 @@ check_ssl_certs() {
         echo -e "  📁 Certificate Directory: ${GREEN}Found${NC}"
         
         if [[ -f "$cert_dir/server.crt" ]] && [[ -f "$cert_dir/server.key" ]]; then
-            echo -e "  ✅ SSL Certificate Files: ${GREEN}Present${NC}"
+            echo -e "  [+] SSL Certificate Files: ${GREEN}Present${NC}"
             
             # Check certificate validity
             if openssl x509 -in "$cert_dir/server.crt" -noout -checkend 0 2>/dev/null; then
-                echo -e "  ✅ Certificate Validity: ${GREEN}Valid${NC}"
+                echo -e "  [+] Certificate Validity: ${GREEN}Valid${NC}"
                 
                 # Get expiry date
                 local expiry=$(openssl x509 -in "$cert_dir/server.crt" -noout -enddate 2>/dev/null | cut -d= -f2)
                 echo -e "  📅 Expires: ${YELLOW}$expiry${NC}"
             else
-                echo -e "  ❌ Certificate Validity: ${RED}Expired${NC}"
+                echo -e "  [-] Certificate Validity: ${RED}Expired${NC}"
             fi
         else
-            echo -e "  ❌ SSL Certificate Files: ${RED}Missing${NC}"
+            echo -e "  [-] SSL Certificate Files: ${RED}Missing${NC}"
         fi
     else
-        echo -e "  ❌ Certificate Directory: ${RED}Not Found${NC}"
+        echo -e "  [-] Certificate Directory: ${RED}Not Found${NC}"
     fi
     echo
 }
@@ -288,11 +288,11 @@ check_resources() {
     
     if [[ -n "$disk_usage" ]]; then
         if [[ $disk_usage -lt 80 ]]; then
-            echo -e "  ✅ Disk Usage: ${GREEN}${disk_usage}%${NC} (${disk_free} free)"
+            echo -e "  [+] Disk Usage: ${GREEN}${disk_usage}%${NC} (${disk_free} free)"
         elif [[ $disk_usage -lt 90 ]]; then
-            echo -e "  ⚠️  Disk Usage: ${YELLOW}${disk_usage}%${NC} (${disk_free} free)"
+            echo -e "  [!]  Disk Usage: ${YELLOW}${disk_usage}%${NC} (${disk_free} free)"
         else
-            echo -e "  ❌ Disk Usage: ${RED}${disk_usage}%${NC} (${disk_free} free)"
+            echo -e "  [-] Disk Usage: ${RED}${disk_usage}%${NC} (${disk_free} free)"
         fi
     fi
     
@@ -324,9 +324,9 @@ check_recent_logs() {
         local error_count=$(docker logs "sting-ce-$service" --since 24h 2>&1 | grep -iE "error|fatal|panic" | wc -l)
         
         if [[ $error_count -eq 0 ]]; then
-            echo -e "    ✅ No errors found"
+            echo -e "    [+] No errors found"
         else
-            echo -e "    ⚠️  ${YELLOW}$error_count errors found${NC}"
+            echo -e "    [!]  ${YELLOW}$error_count errors found${NC}"
             echo "    Recent errors:"
             docker logs "sting-ce-$service" --since 24h 2>&1 | grep -iE "error|fatal|panic" | tail -3 | sed 's/^/      /'
         fi

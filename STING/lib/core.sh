@@ -181,10 +181,10 @@ prompt_yes_no() {
             *)
                 attempts=$((attempts + 1))
                 if [ $attempts -lt $max_attempts ]; then
-                    echo "❌ Invalid input. Please type 'yes' or 'no' (attempt $attempts/$max_attempts)"
+                    echo "Invalid input. Please type 'yes' or 'no' (attempt $attempts/$max_attempts)"
                     echo ""
                 else
-                    echo "❌ Too many invalid attempts."
+                    echo "Too many invalid attempts."
                     # Use default on max attempts
                     if [ "$default" = "default_yes" ]; then
                         echo "Defaulting to: yes"

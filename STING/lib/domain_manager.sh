@@ -209,9 +209,9 @@ show_domain_info() {
     echo ""
     
     if [[ "$mdns_available" == "Yes" ]]; then
-        echo "✅ mDNS is available - domain will be accessible from other devices on your network"
+        echo "[+] mDNS is available - domain will be accessible from other devices on your network"
     else
-        echo "⚠️  mDNS not available - domain only accessible from this machine"
+        echo "[!]  mDNS not available - domain only accessible from this machine"
         echo "   To access from other devices, add to their /etc/hosts:"
         echo "   $(hostname -I | awk '{print $1}')    $domain"
     fi

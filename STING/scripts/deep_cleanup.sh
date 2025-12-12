@@ -36,7 +36,7 @@ fi
 # Remove any remaining .bak files
 find . -name "*.bak*" -delete 2>/dev/null
 
-echo "✅ Deep cleanup complete!"
+echo "[+] Deep cleanup complete!"
 echo ""
 echo "Verification:"
 echo "- Archive dirs: $(find . -type d -name "archive" 2>/dev/null | wc -l)"

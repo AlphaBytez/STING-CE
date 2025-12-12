@@ -21,10 +21,10 @@ check_script() {
 
     # Run bash syntax check
     if error_output=$(bash -n "$script" 2>&1); then
-        echo "✅ $relative_path"
+        echo "[+] $relative_path"
         return 0
     else
-        echo "❌ $relative_path"
+        echo "[-] $relative_path"
         echo "   Error: $error_output"
         echo ""
         ERRORS=$((ERRORS + 1))
@@ -59,9 +59,9 @@ echo "Validation complete!"
 echo ""
 echo "Scripts checked: $CHECKED"
 if [ $ERRORS -eq 0 ]; then
-    echo "✅ All scripts passed syntax validation!"
+    echo "[+] All scripts passed syntax validation!"
     exit 0
 else
-    echo "❌ $ERRORS script(s) have syntax errors"
+    echo "[-] $ERRORS script(s) have syntax errors"
     exit 1
 fi

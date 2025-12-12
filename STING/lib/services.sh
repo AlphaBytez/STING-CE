@@ -69,28 +69,28 @@ sync_database_password() {
     if [ -f "${INSTALL_DIR}/env/db.env" ]; then
         source "${INSTALL_DIR}/env/db.env"
     else
-        log_message "⚠️  Database env file not found, skipping password sync" "WARNING"
+        log_message "[!]  Database env file not found, skipping password sync" "WARNING"
         return 0
     fi
 
     # Check if database container is running
     if ! docker ps --format "{{.Names}}" | grep -q "sting-ce-db"; then
-        log_message "ℹ️  Database container not running, password will sync on next start" "INFO"
+        log_message "[*]  Database container not running, password will sync on next start" "INFO"
         return 0
     fi
 
     # Check if database is accepting connections (using local docker exec)
     if ! docker exec sting-ce-db psql -U postgres -c "SELECT 1;" >/dev/null 2>&1; then
-        log_message "ℹ️  Database not ready for password sync, will retry when accessible" "INFO"
+        log_message "[*]  Database not ready for password sync, will retry when accessible" "INFO"
         return 0
     fi
 
     # Update the postgres user password to match the env file
     if docker exec sting-ce-db psql -U postgres -c "ALTER USER postgres WITH PASSWORD '${POSTGRES_PASSWORD}';" >/dev/null 2>&1; then
-        log_message "✅ Database password synced successfully" "SUCCESS"
+        log_message "[+] Database password synced successfully" "SUCCESS"
         return 0
     else
-        log_message "⚠️  Failed to sync database password - may need manual intervention" "WARNING"
+        log_message "[!]  Failed to sync database password - may need manual intervention" "WARNING"
         return 1
     fi
 }
@@ -642,9 +642,9 @@ manage_services() {
                 if [ -f "${INSTALL_DIR}/scripts/health/validate_mailpit.py" ]; then
                     log_message "Validating mailpit configuration for auth flow..."
                     if python3 "${INSTALL_DIR}/scripts/health/validate_mailpit.py" --quick >/dev/null 2>&1; then
-                        log_message "✅ Mailpit validation passed - auth emails will be delivered" "SUCCESS"
+                        log_message "[+] Mailpit validation passed - auth emails will be delivered" "SUCCESS"
                     else
-                        log_message "⚠️  Mailpit validation failed - auth flow may be impacted" "WARNING"
+                        log_message "[!]  Mailpit validation failed - auth flow may be impacted" "WARNING"
                         log_message "Run: python3 ${INSTALL_DIR}/scripts/health/validate_mailpit.py for details" "WARNING"
                     fi
                 fi
@@ -950,36 +950,36 @@ llm_check_status() {
         source "${SCRIPT_DIR}/native_llm.sh"
         local native_running=false
         if is_native_llm_running; then
-            log_message "✅ Native LLM service: Running" "SUCCESS"
+            log_message "[+] Native LLM service: Running" "SUCCESS"
             native_running=true
         else
-            log_message "❌ Native LLM service: Not running" "ERROR"
+            log_message "[-] Native LLM service: Not running" "ERROR"
         fi
         
         # Check nginx proxy
         local proxy_running=false
         if docker ps --format "table {{.Names}}" | grep -q "llm-gateway"; then
-            log_message "✅ LLM Gateway (nginx proxy): Running" "SUCCESS"
+            log_message "[+] LLM Gateway (nginx proxy): Running" "SUCCESS"
             proxy_running=true
         else
-            log_message "ℹ️  LLM Gateway (nginx proxy): Not running" "INFO"
+            log_message "[*]  LLM Gateway (nginx proxy): Not running" "INFO"
         fi
         
         # On macOS, we need either native service OR proxy running, not both
         if [ "$native_running" = "false" ] && [ "$proxy_running" = "false" ]; then
-            log_message "❌ No LLM service running - need either native service or nginx proxy" "ERROR"
+            log_message "[-] No LLM service running - need either native service or nginx proxy" "ERROR"
             status_ok=false
         elif [ "$native_running" = "true" ] && [ "$proxy_running" = "true" ]; then
-            log_message "⚠️  Both native and proxy running - this may cause conflicts" "WARNING"
+            log_message "[!]  Both native and proxy running - this may cause conflicts" "WARNING"
         fi
     else
         # Check Docker LLM services
         local llm_services=("llm-gateway" "llama3-service" "phi3-service" "zephyr-service")
         for service in "${llm_services[@]}"; do
             if docker ps --format "table {{.Names}}" | grep -q "$service"; then
-                log_message "✅ $service: Running" "SUCCESS"
+                log_message "[+] $service: Running" "SUCCESS"
             else
-                log_message "❌ $service: Not running" "ERROR"
+                log_message "[-] $service: Not running" "ERROR"
                 status_ok=false
             fi
         done
@@ -1162,9 +1162,9 @@ restart_service() {
 
             log_message "Validating mailpit configuration for auth flow..."
             if python3 "${INSTALL_DIR}/scripts/health/validate_mailpit.py" --quick >/dev/null 2>&1; then
-                log_message "✅ Mailpit validation passed - auth emails will be delivered" "SUCCESS"
+                log_message "[+] Mailpit validation passed - auth emails will be delivered" "SUCCESS"
             else
-                log_message "⚠️  Mailpit validation failed - run: python3 ${INSTALL_DIR}/scripts/health/validate_mailpit.py" "WARNING"
+                log_message "[!]  Mailpit validation failed - run: python3 ${INSTALL_DIR}/scripts/health/validate_mailpit.py" "WARNING"
             fi
         fi
 
@@ -1179,7 +1179,7 @@ restart_service() {
 rebuild_service() {
     local service="$1"
     local cache_level="${2:-moderate}"
-    log_message "🐝 Rebuilding ${service} service with cache buzzer..."
+    log_message " Rebuilding ${service} service with cache buzzer..."
     
     # Use cache buzzer for enhanced rebuild
     if [ -f "$(dirname "${BASH_SOURCE[0]}")/cache_buzzer.sh" ]; then
@@ -1220,7 +1220,7 @@ rebuild_service() {
             return 1
         fi
     else
-        log_message "✅ Cache buzzer rebuild completed successfully"
+        log_message "[+] Cache buzzer rebuild completed successfully"
         return 0
     fi
 }
@@ -1656,7 +1656,7 @@ ensure_vault_unsealed() {
 
     # Check if vault container is running
     if ! docker ps --format "table {{.Names}}" | grep -q "sting-ce-vault"; then
-        log_message "⚠️  Vault container not running - skipping unseal check"
+        log_message "[!]  Vault container not running - skipping unseal check"
         return 0
     fi
 
@@ -1667,26 +1667,26 @@ ensure_vault_unsealed() {
 
     if [ $vault_exit_code -eq 0 ]; then
         # Vault is unsealed
-        log_message "✅ Vault is already unsealed and operational"
+        log_message "[+] Vault is already unsealed and operational"
         return 0
     elif [ $vault_exit_code -eq 2 ]; then
         # Vault is sealed but initialized - attempt to unseal
-        log_message "🔒 Vault is sealed, attempting automatic unseal..."
+        log_message " Vault is sealed, attempting automatic unseal..."
 
         # Run the auto-init script which includes unseal logic
         if docker exec sting-ce-vault sh /vault/scripts/auto-init-vault.sh 2>/dev/null; then
-            log_message "✅ Vault unsealed successfully"
+            log_message "[+] Vault unsealed successfully"
             return 0
         else
-            log_message "❌ Failed to unseal vault automatically" "WARNING"
-            log_message "💡 Manual intervention may be required:" "WARNING"
+            log_message "[-] Failed to unseal vault automatically" "WARNING"
+            log_message "TIP: Manual intervention may be required:" "WARNING"
             log_message "   1. Check if vault keys exist: docker exec sting-ce-vault ls -la /vault/persistent/" "WARNING"
             log_message "   2. Manual unseal: docker exec sting-ce-vault vault operator unseal <key>" "WARNING"
             return 1
         fi
     else
         # Vault not initialized - this shouldn't happen in production
-        log_message "⚠️  Vault appears uninitialized - this may be expected for fresh installs"
+        log_message "[!]  Vault appears uninitialized - this may be expected for fresh installs"
         return 0
     fi
 }

@@ -131,7 +131,7 @@ check_critical_dependencies() {
     fi
     
     if [ ${#missing_critical[@]} -gt 0 ]; then
-        echo "⚠️  Missing critical dependencies: ${missing_critical[*]}"
+        echo "WARNING: Missing critical dependencies: ${missing_critical[*]}"
         echo "Installing missing dependencies..."
         
         # Load installation module to use check_and_install_dependencies

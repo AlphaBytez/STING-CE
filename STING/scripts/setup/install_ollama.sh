@@ -130,9 +130,9 @@ install_models() {
         if [ -n "$model" ]; then
             log "Installing model: $model"
             if ollama pull "$model"; then
-                log "✅ Successfully installed: $model"
+                log "[+] Successfully installed: $model"
             else
-                error "❌ Failed to install: $model"
+                error "[-] Failed to install: $model"
             fi
         fi
     done
@@ -166,7 +166,7 @@ verify_installation() {
     log "Testing with model: $test_model"
     echo "Hello, this is a test." | ollama run "$test_model" --verbose=false | head -3
     
-    log "✅ Ollama installation verified successfully!"
+    log "[+] Ollama installation verified successfully!"
 }
 
 main() {
@@ -203,7 +203,7 @@ main() {
         exit 1
     }
     
-    log "🎉 Ollama installation completed successfully!"
+    log " Ollama installation completed successfully!"
     log "You can now use Ollama with STING's AI features"
     log ""
     log "Useful commands:"

@@ -19,22 +19,22 @@ init_tunnel_management() {
     
     # Ensure Headscale is running
     if ! docker ps | grep -q "$HEADSCALE_CONTAINER.*Up"; then
-        log_message "⚠️  Headscale service not running - starting it..." "WARNING"
+        log_message "[!]  Headscale service not running - starting it..." "WARNING"
         
         # Change to install directory for docker-compose
         local current_dir
         current_dir=$(pwd)
         cd "${INSTALL_DIR}" 2>/dev/null || {
-            log_message "❌ Cannot access install directory: ${INSTALL_DIR}" "ERROR"
+            log_message "[-] Cannot access install directory: ${INSTALL_DIR}" "ERROR"
             return 1
         }
         
         # Start Headscale with support-tunnels profile
         if docker compose --profile support-tunnels up -d headscale; then
-            log_message "✅ Headscale service started"
+            log_message "[+] Headscale service started"
             sleep 5  # Give it time to initialize
         else
-            log_message "❌ Failed to start Headscale service" "ERROR"
+            log_message "[-] Failed to start Headscale service" "ERROR"
             cd "$current_dir" || true
             return 1
         fi
@@ -71,10 +71,10 @@ create_support_user() {
     
     # Execute headscale command in container
     if docker exec "$HEADSCALE_CONTAINER" headscale users create "$username" 2>/dev/null; then
-        log_message "✅ User $username created successfully"
+        log_message "[+] User $username created successfully"
         return 0
     else
-        log_message "⚠️  User $username may already exist or creation failed" "WARNING"
+        log_message "[!]  User $username may already exist or creation failed" "WARNING"
         return 1
     fi
 }
@@ -96,7 +96,7 @@ generate_support_auth_key() {
         --output json 2>/dev/null | jq -r '.key' 2>/dev/null)
     
     if [ -n "$auth_key" ] && [ "$auth_key" != "null" ]; then
-        log_message "✅ Auth key generated successfully"
+        log_message "[+] Auth key generated successfully"
         
         # Store session info
         local session_file="${TUNNEL_SESSIONS_DIR}/${ticket_id}.json"
@@ -116,7 +116,7 @@ EOF
         echo "$auth_key"
         return 0
     else
-        log_message "❌ Failed to generate auth key" "ERROR"
+        log_message "[-] Failed to generate auth key" "ERROR"
         return 1
     fi
 }
@@ -136,7 +136,7 @@ create_support_tunnel() {
     
     # Check Headscale health
     if ! check_headscale_health; then
-        log_message "❌ Headscale service not responding" "ERROR"
+        log_message "[-] Headscale service not responding" "ERROR"
         log_message "Try: docker logs $HEADSCALE_CONTAINER" "INFO"
         return 1
     fi
@@ -152,11 +152,11 @@ create_support_tunnel() {
     auth_key=$(generate_support_auth_key "$username" "$ticket_id" "$duration")
     
     if [ -z "$auth_key" ]; then
-        log_message "❌ Failed to generate support tunnel" "ERROR"
+        log_message "[-] Failed to generate support tunnel" "ERROR"
         return 1
     fi
     
-    log_message "✅ Support tunnel created successfully!"
+    log_message "[+] Support tunnel created successfully!"
     log_message ""
     log_message "📋 **Support Tunnel Details:**"
     log_message "  🎫 Ticket ID: $ticket_id"
@@ -171,7 +171,7 @@ create_support_tunnel() {
     log_message "  3. Access customer system: tailscale ssh $username"
     log_message "  4. Bundle location: ~/.sting-ce/support_bundles/"
     log_message ""
-    log_message "🔒 **Security:**"
+    log_message " **Security:**"
     log_message "  • Ephemeral access (auto-expires)"
     log_message "  • No customer network routing"
     log_message "  • Full audit trail in logs"
@@ -227,12 +227,12 @@ list_support_tunnels() {
 close_support_tunnel() {
     local ticket_id="$1"
     
-    log_message "🔒 Closing support tunnel for ticket: $ticket_id"
+    log_message " Closing support tunnel for ticket: $ticket_id"
     
     local session_file="${TUNNEL_SESSIONS_DIR}/${ticket_id}.json"
     
     if [ ! -f "$session_file" ]; then
-        log_message "❌ Tunnel session not found: $ticket_id" "ERROR"
+        log_message "[-] Tunnel session not found: $ticket_id" "ERROR"
         return 1
     fi
     
@@ -251,12 +251,12 @@ close_support_tunnel() {
         jq '.status = "closed" | .closed_at = now | .closed_at |= strftime("%Y-%m-%dT%H:%M:%S%z")' "$session_file" > "$temp_file" 2>/dev/null
         mv "$temp_file" "$session_file" 2>/dev/null || true
         
-        log_message "✅ Support tunnel closed successfully"
+        log_message "[+] Support tunnel closed successfully"
     else
-        log_message "⚠️  Could not determine username, marking session as closed" "WARNING"
+        log_message "[!]  Could not determine username, marking session as closed" "WARNING"
     fi
     
-    log_message "🔒 Tunnel access revoked and session archived"
+    log_message " Tunnel access revoked and session archived"
 }
 
 # Check tunnel status
@@ -266,7 +266,7 @@ check_tunnel_status() {
     local session_file="${TUNNEL_SESSIONS_DIR}/${ticket_id}.json"
     
     if [ ! -f "$session_file" ]; then
-        log_message "❌ Tunnel session not found: $ticket_id" "ERROR"
+        log_message "[-] Tunnel session not found: $ticket_id" "ERROR"
         return 1
     fi
     
@@ -316,11 +316,11 @@ get_headscale_status() {
     
     # Check if container is running
     if docker ps | grep -q "$HEADSCALE_CONTAINER.*Up"; then
-        log_message "✅ Headscale container: Running"
+        log_message "[+] Headscale container: Running"
         
         # Check health endpoint
         if check_headscale_health; then
-            log_message "✅ Headscale service: Healthy"
+            log_message "[+] Headscale service: Healthy"
             
             # Get user count
             local user_count
@@ -333,11 +333,11 @@ get_headscale_status() {
             log_message "📱 Devices connected: $node_count"
             
         else
-            log_message "❌ Headscale service: Unhealthy" "ERROR"
+            log_message "[-] Headscale service: Unhealthy" "ERROR"
             log_message "Check logs: docker logs $HEADSCALE_CONTAINER" "INFO"
         fi
     else
-        log_message "❌ Headscale container: Not running" "ERROR"
+        log_message "[-] Headscale container: Not running" "ERROR"
         log_message "Start with: docker compose --profile support-tunnels up -d headscale" "INFO"
     fi
     
@@ -391,7 +391,7 @@ cleanup_expired_sessions() {
         fi
     done
     
-    log_message "✅ Cleaned up $cleaned_count expired sessions"
+    log_message "[+] Cleaned up $cleaned_count expired sessions"
 }
 
 # Show help for tunnel management
@@ -459,7 +459,7 @@ main() {
             local duration="${2:-30m}"
             
             if [ -z "$ticket_id" ]; then
-                log_message "❌ Ticket ID required" "ERROR"
+                log_message "[-] Ticket ID required" "ERROR"
                 log_message "Usage: support tunnel create TICKET_ID [duration]" "INFO"
                 return 1
             fi
@@ -473,7 +473,7 @@ main() {
             local ticket_id="$1"
             
             if [ -z "$ticket_id" ]; then
-                log_message "❌ Ticket ID required" "ERROR"
+                log_message "[-] Ticket ID required" "ERROR"
                 log_message "Usage: support tunnel status TICKET_ID" "INFO"
                 return 1
             fi
@@ -484,7 +484,7 @@ main() {
             local ticket_id="$1"
             
             if [ -z "$ticket_id" ]; then
-                log_message "❌ Ticket ID required" "ERROR"
+                log_message "[-] Ticket ID required" "ERROR"
                 log_message "Usage: support tunnel close TICKET_ID" "INFO"
                 return 1
             fi
@@ -501,7 +501,7 @@ main() {
             show_tunnel_help
             ;;
         *)
-            log_message "❌ Unknown tunnel command: $command" "ERROR"
+            log_message "[-] Unknown tunnel command: $command" "ERROR"
             show_tunnel_help
             return 1
             ;;

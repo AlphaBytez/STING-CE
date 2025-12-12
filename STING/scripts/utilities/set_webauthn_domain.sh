@@ -24,7 +24,7 @@ echo ""
 read -p "Enter the domain/hostname to use for WebAuthn (e.g., sting.local, 192.168.1.100): " WEBAUTHN_DOMAIN
 
 if [ -z "$WEBAUTHN_DOMAIN" ]; then
-    echo "❌ No domain provided. Exiting."
+    echo "[-] No domain provided. Exiting."
     exit 1
 fi
 
@@ -46,17 +46,17 @@ if [ -f "$CONFIG_FILE" ]; then
     sed -i.tmp "s/rp_id: .*/rp_id: \"$WEBAUTHN_DOMAIN\"/" "$CONFIG_FILE"
     rm -f "${CONFIG_FILE}.tmp"
     
-    echo "✅ Config updated"
+    echo "[+] Config updated"
 fi
 
 # Regenerate environment files
 echo ""
-echo "🔄 Regenerating environment files..."
+echo " Regenerating environment files..."
 python conf/config_loader.py conf/config.yml
 
 # Check if successful
 if grep -q "WEBAUTHN_RP_ID=\"$WEBAUTHN_DOMAIN\"" ~/.sting-ce/env/app.env 2>/dev/null; then
-    echo "✅ WebAuthn domain successfully set to: $WEBAUTHN_DOMAIN"
+    echo "[+] WebAuthn domain successfully set to: $WEBAUTHN_DOMAIN"
     echo ""
     echo "Next steps:"
     echo "1. Update app service: ./manage_sting.sh update app"
@@ -64,8 +64,8 @@ if grep -q "WEBAUTHN_RP_ID=\"$WEBAUTHN_DOMAIN\"" ~/.sting-ce/env/app.env 2>/dev/
     echo "   Example: echo '192.168.1.100 sting.local' | sudo tee -a /etc/hosts"
     echo "3. Access STING using: https://$WEBAUTHN_DOMAIN:3000"
     echo ""
-    echo "⚠️  IMPORTANT: All machines must use the same domain to share passkeys!"
+    echo "[!]  IMPORTANT: All machines must use the same domain to share passkeys!"
 else
-    echo "❌ Failed to set WebAuthn domain"
+    echo "[-] Failed to set WebAuthn domain"
     exit 1
 fi

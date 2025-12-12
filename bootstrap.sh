@@ -17,7 +17,7 @@ set -e  # Exit on error
 # Detect if running with sudo - bootstrap should NOT run as root
 if [ "$EUID" -eq 0 ] || [ -n "$SUDO_USER" ]; then
     echo ""
-    echo "⚠️  WARNING: This script should NOT be run with sudo!"
+    echo "WARNING: This script should NOT be run with sudo!"
     echo ""
     echo "The bootstrap installer will request sudo only when needed"
     echo "(e.g., to create /opt directory on Linux)."
@@ -48,19 +48,19 @@ NC='\033[0m' # No Color
 
 # Pretty logging functions
 log_info() {
-    echo -e "${BLUE}ℹ${NC} $1"
+    echo -e "${BLUE}[*]${NC} $1"
 }
 
 log_success() {
-    echo -e "${GREEN}✓${NC} $1"
+    echo -e "${GREEN}[+]${NC} $1"
 }
 
 log_warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
+    echo -e "${YELLOW}[!]${NC} $1"
 }
 
 log_error() {
-    echo -e "${RED}✗${NC} $1"
+    echo -e "${RED}[-]${NC} $1"
 }
 
 # Banner

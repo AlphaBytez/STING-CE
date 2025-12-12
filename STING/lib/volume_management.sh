@@ -67,7 +67,7 @@ list_volumes() {
     done
     
     if [ -z "$sting_volumes" ]; then
-        echo "✅ No STING volumes found"
+        echo "[+] No STING volumes found"
         return 0
     fi
     
@@ -89,7 +89,7 @@ list_volumes() {
                 local size=$(docker system df -v --format "table {{.Name}}\t{{.Size}}" 2>/dev/null | grep "^$volume" | awk '{print $2}' || echo "unknown")
                 local desc=$(get_volume_description "$volume")
                 
-                printf "  📦 %-20s %8s - %s\\n" "$volume" "($size)" "$desc"
+                printf "   %-20s %8s - %s\\n" "$volume" "($size)" "$desc"
             done < "$tmpdir/$type"
             echo ""
         fi
@@ -144,7 +144,7 @@ purge_volumes() {
             done
             ;;
         *)
-            log_message "❌ Invalid purge type: $purge_type" "ERROR"
+            log_message "[-] Invalid purge type: $purge_type" "ERROR"
             echo "Valid types: database, config, logs, service, temp, safe, all"
             echo "Example: $0 volumes purge database"
             return 1
@@ -168,7 +168,7 @@ purge_volumes_by_type() {
     done
     
     if [ -z "$volumes_to_remove" ]; then
-        log_message "✅ No $target_type volumes found" "INFO"
+        log_message "[+] No $target_type volumes found" "INFO"
         return 0
     fi
     
@@ -177,13 +177,13 @@ purge_volumes_by_type() {
     echo -e "\\033[${color}m🗑️  Removing $target_type volumes:\\033[0m"
     for volume in $volumes_to_remove; do
         local desc=$(get_volume_description "$volume")
-        echo "   📦 $volume - $desc"
+        echo "    $volume - $desc"
     done
     echo ""
     
     # Require confirmation for dangerous types
     if [[ "$target_type" =~ ^(database|secrets)$ ]] && [ "$confirm" != "--force" ]; then
-        echo "⚠️  WARNING: Removing $target_type volumes will cause data loss!"
+        echo "[!]  WARNING: Removing $target_type volumes will cause data loss!"
         echo "To confirm, add --force: $0 volumes purge $target_type --force"
         return 1
     fi
@@ -193,12 +193,12 @@ purge_volumes_by_type() {
         if docker volume inspect "$volume" >/dev/null 2>&1; then
             log_message "Removing volume: $volume" "INFO"
             if docker volume rm "$volume" 2>/dev/null; then
-                echo "✅ Removed: $volume"
+                echo "[+] Removed: $volume"
             else
-                echo "❌ Failed to remove: $volume (may be in use)"
+                echo "[-] Failed to remove: $volume (may be in use)"
             fi
         else
-            echo "⚠️  Volume not found: $volume"
+            echo "[!]  Volume not found: $volume"
         fi
     done
 }
@@ -226,10 +226,10 @@ backup_volumes() {
             
             # Create tar backup of volume
             if docker run --rm -v "$volume":/data -v "$backup_dir":/backup alpine tar czf "/backup/${volume}.tar.gz" -C /data .; then
-                echo "✅ Backed up: $volume"
+                echo "[+] Backed up: $volume"
                 ((backed_up++))
             else
-                echo "❌ Failed to backup: $volume"
+                echo "[-] Failed to backup: $volume"
             fi
         fi
     done
@@ -248,7 +248,7 @@ Restore Instructions:
 2. Restore data: docker run --rm -v <volume_name>:/data -v $(pwd):/backup alpine tar xzf /backup/<volume_name>.tar.gz -C /data
 EOF
     
-    log_message "✅ Backup complete: $backed_up volumes backed up to $backup_dir" "INFO"
+    log_message "[+] Backup complete: $backed_up volumes backed up to $backup_dir" "INFO"
     echo "📄 Backup manifest: $backup_dir/manifest.txt"
 }
 
@@ -297,7 +297,7 @@ manage_volumes() {
             volume_usage
             ;;
         *)
-            log_message "❌ Unknown volume action: $action" "ERROR"
+            log_message "[-] Unknown volume action: $action" "ERROR"
             volume_usage
             return 1
             ;;

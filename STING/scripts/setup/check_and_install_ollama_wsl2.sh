@@ -242,7 +242,7 @@ download_models() {
     for model in $OLLAMA_MODELS; do
         info "Downloading $model..."
         if $ollama_cmd pull "$model"; then
-            log "✅ $model downloaded successfully"
+            log "[+] $model downloaded successfully"
         else
             warning "Failed to download $model"
         fi
@@ -256,23 +256,23 @@ run_diagnostics() {
     
     # Check WSL2
     if is_wsl2; then
-        info "✅ Running in WSL2"
+        info "[+] Running in WSL2"
     else
         warning "Not running in WSL2"
     fi
     
     # Check installation
     if check_ollama_installed; then
-        info "✅ Ollama is installed (version: $(get_ollama_version))"
+        info "[+] Ollama is installed (version: $(get_ollama_version))"
     else
-        error "❌ Ollama is not installed"
+        error "[-] Ollama is not installed"
     fi
     
     # Check service
     if check_ollama_running; then
-        info "✅ Ollama service is running on port $OLLAMA_PORT"
+        info "[+] Ollama service is running on port $OLLAMA_PORT"
     else
-        warning "❌ Ollama service is not running"
+        warning "[-] Ollama service is not running"
     fi
     
     # Check models
@@ -284,17 +284,17 @@ run_diagnostics() {
     echo ""
     log "Checking network accessibility..."
     if curl -sf "http://localhost:${OLLAMA_PORT}/v1/models" >/dev/null 2>&1; then
-        info "✅ API accessible at http://localhost:${OLLAMA_PORT}"
+        info "[+] API accessible at http://localhost:${OLLAMA_PORT}"
     else
-        warning "❌ API not accessible"
+        warning "[-] API not accessible"
     fi
     
     # Custom domain check
     if [[ -n "$DOMAIN_NAME" ]] && [[ "$DOMAIN_NAME" != "localhost" ]]; then
         if curl -sf "http://${DOMAIN_NAME}:${OLLAMA_PORT}/v1/models" >/dev/null 2>&1; then
-            info "✅ API accessible at http://${DOMAIN_NAME}:${OLLAMA_PORT}"
+            info "[+] API accessible at http://${DOMAIN_NAME}:${OLLAMA_PORT}"
         else
-            warning "❌ API not accessible via custom domain ${DOMAIN_NAME}"
+            warning "[-] API not accessible via custom domain ${DOMAIN_NAME}"
         fi
     fi
 }
@@ -334,7 +334,7 @@ install_flow() {
         download_models
     fi
     
-    log "✅ Ollama setup complete!"
+    log "[+] Ollama setup complete!"
     return 0
 }
 

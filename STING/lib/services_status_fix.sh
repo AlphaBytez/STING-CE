@@ -142,11 +142,11 @@ check_service_status() {
     
     # Format output with colors based on status
     if [ "$status" = "Running" ] && [ "$health" = "Healthy" ]; then
-        log_message "  ✅ $service: $status ($health)" "SUCCESS"
+        log_message "  [+] $service: $status ($health)" "SUCCESS"
     elif [ "$status" = "Running" ]; then
-        log_message "  ⚠️  $service: $status ($health)" "WARNING"
+        log_message "  [!]  $service: $status ($health)" "WARNING"
     else
-        log_message "  ❌ $service: $status" "ERROR"
+        log_message "  [-] $service: $status" "ERROR"
     fi
 }
 
@@ -170,9 +170,9 @@ show_port_status() {
         local service="${port_info#*:}"
         
         if netstat -tuln 2>/dev/null | grep -q ":$port "; then
-            log_message "  ✅ Port $port ($service): In use"
+            log_message "  [+] Port $port ($service): In use"
         else
-            log_message "  ❌ Port $port ($service): Not in use"
+            log_message "  [-] Port $port ($service): Not in use"
         fi
     done
 }
@@ -184,9 +184,9 @@ show_quick_status() {
     # Just show running/stopped for each service
     docker compose ps --format "table {{.Service}}\t{{.Status}}" | grep -v "NAME" | while read -r line; do
         if echo "$line" | grep -q "Up"; then
-            echo "  ✅ $line"
+            echo "  [+] $line"
         else
-            echo "  ❌ $line"
+            echo "  [-] $line"
         fi
     done
 }

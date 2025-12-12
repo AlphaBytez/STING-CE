@@ -30,7 +30,7 @@ BACKUP_SUFFIX="backup_$(date +%Y%m%d_%H%M%S)"
 OPTIMIZED_COUNT=0
 
 # Find all Dockerfiles with pip install commands
-echo "🔍 Scanning Dockerfiles for pip install commands..."
+echo " Scanning Dockerfiles for pip install commands..."
 echo ""
 
 DOCKERFILES=$(find . -type f \( -name "Dockerfile*" \) -not -path "*/\.*" -not -name "*.backup*" 2>/dev/null)
@@ -42,7 +42,7 @@ for dockerfile in $DOCKERFILES; do
 
         # Check if already optimized
         if grep -q "mount=type=cache.*pip" "$dockerfile" 2>/dev/null; then
-            echo "   ✅ Already optimized - skipping"
+            echo "   [+] Already optimized - skipping"
             continue
         fi
 
@@ -69,14 +69,14 @@ for dockerfile in $DOCKERFILES; do
         { print }
         ' "${dockerfile}.${BACKUP_SUFFIX}" > "$dockerfile"
 
-        echo "   ✅ Optimized!"
+        echo "   [+] Optimized!"
         ((OPTIMIZED_COUNT++))
     fi
 done
 
 echo ""
 echo "=========================================="
-echo "  ✅ Optimization Complete!"
+echo "  [+] Optimization Complete!"
 echo "=========================================="
 echo ""
 echo "Summary:"
@@ -84,8 +84,8 @@ echo "  • Optimized $OPTIMIZED_COUNT Dockerfile(s)"
 echo "  • Backups saved with suffix: .$BACKUP_SUFFIX"
 echo ""
 echo "BuildKit cache mount benefits:"
-echo "  📦 Persistent pip cache across builds"
-echo "  🚀 10-50x faster pip installs on slow networks"
+echo "   Persistent pip cache across builds"
+echo "   10-50x faster pip installs on slow networks"
 echo "  💾 Automatic cache management"
 echo "  🌍 Works on all networks (no external mirrors)"
 echo ""

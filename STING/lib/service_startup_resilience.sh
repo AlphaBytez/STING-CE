@@ -125,14 +125,14 @@ start_service_with_retry() {
                 if docker start "sting-ce-$service"; then
                     sleep 2
                     if check_service_health "$service"; then
-                        echo -e "  ${GREEN}✓ $service started successfully${NC}"
+                        echo -e "  ${GREEN}[+] $service started successfully${NC}"
                         return 0
                     fi
                 fi
                 ;;
             "running")
                 if check_service_health "$service"; then
-                    echo -e "  ${GREEN}✓ $service already running and healthy${NC}"
+                    echo -e "  ${GREEN}[+] $service already running and healthy${NC}"
                     return 0
                 else
                     echo "  Service running but not healthy, restarting..."
@@ -154,7 +154,7 @@ start_service_with_retry() {
         fi
     done
     
-    echo -e "  ${RED}✗ Failed to start $service after $MAX_RETRIES attempts${NC}"
+    echo -e "  ${RED}[-] Failed to start $service after $MAX_RETRIES attempts${NC}"
     return 1
 }
 
@@ -170,13 +170,13 @@ check_port_conflicts() {
         
         # Check if port is in use by non-Docker process
         if lsof -i ":$port" | grep -v "docker" >/dev/null 2>&1; then
-            echo -e "  ${YELLOW}⚠ Port $port is in use by non-Docker process (needed by $service)${NC}"
+            echo -e "  ${YELLOW}[!] Port $port is in use by non-Docker process (needed by $service)${NC}"
             ((conflicts++))
         fi
     done
     
     if [ $conflicts -eq 0 ]; then
-        echo -e "  ${GREEN}✓ No port conflicts detected${NC}"
+        echo -e "  ${GREEN}[+] No port conflicts detected${NC}"
     fi
     
     return $conflicts
@@ -228,7 +228,7 @@ ensure_all_services_started_enhanced() {
                 failed_services+=("$service")
             fi
         else
-            echo -e "${GREEN}✓ $service already running${NC}"
+            echo -e "${GREEN}[+] $service already running${NC}"
         fi
     done
     
@@ -237,10 +237,10 @@ ensure_all_services_started_enhanced() {
     echo -e "${BLUE}=== Service Startup Summary ===${NC}"
     
     if [ ${#failed_services[@]} -eq 0 ]; then
-        echo -e "${GREEN}✓ All services started successfully!${NC}"
+        echo -e "${GREEN}[+] All services started successfully!${NC}"
         return 0
     else
-        echo -e "${RED}✗ Failed to start the following services:${NC}"
+        echo -e "${RED}[-] Failed to start the following services:${NC}"
         for service in "${failed_services[@]}"; do
             echo "  - $service"
             echo "    Last logs:"

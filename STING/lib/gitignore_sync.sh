@@ -76,7 +76,7 @@ gitignore_aware_sync() {
         return 1
     fi
     
-    echo "🔍 Generating rsync excludes from .gitignore..."
+    echo " Generating rsync excludes from .gitignore..."
     
     # Get excludes from .gitignore
     local excludes_file=$(mktemp)
@@ -104,7 +104,7 @@ EOF
     [[ $(wc -l < "$excludes_file") -gt 10 ]] && echo "  ... and $(($(wc -l < "$excludes_file") - 10)) more"
     
     # Perform the sync with all exclusions
-    echo "🚀 Starting gitignore-aware sync: $source_dir -> $dest_dir"
+    echo " Starting gitignore-aware sync: $source_dir -> $dest_dir"
     
     # Use --files-from approach for cleaner handling of many excludes
     local rsync_cmd="rsync -av --delete"
@@ -124,9 +124,9 @@ EOF
     rm -f "$excludes_file"
     
     if [[ $sync_result -eq 0 ]]; then
-        echo "✅ Gitignore-aware sync completed successfully"
+        echo "[+] Gitignore-aware sync completed successfully"
     else
-        echo "❌ Sync failed with exit code $sync_result"
+        echo "[-] Sync failed with exit code $sync_result"
         return $sync_result
     fi
 }
@@ -159,7 +159,7 @@ gitignore_service_sync() {
                 "__pycache__ *.pyc *.pyo"
             ;;
         *)
-            echo "⚠️ Service $service not recognized, using generic sync..."
+            echo "[!] Service $service not recognized, using generic sync..."
             gitignore_aware_sync "$project_dir/$service" "$install_dir/$service"
             ;;
     esac

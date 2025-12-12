@@ -34,7 +34,7 @@ build_with_logging() {
     local analytics_file="build-analytics-${service}-${timestamp}.json"
     local start_time=$(date +%s)
     
-    log_message "🐝 Starting monitored build for service: $service" "INFO"
+    log_message " Starting monitored build for service: $service" "INFO"
     
     # Create temporary file for build output
     local temp_log="/tmp/build_${service}_$$.log"

@@ -28,7 +28,7 @@ check_dependencies() {
     fi
     
     if [ ${#missing_deps[@]} -gt 0 ]; then
-        echo -e "${YELLOW}⚠️  Missing dependencies detected on $platform:${NC}" >&2
+        echo -e "${YELLOW}[!]  Missing dependencies detected on $platform:${NC}" >&2
         case $platform in
             "wsl"|"linux")
                 echo -e "${YELLOW}   Install with: sudo apt update && sudo apt install ${missing_deps[*]}${NC}" >&2
@@ -95,12 +95,12 @@ show_enhanced_status() {
     local verbose="${1:-false}"
     local service_filter="${2:-}"
     
-    log_message "🔍 STING Services Enhanced Status Report" "INFO"
+    log_message " STING Services Enhanced Status Report" "INFO"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     
     # Check Docker daemon
     if ! docker info >/dev/null 2>&1; then
-        log_message "❌ Docker is not running or not accessible" "ERROR"
+        log_message "[-] Docker is not running or not accessible" "ERROR"
         echo "Please ensure Docker Desktop is running and try again."
         return 1
     fi
@@ -216,7 +216,7 @@ show_enhanced_status() {
         # Print section header for observability services
         if [ "$service" = "${observability_services[0]}" ]; then
             echo ""
-            echo "🔍 Beeacon Observability (Monitoring Stack):"
+            echo " Beeacon Observability (Monitoring Stack):"
             echo "─────────────────────────────────────────────────────────────────────────────"
         fi
         
@@ -226,7 +226,7 @@ show_enhanced_status() {
         local container_exists=$(docker ps -a --format "{{.Names}}" | grep -w "$container_name" 2>/dev/null)
         
         if [ -z "$container_exists" ]; then
-            printf "${RED}❌ Not Found${NC}\n"
+            printf "${RED}[-] Not Found${NC}\n"
             unhealthy_count=$((unhealthy_count + 1))
             [ "$is_core" = "true" ] && core_unhealthy=$((core_unhealthy + 1))
             
@@ -240,7 +240,7 @@ show_enhanced_status() {
         local is_running=$(docker ps --format "{{.Names}}" | grep -w "$container_name" 2>/dev/null)
         
         if [ -z "$is_running" ]; then
-            printf "${RED}❌ Stopped${NC}\n"
+            printf "${RED}[-] Stopped${NC}\n"
             unhealthy_count=$((unhealthy_count + 1))
             [ "$is_core" = "true" ] && core_unhealthy=$((core_unhealthy + 1))
             
@@ -283,9 +283,9 @@ show_enhanced_status() {
         
         # Determine overall status
         if [ "$health_status" = "healthy" ] || ([ "$health_status" = "none" ] && [ "$endpoint_status" = "reachable" ]); then
-            printf "${GREEN}✅ Healthy${NC}\n"
+            printf "${GREEN}[+] Healthy${NC}\n"
         elif [ "$health_status" = "unhealthy" ] || [ "$endpoint_status" = "unreachable" ]; then
-            printf "${RED}⚠️  Unhealthy${NC}\n"
+            printf "${RED}[!]  Unhealthy${NC}\n"
             unhealthy_count=$((unhealthy_count + 1))
             [ "$is_core" = "true" ] && core_unhealthy=$((core_unhealthy + 1))
             
@@ -327,13 +327,13 @@ show_enhanced_status() {
         
         # Check if sting_local network exists
         if docker network inspect sting_local >/dev/null 2>&1; then
-            echo "✅ Docker network 'sting_local' exists"
+            echo "[+] Docker network 'sting_local' exists"
             
             # Count connected containers
             local connected_count=$(docker network inspect sting_local 2>/dev/null | jq -r '.[0].Containers | length // 0')
             echo "   Connected containers: $connected_count"
         else
-            echo "❌ Docker network 'sting_local' not found"
+            echo "[-] Docker network 'sting_local' not found"
         fi
     fi
     
@@ -343,17 +343,17 @@ show_enhanced_status() {
     echo "─────────────────────────────────────────────────────────────────────────────"
     
     if [ $unhealthy_count -eq 0 ]; then
-        log_message "✅ All services are healthy!" "SUCCESS"
+        log_message "[+] All services are healthy!" "SUCCESS"
     else
         if [ $core_unhealthy -gt 0 ]; then
-            log_message "❌ $core_unhealthy core service(s) need attention" "ERROR"
+            log_message "[-] $core_unhealthy core service(s) need attention" "ERROR"
         fi
         if [ $((unhealthy_count - core_unhealthy)) -gt 0 ]; then
-            log_message "⚠️  $((unhealthy_count - core_unhealthy)) auxiliary service(s) need attention" "WARNING"
+            log_message "[!]  $((unhealthy_count - core_unhealthy)) auxiliary service(s) need attention" "WARNING"
         fi
         
         echo ""
-        echo "🔧 Quick fixes:"
+        echo " Quick fixes:"
         echo "  • Restart all services: msting restart"
         echo "  • Restart specific service: msting restart <service>"
         echo "  • View service logs: docker logs sting-ce-<service>"
@@ -376,13 +376,13 @@ show_enhanced_status() {
 
     # Check the configured Ollama endpoint
     if curl -sf "${ollama_endpoint}/v1/models" >/dev/null 2>&1; then
-        echo "✅ Ollama is accessible at ${ollama_endpoint}"
+        echo "[+] Ollama is accessible at ${ollama_endpoint}"
         if [ "$verbose" = "true" ] && command -v ollama >/dev/null 2>&1; then
             local models=$(ollama list 2>/dev/null | tail -n +2 | wc -l)
             echo "   Available models: $models"
         fi
     else
-        echo "⚠️  Ollama endpoint not accessible: ${ollama_endpoint}"
+        echo "[!]  Ollama endpoint not accessible: ${ollama_endpoint}"
         if [ "$ollama_endpoint" != "http://localhost:11434" ]; then
             echo "   (External Ollama configured - verify network connectivity)"
         else
