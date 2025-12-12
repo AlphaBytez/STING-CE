@@ -727,7 +727,8 @@ validate_env_files() {
     # This is the authoritative source of what env files should exist
     
     local required_env_files
-    required_env_files=$(grep -E "'\w+\.env':" "$config_loader" 2>/dev/null | \
+    # Note: regex includes hyphen to match files like 'public-bee.env'
+    required_env_files=$(grep -E "'[a-zA-Z0-9_-]+\.env':" "$config_loader" 2>/dev/null | \
                               sed "s/.*'\\(.*\\.env\\)'.*/\\1/" | \
                               sort -u)
     

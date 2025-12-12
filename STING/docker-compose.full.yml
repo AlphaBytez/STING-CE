@@ -567,43 +567,6 @@ services:
     restart: unless-stopped
     command: python chatbot/bee_server.py
 
-  nectar-worker:
-    container_name: sting-ce-nectar-worker
-    build:
-      context: .
-      dockerfile: Dockerfile.nectar-worker
-      args:
-        CACHEBUST: ${CACHEBUST:-1}
-        BUILD_DATE: ${BUILD_DATE:-2025-01-01T00:00:00Z}
-    image: sting-ce-nectar-worker:latest
-    env_file:
-      - ${INSTALL_DIR}/env/nectar-worker.env
-    environment:
-      - OLLAMA_URL=http://host.docker.internal:11434
-      - OLLAMA_KEEP_ALIVE=30m
-    volumes:
-      # Mount config for PII middleware
-      - ./conf:/app/conf:ro
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
-        reservations:
-          memory: 256M
-    networks:
-      - sting_local
-    depends_on:
-      app:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9002/health"]
-      interval: ${HEALTH_CHECK_INTERVAL:-30s}
-      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
-      retries: ${HEALTH_CHECK_RETRIES:-3}
-      start_period: ${HEALTH_CHECK_START_PERIOD:-40s}
-    restart: unless-stopped
-
   messaging:
     container_name: sting-ce-messaging
     build:

@@ -2115,7 +2115,6 @@ class ConfigurationManager:
                 },
                 'observability.env': self._generate_observability_env_vars(),
                 'headscale.env': self._generate_headscale_env_vars(),
-                'nectar-worker.env': self._generate_nectar_worker_env_vars(),
                 'public-bee.env': self._generate_public_bee_env_vars()
                 # SUPERTOKENS IS COMPLETELY REMOVED - DO NOT UNCOMMENT
                 # DO NOT ADD ANY SUPERTOKENS ENV FILES HERE

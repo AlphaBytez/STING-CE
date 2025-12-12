@@ -716,46 +716,6 @@ services:
           memory: 128M
     restart: unless-stopped
 
-  nectar-worker:
-    container_name: sting-ce-nectar-worker
-    build:
-      context: ./nectar_worker
-      dockerfile: Dockerfile
-    image: ${STING_IMAGE_REGISTRY:-}${STING_IMAGE_REGISTRY:+/}sting-ce-nectar-worker:${STING_VERSION:-latest}
-    env_file:
-    - ${INSTALL_DIR}/env/nectar-worker.env
-    environment:
-    - TZ=UTC
-    ports:
-    - 9002:9002
-    networks:
-      sting_local:
-        aliases:
-        - nectar-worker
-    extra_hosts:
-    - host.docker.internal:host-gateway
-    depends_on:
-      redis:
-        condition: service_started
-    healthcheck:
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:9002/health
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.5'
-        reservations:
-          memory: 128M
-    restart: unless-stopped
-
   public-bee:
     container_name: sting-ce-public-bee
     build:
