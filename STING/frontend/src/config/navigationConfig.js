@@ -6,24 +6,16 @@ import {
   AppstoreOutlined,
   SettingOutlined,
   GlobalOutlined,
-  ShoppingOutlined,
   TeamOutlined,
-  BarChartOutlined,
   InboxOutlined,
-  SearchOutlined,
-  RobotOutlined
 } from '@ant-design/icons';
 import {
   MessageSquare,
   Settings,
   Users,
-  Activity,
-  BarChart,
   FileText,
   Package,
   Globe,
-  ShoppingBag,
-  Bot
 } from 'lucide-react';
 import BasketIcon from '../components/icons/BasketIcon';
 import BeeSearchIcon from '../components/icons/BeeSearchIcon';
@@ -49,12 +41,7 @@ export const defaultNavConfig = {
     { id: 'reports', name: 'Bee Reports', icon: 'FileTextOutlined', path: '/dashboard/reports', enabled: true },
     { id: 'report-templates', name: 'Templates', icon: 'FileTextOutlined', path: '/dashboard/report-templates', enabled: true },
     { id: 'honey-jars', name: 'Honey Jars', icon: 'AppstoreOutlined', path: '/dashboard/honey-jars', enabled: true },
-    { id: 'hive-manager', name: 'Manager', icon: 'SettingOutlined', path: '/dashboard/hive-manager', enabled: true },
-    { id: 'swarm', name: 'Swarm', icon: 'GlobalOutlined', path: '/dashboard/swarm', enabled: true, badge: 'Enterprise' },
-    { id: 'marketplace', name: 'Marketplace', icon: 'ShoppingOutlined', path: '/dashboard/marketplace', enabled: true },
-    { id: 'nectar-bots', name: 'Nectar Bots', icon: 'BotOutlined', path: '/dashboard/nectar-bots', enabled: true, adminOnly: true },
     { id: 'admin', name: 'Admin', icon: 'TeamOutlined', path: '/dashboard/admin', enabled: true, adminOnly: true },
-    { id: 'beeacon', name: 'Beeacon', icon: 'BarChartOutlined', path: '/dashboard/beeacon', enabled: true },
     { id: 'settings', name: 'Settings', icon: 'SettingOutlined', path: '/dashboard/settings', enabled: true },
   ]
 };
@@ -67,27 +54,21 @@ export const antdIconMap = {
   AppstoreOutlined: <AppstoreOutlined />,
   SettingOutlined: <SettingOutlined />,
   GlobalOutlined: <GlobalOutlined />,
-  ShoppingOutlined: <ShoppingOutlined />,
   TeamOutlined: <TeamOutlined />,
-  BarChartOutlined: <BarChartOutlined />,
-  BotOutlined: <RobotOutlined />,
-  BasketOutlined: <InboxOutlined />, // Using InboxOutlined as basket representation for Ant Design
-  SearchOutlined: <BeeSearchIcon className="w-4 h-4" />, // Bee-themed search icon
+  BasketOutlined: <InboxOutlined />,
+  SearchOutlined: <BeeSearchIcon className="w-4 h-4" />,
 };
 
 export const lucideIconMap = {
-  DashboardOutlined: BarChart,
+  DashboardOutlined: Globe,
   MessageOutlined: MessageSquare,
   FileTextOutlined: FileText,
   AppstoreOutlined: Package,
   SettingOutlined: Settings,
   GlobalOutlined: Globe,
-  ShoppingOutlined: ShoppingBag,
   TeamOutlined: Users,
-  BarChartOutlined: Activity,
-  BotOutlined: Bot,
   BasketOutlined: BasketIcon,
-  SearchOutlined: BeeSearchIcon, // Bee-themed search icon
+  SearchOutlined: BeeSearchIcon,
 };
 
 // React component icon map (for MainInterface floating nav)
@@ -98,10 +79,7 @@ export const componentIconMap = {
   AppstoreOutlined: <AppstoreOutlined />,
   SettingOutlined: <SettingOutlined />,
   GlobalOutlined: <GlobalOutlined />,
-  ShoppingOutlined: <ShoppingOutlined />,
   TeamOutlined: <TeamOutlined />,
-  BarChartOutlined: <BarChartOutlined />,
-  BotOutlined: <RobotOutlined />,
   BasketOutlined: <BasketIcon className="w-5 h-5" />,
   SearchOutlined: <BeeSearchIcon className="w-5 h-5" />,
 };

@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { Layout, Button, Badge, Tooltip } from 'antd';
-import { 
-  DashboardOutlined, 
-  MessageOutlined, 
-  SettingOutlined, 
-  TeamOutlined, 
-  BarChartOutlined, 
-  BellOutlined, 
-  LogoutOutlined, 
-  ShoppingOutlined,
+import {
+  DashboardOutlined,
+  MessageOutlined,
+  SettingOutlined,
+  TeamOutlined,
+  BellOutlined,
+  LogoutOutlined,
   GlobalOutlined,
   AppstoreOutlined,
   FileTextOutlined
@@ -31,21 +29,14 @@ import AAL2ProtectedRoute from './auth/AAL2ProtectedRoute';
 import ModernDashboard from './ModernDashboard';
 import ChatModeWrapper from './chat/ChatModeWrapper';
 import BeeReportsPage from './pages/BeeReportsPage';
-import Teams from './pages/TeamsPage';
 import AdminPanel from './admin/AdminPanel';
-import BeeaconPage from './pages/BeeaconPage';
 import UserSettings from './user/UserSettings';
 import KratosSettings from './auth/KratosSettings';
 import SecuritySettings from './user/SecuritySettings';
 import HoneyJarPage from './pages/HoneyJarPage';
-import HiveManagerPage from './pages/HiveManagerPage';
-import NectarBotsPage from './pages/NectarBotsPage';
-import SwarmOrchestrationPage from './pages/SwarmOrchestrationPage';
-import MarketplacePage from './pages/MarketplacePage';
 import BasketPage from './pages/BasketPage';
 import SearchPage from './pages/SearchPage';
 import BeeSettings from './settings/BeeSettings';
-import NectarFlowDemo from './pages/NectarFlowDemo';
 import ReportTemplateManager from './reports/ReportTemplateManager';
 import { loadNavigationConfig, convertIconsToComponents } from '../config/navigationConfig';
 
@@ -485,13 +476,7 @@ const MainInterface = () => {
             <Route path="report-templates" element={<ReportTemplateManager />} />
             <Route path="bee-settings" element={<BeeSettings />} />
             <Route path="honey-jars" element={<HoneyJarPage />} />
-            <Route path="hive-manager" element={<HiveManagerPage />} />
-            <Route path="nectar-bots" element={<NectarBotsPage />} />
-            <Route path="nectar-flow" element={<NectarFlowDemo />} />
-            <Route path="swarm" element={<SwarmOrchestrationPage />} />
-            <Route path="marketplace" element={<MarketplacePage />} />
             {isAdmin && <Route path="admin" element={<AdminPanel />} />}
-            <Route path="beeacon" element={<BeeaconPage />} />
             <Route path="settings" element={<UserSettings />} />
             <Route path="settings/security" element={<SecuritySettings />} />
             <Route path="user" element={<UserSettings />} />

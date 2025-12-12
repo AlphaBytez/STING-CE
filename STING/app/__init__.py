@@ -58,7 +58,6 @@ from app.routes.pii_routes import pii_bp
 from app.routes.config_routes import config_bp
 from app.routes.aal_routes import aal_bp as original_aal_bp
 from app.routes.enhanced_webauthn_routes import enhanced_webauthn_bp
-from app.routes.nectar_bot_routes import nectar_bot_bp
 from app.routes.kratos_webhooks import kratos_webhooks_bp
 # from app.routes.file_routes import file_bp  # Import moved to create_app to avoid early initialization
 from app.database import init_db, db
@@ -735,15 +734,6 @@ def create_app(config=None):
             logger.warning(f"Biometric blueprint registration failed: {e}")
             logger.info("Biometric AAL2 features will be unavailable")
         
-        # Register Beeacon monitoring routes
-        try:
-            from app.routes.beeacon_routes import beeacon
-            flask_app.register_blueprint(beeacon)
-            logger.info("Beeacon monitoring blueprint registered successfully")
-        except Exception as e:
-            logger.warning(f"Beeacon blueprint registration failed: {e}")
-            logger.info("Beeacon monitoring features will be unavailable")
-        
         # Register dashboard metrics routes
         try:
             from app.routes.dashboard_routes import dashboard
@@ -786,13 +776,6 @@ def create_app(config=None):
             logger.warning(f"User sync blueprint registration failed: {e}")
             logger.info("User sync features will be unavailable")
         
-        # Register Nectar Bot management routes
-        try:
-            flask_app.register_blueprint(nectar_bot_bp)
-            logger.info("🤖 Nectar Bot management blueprint registered successfully")
-        except Exception as e:
-            logger.warning(f"Nectar Bot blueprint registration failed: {e}")
-            logger.info("Nectar Bot management features will be unavailable")
         
         # Register stub routes for legacy endpoints (clean console errors)
         try:

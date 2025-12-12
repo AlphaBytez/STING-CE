@@ -37,7 +37,6 @@ import SecuritySettings from '../components/user/SecuritySettings';
 import FeatureA from '../components/FeatureA';
 import FeatureB from '../components/FeatureB';
 import PremiumFeature from '../components/PremiumFeature';
-import EnterpriseFeature from '../components/EnterpriseFeature';
 import ChatDemoPage from '../components/chat/enhanced/ChatDemoPage';
 // SimpleChatInterface removed - use BeeChat with simpleMode instead
 import BeeChat from '../components/chat/BeeChat';
@@ -159,15 +158,6 @@ const AuthenticationWrapper = () => {
             element={
               <SimpleProtectedRoute requiredAccountType="premium">
                 <PremiumFeature />
-              </SimpleProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/enterprise-feature" 
-            element={
-              <SimpleProtectedRoute requiredAccountType="enterprise">
-                <EnterpriseFeature />
               </SimpleProtectedRoute>
             } 
           />
