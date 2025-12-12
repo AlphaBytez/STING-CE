@@ -157,7 +157,10 @@ if [ -d "$INSTALL_LOC" ]; then
     fi
 
     log_warning "Removing existing directory..."
-    rm -rf "$INSTALL_LOC"
+    # Use sudo if regular rm fails (env files may be root-owned)
+    if ! rm -rf "$INSTALL_LOC" 2>/dev/null; then
+        sudo rm -rf "$INSTALL_LOC"
+    fi
 fi
 
 # Create parent directory if needed
