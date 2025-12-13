@@ -18,6 +18,12 @@ fi
 
 cd "$WIZARD_DIR"
 
+# Remove any existing venv (may exist in source tarball from dev builds)
+if [ -d "venv" ]; then
+    echo "Removing existing venv directory..."
+    rm -rf venv
+fi
+
 # Create virtual environment
 echo "Creating Python virtual environment..."
 python3 -m venv venv

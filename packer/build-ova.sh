@@ -102,7 +102,14 @@ create_source_tarball() {
 
     # Create tarball excluding dev/build artifacts and secrets
     # Exclude .git entirely (saves ~3GB, not needed in OVA)
-    # Note: Uses BSD tar syntax for macOS compatibility (-s for transform)
+    # Use --transform for GNU tar (Linux) or -s for BSD tar (macOS)
+    local transform_flag
+    if tar --version 2>/dev/null | grep -q 'GNU'; then
+        transform_flag="--transform=s,^,STING-CE/,"
+    else
+        transform_flag="-s ,^,STING-CE/,"
+    fi
+
     tar -czf "$SOURCE_TARBALL" \
         --exclude='.git' \
         --exclude='packer/output' \
@@ -113,10 +120,11 @@ create_source_tarball() {
         --exclude='STING/frontend/build' \
         --exclude='STING/env' \
         --exclude='STING/conf/config.yml' \
+        --exclude='STING/web-setup/venv' \
         --exclude='*.ova' \
         --exclude='*.vmdk' \
         --exclude='*.qcow2' \
-        -s ',^,STING-CE/,' \
+        $transform_flag \
         .
 
     if [ -f "$SOURCE_TARBALL" ]; then
