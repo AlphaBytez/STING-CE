@@ -19,6 +19,12 @@ import os
 
 logger = logging.getLogger(__name__)
 
+TAG_NAME_REGEX = r'^[a-zA-Z0-9._-]+$'
+
+def is_valid_version_tag(tag: str) -> bool:
+    import re
+    return bool(re.match(TAG_NAME_REGEX, tag))
+
 # Create blueprint
 bee_brain_admin_bp = Blueprint('bee_brain_admin', __name__, url_prefix='/api/admin/bee-brain')
 
@@ -276,8 +282,7 @@ def github_webhook():
 
                 # SECURITY: Validate tag_name to prevent command injection
                 # Only allow alphanumeric characters, dots, hyphens, and underscores
-                import re
-                if not tag_name or not re.match(r'^[a-zA-Z0-9._-]+$', tag_name):
+                if not tag_name or not is_valid_version_tag(tag_name):
                     logger.warning(f"Invalid tag_name rejected: {tag_name!r}")
                     return jsonify({
                         "success": False,
