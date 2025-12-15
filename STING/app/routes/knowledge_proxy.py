@@ -66,17 +66,19 @@ def proxy_request(path, method='GET', **kwargs):
         service_api_key = os.getenv('STING_SERVICE_API_KEY')
         if service_api_key:
             headers['X-API-Key'] = service_api_key
-            logger.info(f"Using service API key for knowledge service authentication: {service_api_key[:10]}...")
+            # SECURITY: Don't log API keys, even partially
+            logger.debug("Using service API key for knowledge service authentication")
         else:
             logger.warning("No service API key found - knowledge service access may fail")
             headers['Authorization'] = f"Bearer {session_token}"
 
         headers['Content-Type'] = 'application/json'
         kwargs['headers'] = headers
-        
+
         # Forward the request
         logger.info(f"Proxying {method} request to {url}")
-        logger.info(f"Headers being sent: {headers}")
+        # SECURITY: Don't log headers as they contain auth tokens
+        logger.debug(f"Request headers present: {list(headers.keys())}")
 
         # Add timeout if not specified
         if 'timeout' not in kwargs:

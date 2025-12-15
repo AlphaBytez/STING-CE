@@ -44,17 +44,17 @@ async def get_current_user_flexible(
                       request.cookies.get('sting_session')
         
         if session_token:
-            logger.info(f"Found session token in cookies: {session_token[:20]}...")
+            logger.debug("Found session token in cookies")
             # Verify session with Kratos
             user_info = await knowledge_auth.verify_session(session_token)
             if user_info:
                 logger.info(f"Successfully authenticated user via cookie: {user_info.get('email')}")
                 return user_info
-        
+
         # Then check if we have a Bearer token (fallback for API requests)
         if credentials and credentials.credentials:
             # The bearer token might be a Kratos session token
-            logger.info(f"Found Bearer token: {credentials.credentials[:20]}...")
+            logger.debug("Found Bearer token in request")
             user_info = await knowledge_auth.verify_session(credentials.credentials)
             if user_info:
                 logger.info(f"Successfully authenticated user via Bearer token: {user_info.get('email')}")

@@ -185,29 +185,94 @@ def test_pattern():
         data = request.get_json()
         pattern_str = data.get('pattern')
         test_text = data.get('text', '')
-        
+
         if not pattern_str:
             return jsonify({'error': 'Pattern is required'}), 400
-        
-        # Compile and test the pattern
+
+        # SECURITY: Limit pattern and text length to prevent ReDoS attacks
+        MAX_PATTERN_LENGTH = 500
+        MAX_TEXT_LENGTH = 10000
+        if len(pattern_str) > MAX_PATTERN_LENGTH:
+            return jsonify({
+                'matches': [],
+                'count': 0,
+                'pattern_valid': False,
+                'error': f'Pattern too long (max {MAX_PATTERN_LENGTH} characters)'
+            }), 400
+
+        if len(test_text) > MAX_TEXT_LENGTH:
+            return jsonify({
+                'matches': [],
+                'count': 0,
+                'pattern_valid': False,
+                'error': f'Test text too long (max {MAX_TEXT_LENGTH} characters)'
+            }), 400
+
+        # SECURITY: Check for potentially dangerous regex patterns (ReDoS)
+        # Patterns with nested quantifiers like (a+)+ or (a*)*a are dangerous
+        dangerous_patterns = [
+            r'\(\[?[^)]*[+*]\)?[+*]',  # nested quantifiers like (a+)+
+            r'\([^)]*\|[^)]*\)[+*]',   # alternation with quantifier like (a|b)+
+        ]
+        for dangerous in dangerous_patterns:
+            if re.search(dangerous, pattern_str):
+                return jsonify({
+                    'matches': [],
+                    'count': 0,
+                    'pattern_valid': False,
+                    'error': 'Pattern contains potentially dangerous nested quantifiers'
+                }), 400
+
+        # Compile and test the pattern with timeout protection
         try:
+            import signal
+
+            def timeout_handler(signum, frame):
+                raise TimeoutError("Regex execution timed out")
+
             pattern = re.compile(pattern_str, re.IGNORECASE)
             matches = []
-            
-            for match in pattern.finditer(test_text):
-                matches.append({
-                    'match': match.group(0),
-                    'start': match.start(),
-                    'end': match.end(),
-                    'context': test_text[max(0, match.start() - 20):match.end() + 20]
-                })
-            
+
+            # Set a timeout for regex matching (Unix only)
+            old_handler = None
+            try:
+                old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(2)  # 2 second timeout
+            except (ValueError, AttributeError):
+                pass  # signal not available on this platform
+
+            try:
+                for match in pattern.finditer(test_text):
+                    matches.append({
+                        'match': match.group(0),
+                        'start': match.start(),
+                        'end': match.end(),
+                        'context': test_text[max(0, match.start() - 20):match.end() + 20]
+                    })
+                    # Limit number of matches to prevent excessive output
+                    if len(matches) >= 100:
+                        break
+            finally:
+                try:
+                    signal.alarm(0)
+                    if old_handler:
+                        signal.signal(signal.SIGALRM, old_handler)
+                except (ValueError, AttributeError):
+                    pass
+
             return jsonify({
                 'matches': matches,
                 'count': len(matches),
                 'pattern_valid': True
             })
-            
+
+        except TimeoutError:
+            return jsonify({
+                'matches': [],
+                'count': 0,
+                'pattern_valid': False,
+                'error': 'Pattern execution timed out - pattern may be too complex'
+            }), 400
         except re.error as e:
             return jsonify({
                 'matches': [],

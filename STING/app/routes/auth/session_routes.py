@@ -6,10 +6,11 @@ as the single source of truth. It proxies session information requests
 directly to Kratos, avoiding complex and error-prone session synchronization.
 """
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, g
 import requests
 import logging
 import os
+from app.utils.safe_errors import safe_error_response
 
 logger = logging.getLogger(__name__)
 
@@ -118,15 +119,10 @@ def get_current_user():
         return jsonify({'user': user_info})
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"Could not connect to Kratos: {e}")
-        return jsonify({'error': 'Authentication service unavailable', 'details': str(e)}), 503
+        return safe_error_response(e, 'Authentication service unavailable', logger, 503)
         
     except Exception as e:
-        logger.error(f"Error in /api/auth/me: {str(e)}", exc_info=True)
-        return jsonify({
-            'error': 'Internal server error processing user session',
-            'details': str(e) if current_app.debug else 'An unexpected error occurred'
-        }), 500
+        return safe_error_response(e, 'Internal server error processing user session', logger)
 
 @session_bp.route('/logout', methods=['POST', 'GET'])
 def logout():
@@ -187,11 +183,7 @@ def logout():
         return response
         
     except Exception as e:
-        logger.error(f"An error occurred during logout: {e}", exc_info=True)
-        return jsonify({
-            'error': 'Logout failed',
-            'message': str(e)
-        }), 500
+        return safe_error_response(e, 'Logout failed', logger)
 
 @session_bp.route('/refresh', methods=['POST'])
 def refresh_session():
@@ -260,8 +252,7 @@ def refresh_session():
         return jsonify({'user': user_info, 'refreshed': True})
 
     except Exception as e:
-        logger.error(f"Error refreshing session: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Session refresh failed', 'details': str(e)}), 500
+        return safe_error_response(e, 'Session refresh failed', logger)
 
 @session_bp.route('/grant-aal2-access', methods=['POST'])
 def grant_aal2_access():
@@ -328,8 +319,4 @@ def grant_aal2_access():
         })
 
     except Exception as e:
-        logger.error(f"Error granting AAL2 access: {str(e)}", exc_info=True)
-        return jsonify({
-            'error': 'AAL2 grant failed',
-            'details': str(e) if current_app.debug else 'An unexpected error occurred'
-        }), 500
+        return safe_error_response(e, 'AAL2 grant failed', logger)

@@ -3,6 +3,7 @@ from flask_cors import CORS
 from app.models.api_key_models import ApiKey, ApiKeyUsage
 from app.utils.decorators import require_auth_or_api_key, require_aal2_or_api_key, require_auth_method, require_dual_factor
 from app.utils.audit_logger import AuditLogger
+from app.utils.safe_errors import safe_error_response
 from app.middleware.api_key_middleware import api_key_required, validate_api_key_format
 from app import db
 from datetime import datetime, timedelta

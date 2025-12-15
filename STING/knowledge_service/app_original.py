@@ -834,23 +834,34 @@ async def upload_documents(
             )
             raise HTTPException(status_code=403, detail="You don't have permission to upload to this honey jar")
     
+    # SECURITY: Validate honey_jar_id to prevent path traversal
+    import re
+    if not re.match(r'^[a-zA-Z0-9_-]+$', honey_jar_id):
+        raise HTTPException(status_code=400, detail="Invalid honey jar ID format")
+
     # Create upload directory if it doesn't exist
     upload_dir = Path(f"/tmp/sting_uploads/{honey_jar_id}")
     upload_dir.mkdir(parents=True, exist_ok=True)
-    
+
     uploaded_docs = []
-    
+
     try:
         metadata_dict = json.loads(metadata)
     except:
         metadata_dict = {}
-    
+
     for file in files:
         # Generate unique document ID
         doc_id = str(uuid.uuid4())
-        
+
+        # SECURITY: Sanitize filename to prevent path traversal attacks
+        safe_filename = Path(file.filename).name  # Strip any directory components
+        safe_filename = "".join(c for c in safe_filename if c.isalnum() or c in '._-')
+        if not safe_filename:
+            safe_filename = "unnamed_file"
+
         # Save file temporarily
-        file_path = upload_dir / f"{doc_id}_{file.filename}"
+        file_path = upload_dir / f"{doc_id}_{safe_filename}"
         
         # Reset file position before reading
         file.file.seek(0)

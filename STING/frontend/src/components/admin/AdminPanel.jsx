@@ -29,7 +29,7 @@ import NavigationSettings from './NavigationSettings';
 import PIIConfigurationManager from './PIIConfigurationManager';
 import AdminRecovery from './AdminRecovery';
 import DemoDataManager from './DemoDataManager';
-import NectarBotManager from './NectarBotManager';
+// NectarBotManager removed - Nectar Worker service deprecated
 import QEBeeReviewDashboard from './QEBeeReviewDashboard';
 import { resilientGet, resilientPost, fallbackGenerators } from '../../utils/resilientApiClient';
 import ScrollToTopButton from '../common/ScrollToTopButton';
@@ -511,11 +511,7 @@ const AdminPanel = () => {
             </div>
           )}
 
-          {activeTab === 'nectar-bots' && (
-            <div className="bg-gradient-to-br from-cyan-500/5 to-teal-500/5 rounded-2xl p-1 border border-cyan-500/20">
-              <NectarBotManager />
-            </div>
-          )}
+          {/* NectarBotManager removed - Nectar Worker service deprecated */}
 
           {activeTab === 'qe-bee' && (
             <div className="bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 rounded-2xl p-1 border border-emerald-500/20">

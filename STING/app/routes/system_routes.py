@@ -1,6 +1,7 @@
 # app/routes/system_routes.py
 from flask import Blueprint, jsonify, g, request
 from app.utils.decorators import require_auth_or_api_key
+from app.utils.safe_errors import safe_error_response
 import psutil
 import time
 from datetime import datetime, timedelta
@@ -9,7 +10,10 @@ from sqlalchemy import text
 import redis
 import requests
 import os
+import logging
 from app.models.user_models import User
+
+logger = logging.getLogger(__name__)
 
 system_bp = Blueprint('system', __name__)
 
@@ -49,10 +53,11 @@ def bee_health():
                 'timestamp': datetime.utcnow().isoformat()
             })
     except Exception as e:
+        logger.error(f"Bee health check failed: {e}")
         return jsonify({
             'status': 'offline',
             'service': 'bee-chatbot',
-            'error': str(e),
+            'error': 'Service unavailable',
             'timestamp': datetime.utcnow().isoformat()
         })
 
@@ -185,10 +190,10 @@ def system_stats():
             'ai_interactions': 456,
             'team_members': 12
         }
-        
+
         return jsonify(stats)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return safe_error_response(e, "Failed to retrieve system statistics", logger)
 
 # Enterprise System Administration APIs
 
@@ -232,9 +237,9 @@ def system_status():
             },
             'services': services_status
         })
-        
+
     except Exception as e:
-        return jsonify({'error': f'Failed to get system status: {str(e)}'}), 500
+        return safe_error_response(e, "Failed to retrieve system status", logger)
 
 @system_bp.route('/system/metrics', methods=['GET'])
 @require_auth_or_api_key(['admin'])
@@ -272,9 +277,9 @@ def system_metrics():
             },
             'timestamp': datetime.utcnow().isoformat()
         })
-        
+
     except Exception as e:
-        return jsonify({'error': f'Failed to get system metrics: {str(e)}'}), 500
+        return safe_error_response(e, "Failed to retrieve system metrics", logger)
 
 @system_bp.route('/admin/users', methods=['GET'])
 @require_auth_or_api_key(['admin'])
@@ -316,6 +321,6 @@ def list_users():
                 'total': users.total
             }
         })
-        
+
     except Exception as e:
-        return jsonify({'error': f'Failed to list users: {str(e)}'}), 500
+        return safe_error_response(e, "Failed to retrieve user list", logger)

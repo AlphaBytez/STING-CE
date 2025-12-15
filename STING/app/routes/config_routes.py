@@ -10,6 +10,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import yaml
 import subprocess
+from app.utils.safe_errors import safe_error_response
 
 logger = logging.getLogger(__name__)
 
@@ -200,10 +201,7 @@ def get_smtp_status():
             })
             
     except Exception as e:
-        logger.error(f"Failed to get SMTP status: {str(e)}")
-        return jsonify({
-            'error': str(e)
-        }), 500
+        return safe_error_response(e, "Failed to retrieve SMTP status", logger)
 
 @config_bp.route('/auth/mode', methods=['GET'])
 def get_auth_mode():
@@ -230,10 +228,7 @@ def get_auth_mode():
         })
         
     except Exception as e:
-        logger.error(f"Failed to get auth mode: {str(e)}")
-        return jsonify({
-            'error': str(e)
-        }), 500
+        return safe_error_response(e, "Failed to retrieve authentication mode", logger)
 
 def get_auth_recommendations(auth_mode, smtp_configured, email_mode):
     """Get recommendations based on current setup."""
@@ -337,11 +332,7 @@ def download_ca_cert():
             }), 404
 
     except Exception as e:
-        logger.error(f"Error downloading CA certificate: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Failed to download certificate: {str(e)}'
-        }), 500
+        return safe_error_response(e, "Failed to download CA certificate", logger)
 
 @config_bp.route('/cert/installer/<platform>', methods=['GET'])
 def download_installer(platform):
@@ -389,11 +380,7 @@ def download_installer(platform):
             }), 404
 
     except Exception as e:
-        logger.error(f"Error downloading installer: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Failed to download installer: {str(e)}'
-        }), 500
+        return safe_error_response(e, "Failed to download installer script", logger)
 
 @config_bp.route('/cert/health', methods=['GET'])
 def cert_health():
@@ -407,12 +394,7 @@ def cert_health():
             'message': 'Certificate is trusted by your browser'
         })
     except Exception as e:
-        logger.error(f"Error checking cert health: {str(e)}")
-        return jsonify({
-            'success': False,
-            'trusted': False,
-            'error': str(e)
-        }), 500
+        return safe_error_response(e, "Failed to check certificate health", logger)
 
 @config_bp.route('/cert/info', methods=['GET'])
 def cert_info():
@@ -480,8 +462,4 @@ def cert_info():
         })
 
     except Exception as e:
-        logger.error(f"Error getting cert info: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return safe_error_response(e, "Failed to retrieve certificate information", logger)

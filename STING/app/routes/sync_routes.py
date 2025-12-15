@@ -8,6 +8,7 @@ from flask import Blueprint, jsonify, request
 from flask_cors import cross_origin
 from app.services.user_sync_service import sync_service
 from app.middleware.auth_middleware import require_admin
+from app.utils.safe_errors import safe_error_response
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +24,7 @@ def get_sync_status():
         status = sync_service.get_sync_status()
         return jsonify(status)
     except Exception as e:
-        logger.error(f"Error getting sync status: {e}")
-        return jsonify({'error': str(e)}), 500
+        return safe_error_response(e, "Failed to retrieve sync status", logger)
 
 
 @sync_bp.route('/api/sync/all', methods=['POST'])
@@ -39,8 +39,7 @@ def sync_all_users():
             'results': results
         })
     except Exception as e:
-        logger.error(f"Error syncing all users: {e}")
-        return jsonify({'error': str(e)}), 500
+        return safe_error_response(e, "Failed to synchronize all users", logger)
 
 
 @sync_bp.route('/api/sync/user', methods=['POST'])
@@ -51,12 +50,12 @@ def sync_single_user():
     try:
         data = request.get_json()
         email = data.get('email')
-        
+
         if not email:
             return jsonify({'error': 'Email required'}), 400
-        
+
         success = sync_service.sync_single_user(email)
-        
+
         if success:
             return jsonify({
                 'success': True,
@@ -67,10 +66,9 @@ def sync_single_user():
                 'success': False,
                 'message': f'Failed to sync user {email}'
             }), 400
-            
+
     except Exception as e:
-        logger.error(f"Error syncing user: {e}")
-        return jsonify({'error': str(e)}), 500
+        return safe_error_response(e, "Failed to synchronize user", logger)
 
 
 @sync_bp.route('/api/sync/webhook', methods=['POST'])
@@ -83,28 +81,27 @@ def kratos_webhook():
     try:
         # Verify webhook signature if configured
         # signature = request.headers.get('X-Webhook-Signature')
-        
+
         data = request.get_json()
         event_type = data.get('type')
-        
+
         logger.info(f"🔄 Received Kratos webhook: {event_type}")
-        
+
         if event_type == 'identity.created':
             # New user registered in Kratos
             identity = data.get('identity', {})
             email = identity.get('traits', {}).get('email')
             if email:
                 sync_service.sync_single_user(email)
-                
+
         elif event_type == 'identity.updated':
             # User updated in Kratos
             identity = data.get('identity', {})
             email = identity.get('traits', {}).get('email')
             if email:
                 sync_service.sync_single_user(email)
-                
+
         return jsonify({'success': True})
-        
+
     except Exception as e:
-        logger.error(f"Error processing webhook: {e}")
-        return jsonify({'error': str(e)}), 500
+        return safe_error_response(e, "Failed to process webhook event", logger)

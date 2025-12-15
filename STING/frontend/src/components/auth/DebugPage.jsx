@@ -7,29 +7,33 @@ import VerificationDebug from './VerificationDebug';
 
 /**
  * DebugPage - A component for testing and debugging authentication flows
+ * SECURITY NOTE: This page should only be accessible in development environments
  */
 const DebugPage = () => {
   const [kratosStatus, setKratosStatus] = useState(null);
   const [sessionStatus, setSessionStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
+  // SECURITY: Check if we're in development mode
+  const isDevelopment = process.env.NODE_ENV === 'development' ||
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1';
+
   // Get Kratos URL
   const kratosUrl = window.env?.REACT_APP_KRATOS_PUBLIC_URL || 'https://localhost:4433';
-  
+
   // Check Kratos status
   useEffect(() => {
+    if (!isDevelopment) return;
+
     const checkKratosStatus = async () => {
       try {
         const response = await axios.get(`${kratosUrl}/health/ready`, {
           withCredentials: true,
-          timeout: 5000,
-          // Skip SSL verification for development
-          httpsAgent: new (require('https').Agent)({
-            rejectUnauthorized: false
-          })
+          timeout: 5000
         });
-        
+
         setKratosStatus({
           status: response.status,
           statusText: response.statusText,
@@ -44,23 +48,24 @@ const DebugPage = () => {
         });
       }
     };
-    
+
     checkKratosStatus();
-  }, [kratosUrl]);
-  
+  }, [kratosUrl, isDevelopment]);
+
   // Check session status
   useEffect(() => {
+    if (!isDevelopment) {
+      setLoading(false);
+      return;
+    }
+
     const checkSessionStatus = async () => {
       try {
         const response = await axios.get(`${kratosUrl}/sessions/whoami`, {
           withCredentials: true,
-          timeout: 5000,
-          // Skip SSL verification for development
-          httpsAgent: new (require('https').Agent)({
-            rejectUnauthorized: false
-          })
+          timeout: 5000
         });
-        
+
         setSessionStatus({
           authenticated: true,
           status: response.status,
@@ -78,24 +83,21 @@ const DebugPage = () => {
         setLoading(false);
       }
     };
-    
+
     checkSessionStatus();
-  }, [kratosUrl]);
-  
+  }, [kratosUrl, isDevelopment]);
+
   // Create a test registration flow
   const createRegistrationFlow = async () => {
+    if (!isDevelopment) return;
     setLoading(true);
     setError('');
-    
+
     try {
       const response = await axios.get(`${kratosUrl}/self-service/registration/api`, {
-        withCredentials: true,
-        // Skip SSL verification for development
-        httpsAgent: new (require('https').Agent)({
-          rejectUnauthorized: false
-        })
+        withCredentials: true
       });
-      
+
       window.open(`/register?flow=${response.data.id}`, '_blank');
     } catch (err) {
       setError(`Failed to create registration flow: ${err.message}`);
@@ -103,21 +105,18 @@ const DebugPage = () => {
       setLoading(false);
     }
   };
-  
+
   // Create a test login flow
   const createLoginFlow = async () => {
+    if (!isDevelopment) return;
     setLoading(true);
     setError('');
-    
+
     try {
       const response = await axios.get(`${kratosUrl}/self-service/login/api`, {
-        withCredentials: true,
-        // Skip SSL verification for development
-        httpsAgent: new (require('https').Agent)({
-          rejectUnauthorized: false
-        })
+        withCredentials: true
       });
-      
+
       window.open(`/login?flow=${response.data.id}`, '_blank');
     } catch (err) {
       setError(`Failed to create login flow: ${err.message}`);

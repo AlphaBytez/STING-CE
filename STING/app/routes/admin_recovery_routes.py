@@ -111,12 +111,14 @@ def reset_password_with_token():
             # Mark token as used
             token_data['used'] = True
             
-            # Save password for admin user
+            # Save password for admin user (restricted permissions)
             if token_data['email'] == 'admin@sting.local':
                 password_file = os.path.expanduser('~/.sting-ce/admin_password.txt')
-                os.makedirs(os.path.dirname(password_file), exist_ok=True)
+                os.makedirs(os.path.dirname(password_file), mode=0o700, exist_ok=True)
+                # Write with restricted permissions (owner read/write only)
                 with open(password_file, 'w') as f:
                     f.write(new_password)
+                os.chmod(password_file, 0o600)
             
             logger.info(f"Password reset successfully for {token_data['email']}")
             
@@ -162,12 +164,14 @@ def reset_password_with_secret():
         success = update_identity_password(identity['id'], new_password)
         
         if success:
-            # Save password for admin user
+            # Save password for admin user (restricted permissions)
             if target_email == 'admin@sting.local':
                 password_file = os.path.expanduser('~/.sting-ce/admin_password.txt')
-                os.makedirs(os.path.dirname(password_file), exist_ok=True)
+                os.makedirs(os.path.dirname(password_file), mode=0o700, exist_ok=True)
+                # Write with restricted permissions (owner read/write only)
                 with open(password_file, 'w') as f:
                     f.write(new_password)
+                os.chmod(password_file, 0o600)
             
             logger.info(f"Password reset via recovery secret for {target_email}")
             

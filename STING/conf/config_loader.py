@@ -503,11 +503,13 @@ class ConfigurationManager:
 
                     with open(token_file, 'w') as f:
                         f.write(self.vault_token)
+                    os.chmod(token_file, 0o600)  # Restrict to owner read/write only
 
                     # Save complete init data
                     init_file = os.path.join(self.config_dir, '.vault_init.json')
                     with open(init_file, 'w') as f:
                         json.dump(vault_data, f)
+                    os.chmod(init_file, 0o600)  # Restrict to owner read/write only
 
                     # Unseal if needed (production mode)
                     if client.sys.is_sealed() and unseal_key:
@@ -534,6 +536,7 @@ class ConfigurationManager:
                     if client.is_authenticated():
                         with open(token_file, 'w') as f:
                             f.write(self.vault_token)
+                        os.chmod(token_file, 0o600)  # Restrict to owner read/write only
                         return client
 
                 time.sleep(retry_delay)
@@ -894,10 +897,8 @@ class ConfigurationManager:
         db_user = self._clean_value('postgres')
         db_pass_raw = self._clean_value(self.db_password)
         db_pass_encoded = url_quote(db_pass_raw, safe='')
-        print(f"DEBUG CONFIG_LOADER: Raw password: {db_pass_raw[:10]}...", file=sys.stderr)
-        print(f"DEBUG CONFIG_LOADER: Encoded password: {db_pass_encoded[:20]}...", file=sys.stderr)
+        # SECURITY: Never log passwords or database URLs with credentials
         database_url = f"postgresql://{db_user}:{db_pass_encoded}@db:5432/sting_app?sslmode=disable"
-        print(f"DEBUG CONFIG_LOADER: DATABASE_URL: {database_url[:60]}...", file=sys.stderr)
 
         # Set all database-related variables
         db_vars = {
@@ -1951,7 +1952,9 @@ class ConfigurationManager:
         self.process_config()  # Generate fresh configuration
         
         # Ensure HF_TOKEN is in processed_config (add this check)
-        logger.info(f"HF_TOKEN in processed_config: {self.processed_config.get('HF_TOKEN', 'NOT_FOUND')}")
+        # SECURITY: Don't log token values, only whether they're set
+        hf_token = self.processed_config.get('HF_TOKEN')
+        logger.info(f"HF_TOKEN in processed_config: {'[SET]' if hf_token else '[NOT_SET]'}")
         
         sensitive_keys = {
             'API_KEY', 'ST_API_KEY', 'ST_DASHBOARD_API_KEY',

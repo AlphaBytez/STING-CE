@@ -1,18 +1,19 @@
-fastapi==0.104.1
-uvicorn==0.24.0
-python-multipart==0.0.6
-pydantic==2.5.0
+# Knowledge Service Requirements - Security Patched
+fastapi>=0.115.0  # Upgraded from 0.104.1
+uvicorn>=0.32.0  # Upgraded from 0.24.0
+python-multipart>=0.0.18  # Upgraded from 0.0.6 - fixes CVE-2024-24762, CVE-2024-47874 (ReDoS/DoS)
+pydantic>=2.5.0
 chromadb==0.5.20
-httpx==0.27.0
+httpx>=0.27.0
 
 # Database dependencies
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
 
 # Document processing dependencies
-PyPDF2==3.0.1
+pypdf>=5.0.0  # Upgraded from PyPDF2 3.0.1 - PyPDF2 is deprecated, pypdf fixes CVE-2023-46250
 python-docx==0.8.11
 beautifulsoup4==4.12.2
 markdown==3.5.1
-nltk==3.8.1
+nltk>=3.9.1  # Upgraded from 3.8.1 - fixes CVE-2024-39705 (unsafe deserialization)
 python-magic==0.4.27

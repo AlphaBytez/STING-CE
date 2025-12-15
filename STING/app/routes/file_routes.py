@@ -14,6 +14,7 @@ from typing import Optional
 from app.services.file_service import FileService, ProfileFileService, FileServiceError
 from app.utils.kratos_client import whoami
 from app.utils.decorators import require_auth, require_auth_method, require_dual_factor
+from app.utils.safe_errors import safe_error_response
 from app.utils.audit_logger import AuditLogger
 from app.models.audit_log_models import AuditSeverity
 
@@ -149,13 +150,9 @@ def upload_file():
             return jsonify(result), 201
         else:
             return jsonify(result), 400
-            
+
     except Exception as e:
-        logger.error(f"Error in file upload: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'Internal server error'
-        }), 500
+        return safe_error_response(e, 'Failed to upload file', logger)
 
 @file_bp.route('/<file_id>', methods=['GET'])
 @require_auth
@@ -182,8 +179,7 @@ def download_file(file_id: str):
         )
         
     except Exception as e:
-        logger.error(f"Error downloading file {file_id}: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to download file', logger)
 
 @file_bp.route('/<file_id>/metadata', methods=['GET'])
 @require_auth
@@ -201,8 +197,7 @@ def get_file_metadata(file_id: str):
         return jsonify({'success': True, 'data': metadata})
         
     except Exception as e:
-        logger.error(f"Error getting metadata for file {file_id}: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to get file metadata', logger)
 
 @file_bp.route('/<file_id>', methods=['DELETE'])
 @require_auth_method(['webauthn', 'totp'])  # Tier 3: Sensitive file deletion
@@ -233,8 +228,7 @@ def delete_file(file_id: str):
             return jsonify({'success': False, 'error': 'File not found or access denied'}), 404
             
     except Exception as e:
-        logger.error(f"Error deleting file {file_id}: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to delete file', logger)
 
 @file_bp.route('/', methods=['GET'])
 @require_auth
@@ -270,8 +264,7 @@ def list_files():
         })
         
     except Exception as e:
-        logger.error(f"Error listing files: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to list files', logger)
 
 @file_bp.route('/<file_id>/share', methods=['POST'])
 @require_auth
@@ -317,8 +310,7 @@ def share_file(file_id: str):
             return jsonify({'success': False, 'error': 'Failed to share file'}), 400
             
     except Exception as e:
-        logger.error(f"Error sharing file {file_id}: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to share file', logger)
 
 @file_bp.route('/<file_id>/revoke', methods=['POST'])
 @require_auth
@@ -350,8 +342,7 @@ def revoke_file_access(file_id: str):
             return jsonify({'success': False, 'error': 'Failed to revoke access'}), 400
             
     except Exception as e:
-        logger.error(f"Error revoking access to file {file_id}: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to revoke file access', logger)
 
 # Profile-specific routes
 @file_bp.route('/profile/picture', methods=['POST'])
@@ -383,8 +374,7 @@ def upload_profile_picture():
             return jsonify(result), 400
             
     except Exception as e:
-        logger.error(f"Error uploading profile picture: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to upload profile picture', logger)
 
 @file_bp.route('/profile/picture', methods=['GET'])
 @require_auth
@@ -409,8 +399,7 @@ def get_profile_picture():
         )
         
     except Exception as e:
-        logger.error(f"Error getting profile picture: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to get profile picture', logger)
 
 @file_bp.route('/bee/upload-temp', methods=['POST'])
 @require_auth
@@ -480,13 +469,9 @@ def bee_upload_temp():
             return jsonify(result), 201
         else:
             return jsonify(result), 400
-            
+
     except Exception as e:
-        logger.error(f"Error in Bee Chat temp upload: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'Failed to process file upload'
-        }), 500
+        return safe_error_response(e, 'Failed to process file upload', logger)
 
 @file_bp.route('/bee/sessions/<session_id>/files', methods=['GET'])
 @require_auth
@@ -512,8 +497,7 @@ def list_bee_session_files(session_id: str):
         })
         
     except Exception as e:
-        logger.error(f"Error listing Bee session files: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to list session files', logger)
 
 @file_bp.route('/profile/picture', methods=['PUT'])
 @require_auth
@@ -544,8 +528,7 @@ def update_profile_picture():
             return jsonify(result), 400
             
     except Exception as e:
-        logger.error(f"Error updating profile picture: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to update profile picture', logger)
 
 # Honey Reserve Management Endpoints
 @file_bp.route('/honey-reserve/usage', methods=['GET'])
@@ -565,8 +548,7 @@ def get_honey_reserve_usage():
         })
         
     except Exception as e:
-        logger.error(f"Error getting Honey Reserve usage: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to get Honey Reserve usage', logger)
 
 @file_bp.route('/honey-reserve/quota', methods=['GET'])
 @require_auth
@@ -585,8 +567,7 @@ def get_honey_reserve_quota():
         })
         
     except Exception as e:
-        logger.error(f"Error getting Honey Reserve quota: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to get Honey Reserve quota', logger)
 
 @file_bp.route('/honey-reserve/cleanup', methods=['POST'])
 @require_auth
@@ -605,8 +586,7 @@ def cleanup_honey_reserve():
         })
         
     except Exception as e:
-        logger.error(f"Error cleaning up Honey Reserve: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to cleanup Honey Reserve', logger)
 
 @file_bp.route('/honey-reserve/files', methods=['DELETE'])
 @require_dual_factor(['webauthn', 'totp'], ['email'])  # Tier 4: Critical bulk deletion
@@ -638,8 +618,7 @@ def bulk_delete_files():
         })
         
     except Exception as e:
-        logger.error(f"Error bulk deleting files: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to bulk delete files', logger)
 
 @file_bp.route('/honey-reserve/storage-breakdown', methods=['GET'])
 @require_auth
@@ -658,8 +637,7 @@ def get_storage_breakdown():
         })
         
     except Exception as e:
-        logger.error(f"Error getting storage breakdown: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to get storage breakdown', logger)
 
 # Encryption Management Endpoints
 @file_bp.route('/encryption/status', methods=['GET'])
@@ -695,8 +673,7 @@ def get_encryption_status():
         })
         
     except Exception as e:
-        logger.error(f"Error getting encryption status: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to get encryption status', logger)
 
 @file_bp.route('/encryption/rotate-key', methods=['POST'])
 @require_auth
@@ -725,8 +702,7 @@ def rotate_encryption_key():
             }), 500
         
     except Exception as e:
-        logger.error(f"Error rotating encryption key: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, 'Failed to rotate encryption key', logger)
 
 # Health check endpoint
 @file_bp.route('/health', methods=['GET'])
@@ -762,8 +738,4 @@ def health_check():
         return jsonify(response_data)
         
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        return jsonify({
-            'status': 'unhealthy',
-            'error': str(e)
-        }), 500
+        return safe_error_response(e, 'Health check failed', logger)

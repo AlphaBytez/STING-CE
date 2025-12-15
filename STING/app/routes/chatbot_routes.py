@@ -5,6 +5,7 @@ Proxy requests to the chatbot service
 
 from flask import Blueprint, request, jsonify, g
 from app.utils.decorators import require_auth_or_api_key
+from app.utils.safe_errors import safe_error_response
 from app.utils.complexity_detector import get_complexity_detector, QueryComplexity
 from app.services.report_service import get_report_service
 from app.services.request_classifier import classify_request, format_classification_message
@@ -136,10 +137,10 @@ def chat_with_bee():
                 )
 
                 if not report_result['success']:
+                    logger.error(f"Report creation failed: {report_result.get('error')}")
                     return jsonify({
                         'error': 'REPORT_CREATION_FAILED',
-                        'message': 'Failed to create report for complex query',
-                        'details': report_result.get('error')
+                        'message': 'Failed to create report for complex query'
                     }), 500
 
                 # Generate user-friendly response
@@ -246,8 +247,6 @@ def chat_with_bee():
             }), 503
 
     except Exception as e:
-        logger.error(f"Chat endpoint error: {e}", exc_info=True)
-
         # Provide more helpful error messages based on error type
         error_message = 'An unexpected error occurred while processing your message'
         help_text = None
@@ -262,12 +261,15 @@ def chat_with_bee():
             error_message = '🔐 Authentication error'
             help_text = 'Please ensure you have completed your security setup (TOTP or passkey).'
 
+        # Use safe_error_response but return custom structure for Bee chat
+        from app.utils.safe_errors import log_and_sanitize_error
+        safe_message = log_and_sanitize_error(e, error_message, logger)
+
         return jsonify({
             'error': 'CHAT_ERROR',
-            'message': error_message,
+            'message': safe_message,
             'code': 'INTERNAL_ERROR',
-            'help_text': help_text,
-            'details': str(e) if os.getenv('DEBUG') else None
+            'help_text': help_text
         }), 500
 
 
@@ -327,8 +329,7 @@ def chatbot_health():
         })
 
     except Exception as e:
-        logger.error(f"Health check error: {e}")
-        return jsonify({'status': 'error', 'error': str(e)}), 500
+        return safe_error_response(e, 'Health check failed', logger)
 
 
 @chatbot_bp.route('/api/bee/check-auth', methods=['POST'])
@@ -435,9 +436,4 @@ def check_auth_requirement():
         return jsonify(response_data)
 
     except Exception as e:
-        logger.error(f"Auth check error: {e}", exc_info=True)
-        return jsonify({
-            'error': 'AUTH_CHECK_FAILED',
-            'message': 'Failed to check authentication requirements',
-            'details': str(e)
-        }), 500
+        return safe_error_response(e, 'Failed to check authentication requirements', logger)

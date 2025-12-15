@@ -37,10 +37,11 @@ def string_to_uuid(s: str) -> UUID:
     try:
         return UUID(s)
     except (ValueError, AttributeError):
-        # Generate deterministic UUID from string using namespace
+        # Generate deterministic UUID from string using UUID5 (SHA-1 based, standard approach)
+        # Using the URL namespace as defined in RFC 4122
         namespace = UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8')  # URL namespace
-        hash_bytes = hashlib.md5(f"sting:{s}".encode()).digest()
-        return UUID(bytes=hash_bytes)
+        import uuid as uuid_module
+        return uuid_module.uuid5(namespace, f"sting:{s}")
 
 
 class ConversationStore(ABC):

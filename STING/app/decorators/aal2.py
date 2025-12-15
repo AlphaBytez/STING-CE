@@ -103,39 +103,38 @@ class CustomAAL2Manager:
                         identity_data = response.json()
                         credentials = identity_data.get('credentials', {})
                         
-                        # DEBUG: Log the actual credential structure
-                        logger.info(f"🔍 DEBUG - Full Kratos credentials structure for {user.email}: {credentials}")
+                        # Only log that credentials were retrieved, not the actual structure
+                        logger.debug(f"Retrieved Kratos credentials for {user.email}")
                         
                         # Check for WebAuthn credentials in Kratos - try multiple possible paths
                         kratos_has_passkey = False
                         if 'webauthn' in credentials:
                             webauthn_data = credentials.get('webauthn', {})
-                            logger.info(f"🔍 DEBUG - WebAuthn data structure: {webauthn_data}")
-                            
+
                             # Try different possible paths for credentials
                             webauthn_creds = []
-                            
+
                             # Path 1: credentials.webauthn.config.credentials[] (current attempt)
                             if 'config' in webauthn_data and 'credentials' in webauthn_data['config']:
                                 webauthn_creds = webauthn_data['config']['credentials']
-                                logger.info(f"🔍 DEBUG - Found credentials via config.credentials: {len(webauthn_creds)} items")
-                            
+                                logger.debug(f"Found {len(webauthn_creds)} credentials via config.credentials")
+
                             # Path 2: credentials.webauthn.identifiers[] (common Kratos pattern)
                             elif 'identifiers' in webauthn_data:
                                 webauthn_creds = webauthn_data['identifiers']
-                                logger.info(f"🔍 DEBUG - Found credentials via identifiers: {len(webauthn_creds)} items")
-                            
+                                logger.debug(f"Found {len(webauthn_creds)} credentials via identifiers")
+
                             # Path 3: credentials.webauthn directly has credential data
                             elif 'credential_id' in webauthn_data or 'public_key' in webauthn_data:
                                 webauthn_creds = [webauthn_data]  # Single credential object
-                                logger.info(f"🔍 DEBUG - Found single credential object directly")
-                            
+                                logger.debug("Found single credential object directly")
+
                             # Path 4: Check if webauthn_data itself is non-empty (any valid config)
                             elif webauthn_data:
                                 # If webauthn section exists and has any data, assume credential exists
                                 webauthn_creds = [True]  # Placeholder to indicate presence
-                                logger.info(f"🔍 DEBUG - WebAuthn section exists with data, assuming credential present")
-                            
+                                logger.debug("WebAuthn section exists with data, assuming credential present")
+
                             kratos_has_passkey = len(webauthn_creds) > 0
                         
                         # Also check for TOTP (valid for AAL2)

@@ -1,4 +1,5 @@
-Flask==3.0.0
-PyYAML==6.0.1
-requests==2.31.0
-Werkzeug==3.0.1
+# Web Setup Wizard Requirements - Security Patched
+Flask>=3.0.0
+PyYAML>=6.0.1
+requests>=2.32.0  # Upgraded from 2.31.0 - fixes CVE-2024-35195, CVE-2023-32681
+Werkzeug>=3.0.6  # Upgraded from 3.0.1 - fixes CVE-2024-34069, CVE-2024-49766, CVE-2024-49767

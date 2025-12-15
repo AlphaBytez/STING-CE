@@ -69,7 +69,7 @@ def create_service_api_key():
             key_hash = hashlib.sha256(vault_key.encode()).hexdigest()
 
             print(f"🎲 Generated key ID: {key_id}")
-            print(f"🔒 Using Vault key as secret: {vault_key[:10]}...")
+            # SECURITY: Don't log the vault key value, even partially
 
             # Set expiration to 1 year
             expires_at = datetime.utcnow() + timedelta(days=365)
@@ -106,7 +106,8 @@ def create_service_api_key():
             print(f"   Expires: {expires_at.strftime('%Y-%m-%d')}")
             print("")
             print("🧪 Test with:")
-            print(f"   curl -sk -H 'X-API-Key: {vault_key}' https://localhost:5050/api/keys/verify")
+            print("   curl -sk -H 'X-API-Key: <SERVICE_API_KEY>' https://localhost:5050/api/keys/verify")
+            print("   (Use the STING_SERVICE_API_KEY from your environment)")
 
             return key_id
 

@@ -11,44 +11,33 @@ logger = logging.getLogger(__name__)
 def check_api_key_auth():
     """Check for valid API key authentication"""
     api_key = request.headers.get('X-API-Key') or request.headers.get('Authorization', '').replace('Bearer ', '')
-    
-    logger.info(f"🔑 API Key Debug: Received key: {api_key[:10] if api_key else 'None'}...")
-    
+
+    # SECURITY: Only log debug info in development mode, never log actual key values
+    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+
+    if debug_mode:
+        logger.debug(f"🔑 API Key Debug: Key present: {bool(api_key)}, prefix: {api_key[:4] + '...' if api_key and len(api_key) > 4 else 'N/A'}")
+
     if not api_key or not api_key.startswith('sk_'):
-        logger.info(f"🔑 API Key Debug: Invalid key format or missing")
+        if debug_mode:
+            logger.debug("🔑 API Key Debug: Invalid key format or missing")
         return None
-    
+
     try:
         from app.models.api_key_models import ApiKey
-        
-        # Debug: Check how many API keys exist in database
-        total_keys = ApiKey.query.count()
-        active_keys = ApiKey.query.filter_by(is_active=True).count()
-        logger.info(f"🔑 API Key Debug: Database has {total_keys} total keys, {active_keys} active")
-        
-        # Debug: Show the hash we're looking for
-        key_hash = hashlib.sha256(api_key.encode()).hexdigest()
-        logger.info(f"🔑 API Key Debug: Looking for hash: {key_hash[:16]}...")
-        
+
         # Use the model's verify_key method which handles hashing and expiration
         api_key_obj = ApiKey.verify_key(api_key)
-        
+
         if api_key_obj:
-            logger.info(f"🔑 API Key Debug: ✅ Found valid key: {api_key_obj.name} (scopes: {api_key_obj.scopes})")
+            if debug_mode:
+                logger.debug(f"🔑 API Key Debug: ✅ Found valid key: {api_key_obj.name}")
             return api_key_obj
         else:
-            logger.info(f"🔑 API Key Debug: ❌ Key not found or expired")
-            
-            # Additional debug: Check if any key has matching hash
-            matching_hash_key = ApiKey.query.filter_by(key_hash=key_hash).first()
-            if matching_hash_key:
-                logger.info(f"🔑 API Key Debug: Found matching hash but key is {'inactive' if not matching_hash_key.is_active else 'expired'}")
-            else:
-                logger.info(f"🔑 API Key Debug: No matching hash found in database")
+            if debug_mode:
+                logger.debug("🔑 API Key Debug: ❌ Key not found or expired")
     except Exception as e:
-        logger.error(f"🔑 API Key Debug: Exception during verification: {e}")
-        import traceback
-        logger.error(f"🔑 API Key Debug: Traceback: {traceback.format_exc()}")
+        logger.error(f"API key verification error: {type(e).__name__}")
     
     return None
 

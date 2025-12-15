@@ -10,7 +10,7 @@ import io
 import tempfile
 import os
 from fastapi import UploadFile
-import PyPDF2
+import pypdf  # Upgraded from PyPDF2 (deprecated) - pypdf is the maintained fork
 import docx
 import magic
 from bs4 import BeautifulSoup
@@ -120,7 +120,7 @@ class NectarProcessor:
         """Extract text from PDF files"""
         try:
             pdf_file = io.BytesIO(content)
-            reader = PyPDF2.PdfReader(pdf_file)
+            reader = pypdf.PdfReader(pdf_file)
             
             text_parts = []
             for page_num, page in enumerate(reader.pages):

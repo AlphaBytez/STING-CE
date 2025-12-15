@@ -617,7 +617,13 @@ const BeeChat = () => {
   const getUserId = () => {
     let userId = sessionStorage.getItem('bee_user_id');
     if (!userId) {
-      userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // SECURITY: Use crypto.randomUUID() for secure random ID generation
+      const randomPart = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : Array.from(crypto.getRandomValues(new Uint8Array(16)))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+      userId = `user_${Date.now()}_${randomPart}`;
       sessionStorage.setItem('bee_user_id', userId);
     }
     return userId;

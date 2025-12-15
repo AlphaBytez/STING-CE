@@ -196,8 +196,12 @@ def is_safe_to_format(device):
     """
     import re
 
-    # Validate device path format
-    if not re.match(r'^/dev/[a-z]+[0-9]+$', device):
+    # SECURITY: Limit input length to prevent ReDoS attacks
+    if not device or len(device) > 50:
+        return False, "Invalid device path"
+
+    # Validate device path format (atomic regex to prevent backtracking)
+    if not re.match(r'^/dev/[a-z]{1,10}[0-9]{1,5}$', device):
         return False, "Invalid device path format"
 
     # Check if device exists
@@ -1555,4 +1559,6 @@ if __name__ == '__main__':
     ensure_setup_dir()
     # Get port from environment or default to 8335 (BEES!)
     wizard_port = int(os.environ.get('WIZARD_PORT', 8335))
-    app.run(host='0.0.0.0', port=wizard_port, debug=True)
+    # SECURITY: Disable debug mode in production (use FLASK_DEBUG env var for dev)
+    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(host='0.0.0.0', port=wizard_port, debug=debug_mode)

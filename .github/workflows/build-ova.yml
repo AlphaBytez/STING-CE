@@ -24,10 +24,19 @@ on:
     paths:
       - 'packer/**'
 
+# SECURITY: Explicit permissions following principle of least privilege
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   build-ova:
     name: Build Quick Start OVA
     runs-on: ubuntu-latest
+    # SECURITY: Job-level permissions - needs write for release uploads
+    permissions:
+      contents: write
+      packages: read
 
     outputs:
       version: ${{ steps.version.outputs.version }}

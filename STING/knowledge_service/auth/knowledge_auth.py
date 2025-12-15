@@ -463,8 +463,8 @@ class KnowledgeAuth:
             except Exception as db_error:
                 logger.warning(f"Failed to verify API key with STING database: {db_error}")
             
-            # Invalid API key
-            logger.warning(f"Invalid API key attempted: {api_key[:10]}...")
+            # Invalid API key - don't log any part of the key
+            logger.warning("Invalid API key attempted")
             return None
             
         except Exception as e:

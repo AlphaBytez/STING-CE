@@ -14,6 +14,7 @@ from typing import Dict, Any
 
 from app.utils.decorators import require_auth, require_auth_or_api_key
 from app.utils.flexible_auth import require_auth_flexible, get_current_auth_user
+from app.utils.safe_errors import safe_error_response
 from app.database import get_db_session
 from app.models.user_models import User
 from app.models.report_models import Report, ReportTemplate, ReportStatus
@@ -830,12 +831,7 @@ def generate_demo_data_legacy():
         return jsonify(response_data)
         
     except Exception as e:
-        logger.error(f"Error generating demo data: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'message': f'Failed to generate demo data at step {step}'
-        }), 500
+        return safe_error_response(e, f'Failed to generate demo data at step {step}', logger)
 
 @admin_bp.route('/clear-demo-data', methods=['DELETE'])
 @require_auth_or_api_key(['admin'])
@@ -874,12 +870,7 @@ def clear_demo_data():
             })
             
     except Exception as e:
-        logger.error(f"Error clearing demo data: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'message': 'Failed to clear demo data'
-        }), 500
+        return safe_error_response(e, 'Failed to clear demo data', logger)
 
 @admin_bp.route('/system-status', methods=['GET'])
 @require_auth_or_api_key(['admin'])
@@ -931,12 +922,7 @@ def get_system_status():
             })
             
     except Exception as e:
-        logger.error(f"Error getting system status: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'message': 'Failed to get system status'
-        }), 500
+        return safe_error_response(e, 'Failed to get system status', logger)
 
 @admin_bp.route('/pii-demo', methods=['GET'])
 @require_auth_or_api_key(['admin'])
@@ -1080,9 +1066,4 @@ def get_pii_demo():
         })
 
     except Exception as e:
-        logger.error(f"Error generating PII demo: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'message': 'Failed to generate PII demonstration'
-        }), 500
+        return safe_error_response(e, 'Failed to generate PII demonstration', logger)

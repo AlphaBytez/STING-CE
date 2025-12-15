@@ -242,15 +242,21 @@ class AuthorizationService:
         """Clean up old biometric authentication records"""
         if not self.engine:
             return 0
-        
+
+        # SECURITY: Validate days parameter to prevent SQL injection
+        if not isinstance(days, int) or days < 1 or days > 3650:
+            logger.warning(f"Invalid days parameter for cleanup: {days}")
+            return 0
+
         try:
             with self.engine.connect() as conn:
+                # Use parameterized query to prevent SQL injection
                 query = text("""
-                    DELETE FROM biometric_authentications 
-                    WHERE auth_time < NOW() - INTERVAL '%s days'
-                """ % days)
-                
-                result = conn.execute(query)
+                    DELETE FROM biometric_authentications
+                    WHERE auth_time < NOW() - INTERVAL :days_interval
+                """)
+
+                result = conn.execute(query, {"days_interval": f"{days} days"})
                 conn.commit()
                 
                 deleted_count = result.rowcount

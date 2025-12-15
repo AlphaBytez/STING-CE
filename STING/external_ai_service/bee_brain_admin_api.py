@@ -274,13 +274,23 @@ def github_webhook():
                 release = payload.get('release', {})
                 tag_name = release.get('tag_name', '').lstrip('v')
 
+                # SECURITY: Validate tag_name to prevent command injection
+                # Only allow alphanumeric characters, dots, hyphens, and underscores
+                import re
+                if not tag_name or not re.match(r'^[a-zA-Z0-9._-]+$', tag_name):
+                    logger.warning(f"Invalid tag_name rejected: {tag_name!r}")
+                    return jsonify({
+                        "success": False,
+                        "error": "Invalid version tag format"
+                    }), 400
+
                 logger.info(f"New release detected: {tag_name}")
 
                 # Generate bee_brain for new version
                 generator_script = Path(__file__).parent / "bee_brain_generator.py"
                 cmd = ["python3", str(generator_script), "--version", tag_name]
 
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60, shell=False)
 
                 if result.returncode == 0:
                     # Reload

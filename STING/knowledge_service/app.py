@@ -720,17 +720,22 @@ async def upload_document(
     
     # Determine if approval is needed
     needs_approval = (
-        honey_jar.type == "public" and 
-        honey_jar.owner != user_email and 
+        honey_jar.type == "public" and
+        honey_jar.owner != user_email and
         user_role != "admin"
     )
-    
+
     # Save file
     honey_jar_dir = UPLOAD_DIR / str(honey_jar.id)
     honey_jar_dir.mkdir(exist_ok=True)
-    
+
     file_id = str(uuid.uuid4())
-    file_path = honey_jar_dir / f"{file_id}_{file.filename}"
+    # SECURITY: Sanitize filename to prevent path traversal attacks
+    safe_filename = Path(file.filename).name  # Strip any directory components
+    safe_filename = "".join(c for c in safe_filename if c.isalnum() or c in '._-')  # Allow only safe chars
+    if not safe_filename:
+        safe_filename = "unnamed_file"
+    file_path = honey_jar_dir / f"{file_id}_{safe_filename}"
     
     content = await file.read()
     with open(file_path, "wb") as f:

@@ -142,16 +142,30 @@ export const handleReturnFromAuth = (operation, tier = null) => {
 
 /**
  * Enhanced operation context storage and retrieval
+ * SECURITY NOTE: Do not store sensitive data (passwords, tokens, PII) in context.
+ * This uses sessionStorage which is cleared when the browser tab is closed.
  */
 export const storeOperationContext = (operation, context = {}) => {
+  // SECURITY: Filter out any potentially sensitive fields before storage
+  const safeContext = { ...context };
+  const sensitiveFields = ['password', 'token', 'secret', 'key', 'credential', 'ssn', 'credit'];
+  Object.keys(safeContext).forEach(key => {
+    if (sensitiveFields.some(field => key.toLowerCase().includes(field))) {
+      delete safeContext[key];
+    }
+  });
+
   const operationData = {
     operation,
-    context,
+    context: safeContext,
     timestamp: Date.now(),
     url: window.location.pathname + window.location.search  // Include query params
   };
   sessionStorage.setItem(`${operation}_context`, JSON.stringify(operationData));
-  console.log(`💾 Stored context for ${operation}:`, context);
+  // SECURITY: Don't log context in production
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`💾 Stored context for ${operation}:`, safeContext);
+  }
 };
 
 export const getStoredOperationContext = (operation) => {
@@ -162,7 +176,10 @@ export const getStoredOperationContext = (operation) => {
     const data = JSON.parse(stored);
     // Clear the stored context after retrieval
     sessionStorage.removeItem(`${operation}_context`);
-    console.log(`📤 Retrieved context for ${operation}:`, data.context);
+    // SECURITY: Don't log context in production
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📤 Retrieved context for ${operation}:`, data.context);
+    }
     return data.context;
   } catch (e) {
     console.error('Failed to parse stored operation context:', e);

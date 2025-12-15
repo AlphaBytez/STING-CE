@@ -22,6 +22,7 @@ from app.services.report_service import get_report_service
 from app.services.file_service import get_file_service
 from app.middleware.auth_middleware import enforce_passkey_only
 from app.utils.decorators import require_auth_method
+from app.utils.safe_errors import safe_error_response
 
 logger = logging.getLogger(__name__)
 
@@ -375,10 +376,9 @@ def create_report():
             }), 201
             
     except ValueError as e:
-        return jsonify({'error': f'Invalid parameter: {str(e)}'}), 400
+        return safe_error_response(e, "Invalid report parameters provided", logger, status_code=400)
     except Exception as e:
-        logger.error(f"Error creating report: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, "Failed to create report", logger)
 
 @report_bp.route('/', methods=['GET'])
 @require_auth_or_api_key(['admin', 'read'])
@@ -755,8 +755,7 @@ def retry_report(report_id: str):
             })
             
     except Exception as e:
-        logger.error(f"Error retrying report {report_id}: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return safe_error_response(e, "Failed to retry report", logger)
 
 @report_bp.route('/queue/status', methods=['GET'])
 @require_auth_or_api_key(['admin', 'read'])
@@ -1140,7 +1139,7 @@ def health_check():
         logger.error(f"Report service health check failed: {e}")
         return jsonify({
             'status': 'unhealthy',
-            'error': str(e),
+            'error': 'Service health check failed',
             'timestamp': datetime.utcnow().isoformat()
         }), 500
 
@@ -1217,12 +1216,7 @@ def debug_file_download(file_id: str):
         })
 
     except Exception as e:
-        logger.error(f"[FILE_DEBUG] Debug endpoint failed: {e}", exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'error_type': type(e).__name__
-        }), 500
+        return safe_error_response(e, "File debug operation failed", logger)
 
 # Internal worker endpoints (no external auth required - internal service calls)
 @report_bp.route('/internal/next-job', methods=['GET'])

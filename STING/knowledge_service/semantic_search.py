@@ -74,9 +74,9 @@ class SemanticSearchEngine:
             chunk_metadatas = []
             
             for i, chunk in enumerate(chunks):
-                # Create deterministic chunk ID
+                # Create deterministic chunk ID using SHA256 (truncated for reasonable ID length)
                 chunk_content = f"{document_id}_{i}_{chunk}"
-                chunk_id = hashlib.md5(chunk_content.encode()).hexdigest()
+                chunk_id = hashlib.sha256(chunk_content.encode()).hexdigest()[:32]
                 chunk_ids.append(chunk_id)
                 
                 # Add chunk-specific metadata

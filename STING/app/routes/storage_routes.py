@@ -12,11 +12,15 @@ from sqlalchemy import func, desc, and_, or_
 from app.utils.decorators import require_auth, require_auth_or_api_key
 from app.database import db
 from app.models.user_models import User
+from app.utils.safe_errors import safe_error_response
 # Note: HoneyJar, Document, File models may need to be imported from their specific model files
 # from app.services.honey_reserve import HoneyReserve  # Service not available
 # from app.utils.file_utils import get_file_size, format_bytes  # Utils not available
 import psutil
 import shutil
+import logging
+
+logger = logging.getLogger(__name__)
 
 storage_bp = Blueprint('storage', __name__, url_prefix='/api/storage')
 
@@ -227,13 +231,9 @@ def get_storage_usage():
         }
 
         return jsonify(response_data)
-        
+
     except Exception as e:
-        current_app.logger.error(f"Storage usage endpoint error: {str(e)}")
-        return jsonify({
-            'error': 'Failed to retrieve storage usage',
-            'details': str(e) if current_app.debug else 'Internal server error'
-        }), 500
+        return safe_error_response(e, "Failed to retrieve storage usage statistics", logger)
 
 def _calculate_months_to_full(current_usage, total_quota, monthly_growth_rate):
     """Calculate how many months until storage is full at current growth rate"""
@@ -325,7 +325,7 @@ def cleanup_storage():
                 db.session.commit()
 
         current_app.logger.info(f"Storage cleanup ({'DRY RUN' if dry_run else 'EXECUTED'}): {cleaned_files} files, {freed_space} bytes freed")
-        
+
         return jsonify({
             'success': True,
             'type': cleanup_type,
@@ -335,13 +335,9 @@ def cleanup_storage():
             'freed_space_formatted': format_bytes(freed_space),
             'message': f'{"Would clean" if dry_run else "Cleaned"} {cleaned_files} files, freeing {format_bytes(freed_space)}'
         })
-        
+
     except Exception as e:
-        current_app.logger.error(f"Storage cleanup error: {str(e)}")
-        return jsonify({
-            'error': 'Storage cleanup failed',
-            'details': str(e) if current_app.debug else 'Internal server error'
-        }), 500
+        return safe_error_response(e, "Storage cleanup operation failed", logger)
 
 @storage_bp.route('/quota/<int:user_id>', methods=['PUT'])
 @require_auth
@@ -371,17 +367,13 @@ def update_user_quota(user_id):
         db.session.commit()
         
         current_app.logger.info(f"Updated storage quota for user {user_id} to {new_quota} bytes")
-        
+
         return jsonify({
             'success': True,
             'user_id': user_id,
             'new_quota': new_quota,
             'new_quota_formatted': format_bytes(new_quota)
         })
-        
+
     except Exception as e:
-        current_app.logger.error(f"Quota update error: {str(e)}")
-        return jsonify({
-            'error': 'Failed to update quota',
-            'details': str(e) if current_app.debug else 'Internal server error'
-        }), 500
+        return safe_error_response(e, "Failed to update storage quota", logger)
