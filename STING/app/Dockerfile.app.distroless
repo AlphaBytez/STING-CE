@@ -1,0 +1,77 @@
+# STING Distroless App Service - Zero External Registry Dependencies
+# Production-ready containerization with minimal attack surface
+
+# ==============================================
+# STAGE 1: Builder (builds all dependencies)
+# ==============================================
+FROM python:3.12-slim as builder
+
+# Install build dependencies only in builder stage
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    build-essential \
+    python3-dev \
+    gcc \
+    g++ \
+    libpq-dev \
+    curl \
+    openssl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copy requirements and build dependencies
+COPY conf/requirements.in /build/conf/
+COPY app/requirements.txt /build/app/
+
+# Install all Python dependencies to user directory (portable)
+RUN pip install --upgrade pip && \
+    pip install --user -r /build/conf/requirements.in && \
+    pip install --user -r /build/app/requirements.txt
+
+# Copy configuration and test
+COPY conf/ /build/conf/
+
+# Copy app directory for verification
+COPY app/ /build/app/
+
+# Verify models directory exists in build context
+RUN if [ ! -d "/build/app/models" ]; then \
+        echo "ERROR: models directory not found in build context!"; \
+        echo "Contents of /build/app:"; \
+        ls -la /build/app/; \
+        exit 1; \
+    fi && \
+    if [ ! -f "/build/app/models/__init__.py" ]; then \
+        echo "ERROR: models/__init__.py not found!"; \
+        exit 1; \
+    fi && \
+    echo "✓ Verified models directory exists in build context" && \
+    ls -1 /build/app/models/*.py | wc -l
+
+# ==============================================
+# STAGE 2: Distroless Runtime (minimal production image)
+# ==============================================
+FROM gcr.io/distroless/python3-debian12
+
+# Copy Python packages from builder
+COPY --from=builder /root/.local /root/.local
+
+# Copy STING application code (including verified models)
+COPY conf/ /opt/sting-ce/conf/
+COPY app/ /opt/sting-ce/app/
+
+# Set runtime environment
+ENV PATH=/root/.local/bin:$PATH \
+    PYTHONPATH=/opt/sting-ce \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /opt/sting-ce/app
+
+# Expose application port
+EXPOSE 5050
+
+# Distroless containers use array format for CMD
+CMD ["python", "run.py"]

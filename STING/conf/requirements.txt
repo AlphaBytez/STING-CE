@@ -1,0 +1,3 @@
+#dev use only
+PyYAML==6.0
+Cerberus==1.3.4

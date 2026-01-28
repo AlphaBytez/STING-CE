@@ -1,0 +1,196 @@
+/* Modern Typography CSS - GitHub/Cursor/Modern UI Inspired */
+
+:root {
+  /* Font Variables */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  
+  /* Font size scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  
+  /* Line heights */
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
+  
+  /* Font weights */
+  --font-light: 300;
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  
+  /* Letter spacing */
+  --tracking-tighter: -0.05em;
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.1em;
+  
+  /* Component CSS Variables for Preferences and other pages */
+  --color-primary: #fbbf24; /* STING yellow */
+  --color-primary-hover: #f59e0b;
+  --color-text: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-inverse: #0f172a;
+  --color-bg: #0f172a;
+  --color-bg-elevated: #1e293b;
+  --color-border: rgba(148, 163, 184, 0.2);
+  --radius-lg: 8px;
+}
+
+/* Base Typography */
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  line-height: var(--leading-tight);
+  font-weight: var(--font-semibold);
+}
+
+h1 {
+  font-size: var(--text-3xl);
+  letter-spacing: var(--tracking-tight);
+}
+
+h2 {
+  font-size: var(--text-2xl);
+}
+
+h3 {
+  font-size: var(--text-xl);
+}
+
+h4 {
+  font-size: var(--text-lg);
+}
+
+/* Paragraphs */
+p {
+  margin-bottom: 1rem;
+}
+
+/* Links */
+a {
+  text-decoration: none;
+}
+
+/* Code */
+code, pre {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* Button text */
+button, 
+.button {
+  font-weight: var(--font-medium);
+  letter-spacing: var(--tracking-wide);
+}
+
+/* Form elements */
+input, 
+select, 
+textarea {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+}
+
+/* Small text */
+small {
+  font-size: var(--text-xs);
+}
+
+/* GitHub-inspired text utilities */
+.text-title {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-semibold);
+  line-height: var(--leading-tight);
+}
+
+.text-subtitle {
+  font-size: var(--text-lg);
+  font-weight: var(--font-medium);
+  line-height: var(--leading-snug);
+}
+
+.text-body {
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+}
+
+.text-caption {
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+
+.text-mono {
+  font-family: var(--font-mono);
+}
+
+/* Cursor-inspired focused text */
+.text-focused {
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--font-medium);
+}
+
+/* === STING Theme Integration === */
+/* Modern typography theme uses floating navigation */
+[data-theme="modern-typography"] .floating-nav {
+  background: rgba(30, 41, 59, 0.95) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-theme="modern-typography"] .floating-nav-item {
+  background: rgba(51, 65, 85, 0.5) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+  border-radius: 8px !important;
+  color: #f1f5f9 !important;
+  font-family: var(--font-sans) !important;
+  font-weight: var(--font-medium) !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-theme="modern-typography"] .floating-nav-item:hover {
+  background: rgba(251, 191, 36, 0.1) !important;
+  border-color: #fbbf24 !important;
+  color: #fbbf24 !important;
+  transform: translateY(-1px) !important;
+}
+
+[data-theme="modern-typography"] .floating-nav-item.active {
+  background: #fbbf24 !important;
+  border-color: #fbbf24 !important;
+  color: #0f172a !important;
+  font-weight: var(--font-semibold) !important;
+}
+
+[data-theme="modern-typography"] .floating-nav-divider {
+  border-top: 1px solid rgba(148, 163, 184, 0.2) !important;
+  margin: 0.5rem 0 !important;
+}
+
+/* Hide traditional sidebar */
+[data-theme="modern-typography"] .w-56 {
+  display: none !important;
+}

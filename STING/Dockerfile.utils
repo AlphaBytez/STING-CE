@@ -1,0 +1,20 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy all configuration files and app requirements
+COPY ./conf/ /app/conf/
+COPY ./app/requirements.txt /app/app/requirements.txt
+
+# Install Python dependencies from both sources
+# BuildKit cache mount dramatically speeds up pip downloads
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && \
+    pip install -r /app/conf/requirements.in && \
+    pip install -r /app/app/requirements.txt
+
+ENV INIT_MODE=development
+
+# Run warmup script on startup (from mounted volume), then tail to keep container alive
+# If warmup script doesn't exist (e.g., old deployment), skip it gracefully
+CMD ["sh", "-c", "if [ -f /app/utils/warmup.py ]; then python3 /app/utils/warmup.py; fi && tail -f /dev/null"]

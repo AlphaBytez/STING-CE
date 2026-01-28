@@ -1,0 +1,5 @@
+# Demo AI Service Dependencies
+flask>=2.3.0
+flask-cors>=4.0.0
+pyyaml>=6.0
+requests>=2.31.0

@@ -1,0 +1,12 @@
+# External AI Service Requirements - Security Patched
+fastapi>=0.115.0  # Upgraded from 0.104.1
+uvicorn[standard]>=0.32.0  # Upgraded from 0.24.0
+aiohttp>=3.11.0  # Upgraded from 3.9.1 - fixes CVE-2024-23334, CVE-2024-27306, CVE-2024-52303, CVE-2024-52304
+pydantic>=2.5.0
+redis==5.0.1
+aioredis==2.0.1
+asyncpg==0.29.0
+chromadb==0.5.20
+pyyaml>=6.0
+httpx>=0.27.0
+beautifulsoup4>=4.12.0  # For web content extraction

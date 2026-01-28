@@ -1,0 +1,3 @@
+# SMS Mock Service Requirements - Security Patched
+flask>=3.0.0
+requests>=2.32.0  # Upgraded from 2.31.0 - fixes CVE-2024-35195, CVE-2023-32681

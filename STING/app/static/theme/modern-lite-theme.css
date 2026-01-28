@@ -1,0 +1,497 @@
+/* 
+ * Modern Lite Theme - STING CE
+ * Lightweight version of the Modern Glass theme
+ * Optimized for performance while maintaining polish
+ */
+
+:root[data-theme="modern-lite"] {
+  /* STING Brand Colors - Standardized across all themes */
+  --lite-primary: #fbbf24;          /* STING signature yellow */
+  --lite-primary-hover: #f59e0b;    /* Standard yellow */
+  --lite-primary-dim: #d97706;      /* Dimmed yellow */
+  --lite-secondary: #1e293b;        /* Dark slate */
+  --lite-tertiary: #334155;         /* Medium slate */
+  --lite-accent: #f59e0b;           /* Accent yellow */
+  
+  /* Status Colors - Standardized */
+  --lite-success: #22c55e;          /* Consistent green */
+  --lite-warning: #f59e0b;          /* STING yellow for warnings */
+  --lite-error: #ef4444;            /* Standard red */
+  --lite-info: #3b82f6;             /* Standard blue */
+  
+  /* Backgrounds - Solid colors, no gradients */
+  --lite-bg-primary: #0f172a;
+  --lite-bg-secondary: #1e293b;
+  --lite-bg-tertiary: #334155;
+  --lite-bg-card: rgba(30, 41, 59, 0.95);
+  
+  /* Text */
+  --lite-text-primary: #f1f5f9;
+  --lite-text-secondary: #94a3b8;
+  --lite-text-muted: #64748b;
+  --lite-text-inverse: #0f172a;
+  
+  /* Borders - Simple, no glow */
+  --lite-border: rgba(148, 163, 184, 0.2);
+  --lite-border-hover: rgba(148, 163, 184, 0.4);
+  
+  /* Shadows - Minimal */
+  --lite-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --lite-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.15);
+  --lite-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  
+  /* Performance Optimizations */
+  --lite-transition: 150ms ease;
+  --lite-radius: 8px;
+  
+  /* Component CSS Variables for Preferences and other pages */
+  --color-primary: var(--lite-primary);
+  --color-primary-hover: var(--lite-primary-hover);
+  --color-text: var(--lite-text-primary);
+  --color-text-secondary: var(--lite-text-secondary);
+  --color-text-inverse: var(--lite-text-inverse);
+  --color-bg: var(--lite-bg-primary);
+  --color-bg-elevated: var(--lite-bg-tertiary);
+  --color-border: var(--lite-border);
+  --radius-lg: var(--lite-radius);
+}
+
+/* === Global Styles === */
+[data-theme="modern-lite"] {
+  background-color: var(--lite-bg-primary);
+  color: var(--lite-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* === Remove expensive effects === */
+[data-theme="modern-lite"] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+}
+
+/* === Cards - Simple and clean === */
+[data-theme="modern-lite"] .dashboard-card,
+[data-theme="modern-lite"] .metric-card,
+[data-theme="modern-lite"] .stats-card {
+  background: var(--lite-bg-card);
+  border: 1px solid var(--lite-border);
+  border-radius: var(--lite-radius);
+  box-shadow: var(--lite-shadow-sm);
+  transition: transform var(--lite-transition), box-shadow var(--lite-transition);
+}
+
+[data-theme="modern-lite"] .dashboard-card:hover,
+[data-theme="modern-lite"] .metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--lite-shadow-md);
+  border-color: var(--lite-border-hover);
+}
+
+/* === Buttons - Clean and simple === */
+[data-theme="modern-lite"] .floating-button,
+[data-theme="modern-lite"] button[type="submit"],
+[data-theme="modern-lite"] .ant-btn-primary {
+  background-color: var(--lite-primary);
+  color: var(--lite-text-inverse);
+  border: none;
+  border-radius: var(--lite-radius);
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  transition: background-color var(--lite-transition), transform var(--lite-transition);
+  box-shadow: var(--lite-shadow-sm);
+}
+
+[data-theme="modern-lite"] .floating-button:hover,
+[data-theme="modern-lite"] button[type="submit"]:hover {
+  background-color: var(--lite-accent);
+  transform: translateY(-1px);
+  box-shadow: var(--lite-shadow-md);
+}
+
+/* === Headers === */
+[data-theme="modern-lite"] h1,
+[data-theme="modern-lite"] h2,
+[data-theme="modern-lite"] h3 {
+  color: var(--lite-text-primary);
+  font-weight: 600;
+  margin: 0;
+}
+
+/* === Sidebar - Lightweight === */
+[data-theme="modern-lite"] .w-56[class*="shadow-lg"] {
+  background-color: var(--lite-bg-secondary);
+  border-right: 1px solid var(--lite-border);
+  box-shadow: none;
+}
+
+[data-theme="modern-lite"] .w-56 nav a {
+  color: var(--lite-text-primary);
+  padding: 0.75rem 1rem;
+  border-radius: var(--lite-radius);
+  transition: background-color var(--lite-transition);
+  margin-bottom: 0.25rem;
+}
+
+[data-theme="modern-lite"] .w-56 nav a:hover {
+  background-color: rgba(251, 191, 36, 0.1);
+  color: var(--lite-primary);
+}
+
+[data-theme="modern-lite"] .w-56 nav a.bg-amber-600,
+[data-theme="modern-lite"] .w-56 nav a[class*="bg-amber"] {
+  background-color: var(--lite-primary);
+  color: var(--lite-text-inverse);
+}
+
+/* === Forms - Clean inputs === */
+[data-theme="modern-lite"] input,
+[data-theme="modern-lite"] textarea,
+[data-theme="modern-lite"] select {
+  background-color: var(--lite-bg-tertiary);
+  border: 1px solid var(--lite-border);
+  border-radius: var(--lite-radius);
+  color: var(--lite-text-primary);
+  padding: 0.5rem 0.75rem;
+  transition: border-color var(--lite-transition);
+}
+
+[data-theme="modern-lite"] input:focus,
+[data-theme="modern-lite"] textarea:focus,
+[data-theme="modern-lite"] select:focus {
+  outline: none;
+  border-color: var(--lite-primary);
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.1);
+}
+
+/* === Tables === */
+[data-theme="modern-lite"] .ant-table {
+  background-color: var(--lite-bg-card);
+  color: var(--lite-text-primary);
+}
+
+[data-theme="modern-lite"] .ant-table-thead > tr > th {
+  background-color: var(--lite-bg-tertiary);
+  color: var(--lite-text-primary);
+  border-bottom: 1px solid var(--lite-border);
+  font-weight: 600;
+}
+
+[data-theme="modern-lite"] .ant-table-tbody > tr > td {
+  border-bottom: 1px solid var(--lite-border);
+}
+
+[data-theme="modern-lite"] .ant-table-tbody > tr:hover > td {
+  background-color: rgba(251, 191, 36, 0.05);
+}
+
+/* === Modals - Simple and clean === */
+[data-theme="modern-lite"] .ant-modal-content {
+  background-color: var(--lite-bg-secondary);
+  border: 1px solid var(--lite-border);
+  border-radius: var(--lite-radius);
+  box-shadow: var(--lite-shadow-lg);
+}
+
+[data-theme="modern-lite"] .ant-modal-header {
+  background-color: transparent;
+  border-bottom: 1px solid var(--lite-border);
+}
+
+[data-theme="modern-lite"] .ant-modal-title {
+  color: var(--lite-text-primary);
+  font-weight: 600;
+}
+
+/* === Tags and Badges === */
+[data-theme="modern-lite"] .ant-tag {
+  background-color: var(--lite-bg-tertiary);
+  border: 1px solid var(--lite-border);
+  color: var(--lite-text-primary);
+  border-radius: 4px;
+}
+
+[data-theme="modern-lite"] .ant-badge-count {
+  background-color: var(--lite-primary);
+  color: var(--lite-text-inverse);
+  box-shadow: none;
+}
+
+/* === Scrollbars === */
+[data-theme="modern-lite"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme="modern-lite"] ::-webkit-scrollbar-track {
+  background: var(--lite-bg-tertiary);
+}
+
+[data-theme="modern-lite"] ::-webkit-scrollbar-thumb {
+  background: var(--lite-border);
+  border-radius: 4px;
+}
+
+[data-theme="modern-lite"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--lite-primary);
+}
+
+/* === Bee Chat Button Fixes === */
+[data-theme="modern-lite"] .floating-button.bg-red-600,
+[data-theme="modern-lite"] .floating-button[class*="bg-red"] {
+  background-color: var(--lite-error) !important;
+  color: var(--lite-text-primary) !important;  /* White text for contrast */
+  border: 1px solid var(--lite-error) !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="modern-lite"] .floating-button.bg-red-600:hover,
+[data-theme="modern-lite"] .floating-button[class*="bg-red"]:hover {
+  background-color: #dc2626 !important;
+  color: var(--lite-text-primary) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: var(--lite-shadow-md) !important;
+}
+
+/* Fix send button */
+[data-theme="modern-lite"] .floating-button.bg-yellow-500,
+[data-theme="modern-lite"] .floating-button[class*="bg-yellow"] {
+  background-color: var(--lite-primary) !important;
+  color: var(--lite-text-inverse) !important;  /* Black text for contrast */
+  border: 1px solid var(--lite-primary) !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="modern-lite"] .floating-button.bg-yellow-500:hover,
+[data-theme="modern-lite"] .floating-button[class*="bg-yellow"]:hover {
+  background-color: var(--lite-accent) !important;
+  color: var(--lite-text-inverse) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: var(--lite-shadow-md) !important;
+}
+
+/* === Performance optimizations === */
+[data-theme="modern-lite"] .no-animation * {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="modern-lite"] * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* === Tab Text Fixes - Comprehensive === */
+/* Main tab buttons */
+[data-theme="modern-lite"] .ant-tabs-tab,
+[data-theme="modern-lite"] .ant-tabs-tab-btn {
+  color: var(--lite-text-primary) !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="modern-lite"] .ant-tabs-tab:hover,
+[data-theme="modern-lite"] .ant-tabs-tab-btn:hover {
+  color: var(--lite-text-primary) !important;
+}
+
+[data-theme="modern-lite"] .ant-tabs-tab-active,
+[data-theme="modern-lite"] .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--lite-primary) !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="modern-lite"] .ant-tabs-ink-bar {
+  background: var(--lite-primary) !important;
+}
+
+[data-theme="modern-lite"] .ant-tabs-content-holder {
+  background: var(--lite-bg-primary) !important;
+  color: var(--lite-text-primary) !important;
+}
+
+/* Tab navigation area */
+[data-theme="modern-lite"] .ant-tabs-nav {
+  background: transparent !important;
+}
+
+[data-theme="modern-lite"] .ant-tabs-nav-wrap {
+  background: transparent !important;
+}
+
+/* Fix any black text on blue backgrounds */
+[data-theme="modern-lite"] .ant-tabs-tab-btn span,
+[data-theme="modern-lite"] .ant-tabs-tab span {
+  color: inherit !important;
+}
+
+/* Reports page specific tabs */
+[data-theme="modern-lite"] .reports-tabs .ant-tabs-tab,
+[data-theme="modern-lite"] .bee-reports .ant-tabs-tab {
+  color: var(--lite-text-primary) !important;
+  background: transparent !important;
+}
+
+[data-theme="modern-lite"] .reports-tabs .ant-tabs-tab-active,
+[data-theme="modern-lite"] .bee-reports .ant-tabs-tab-active {
+  color: var(--lite-primary) !important;
+  background: rgba(251, 191, 36, 0.1) !important;
+}
+
+/* === System Health Widget Scrollable Enhancement === */
+[data-theme="modern-lite"] .service-list {
+  scrollbar-width: thin;
+  scrollbar-color: var(--lite-border) var(--lite-bg-tertiary);
+}
+
+[data-theme="modern-lite"] .service-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+[data-theme="modern-lite"] .service-list::-webkit-scrollbar-track {
+  background: var(--lite-bg-tertiary);
+  border-radius: 4px;
+}
+
+[data-theme="modern-lite"] .service-list::-webkit-scrollbar-thumb {
+  background: var(--lite-border);
+  border-radius: 4px;
+}
+
+[data-theme="modern-lite"] .service-list::-webkit-scrollbar-thumb:hover {
+  background: var(--lite-primary);
+}
+
+/* === Text Contrast Fixes === */
+/* Ensure all text has proper contrast */
+[data-theme="modern-lite"] .text-black,
+[data-theme="modern-lite"] [class*="text-black"] {
+  color: var(--lite-text-primary) !important;
+}
+
+[data-theme="modern-lite"] .text-gray-900,
+[data-theme="modern-lite"] [class*="text-gray-9"] {
+  color: var(--lite-text-primary) !important;
+}
+
+[data-theme="modern-lite"] .text-slate-900,
+[data-theme="modern-lite"] [class*="text-slate-9"] {
+  color: var(--lite-text-primary) !important;
+}
+
+/* Fix dark text on colored backgrounds */
+[data-theme="modern-lite"] .bg-blue-500 *,
+[data-theme="modern-lite"] .bg-blue-600 *,
+[data-theme="modern-lite"] [class*="bg-blue"] * {
+  color: var(--lite-text-primary) !important;
+}
+
+[data-theme="modern-lite"] .bg-indigo-500 *,
+[data-theme="modern-lite"] .bg-indigo-600 *,
+[data-theme="modern-lite"] [class*="bg-indigo"] * {
+  color: var(--lite-text-primary) !important;
+}
+
+/* === Reports Page Background Fixes === */
+
+/* Main dashboard cards for reports page */
+[data-theme="modern-lite"] .dashboard-card {
+  background: var(--lite-bg-card) !important;
+  border: 1px solid var(--lite-border) !important;
+  color: var(--lite-text-primary) !important;
+  box-shadow: var(--lite-shadow-sm) !important;
+}
+
+[data-theme="modern-lite"] .dashboard-card:hover {
+  box-shadow: var(--lite-shadow-md) !important;
+  border-color: var(--lite-border-hover) !important;
+}
+
+/* Stats cards within reports */
+[data-theme="modern-lite"] .stats-card {
+  background: var(--lite-bg-tertiary) !important;
+  border: 1px solid var(--lite-border) !important;
+  color: var(--lite-text-primary) !important;
+  border-radius: var(--lite-radius) !important;
+}
+
+[data-theme="modern-lite"] .stats-card:hover {
+  background: var(--lite-bg-secondary) !important;
+  border-color: var(--lite-border-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: var(--lite-shadow-md) !important;
+}
+
+/* Report content areas */
+[data-theme="modern-lite"] .ant-tabs-content-holder {
+  background: var(--lite-bg-primary) !important;
+}
+
+[data-theme="modern-lite"] .ant-table {
+  background: var(--lite-bg-card) !important;
+}
+
+[data-theme="modern-lite"] .ant-table-tbody > tr:hover > td {
+  background: rgba(251, 191, 36, 0.05) !important;
+}
+
+/* Page container */
+[data-theme="modern-lite"] .p-6.max-w-7xl.mx-auto,
+[data-theme="modern-lite"] .main-content {
+  background: var(--lite-bg-primary);
+  min-height: 100vh;
+}
+
+/* === Sidebar Logo Removal === */
+/* Hide sidebar logo/header since it's already in main header */
+[data-theme="modern-lite"] .w-56 .flex.flex-col.items-center,
+[data-theme="modern-lite"] .w-56 h1,
+[data-theme="modern-lite"] .w-56 .logo,
+[data-theme="modern-lite"] .w-56 .brand,
+[data-theme="modern-lite"] .w-56 img[src*="logo"] {
+  display: none !important;
+}
+
+/* === Hide Traditional Sidebar - Use Floating Nav === */
+[data-theme="modern-lite"] .w-56 {
+  display: none !important;
+}
+
+/* === Floating Navigation - Modern Lite Style === */
+/* Modern themes use floating navigation */
+[data-theme="modern-lite"] .floating-nav {
+  background: var(--lite-bg-secondary) !important;
+  border: 1px solid var(--lite-border) !important;
+  border-radius: var(--lite-radius) !important;
+  box-shadow: var(--lite-shadow-lg) !important;
+}
+
+[data-theme="modern-lite"] .floating-nav-item {
+  background: var(--lite-bg-tertiary) !important;
+  border: 1px solid var(--lite-border) !important;
+  border-radius: var(--lite-radius) !important;
+  color: var(--lite-text-primary) !important;
+  transition: var(--lite-transition) !important;
+}
+
+[data-theme="modern-lite"] .floating-nav-item:hover {
+  background: rgba(251, 191, 36, 0.1) !important;
+  border-color: var(--lite-primary) !important;
+  color: var(--lite-primary) !important;
+  transform: translateY(-1px) !important;
+}
+
+[data-theme="modern-lite"] .floating-nav-item.active {
+  background: var(--lite-primary) !important;
+  border-color: var(--lite-primary) !important;
+  color: var(--lite-text-inverse) !important;
+}
+
+[data-theme="modern-lite"] .floating-nav-divider {
+  border-top: 1px solid var(--lite-border) !important;
+  margin: 0.5rem 0 !important;
+}

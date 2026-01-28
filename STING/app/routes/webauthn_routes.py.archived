@@ -1,0 +1,1011 @@
+# app/routes/webauthn_routes.py
+from flask import Blueprint, request, jsonify, session, current_app, g, make_response
+from app.services.webauthn_manager import webauthn_manager
+from app.models.passkey_models import PasskeyRegistrationChallenge, PasskeyAuthenticationChallenge
+from app.utils.kratos_client import whoami
+from app.utils.kratos_session import create_session_for_identity, create_session_cookie
+from app.database import db
+import base64
+import logging
+from datetime import datetime, timedelta
+import json
+import uuid
+import logging
+import base64
+
+webauthn_bp = Blueprint('webauthn', __name__)
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+# Initialize WebAuthn manager
+
+
+def get_authenticated_user():
+    """Get authenticated user ID and username from either WebAuthn or Kratos session"""
+    logger.info("Getting authenticated user...")
+    
+    # Check if middleware set g.user (preferred - returns internal user ID)
+    if hasattr(g, 'user') and g.user:
+        logger.info(f"Found user from middleware: {g.user.email} (ID: {g.user.id})")
+        return g.user.id, g.user.email  # Return internal ID, not kratos_id
+    
+    logger.info("No user in g, checking other sources...")
+    
+    # Check WebAuthn session first
+    user_id = session.get('user_id')
+    username = session.get('username')
+    
+    if user_id:
+        logger.info(f"Found user from WebAuthn session: {username} (ID: {user_id})")
+        return user_id, username
+    
+    # Check Kratos session (both cookie and header)
+    from app.utils.kratos_client import whoami
+    from app.services.user_service import UserService
+    
+    session_cookie = request.cookies.get('ory_kratos_session') or request.cookies.get('ory_kratos_session')
+    session_token = request.headers.get('X-Session-Token')
+    session_credential = session_cookie or session_token
+    
+    logger.info(f"Checking Kratos session - cookie: {bool(session_cookie)}, token: {bool(session_token)}")
+    
+    if session_credential:
+        try:
+            identity_data = whoami(session_credential, is_token=bool(session_token))
+            if not identity_data:
+                logger.warning("whoami returned None in get_authenticated_user")
+                return None, None
+                
+            identity = identity_data.get('identity')
+            if not identity:
+                logger.warning(f"No identity in whoami response: {identity_data}")
+                return None, None
+                
+            # Get or create the user from Kratos identity
+            logger.info(f"Creating/getting user from Kratos identity: {identity.get('traits', {}).get('email')}")
+            user = UserService.get_or_create_user_from_kratos(identity)
+            if user:
+                logger.info(f"Successfully got/created user: {user.email} (ID: {user.id})")
+                # Also set g.user for this request
+                g.user = user
+                g.identity = identity
+                return user.id, user.email  # Return internal ID
+            else:
+                logger.error("Failed to create user from Kratos identity")
+                
+            # Fallback to Kratos ID if user creation failed
+            kratos_id = identity.get('id')
+            username = identity.get('traits', {}).get('email')
+            logger.warning(f"Using Kratos ID as fallback for user: {username}")
+            return kratos_id, username
+        except Exception as e:
+            logger.error(f"Failed to verify Kratos session: {str(e)}", exc_info=True)
+    else:
+        logger.warning("No session credential found")
+    
+    return None, None
+
+
+@webauthn_bp.route('/test', methods=['GET'])
+def test_webauthn():
+    """Test endpoint to verify WebAuthn setup"""
+    return jsonify({
+        "status": "success",
+        "message": "WebAuthn routes loaded successfully",
+        "config": {
+            "rp_id": current_app.config.get('WEBAUTHN_RP_ID'),
+            "rp_name": current_app.config.get('WEBAUTHN_RP_NAME'),
+            "origins": current_app.config.get('WEBAUTHN_RP_ORIGINS')
+        }
+    })
+
+
+@webauthn_bp.route('/registration/begin', methods=['POST'])
+def begin_registration():
+    """Begin passkey registration process"""
+    try:
+        logger.info("=== BEGIN PASSKEY REGISTRATION ===")
+        logger.info(f"Request headers: {dict(request.headers)}")
+        logger.info(f"Request cookies: {list(request.cookies.keys())}")
+        
+        data = request.get_json()
+        # Accept both 'username' and 'email' fields for backward compatibility
+        username = data.get('username') or data.get('email')
+        
+        if not username:
+            logger.error("Username or email is required for registration")
+            logger.error(f"Received data: {data}")
+            return jsonify({'error': 'Username is required'}), 400
+        
+        # Validate inputs
+        if not isinstance(username, str) or len(username.strip()) == 0:
+            logger.error(f"Invalid username provided: {username}")
+            return jsonify({'error': 'Valid username is required'}), 400
+        
+        logger.info(f"Registration request for username: {username}")
+        
+        # Get authenticated user from session
+        auth_user_id, auth_username = get_authenticated_user()
+        
+        # Add detailed debugging
+        logger.info(f"Request cookies: {list(request.cookies.keys())}")
+        logger.info(f"Ory session cookie present: {'ory_kratos_session' in request.cookies}")
+        logger.info(f"Session header present: {'X-Session-Token' in request.headers}")
+        logger.info(f"Authenticated user ID: {auth_user_id}, Username: {auth_username}")
+        logger.info(f"Has g.user: {hasattr(g, 'user')}, g.user: {g.user if hasattr(g, 'user') else 'Not set'}")
+        logger.info(f"Has g.identity: {hasattr(g, 'identity')}, g.identity: {g.identity if hasattr(g, 'identity') else 'Not set'}")
+        
+        if not auth_user_id:
+            logger.error("No authenticated user found for passkey registration")
+            logger.error(f"Request path: {request.path}")
+            logger.error(f"Request method: {request.method}")
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Use the authenticated user's ID (internal database ID)
+        numeric_user_id = auth_user_id
+        # Use provided username or fall back to authenticated username
+        final_username = username.strip() or auth_username
+        
+        logger.info(f"Beginning passkey registration for user ID: {numeric_user_id}, username: {final_username}")
+        
+        # Initialize WebAuthn manager with current app
+        webauthn_manager.init_app(current_app)
+        
+        # Log configuration for debugging
+        logger.debug(f"WebAuthn Config - RP ID: {current_app.config.get('WEBAUTHN_RP_ID')}")
+        logger.debug(f"WebAuthn Config - RP Name: {current_app.config.get('WEBAUTHN_RP_NAME')}")
+        logger.debug(f"WebAuthn Config - Origins: {current_app.config.get('WEBAUTHN_RP_ORIGINS')}")
+        
+        # Generate registration options
+        # Use string ID for WebAuthn but numeric ID for database
+        webauthn_user_id = str(numeric_user_id)
+        options = webauthn_manager.generate_registration_options(
+            user_id=webauthn_user_id,
+            username=final_username
+        )
+        
+        # Store challenge in database
+        from app.models.passkey_models import PasskeyRegistrationChallenge
+            
+        challenge_record = PasskeyRegistrationChallenge.create_challenge(
+            user_id=numeric_user_id,
+            challenge=options['challenge'],
+            registration_options=options
+        )
+        
+        # Add challenge_id to response for frontend to include in completion request
+        options['challenge_id'] = challenge_record.challenge_id
+        
+        logger.info(f"Generated registration options for user: {username}")
+        logger.debug(f"Registration options: {json.dumps(options, default=str)}")
+        
+        return jsonify(options)
+        
+    except Exception as e:
+        logger.error(f"Error generating registration options: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Failed to generate registration options',
+            'details': str(e) if current_app.debug else 'Internal server error'
+        }), 500
+
+
+@webauthn_bp.route('/registration/skip', methods=['POST'])
+def skip_passkey_registration():
+    """Allow users to skip passkey setup and continue with password-only authentication"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        username = data.get('username')
+        
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+        
+        # Clear any existing WebAuthn session data
+        session.pop('webauthn_challenge', None)
+        session.pop('webauthn_user_id', None)
+        session.pop('webauthn_username', None)
+        
+        # Mark user as having skipped passkey setup
+        session['passkey_setup_skipped'] = True
+        session['auth_method'] = 'password_only'
+        
+        logger.info(f"User {username} skipped passkey registration")
+        return jsonify({
+            'status': 'success',
+            'message': 'Passkey setup skipped. You can set up passkeys later in your account settings.',
+            'auth_method': 'password_only',
+            'setup_url': '/settings/security'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error skipping passkey registration: {str(e)}")
+        return jsonify({'error': 'Failed to skip passkey registration'}), 500
+
+
+@webauthn_bp.route('/registration/complete', methods=['POST'])
+def complete_registration():
+    """Complete passkey registration process"""
+    try:
+        data = request.get_json()
+        credential_data = data.get('credential')
+        challenge_id = data.get('challenge_id')
+        
+        if not credential_data:
+            return jsonify({'error': 'Credential data is required'}), 400
+            
+        if not challenge_id:
+            return jsonify({'error': 'Challenge ID is required'}), 400
+        
+        # Get stored challenge from database
+        from app.models.passkey_models import PasskeyRegistrationChallenge
+        challenge_record = PasskeyRegistrationChallenge.get_valid_challenge(challenge_id)
+        
+        if not challenge_record:
+            logger.warning(f"No valid registration challenge found. Challenge ID: {challenge_id}")
+            return jsonify({
+                'error': 'Registration session expired or invalid',
+                'error_code': 'EXPIRED_CHALLENGE',
+                'message': 'Your registration session has expired. Please try again.',
+                'action': 'restart_registration',
+                'recovery_url': '/auth/register'
+            }), 400
+            
+        expected_challenge = challenge_record.challenge
+        user_id = challenge_record.user_id
+        username = data.get('username')  # Get from request data as fallback
+        
+        # If user_id is None from challenge record, we need to get it from request
+        if user_id is None:
+            # Check if we have a Kratos session and create/get user
+            from app.services.user_service import UserService
+            from app.models.user_models import User
+            
+            # First check if user exists by email
+            user = User.query.filter_by(email=username).first()
+            
+            if not user:
+                # Check for Kratos identity
+                session_cookie = request.cookies.get('ory_kratos_session') or request.cookies.get('ory_kratos_session')
+                if session_cookie:
+                    try:
+                        identity = whoami(session_cookie)
+                        if identity and identity.get('identity'):
+                            # Create user from Kratos identity
+                            user = UserService.get_or_create_user_from_kratos(identity['identity'])
+                            user_id = user.id
+                        else:
+                            # No Kratos identity, create a temporary user for demo
+                            logger.warning(f"Creating temporary user for demo: {username}")
+                            user = User(
+                                email=username,
+                                username=username.split('@')[0],
+                                kratos_id=f"temp_{abs(hash(username)) % 2147483647}"
+                            )
+                            db.session.add(user)
+                            db.session.commit()
+                            user_id = user.id
+                    except Exception as e:
+                        logger.error(f"Error getting Kratos identity: {e}")
+                        # Create temporary user for demo
+                        user = User(
+                            email=username,
+                            username=username.split('@')[0],
+                            kratos_id=f"temp_{abs(hash(username)) % 2147483647}"
+                        )
+                        db.session.add(user)
+                        db.session.commit()
+                        user_id = user.id
+                else:
+                    # No Kratos session, create temporary user for demo
+                    logger.warning(f"No Kratos session, creating temporary user for demo: {username}")
+                    user = User(
+                        email=username,
+                        username=username.split('@')[0],
+                        kratos_id=f"temp_{abs(hash(username)) % 2147483647}"
+                    )
+                    db.session.add(user)
+                    db.session.commit()
+                    user_id = user.id
+            else:
+                user_id = user.id
+        
+        # Initialize WebAuthn manager with current app
+        webauthn_manager.init_app(current_app)
+        
+        # Verify registration
+        verification_result = webauthn_manager.verify_registration(credential_data, expected_challenge)
+        
+        if verification_result.get('verified'):
+            from app.models.passkey_models import Passkey
+            from app.database import db
+            
+            # Generate a default name for the first passkey
+            passkey_name = data.get('name', 'My Device')
+            
+            # Store credential in database
+            passkey = Passkey(
+                user_id=user_id,
+                credential_id=base64.b64encode(verification_result['credential_id']).decode('utf-8'),
+                public_key=base64.b64encode(verification_result['public_key']).decode('utf-8'),
+                name=passkey_name,
+                device_type=verification_result.get('device_type', 'platform'),
+                user_agent=request.headers.get('User-Agent'),
+                ip_address=request.remote_addr,
+                is_backup_eligible=verification_result.get('backup_eligible', False),
+                is_backup_state=verification_result.get('backup_state', False)
+            )
+            
+            db.session.add(passkey)
+            
+            # Mark challenge as used
+            challenge_record.mark_used()
+            
+            db.session.commit()
+            
+            logger.info(f"Successfully registered passkey '{passkey_name}' for user: {username}")
+            return jsonify({
+                'verified': True,
+                'message': 'Passkey registered successfully',
+                'passkey': passkey.to_dict()
+            })
+        else:
+            logger.error(f"Registration verification failed: {verification_result.get('error')}")
+            return jsonify({
+                'verified': False,
+                'error': verification_result.get('error', 'Verification failed')
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error completing registration: {str(e)}")
+        return jsonify({'error': 'Failed to complete registration'}), 500
+
+
+@webauthn_bp.route('/authentication/begin', methods=['POST'])
+@webauthn_bp.route('/authenticate/begin', methods=['POST'])  # Also support the route frontend is using
+def begin_authentication():
+    """Begin passkey authentication process"""
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        
+        # Initialize WebAuthn manager with current app
+        webauthn_manager.init_app(current_app)
+        
+        # Get passkeys for the user if username is provided
+        credential_ids = []
+        user_found = False
+        user = None  # Initialize user variable
+        if username:
+            from app.models.user_models import User
+            from app.models.passkey_models import Passkey
+            
+            # Find user by email/username
+            user = User.query.filter(
+                (User.email == username) | (User.username == username)
+            ).first()
+            
+            if user:
+                user_found = True
+                # Get all active passkeys for the user
+                passkeys = Passkey.get_user_passkeys(user.id)
+                # Keep credential_ids as base64 strings for now
+                credential_ids = [pk.credential_id for pk in passkeys]
+                logger.info(f"Found {len(credential_ids)} passkeys for user: {username}")
+                
+                # If user exists but has no passkeys, return a helpful error
+                if len(credential_ids) == 0:
+                    logger.warning(f"User {username} has no registered passkeys")
+                    return jsonify({
+                        'error': 'No passkeys found for this account. Please register a passkey first.',
+                        'error_code': 'NO_PASSKEYS',
+                        'user_exists': True
+                    }), 404
+            else:
+                logger.warning(f"User not found: {username}")
+                # Don't reveal whether user exists or not for security
+                return jsonify({
+                    'error': 'Invalid credentials or no passkeys found.',
+                    'error_code': 'INVALID_CREDENTIALS'
+                }), 404
+        
+        # Generate authentication options
+        # Pass credential_ids as base64 strings - the manager will handle conversion
+        options = webauthn_manager.generate_authentication_options(
+            credential_ids=credential_ids if credential_ids else None
+        )
+        
+        # Store challenge in database for verification
+        from app.models.passkey_models import PasskeyAuthenticationChallenge
+        auth_challenge = PasskeyAuthenticationChallenge.create_challenge(
+            challenge=options['publicKey']['challenge'],
+            username=username,
+            user_id=user.id if user else None
+        )
+        
+        logger.info(f"Generated authentication options for user: {username}")
+        logger.info(f"Stored challenge in database: {options['publicKey']['challenge'][:20]}...")
+        logger.info(f"Challenge ID: {auth_challenge.id}")
+        
+        # Include challenge info in response for debugging
+        options['challenge_id'] = auth_challenge.id
+        return jsonify(options)
+        
+    except Exception as e:
+        logger.error(f"Error generating authentication options: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': 'Failed to generate authentication options'}), 500
+
+
+@webauthn_bp.route('/authentication/complete', methods=['POST'])
+@webauthn_bp.route('/authenticate/complete', methods=['POST'])  # Also support the route frontend is using
+def complete_authentication():
+    """Complete passkey authentication process"""
+    try:
+        data = request.get_json()
+        credential_data = data.get('credential')
+        
+        if not credential_data:
+            return jsonify({'error': 'Credential data is required'}), 400
+        
+        # Get challenge from request or try to find by credential
+        challenge_from_request = data.get('challenge')
+        
+        # Log incoming data for debugging
+        logger.info(f"=== COMPLETE PASSKEY AUTHENTICATION ===")
+        logger.info(f"Complete auth request - Credential ID: {credential_data.get('id', 'None')[:50] if credential_data.get('id') else 'None'}...")
+        logger.info(f"Challenge from request: {challenge_from_request[:20] if challenge_from_request else 'None'}...")
+        logger.info(f"Request data keys: {list(data.keys())}")
+        logger.info(f"Credential data keys: {list(credential_data.keys()) if credential_data else 'None'}")
+        
+        # For now, we'll need to look up the challenge from the credential
+        # This is a temporary workaround until we can pass the challenge through the flow
+        from app.models.passkey_models import PasskeyAuthenticationChallenge
+        
+        # Find the most recent valid challenge for this authentication attempt
+        # In a production system, we'd want to pass the challenge ID through the authentication flow
+        recent_challenge = PasskeyAuthenticationChallenge.query.filter_by(
+            used=False
+        ).filter(
+            PasskeyAuthenticationChallenge.expires_at > datetime.utcnow()
+        ).order_by(
+            PasskeyAuthenticationChallenge.created_at.desc()
+        ).first()
+        
+        if not recent_challenge:
+            logger.error("No valid authentication challenge found")
+            return jsonify({'error': 'No authentication session found or session expired'}), 400
+        
+        expected_challenge = recent_challenge.challenge
+        logger.info(f"Found challenge from database: {expected_challenge[:20]}...")
+        
+        # Get credential ID from the authentication data
+        credential_id = credential_data.get('id')
+        if not credential_id:
+            return jsonify({'error': 'Credential ID missing'}), 400
+        
+        logger.info(f"Received credential ID: {credential_id}")
+        logger.info(f"Credential ID type: {type(credential_id)}")
+        logger.info(f"Credential ID length: {len(credential_id)}")
+        
+        # Also try the rawId field
+        raw_id = credential_data.get('rawId')
+        if raw_id:
+            logger.info(f"Also have rawId: {raw_id}")
+        
+        # Find the passkey in database
+        from app.models.passkey_models import Passkey
+        from app.models.user_models import User
+        from app.database import db
+        
+        passkey = Passkey.find_by_credential_id(credential_id)
+        if not passkey and raw_id:
+            # Try with rawId if id didn't work
+            logger.info("Trying with rawId instead...")
+            passkey = Passkey.find_by_credential_id(raw_id)
+        
+        if not passkey:
+            return jsonify({'error': 'Passkey not found or revoked'}), 400
+        
+        # Get the user
+        user = User.query.get(passkey.user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 400
+        
+        # Initialize WebAuthn manager with current app
+        webauthn_manager.init_app(current_app)
+        
+        # Verify authentication
+        # Handle both base64 encoded and raw public keys (for backward compatibility)
+        try:
+            # Try to decode as base64 first
+            stored_public_key = base64.b64decode(passkey.public_key)
+        except Exception:
+            # If that fails, assume it's already raw bytes (old format)
+            logger.warning(f"Public key for passkey {passkey.id} appears to be in old format, treating as raw bytes")
+            if isinstance(passkey.public_key, str):
+                stored_public_key = passkey.public_key.encode('utf-8')
+            else:
+                stored_public_key = passkey.public_key
+        
+        verification_result = webauthn_manager.verify_authentication(
+            credential_data=credential_data,
+            expected_challenge=expected_challenge,
+            stored_public_key=stored_public_key
+        )
+        
+        if verification_result.get('verified'):
+            # Record passkey usage
+            passkey.record_usage()
+            
+            # Mark challenge as used
+            recent_challenge.mark_used()
+            db.session.commit()
+            
+            # Create session for the user
+            session.permanent = True  # Mark session as permanent to use PERMANENT_SESSION_LIFETIME
+            session['user_id'] = user.id
+            session['username'] = user.email
+            session['auth_method'] = 'passkey'
+            session['authenticated_at'] = datetime.utcnow().isoformat()
+            session['user_role'] = user.role.value if user.role else 'USER'
+            session['is_admin'] = user.is_admin
+            
+            # Also set g.user for the current request
+            g.user = user
+            
+            # Create Kratos session if user has a Kratos ID
+            kratos_session_cookie = None
+            if user.kratos_id:
+                try:
+                    logger.info(f"Creating Kratos session for user {user.email} (kratos_id: {user.kratos_id})")
+                    kratos_session_cookie = create_session_cookie(user.kratos_id, auth_method='webauthn')
+                    if kratos_session_cookie:
+                        logger.info(f"Successfully created Kratos session for user {user.email}")
+                    else:
+                        logger.warning(f"Failed to create Kratos session for user {user.email}")
+                except Exception as e:
+                    logger.error(f"Error creating Kratos session: {str(e)}", exc_info=True)
+                    # Don't fail the authentication if Kratos session creation fails
+            
+            db.session.commit()
+            
+            logger.info(f"Passkey authentication successful for user: {user.email}")
+            
+            # Prepare response with full identity data
+            response_data = {
+                'verified': True,
+                'message': 'Authentication successful',
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'username': user.username,
+                    'role': user.effective_role,
+                    'kratos_id': user.kratos_id
+                },
+                'auth_method': 'passkey',
+                'session_id': session.get('session_id', 'webauthn-session'),
+                # Include identity data for frontend
+                'identity': {
+                    'id': user.kratos_id,
+                    'traits': {
+                        'email': user.email,
+                        'name': {
+                            'first': user.username.split()[0] if user.username and ' ' in user.username else (user.username or user.email.split('@')[0]),
+                            'last': user.username.split()[1] if user.username and ' ' in user.username else ''
+                        },
+                        'role': user.effective_role
+                    }
+                }
+            }
+            
+            # Create response object
+            response = make_response(jsonify(response_data))
+            
+            # Set Kratos session cookie if we have one
+            if kratos_session_cookie:
+                response.set_cookie(
+                    'ory_kratos_session',
+                    kratos_session_cookie,
+                    secure=True,
+                    httponly=True,
+                    samesite='Lax',
+                    domain=current_app.config.get('WEBAUTHN_RP_ID', 'localhost'),
+                    path='/'
+                )
+                logger.info(f"Set Kratos session cookie for user {user.email}")
+            
+            return response
+        else:
+            error_msg = verification_result.get('error', 'Authentication failed')
+            logger.error(f"Passkey verification failed: {error_msg}")
+            logger.error(f"Verification details: {verification_result}")
+            return jsonify({
+                'verified': False,
+                'error': error_msg,
+                'details': 'Check server logs for more information'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error completing authentication: {str(e)}", exc_info=True)
+        logger.error(f"Full error details: {type(e).__name__}: {str(e)}")
+        return jsonify({
+            'error': 'Failed to complete authentication',
+            'details': str(e) if current_app.debug else 'Check server logs'
+        }), 500
+
+
+@webauthn_bp.route('/passkeys/<int:passkey_id>/rename', methods=['PUT'])
+def rename_passkey(passkey_id):
+    """Rename a passkey"""
+    try:
+        user_id, username = get_authenticated_user()
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        data = request.get_json()
+        new_name = data.get('name', '').strip()
+        
+        if not new_name or len(new_name) > 100:
+            return jsonify({'error': 'Name must be 1-100 characters'}), 400
+        
+        from app.models.passkey_models import Passkey
+        from app.database import db
+        
+        # Find the passkey
+        passkey = Passkey.query.filter_by(id=passkey_id, user_id=user_id).first()
+        if not passkey:
+            return jsonify({'error': 'Passkey not found'}), 404
+        
+        # Update the name
+        old_name = passkey.name
+        passkey.name = new_name
+        passkey.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        logger.info(f"Passkey renamed from '{old_name}' to '{new_name}' for user {user_id}")
+        return jsonify({
+            'success': True,
+            'message': f'Passkey renamed to "{new_name}"',
+            'passkey': passkey.to_dict()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error renaming passkey: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to rename passkey'}), 500
+
+
+@webauthn_bp.route('/passkeys/add/begin', methods=['POST'])
+def begin_add_passkey():
+    """Begin adding an additional passkey"""
+    try:
+        user_id, username = get_authenticated_user()
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        data = request.get_json()
+        passkey_name = data.get('name', '').strip()
+        
+        if not passkey_name or len(passkey_name) > 100:
+            return jsonify({'error': 'Passkey name must be 1-100 characters'}), 400
+        
+        from app.models.passkey_models import Passkey
+        
+        # Check passkey limit
+        current_count = Passkey.count_user_passkeys(user_id)
+        if current_count >= 10:  # Standard limit
+            return jsonify({
+                'error': 'Maximum number of passkeys reached (10). Remove an existing passkey first.'
+            }), 400
+        
+        # Get user info for registration
+        from app.models.user_models import User
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Use the username from the user object if not already set
+        if not username:
+            username = user.email
+        
+        # Initialize WebAuthn manager
+        webauthn_manager.init_app(current_app)
+        
+        # Generate registration options
+        options = webauthn_manager.generate_registration_options(
+            user_id=str(user_id),
+            username=username
+        )
+        
+        # Store challenge in database
+        from app.models.passkey_models import PasskeyRegistrationChallenge
+        challenge_record = PasskeyRegistrationChallenge.create_challenge(
+            user_id=user_id,
+            challenge=options['challenge'],
+            registration_options=options
+        )
+        
+        # Store passkey name in session or include in response
+        session['pending_passkey_name'] = passkey_name
+        
+        logger.info(f"Generated add passkey options for user: {user.email}")
+        return jsonify({
+            'publicKey': options,
+            'challenge_id': challenge_record.challenge,  # Return the challenge string, not the database ID
+            'passkey_name': passkey_name
+        })
+        
+    except Exception as e:
+        logger.error(f"Error beginning add passkey: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to begin passkey addition'}), 500
+
+
+@webauthn_bp.route('/passkeys/add/complete', methods=['POST'])
+def complete_add_passkey():
+    """Complete adding an additional passkey"""
+    try:
+        user_id, username = get_authenticated_user()
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        data = request.get_json()
+        credential_data = data.get('credential')
+        challenge_id = data.get('challenge_id')
+        passkey_name = data.get('passkey_name') or session.get('pending_passkey_name')
+        
+        if not credential_data:
+            return jsonify({'error': 'Credential data is required'}), 400
+            
+        if not challenge_id:
+            return jsonify({'error': 'Challenge ID is required'}), 400
+            
+        if not passkey_name:
+            return jsonify({'error': 'Passkey name is required'}), 400
+        
+        # Get stored challenge from database
+        from app.models.passkey_models import PasskeyRegistrationChallenge
+        challenge_record = PasskeyRegistrationChallenge.get_valid_challenge(challenge_id)
+        
+        if not challenge_record:
+            return jsonify({'error': 'No pending passkey registration found or challenge expired'}), 400
+            
+        expected_challenge = challenge_record.challenge
+        
+        # Initialize WebAuthn manager with current app
+        webauthn_manager.init_app(current_app)
+        
+        # Verify the registration
+        verification_result = webauthn_manager.verify_registration(
+            credential_data, 
+            expected_challenge
+        )
+        
+        if verification_result.get('verified'):
+            from app.models.passkey_models import Passkey
+            from app.database import db
+            
+            # Store the new passkey
+            passkey = Passkey(
+                user_id=user_id,
+                credential_id=base64.b64encode(verification_result['credential_id']).decode('utf-8'),
+                public_key=base64.b64encode(verification_result['public_key']).decode('utf-8'),
+                name=passkey_name,
+                device_type=verification_result.get('device_type', 'platform'),
+                user_agent=request.headers.get('User-Agent'),
+                ip_address=request.remote_addr,
+                is_backup_eligible=verification_result.get('backup_eligible', False),
+                is_backup_state=verification_result.get('backup_state', False)
+            )
+            
+            db.session.add(passkey)
+            
+            # Mark challenge as used
+            challenge_record.mark_used()
+            
+            db.session.commit()
+            
+            # Clear session data
+            session.pop('webauthn_challenge', None)
+            session.pop('pending_passkey_name', None)
+            
+            logger.info(f"Additional passkey '{passkey_name}' registered for user {user_id}")
+            return jsonify({
+                'verified': True,
+                'message': f'Passkey "{passkey_name}" added successfully',
+                'passkey': passkey.to_dict()
+            })
+        else:
+            logger.error(f"Add passkey verification failed: {verification_result.get('error')}")
+            return jsonify({
+                'verified': False,
+                'error': verification_result.get('error', 'Passkey registration failed')
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error completing add passkey: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to complete passkey addition'}), 500
+
+
+@webauthn_bp.route('/passkeys/stats', methods=['GET'])
+def passkey_stats():
+    """Get passkey statistics for the current user"""
+    try:
+        user_id, username = get_authenticated_user()
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        from app.models.passkey_models import Passkey
+        
+        # Get statistics
+        active_count = Passkey.count_user_passkeys(user_id)
+        all_passkeys = Passkey.get_user_passkeys(user_id, include_revoked=True)
+        
+        total_usage = sum(p.usage_count for p in all_passkeys)
+        last_used = max((p.last_used_at for p in all_passkeys if p.last_used_at), default=None)
+        
+        return jsonify({
+            'active_passkeys': active_count,
+            'max_passkeys': 10,
+            'total_usage': total_usage,
+            'last_used': last_used.isoformat() if last_used else None,
+            'can_add_more': active_count < 10
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting passkey stats: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to get passkey statistics'}), 500
+
+
+@webauthn_bp.route('/passkeys', methods=['GET'])
+def list_passkeys():
+    """List all passkeys for the current user"""
+    try:
+        user_id, username = get_authenticated_user()
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        from app.models.passkey_models import Passkey
+        
+        # Get all active passkeys for user
+        passkeys = Passkey.get_user_passkeys(user_id, include_revoked=False)
+        
+        passkey_list = []
+        for passkey in passkeys:
+            passkey_list.append({
+                'id': passkey.id,
+                'credential_id': passkey.credential_id,
+                'name': passkey.name,
+                'created_at': passkey.created_at.isoformat() if passkey.created_at else None,
+                'last_used_at': passkey.last_used_at.isoformat() if passkey.last_used_at else None,
+                'usage_count': passkey.usage_count,
+                'device_type': passkey.device_type,
+                'browser': getattr(passkey, 'browser', None),
+                'os': getattr(passkey, 'os', None)
+            })
+        
+        return jsonify({
+            'passkeys': passkey_list,
+            'count': len(passkey_list)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error listing passkeys: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to list passkeys'}), 500
+
+
+@webauthn_bp.route('/debug/check-passkeys', methods=['POST'])
+def debug_check_passkeys():
+    """Debug endpoint to check passkeys for a user by email"""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+        
+        from app.models.user_models import User
+        from app.models.passkey_models import Passkey
+        
+        # Find user by email
+        user = User.query.filter_by(email=email).first()
+        
+        if not user:
+            return jsonify({
+                'error': 'User not found',
+                'email': email,
+                'debug_info': {
+                    'searched_email': email,
+                    'user_found': False
+                }
+            }), 404
+        
+        # Get all passkeys for the user
+        all_passkeys = Passkey.query.filter_by(user_id=user.id).all()
+        active_passkeys = [p for p in all_passkeys if p.is_active()]
+        
+        passkey_info = []
+        for passkey in all_passkeys:
+            passkey_info.append({
+                'id': passkey.id,
+                'credential_id': passkey.credential_id,
+                'name': passkey.name,
+                'status': passkey.status.value,
+                'created_at': passkey.created_at.isoformat() if passkey.created_at else None,
+                'last_used_at': passkey.last_used_at.isoformat() if passkey.last_used_at else None,
+                'usage_count': passkey.usage_count,
+                'is_active': passkey.is_active()
+            })
+        
+        return jsonify({
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'username': user.username,
+                'kratos_id': user.kratos_id
+            },
+            'passkeys': {
+                'total': len(all_passkeys),
+                'active': len(active_passkeys),
+                'details': passkey_info
+            },
+            'debug_info': {
+                'searched_email': email,
+                'user_found': True,
+                'user_id': user.id,
+                'authentication_routes': {
+                    'begin': '/api/webauthn/authentication/begin',
+                    'complete': '/api/webauthn/authentication/complete',
+                    'note': 'Frontend is using /api/webauthn/authenticate/* but backend uses /api/webauthn/authentication/*'
+                }
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error in debug check passkeys: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to check passkeys', 'details': str(e)}), 500
+
+
+@webauthn_bp.route('/passkeys/<int:passkey_id>', methods=['DELETE'])
+def delete_passkey(passkey_id):
+    """Delete a passkey"""
+    try:
+        user_id, username = get_authenticated_user()
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        from app.models.passkey_models import Passkey, PasskeyStatus
+        
+        # Get the passkey
+        passkey = Passkey.query.filter_by(id=passkey_id, user_id=user_id).first()
+        
+        if not passkey:
+            return jsonify({'error': 'Passkey not found'}), 404
+        
+        if passkey.status != PasskeyStatus.ACTIVE:
+            return jsonify({'error': 'Passkey already revoked'}), 400
+        
+        # Check if this is the last active passkey
+        active_count = Passkey.count_user_passkeys(user_id)
+        if active_count <= 1:
+            return jsonify({
+                'error': 'Cannot delete your last passkey. Add another passkey first.'
+            }), 400
+        
+        # Revoke the passkey (soft delete)
+        passkey.status = PasskeyStatus.REVOKED
+        passkey.revoked_at = datetime.utcnow()
+        db.session.commit()
+        
+        logger.info(f"Passkey {passkey_id} deleted for user {user_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Passkey deleted successfully'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error deleting passkey: {str(e)}", exc_info=True)
+        db.session.rollback()
+        return jsonify({'error': 'Failed to delete passkey'}), 500

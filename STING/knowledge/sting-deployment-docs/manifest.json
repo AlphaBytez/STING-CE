@@ -1,0 +1,50 @@
+{
+  "id": "sting-deployment-docs", 
+  "name": "STING Deployment Guide",
+  "description": "Installation, configuration, and operational documentation",
+  "version": "1.0.0",
+  "category": "operations",
+  "tags": ["installation", "deployment", "docker", "troubleshooting", "monitoring"],
+  "honey_jar": {
+    "type": "internal",
+    "status": "active", 
+    "owner": "admin@sting.local",
+    "permissions": {
+      "read": ["admin", "devops", "user"],
+      "write": ["admin", "devops"],
+      "delete": ["admin"]
+    },
+    "config": {
+      "auto_index": true,
+      "chunk_strategy": "procedural",
+      "embedding_model": "all-MiniLM-L6-v2"
+    }
+  },
+  "documents": {
+    "installation": [
+      {
+        "file": "system-requirements.md",
+        "title": "Hardware & System Requirements",
+        "description": "Minimum and recommended specifications for STING deployment",
+        "type": "requirements-guide",
+        "references": ["hardware", "memory", "docker", "scaling"]
+      },
+      {
+        "file": "docker-optimization.md",
+        "title": "Docker Resource Optimization",
+        "description": "Container resource allocation and performance tuning",
+        "type": "optimization-guide", 
+        "references": ["docker", "memory", "performance", "16gb-minimum"]
+      }
+    ],
+    "troubleshooting": [
+      {
+        "file": "common-issues.md",
+        "title": "Common Issues & Solutions",
+        "description": "Frequently encountered problems and their solutions",
+        "type": "troubleshooting-guide",
+        "references": ["docker", "authentication", "memory", "ssl"]
+      }
+    ]
+  }
+}

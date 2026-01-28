@@ -1,0 +1,144 @@
+# STING-CE Staging Configuration
+# For testing and development with your second domain
+
+# Application settings for staging
+application:
+  env: "staging"
+  debug: true
+  mode: "staging"
+  host: "0.0.0.0"
+  port: 5050
+  
+  # SSL configuration for staging domain
+  ssl:
+    enabled: true
+    domain: "${STAGING_DOMAIN:-staging.sting-ce.com}"
+    email: "${STAGING_ADMIN_EMAIL:-admin@sting-ce.com}"
+    cert_dir: "${INSTALL_DIR}/certs"
+    
+  # API and frontend URLs
+  api_url: "https://${STAGING_DOMAIN:-staging.sting-ce.com}"
+  frontend_url: "https://${STAGING_DOMAIN:-staging.sting-ce.com}"
+
+# Frontend configuration
+frontend:
+  react:
+    port: 3010
+    api_url: "https://${STAGING_DOMAIN:-staging.sting-ce.com}"
+    demo_mode: false
+    features:
+      registration: true
+      password_reset: true
+      profile_editing: true
+      file_upload: true
+
+# Full authentication for staging
+authentication:
+  demo_mode: false
+  
+  # Rate limiting (more lenient than demo)
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 30
+    requests_per_hour: 500
+    burst_limit: 50
+
+# Kratos configuration for staging
+kratos:
+  public_url: "https://${STAGING_DOMAIN:-staging.sting-ce.com}:4433"
+  admin_url: "https://${STAGING_DOMAIN:-staging.sting-ce.com}:4434"
+  cookie_domain: "${STAGING_DOMAIN:-staging.sting-ce.com}"
+  
+  selfservice:
+    default_return_url: "https://${STAGING_DOMAIN:-staging.sting-ce.com}"
+    login:
+      ui_url: "https://${STAGING_DOMAIN:-staging.sting-ce.com}/login"
+      lifespan: "24h"
+    registration:
+      ui_url: "https://${STAGING_DOMAIN:-staging.sting-ce.com}/register"
+      lifespan: "24h"
+      enabled: true
+      
+  methods:
+    password:
+      enabled: true
+    webauthn:
+      enabled: true
+      rp_id: "${STAGING_DOMAIN:-staging.sting-ce.com}"
+      display_name: "STING Staging"
+      origin: "https://${STAGING_DOMAIN:-staging.sting-ce.com}"
+
+# Chatbot configuration for staging (full features)
+chatbot:
+  name: "Bee"
+  model: "phi3"
+  context_window: 20
+  
+  # No demo restrictions
+  demo_restrictions:
+    max_conversation_length: 100
+    max_messages_per_session: 200
+    disable_file_upload: false
+    disable_code_execution: false
+    content_filter: "moderate"
+    
+  default_system_prompt: |
+    You are Bee, a helpful AI assistant for the STING platform. 
+    This is a staging environment for testing and development.
+    You have access to all platform features and capabilities.
+
+# LLM Service configuration for staging
+llm_service:
+  enabled: true
+  default_model: "phi3"
+  
+  performance:
+    profile: "gpu_accelerated"
+    device: "mps"
+    precision: "fp16"
+    batch_size: 8
+    
+  models:
+    phi3:
+      enabled: true
+      path: "microsoft/Phi-3-mini-4k-instruct"
+      max_tokens: 2048
+      temperature: 0.7
+      
+  model_lifecycle:
+    lazy_loading: true
+    idle_timeout: 600  # 10 minutes
+    max_loaded_models: 2
+    preload_on_startup: false
+    
+  filtering:
+    toxicity:
+      enabled: true
+      threshold: 0.7  # More lenient for testing
+    data_leakage:
+      enabled: true
+      threshold: 0.8
+
+# Security settings for staging
+security:
+  demo_mode: false
+  
+  cors:
+    enabled: true
+    allowed_origins:
+      - "https://${STAGING_DOMAIN:-staging.sting-ce.com}"
+    allowed_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    
+  session:
+    secure_cookies: true
+    same_site: "lax"
+    max_age: 86400  # 24 hours
+
+# Full features enabled for staging
+features:
+  chat: true
+  knowledge_base: true
+  admin_panel: true
+  user_management: true
+  file_management: true
+  api_access: true

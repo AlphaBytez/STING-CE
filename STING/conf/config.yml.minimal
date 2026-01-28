@@ -1,0 +1,33 @@
+# Minimal configuration file for STING
+# Includes only essential values required for validation
+
+# App settings
+APP_PORT: 5050
+FLASK_DEBUG: "true"
+FLASK_APP: run.py
+APP_ENV: development
+APP_HOST: app
+
+# React settings
+REACT_PORT: 8443
+
+# Database settings
+POSTGRES_USER: postgres
+POSTGRES_PASSWORD: postgres
+DB_PORT: 5432
+
+# Logging and backup settings
+LOG_MAX_SIZE: 10
+BACKUP_DEFAULT_DIRECTORY: /opt/sting-ce/backups
+BACKUP_COMPRESSION_LEVEL: 9
+BACKUP_RETENTION_COUNT: 5
+BACKUP_EXCLUDE_PATTERNS:
+  - "*.log"
+  - "*.tmp"
+  - "node_modules"
+  - "venv"
+  - ".git"
+
+# Kratos settings
+KRATOS_PUBLIC_PORT: 4433
+KRATOS_ADMIN_PORT: 4434

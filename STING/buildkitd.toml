@@ -1,0 +1,17 @@
+# BuildKit daemon configuration
+debug = false
+
+[worker.oci]
+  enabled = true
+  gc = true
+  gckeepstorage = 5000000000
+
+[worker.containerd]
+  enabled = false
+
+# DNS configuration for build-time network resolution
+# Fixes "Temporary failure in name resolution" on Windows/WSL and macOS
+[dns]
+  nameservers = ["8.8.8.8", "8.8.4.4", "1.1.1.1"]
+  options = ["ndots:0"]
+  searchDomains = []

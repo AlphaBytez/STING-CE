@@ -1,0 +1,10 @@
+# SearXNG Rate Limiter Configuration
+# Disabled for internal service use - external access should be blocked by firewall
+
+[botdetection.ip_limit]
+# Disable IP-based rate limiting for internal service
+link_token = false
+
+[botdetection.ip_lists]
+# No IP blocking for internal network
+pass_ip = ["192.168.0.0/16", "172.16.0.0/12", "10.0.0.0/8"]

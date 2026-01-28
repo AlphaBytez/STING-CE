@@ -1,0 +1,11 @@
+# Enable BuildKit for faster, more efficient Docker builds
+# BuildKit provides:
+# - Parallel build stages
+# - Cache mount support for pip/npm
+# - Better layer caching
+# - Faster builds overall
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+
+# To use: source .dockerbuildkit before building
+echo "✅ BuildKit enabled"

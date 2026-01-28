@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STING-CE Setup Wizard | First-Run Configuration</title>
+    <meta name="description" content="STING - Secure Trusted Intelligence and Networking Guardian - First-Run Setup Wizard">
+    <link rel="icon" type="image/png" href="/static/sting-logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .step-indicator {
+            @apply w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all;
+        }
+        .step-indicator.active {
+            @apply bg-amber-400 text-slate-900 ring-2 ring-amber-500;
+        }
+        .step-indicator.completed {
+            @apply bg-lime-500 text-slate-900;
+        }
+        .step-indicator.pending {
+            @apply bg-slate-700 text-slate-400;
+        }
+        .step-content {
+            display: none;
+        }
+        .step-content.active {
+            display: block;
+        }
+        .test-button:disabled {
+            @apply opacity-50 cursor-not-allowed;
+        }
+
+        /* Glass morphism cards */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px) saturate(140%);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .glass-card-light {
+            background: rgba(51, 65, 85, 0.6);
+            backdrop-filter: blur(10px) saturate(130%);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        /* Ensure all text is readable */
+        .glass-card, .glass-card-light {
+            color: rgb(226, 232, 240); /* slate-200 */
+        }
+
+        .glass-card h2, .glass-card-light h2 {
+            color: rgb(251, 191, 36); /* amber-400 */
+        }
+
+        .glass-card p, .glass-card-light p {
+            color: rgb(203, 213, 225); /* slate-300 */
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Header with STING Logo -->
+        <div class="text-center mb-8">
+            <div class="mb-4 flex justify-center">
+                <picture>
+                    <source srcset="/static/sting-logo.webp" type="image/webp">
+                    <img src="/static/sting-logo.png" alt="STING Logo" class="h-24 w-24 object-contain drop-shadow-lg">
+                </picture>
+            </div>
+            <h1 class="text-4xl font-bold text-amber-400 mb-2">STING-CE Setup Wizard</h1>
+            <div class="inline-block bg-slate-700/50 px-3 py-1 rounded-full text-xs text-slate-300 mb-2">
+                v{{ version }}
+            </div>
+            <p class="text-slate-400 text-sm uppercase tracking-wider mb-2">Secure Trusted Intelligence and Networking Guardian</p>
+            <p class="text-slate-300">Configure your STING platform in a few easy steps</p>
+            <p class="text-slate-500 text-sm mt-2">🍯 Preparing your Hive for deployment</p>
+        </div>
+
+        <!-- Progress Steps -->
+        <div class="glass-card rounded-lg shadow-lg p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4" id="progress-steps">
+                    <!-- Steps dynamically generated -->
+                </div>
+            </div>
+            <div class="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div id="progress-bar" class="h-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-300" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Main Wizard Card -->
+        <div class="glass-card rounded-lg shadow-xl p-8">
+            <!-- Step 1: Welcome & System Basics -->
+            <div class="step-content active" data-step="1">
+                <h2 class="text-2xl font-bold text-amber-400 mb-4">🏠 Welcome to STING-CE!</h2>
+                <p class="text-slate-300 mb-6">Let's configure your system settings to get your Hive buzzing.</p>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-3">
+                            🌐 STING Hostname Configuration
+                            <span class="text-xs text-amber-400">(Required for Hardware Keys/Passkeys)</span>
+                        </label>
+
+                        <!-- Platform Detection Info -->
+                        <div id="platform-info" class="mb-4 bg-slate-700/50 border border-slate-600 rounded-lg p-3">
+                            <div class="flex items-center gap-2 text-sm">
+                                <span class="text-slate-400">💻 Platform:</span>
+                                <span id="platform-type" class="text-slate-200 font-medium">Detecting...</span>
+                            </div>
+                            <div id="platform-guidance" class="text-xs text-blue-300 mt-2 hidden">
+                                <!-- Will be populated by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Hostname Options (Radio Buttons) -->
+                        <div id="hostname-options" class="space-y-2 mb-4">
+                            <!-- Will be dynamically populated by JS -->
+                            <div class="text-slate-400 text-sm">Loading hostname options...</div>
+                        </div>
+
+                        <!-- Custom Hostname Input (Hidden by default) -->
+                        <div id="custom-hostname-input" class="hidden mt-2">
+                            <input type="text" id="custom-hostname-value" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 focus:ring-2 focus:ring-amber-400 focus:border-transparent" placeholder="Enter hostname or IP address">
+                        </div>
+
+                        <!-- Hidden input to store final selected value -->
+                        <input type="hidden" id="hostname" value="">
+
+                        <div class="mt-3 bg-amber-900/20 border border-amber-500/30 rounded-lg p-3">
+                            <p class="text-xs text-amber-200">
+                                <strong class="text-amber-100">🎯 CRITICAL:</strong> This hostname must match what you'll use to access STING.
+                            </p>
+                            <p class="text-xs text-amber-200 mt-2">
+                                If you change this after installation, you'll need to run: <code class="bg-slate-800 px-1 rounded">update_hostname.sh</code>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Timezone</label>
+                        <select id="timezone" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 focus:ring-2 focus:ring-amber-400">
+                            <option value="UTC">UTC</option>
+                            <option value="America/New_York">America/New_York</option>
+                            <option value="America/Chicago">America/Chicago</option>
+                            <option value="America/Denver">America/Denver</option>
+                            <option value="America/Los_Angeles">America/Los_Angeles</option>
+                            <option value="Europe/London">Europe/London</option>
+                            <option value="Europe/Paris">Europe/Paris</option>
+                            <option value="Asia/Tokyo">Asia/Tokyo</option>
+                        </select>
+                    </div>
+
+                    <div class="glass-card-light rounded-lg p-4">
+                        <p class="text-sm text-slate-200">
+                            <strong class="text-slate-100">Current IP:</strong> <span id="current-ip">Loading...</span>
+                        </p>
+                        <p class="text-xs text-slate-400 mt-2">
+                            💡 For remote access with hardware keys, add "<span id="current-ip-hosts">SERVER_IP</span> <span id="hostname-display">sting.local</span>" to /etc/hosts on client machines
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Data Disk -->
+            <div class="step-content" data-step="2">
+                <h2 class="text-2xl font-bold text-amber-400 mb-4">💾 Data Disk Configuration</h2>
+
+                <!-- PROMINENT SKIP NOTICE - Most users should see this first -->
+                <div class="mb-6 bg-green-900/40 border-2 border-green-500 rounded-lg p-5">
+                    <div class="flex items-start gap-3">
+                        <div class="text-3xl">✅</div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold text-green-400 mb-2">Most Users: Just Click "Next"</h3>
+                            <p class="text-green-200 text-base">
+                                <strong>STING works perfectly using your system disk.</strong> No separate data disk is required.
+                            </p>
+                            <p class="text-slate-300 text-sm mt-2">
+                                This step is only for advanced users who want to use a dedicated disk for STING data storage (e.g., in enterprise deployments with large datasets).
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Collapsible advanced section -->
+                <details class="glass-card-light rounded-lg p-4">
+                    <summary class="cursor-pointer text-amber-400 font-medium flex items-center gap-2">
+                        <span>🔧 Advanced: Configure Separate Data Disk (Optional)</span>
+                    </summary>
+
+                    <div class="mt-4 pt-4 border-t border-slate-600">
+                        <p class="text-slate-300 mb-4">Attach and configure a separate disk for data storage (where the honey is stored).</p>
+
+                        <button onclick="detectDisks()" class="mb-4 bg-amber-400 text-slate-900 font-medium px-4 py-2 rounded-lg hover:bg-amber-500">
+                            Detect Disks
+                        </button>
+
+                        <div id="disk-list" class="space-y-2">
+                            <p class="text-slate-400 text-sm">Click "Detect Disks" to find available disks</p>
+                        </div>
+
+                        <!-- Danger Zone Warning -->
+                        <div class="mt-6 bg-red-900/30 border-2 border-red-600 rounded-lg p-5">
+                            <div class="flex items-start gap-3">
+                                <div class="text-3xl">⚠️</div>
+                                <div class="flex-1">
+                                    <h3 class="text-lg font-bold text-red-400 mb-2">DANGER ZONE - Disk Formatting</h3>
+                                    <p class="text-red-300 mb-3">
+                                        <strong>Formatting will PERMANENTLY ERASE all data on the selected disk.</strong><br>
+                                        This action cannot be undone!
+                                    </p>
+
+                                    <div class="bg-slate-800/50 rounded p-3 mt-3">
+                                        <p class="text-sm font-semibold text-green-400 mb-2">✓ Safety Checks Enabled:</p>
+                                        <ul class="text-xs text-slate-300 space-y-1 ml-4">
+                                            <li>✓ System disks (/, /boot, /home) are protected</li>
+                                            <li>✓ Root filesystem disk is blocked</li>
+                                            <li>✓ Currently mounted partitions are blocked</li>
+                                            <li>✓ Swap partitions are protected</li>
+                                            <li>✓ Only unmounted, non-system disks are shown</li>
+                                            <li>✓ Device path validation prevents injection attacks</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <!-- Step 3: Admin Account -->
+            <div class="step-content" data-step="3">
+                <h2 class="text-2xl font-bold text-amber-400 mb-4">👤 Create Admin Account</h2>
+                <p class="text-slate-300 mb-6">Set up the Queen Bee administrator account.</p>
+
+                <div class="glass-card-light rounded-lg p-4 mb-6">
+                    <p class="text-sm text-slate-200">
+                        <strong class="text-amber-400">🔐 STING is fully passwordless!</strong><br>
+                        Your admin account will be created automatically after installation completes.
+                        You'll receive a magic link via email to verify and set up security (TOTP, passkeys).
+                    </p>
+                </div>
+
+                <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">
+                                Admin Email Address
+                            </label>
+                            <input
+                                type="email"
+                                id="admin-email"
+                                class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500"
+                                placeholder="admin@example.com"
+                            >
+                            <p class="text-xs text-slate-400 mt-2">
+                                💡 Enter the email for your admin account. Leave blank to skip admin creation (use <code class="text-amber-400 bg-slate-800/50 px-1 rounded">msting create admin</code> after installation).
+                            </p>
+                        </div>
+                        <div id="manual-admin-instructions" class="bg-blue-900/20 border border-blue-700 rounded-lg p-4" style="display: none;">
+                            <p class="text-sm text-blue-300 mb-2">
+                                <strong>📖 Manual Admin Creation:</strong>
+                            </p>
+                            <p class="text-xs text-slate-300 mb-3">
+                                After installation, create an admin account using the STING CLI:
+                            </p>
+                            <div class="bg-slate-900 rounded p-3 font-mono text-xs text-lime-400">
+                                sudo msting create admin your@email.com
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: LLM Configuration -->
+            <div class="step-content" data-step="4">
+                <h2 class="text-2xl font-bold text-amber-400 mb-4">🤖 LLM Backend Configuration</h2>
+                <p class="text-slate-300 mb-6">Configure your AI model endpoint to power the Worker Bees.</p>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">LLM Endpoint URL</label>
+                        <input type="url" id="llm-endpoint" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500" placeholder="http://localhost:11434">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Default Model</label>
+                        <input type="text" id="llm-model" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500" placeholder="microsoft/phi-4-mini-reasoning" value="microsoft/phi-4-mini-reasoning">
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button onclick="testLLMEndpoint()" class="bg-lime-500 text-slate-900 font-medium px-4 py-2 rounded-lg hover:bg-lime-600">
+                            Test Connection
+                        </button>
+
+                        <button
+                            id="save-llm-config-btn"
+                            onclick="saveLLMConfig()"
+                            class="bg-green-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-green-700 hidden"
+                        >
+                            ✓ Save Tested Configuration
+                        </button>
+                    </div>
+
+                    <div id="llm-test-result" class="mt-4"></div>
+
+                    <div id="llm-config-saved" class="mt-4 hidden">
+                        <div class="bg-green-900/30 border-2 border-green-600 rounded-lg p-4">
+                            <p class="text-green-400 font-semibold">
+                                ✓ Configuration Saved!
+                            </p>
+                            <p class="text-green-300 text-sm mt-2">
+                                Your tested LLM endpoint will be used during installation:
+                            </p>
+                            <ul class="text-xs text-slate-300 mt-2 ml-4">
+                                <li>Endpoint: <code id="saved-endpoint" class="text-green-400"></code></li>
+                                <li>Model: <code id="saved-model" class="text-green-400"></code></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 5: Report Generation LLM (Optional) -->
+            <div class="step-content" data-step="5">
+                <h2 class="text-2xl font-bold text-amber-400 mb-4">📊 Report Generation LLM (Optional)</h2>
+                <p class="text-slate-300 mb-6">Configure a separate LLM endpoint for report generation. Useful for using larger models with high token output limits.</p>
+
+                <div class="glass-card-light rounded-lg p-4 mb-6">
+                    <p class="text-sm text-slate-200">
+                        <strong class="text-amber-400">💡 Why use a separate endpoint?</strong><br>
+                        Report generation requires models with large output token limits (16K+). You can configure a separate endpoint running models like <code class="text-amber-400 bg-slate-800/50 px-1 rounded">microsoft/phi-4-reasoning-plus</code> or <code class="text-amber-400 bg-slate-800/50 px-1 rounded">qwen2.5-14b-instruct</code> for comprehensive reports.
+                    </p>
+                </div>
+
+                <div class="mb-4">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" id="report-llm-enabled" class="form-checkbox h-5 w-5 text-amber-500" onchange="toggleReportLLMConfig()">
+                        <span class="ml-2 text-slate-300">Configure Separate Endpoint for Report Generation</span>
+                    </label>
+                </div>
+
+                <div id="report-llm-config" class="space-y-4" style="display: none;">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Report LLM Endpoint URL</label>
+                        <input type="url" id="report-llm-endpoint" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500" placeholder="http://localhost:11434">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Report Generation Model</label>
+                        <input type="text" id="report-llm-model" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500" placeholder="microsoft/phi-4-reasoning-plus" value="microsoft/phi-4-reasoning-plus">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Fallback Model</label>
+                        <input type="text" id="report-llm-fallback-model" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500" placeholder="qwen2.5-14b-instruct" value="qwen2.5-14b-instruct">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Maximum Output Tokens</label>
+                        <select id="report-max-tokens" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500">
+                            <option value="4096">4096 - Concise reports (smaller models)</option>
+                            <option value="8192">8192 - Standard reports (most models)</option>
+                            <option value="16384" selected>16384 - Comprehensive reports (phi-4, qwen)</option>
+                            <option value="32768">32768 - Extended reports (if supported)</option>
+                        </select>
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button onclick="testReportLLMEndpoint()" class="bg-lime-500 text-slate-900 font-medium px-4 py-2 rounded-lg hover:bg-lime-600">
+                            Test Connection
+                        </button>
+
+                        <button
+                            id="save-report-llm-config-btn"
+                            onclick="saveReportLLMConfig()"
+                            class="bg-green-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-green-700 hidden"
+                        >
+                            ✓ Save Tested Configuration
+                        </button>
+                    </div>
+
+                    <div id="report-llm-test-result" class="mt-4"></div>
+
+                    <div id="report-llm-config-saved" class="mt-4 hidden">
+                        <div class="bg-green-900/30 border-2 border-green-600 rounded-lg p-4">
+                            <p class="text-green-400 font-semibold">
+                                ✓ Configuration Saved!
+                            </p>
+                            <p class="text-green-300 text-sm mt-2">
+                                Your tested report LLM endpoint will be used for report generation:
+                            </p>
+                            <ul class="text-xs text-slate-300 mt-2 ml-4">
+                                <li>Endpoint: <code id="saved-report-endpoint" class="text-green-400"></code></li>
+                                <li>Model: <code id="saved-report-model" class="text-green-400"></code></li>
+                                <li>Max tokens: <code id="saved-report-max-tokens" class="text-green-400"></code></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 6: Email/SMTP -->
+            <div class="step-content" data-step="6">
+                <h2 class="text-2xl font-bold text-amber-400 mb-4">📧 Email Configuration (Optional)</h2>
+                <p class="text-slate-300 mb-6">Configure SMTP for notification delivery by carrier bees.</p>
+
+                <div class="glass-card-light rounded-lg p-4 mb-6">
+                    <p class="text-sm text-slate-200">
+                        <strong class="text-amber-400">💡 Mailpit is included by default</strong><br>
+                        STING includes Mailpit for testing - a local email catcher accessible at <code class="text-amber-400 bg-slate-800/50 px-1 rounded">http://localhost:8025</code>.
+                        All emails sent to <code class="text-amber-400 bg-slate-800/50 px-1 rounded">*@sting.local</code> will be captured there.
+                    </p>
+                </div>
+
+                <div class="mb-4">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" id="email-enabled" class="form-checkbox h-5 w-5 text-amber-500">
+                        <span class="ml-2 text-slate-300">Configure Production SMTP Server</span>
+                    </label>
+                </div>
+
+                <div id="email-config" class="space-y-4" style="display: none;">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">SMTP Host</label>
+                        <input type="text" id="smtp-host" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Port</label>
+                            <input type="number" id="smtp-port" value="587" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Username</label>
+                            <input type="text" id="smtp-username" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Password</label>
+                        <input type="password" id="smtp-password" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500">
+                    </div>
+
+                    <!-- Test SMTP Connection -->
+                    <div class="mt-4">
+                        <button type="button" onclick="testSMTPConnection()" class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/50 px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                            <span>🧪</span> Test SMTP Connection
+                        </button>
+                        <div id="smtp-test-result" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 7: SSL/TLS -->
+            <div class="step-content" data-step="7">
+                <h2 class="text-2xl font-bold text-amber-400 mb-4">🔒 SSL/TLS Configuration</h2>
+                <p class="text-slate-300 mb-6">Configure HTTPS certificates to protect the Hive.</p>
+
+                <!-- Server certificate status (populated by server) -->
+                <div id="server-cert-status" class="bg-slate-800/50 border border-slate-600 rounded-lg p-4 mb-6" style="display: none;">
+                    <div class="flex items-center gap-3">
+                        <span id="cert-status-icon" class="text-2xl"></span>
+                        <div>
+                            <div id="cert-status-title" class="font-medium text-slate-200"></div>
+                            <div id="cert-status-message" class="text-xs text-slate-400"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-4">Certificate Type</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <label class="relative cursor-pointer" id="self-signed-option">
+                                <input type="radio" name="ssl-type" value="self-signed" checked class="peer sr-only">
+                                <div class="p-4 rounded-lg border-2 border-slate-600 bg-slate-800/50 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 hover:border-slate-500 transition-all">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-2xl">🔒</span>
+                                        <div>
+                                            <div class="font-medium text-slate-200">Self-Signed</div>
+                                            <div class="text-xs text-slate-400">Free, instant, browser warns</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+                            <label class="relative cursor-pointer" id="letsencrypt-option">
+                                <input type="radio" name="ssl-type" value="letsencrypt" class="peer sr-only">
+                                <div class="p-4 rounded-lg border-2 border-slate-600 bg-slate-800/50 peer-checked:border-green-500 peer-checked:bg-green-500/10 hover:border-slate-500 transition-all">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-2xl">🌐</span>
+                                        <div>
+                                            <div class="font-medium text-slate-200">Let's Encrypt</div>
+                                            <div class="text-xs text-slate-400">Free, auto-renewing, trusted</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+                            <label class="relative cursor-pointer" id="upload-option">
+                                <input type="radio" name="ssl-type" value="upload" class="peer sr-only">
+                                <div class="p-4 rounded-lg border-2 border-slate-600 bg-slate-800/50 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 hover:border-slate-500 transition-all">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-2xl">📜</span>
+                                        <div>
+                                            <div class="font-medium text-slate-200">Upload Certificate</div>
+                                            <div class="text-xs text-slate-400">Bring your own .crt + .key</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="ssl-upload" style="display: none;" class="bg-gradient-to-br from-amber-900/20 to-slate-900/30 border border-amber-600/40 rounded-xl p-5">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="p-2 bg-amber-500/20 rounded-lg">
+                                <span class="text-xl">📜</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-amber-300">Upload Certificate</h4>
+                                <p class="text-xs text-slate-400">Bring your own SSL certificate</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-2">Certificate File (.crt)</label>
+                                <input type="file" id="ssl-cert" accept=".crt,.pem"
+                                    class="w-full px-4 py-2.5 bg-slate-700/80 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-2">Private Key (.key)</label>
+                                <input type="file" id="ssl-key" accept=".key,.pem"
+                                    class="w-full px-4 py-2.5 bg-slate-700/80 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="ssl-letsencrypt" style="display: none;" class="bg-gradient-to-br from-green-900/20 to-slate-900/30 border border-green-600/40 rounded-xl p-5">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="p-2 bg-green-500/20 rounded-lg">
+                                <span class="text-xl">🌐</span>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-green-300">Let's Encrypt Configuration</h4>
+                                <p class="text-xs text-slate-400">Free SSL certificates with automatic renewal</p>
+                            </div>
+                        </div>
+
+                        <p class="text-sm text-slate-300 mb-4">
+                            To obtain your certificate, ensure:
+                        </p>
+                        <ul class="text-sm text-slate-400 space-y-2 ml-4 list-disc mb-5">
+                            <li>Your domain name points to this server's IP</li>
+                            <li>Port 80 (HTTP) is accessible from the internet</li>
+                            <li>You have a valid email for certificate notifications</li>
+                        </ul>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-2">Domain Name <span class="text-red-400">*</span></label>
+                                <input type="text" id="letsencrypt-domain" placeholder="example.com" required
+                                    class="w-full px-4 py-2.5 bg-slate-700/80 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all">
+                                <p class="text-xs text-slate-500 mt-1">The full domain name (e.g., hive.yourcompany.com)</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-2">Email Address <span class="text-red-400">*</span></label>
+                                <input type="email" id="letsencrypt-email" placeholder="admin@example.com" required
+                                    class="w-full px-4 py-2.5 bg-slate-700/80 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all">
+                                <p class="text-xs text-slate-500 mt-1">Used by Let's Encrypt for certificate reminders</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-5 p-3 bg-green-900/20 border border-green-500/20 rounded-lg">
+                            <p class="text-xs text-green-400 flex items-center gap-2">
+                                <span class="text-sm">💡</span>
+                                Certificates auto-renew 30 days before expiration
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 8: Review & Apply -->
+            <div class="step-content" data-step="8">
+                <h2 class="text-2xl font-bold text-amber-400 mb-4">✅ Review Configuration</h2>
+                <p class="text-slate-300 mb-6">Please review your Hive settings before deploying.</p>
+
+                <div id="config-review" class="glass-card-light rounded-lg p-6 mb-6">
+                    <!-- Config review populated here -->
+                </div>
+
+                <div id="dev-mode-notice" class="bg-blue-900/20 border border-blue-700 rounded-lg p-4 mb-6" style="display: none;">
+                    <p class="text-sm text-blue-300">
+                        <strong>💡 Dev Mode Active:</strong> Installation will be simulated. Configuration will be saved but the installer won't run.
+                        Deploy to a real VM for actual installation.
+                    </p>
+                </div>
+
+                <!-- macOS Sudo Timeout Warning -->
+                <div id="macos-sudo-warning" class="bg-amber-900/30 border-2 border-amber-500 rounded-lg p-5 mb-6" style="display: none;">
+                    <div class="flex items-start gap-3">
+                        <div class="text-2xl">🍎</div>
+                        <div class="flex-1">
+                            <h4 class="text-amber-400 font-bold mb-2">macOS Users: Keep Your Terminal Handy!</h4>
+                            <p class="text-amber-200 mb-3">
+                                Installation takes <strong>30-60 minutes</strong> (longer on VMs or slower hardware). macOS sudo credentials expire after ~5 minutes of inactivity.
+                            </p>
+                            <div class="bg-slate-900/80 rounded-lg p-4 mb-3">
+                                <p class="text-slate-300 text-sm mb-2"><strong>If installation pauses:</strong></p>
+                                <ol class="text-slate-300 text-sm space-y-1 ml-4 list-decimal">
+                                    <li>Go to your <strong>terminal window</strong> (where you ran the installer)</li>
+                                    <li>Run: <code class="bg-slate-800 px-2 py-0.5 rounded text-lime-400">sudo -v</code></li>
+                                    <li>Enter your password or use TouchID</li>
+                                    <li>Installation will automatically resume</li>
+                                </ol>
+                            </div>
+                            <p class="text-xs text-slate-400">
+                                💡 <strong>Pro tip:</strong> Keep your terminal visible during installation. You may see a password prompt there.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-red-900/20 border border-red-700 rounded-lg p-4 mb-6" id="prod-warning">
+                    <p class="text-sm text-red-300">
+                        <strong>⚠️ Warning:</strong> Applying this configuration will install and start STING. This wizard will be disabled.
+                    </p>
+                </div>
+
+                <button onclick="applyConfiguration()" class="bg-lime-500 text-slate-900 px-6 py-3 rounded-lg hover:bg-lime-600 font-bold text-lg">
+                    🚀 Apply Configuration & Deploy STING
+                </button>
+            </div>
+
+            <!-- Step 9: Installation Progress (Hidden until install starts) -->
+            <div class="step-content" data-step="9" style="display: none;">
+                <h2 class="text-2xl font-bold text-amber-400 mb-4">🚀 Installing STING</h2>
+                <p class="text-slate-300 mb-6">Building your Hive... This may take 30-60 minutes (longer on VMs or slower hardware).</p>
+
+                <div class="glass-card-light rounded-lg p-6 mb-6">
+                    <div class="mb-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-slate-200">Installation Progress</span>
+                            <span class="text-sm text-slate-300" id="install-status">Starting...</span>
+                        </div>
+                        <div class="w-full bg-slate-800/50 rounded-full h-2">
+                            <div id="install-progress-bar" class="bg-gradient-to-r from-amber-400 to-amber-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- macOS Persistent Reminder (shown during installation on macOS) -->
+                    <div id="macos-install-reminder" class="bg-blue-900/30 border border-blue-500 rounded-lg p-3 mb-4" style="display: none;">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">🍎</span>
+                            <p class="text-sm text-blue-200">
+                                <strong>macOS:</strong> Keep your terminal visible. If progress stalls, run <code class="bg-slate-800 px-1 rounded text-lime-400">sudo -v</code> in the terminal.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Sudo Reauth Banner (hidden by default - shows when sudo actually expires) -->
+                    <div id="sudo-reauth-banner" class="bg-red-900/40 border-2 border-red-500 rounded-lg p-5 mb-4" style="display: none;">
+                        <div class="flex items-start gap-3">
+                            <div class="text-red-400 text-3xl">🔐</div>
+                            <div class="flex-1">
+                                <h4 class="text-red-400 font-bold text-lg mb-2">Action Required: Sudo Credentials Expired</h4>
+                                <p class="text-slate-200 mb-3">
+                                    Installation is <strong>paused</strong> waiting for sudo authentication. This is normal on macOS.
+                                </p>
+                                <div class="bg-slate-900 rounded-lg p-4 mb-4">
+                                    <p class="text-slate-300 text-sm mb-2"><strong>To continue:</strong></p>
+                                    <ol class="text-slate-300 text-sm space-y-2 ml-4 list-decimal">
+                                        <li>Go to your <strong class="text-amber-400">terminal window</strong> (where you started the installer)</li>
+                                        <li>Run this command:
+                                            <div class="bg-slate-800 rounded px-3 py-2 mt-1 font-mono text-lime-400 flex items-center justify-between">
+                                                <span>sudo -v</span>
+                                                <button onclick="copyToClipboard('sudo -v')" class="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-slate-300">Copy</button>
+                                            </div>
+                                        </li>
+                                        <li>Enter your password or use TouchID when prompted</li>
+                                        <li>Installation will <strong>automatically resume</strong></li>
+                                    </ol>
+                                </div>
+                                <p class="text-xs text-slate-400">
+                                    ⏱️ This happens because macOS sudo credentials expire after ~5 minutes of inactivity.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live log output -->
+                    <div class="bg-slate-900/80 rounded-lg p-4 h-96 overflow-y-auto font-mono text-xs border border-slate-700/50">
+                        <div id="install-log" class="text-lime-400 whitespace-pre-wrap"></div>
+                    </div>
+                </div>
+
+                <div class="bg-amber-900/20 border border-amber-700 rounded-lg p-4">
+                    <p class="text-sm text-amber-300">
+                        <strong>💡 Tip:</strong> Don't close this window. The installation will continue in the background, but you won't be able to see the progress.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="flex justify-between mt-8 pt-6 border-t border-slate-700">
+                <button onclick="previousStep()" id="prev-btn" class="bg-slate-700 text-slate-300 px-6 py-2 rounded-lg hover:bg-slate-600 disabled:opacity-50" disabled>
+                    Previous
+                </button>
+                <button onclick="nextStep()" id="next-btn" class="bg-amber-400 text-slate-900 font-medium px-6 py-2 rounded-lg hover:bg-amber-500">
+                    Next
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        const totalSteps = 8;
+        let configData = {};
+
+        const stepLabels = [
+            'System', 'Data Disk', 'Admin', 'LLM', 'Report LLM', 'Email', 'SSL', 'Review'
+        ];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            renderProgressSteps();
+            loadSystemInfo();
+            updateProgress();
+
+            // Email toggle
+            document.getElementById('email-enabled').addEventListener('change', function() {
+                document.getElementById('email-config').style.display = this.checked ? 'block' : 'none';
+            });
+
+            // Admin email input - show manual instructions when empty
+            document.getElementById('admin-email').addEventListener('input', function() {
+                document.getElementById('manual-admin-instructions').style.display = this.value.trim() ? 'none' : 'block';
+            });
+
+            // SSL type toggle
+            document.querySelectorAll('input[name="ssl-type"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    // Hide all SSL options first
+                    document.getElementById('ssl-upload').style.display = 'none';
+                    document.getElementById('ssl-letsencrypt').style.display = 'none';
+
+                    // Show selected option
+                    if (this.value === 'upload') {
+                        document.getElementById('ssl-upload').style.display = 'block';
+                    } else if (this.value === 'letsencrypt') {
+                        document.getElementById('ssl-letsencrypt').style.display = 'block';
+                    }
+                });
+            });
+
+            // Check for existing certificates on server
+            fetch('/api/check-server-certs')
+                .then(response => response.json())
+                .then(data => {
+                    const statusEl = document.getElementById('server-cert-status');
+                    const selfSignedOption = document.getElementById('self-signed-option');
+
+                    if (data.has_letsencrypt) {
+                        statusEl.style.display = 'block';
+                        document.getElementById('cert-status-icon').textContent = '✅';
+                        document.getElementById('cert-status-title').textContent = 'Valid SSL Certificate Found';
+                        document.getElementById('cert-status-message').textContent =
+                            `Let's Encrypt certificate expires: ${data.expires_at}. Self-signed option has been disabled.`;
+                        document.getElementById('cert-status-title').className = 'font-medium text-green-200';
+
+                        // Disable self-signed option
+                        const selfSignedInput = selfSignedOption.querySelector('input[type="radio"]');
+                        selfSignedInput.disabled = true;
+                        selfSignedOption.classList.add('opacity-50', 'cursor-not-allowed');
+                        selfSignedOption.querySelector('.border-slate-600').classList.add('opacity-50');
+
+                        // Select Let's Encrypt by default
+                        const leInput = document.querySelector('input[value="letsencrypt"]');
+                        if (leInput) {
+                            leInput.checked = true;
+                            leInput.dispatchEvent(new Event('change'));
+                        }
+                    } else if (data.has_self_signed) {
+                        statusEl.style.display = 'block';
+                        document.getElementById('cert-status-icon').textContent = '⚠️';
+                        document.getElementById('cert-status-title').textContent = 'Self-Signed Certificate Detected';
+                        document.getElementById('cert-status-message').textContent =
+                            'Consider upgrading to a trusted certificate for production use.';
+                        document.getElementById('cert-status-title').className = 'font-medium text-amber-200';
+                    }
+                })
+                .catch(err => {
+                    console.log('Could not check server certificates:', err);
+                });
+        });
+
+        function renderProgressSteps() {
+            const container = document.getElementById('progress-steps');
+            container.innerHTML = '';
+
+            for (let i = 1; i <= totalSteps; i++) {
+                const stepDiv = document.createElement('div');
+                stepDiv.className = 'flex items-center';
+                stepDiv.innerHTML = `
+                    <div class="step-indicator ${i === currentStep ? 'active' : i < currentStep ? 'completed' : 'pending'}" id="step-${i}">
+                        ${i}
+                    </div>
+                    ${i < totalSteps ? '<div class="w-8 h-0.5 bg-gray-300 mx-2"></div>' : ''}
+                `;
+                container.appendChild(stepDiv);
+            }
+        }
+
+        function updateProgress() {
+            const percentage = ((currentStep - 1) / (totalSteps - 1)) * 100;
+            document.getElementById('progress-bar').style.width = percentage + '%';
+
+            // Show/hide steps
+            document.querySelectorAll('.step-content').forEach((el, index) => {
+                el.classList.toggle('active', index + 1 === currentStep);
+            });
+
+            // Update buttons
+            document.getElementById('prev-btn').disabled = currentStep === 1;
+            document.getElementById('next-btn').style.display = currentStep === totalSteps ? 'none' : 'block';
+
+            renderProgressSteps();
+        }
+
+        async function nextStep() {
+            // Save current step data
+            await saveStepData(currentStep);
+
+            if (currentStep < totalSteps) {
+                currentStep++;
+                updateProgress();
+
+                // Special handling for review step
+                if (currentStep === 8) {
+                    await renderConfigReview();
+                }
+            }
+        }
+
+        function previousStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateProgress();
+            }
+        }
+
+        async function loadSystemInfo() {
+            try {
+                // Load basic system info
+                const sysResponse = await fetch('/api/system-info');
+                const sysData = await sysResponse.json();
+
+                document.getElementById('timezone').value = sysData.timezone;
+                document.getElementById('current-ip').textContent = sysData.ip_address;
+                document.getElementById('current-ip-hosts').textContent = sysData.ip_address;
+
+                // Load hostname options with rich context
+                const hostnameResponse = await fetch('/api/hostname-options');
+                const hostnameData = await hostnameResponse.json();
+
+                // Update platform info
+                const platformType = hostnameData.platform === 'vm' ? 'Virtual Machine' : 'Bare Metal';
+                document.getElementById('platform-type').textContent = platformType;
+
+                const guidanceEl = document.getElementById('platform-guidance');
+                if (hostnameData.guidance) {
+                    guidanceEl.textContent = `💡 ${hostnameData.guidance}`;
+                    guidanceEl.classList.remove('hidden');
+                }
+
+                const optionsContainer = document.getElementById('hostname-options');
+
+                // Check if hostname was already selected in CLI prompt
+                if (hostnameData.cli_selected_hostname) {
+                    // Hostname already selected in CLI - show confirmation instead of making user choose again
+                    const selectedHostname = hostnameData.cli_selected_hostname;
+                    optionsContainer.innerHTML = `
+                        <div class="bg-green-900/30 border-2 border-green-500/50 rounded-lg p-4">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">✅</span>
+                                <div class="flex-1">
+                                    <p class="text-green-400 font-semibold">Hostname already configured</p>
+                                    <p class="text-slate-200 text-lg font-mono mt-1">${selectedHostname}</p>
+                                    <p class="text-xs text-slate-400 mt-2">Selected during initial setup. This value will be used for WebAuthn/Passkey authentication.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button type="button" onclick="showHostnameOptions()" class="text-xs text-amber-400 hover:text-amber-300 underline">
+                                Change hostname (advanced)
+                            </button>
+                        </div>
+                        <div id="hostname-options-expanded" class="hidden mt-3 space-y-2">
+                            <!-- Will be populated if user clicks "Change hostname" -->
+                        </div>
+                    `;
+
+                    // Set the hidden hostname value
+                    document.getElementById('hostname').value = selectedHostname;
+                    document.getElementById('hostname-display').textContent = selectedHostname;
+                    updateAdminEmail(selectedHostname);
+
+                    // Store options data for if user wants to change
+                    window.hostnameOptionsData = hostnameData;
+                } else {
+                    // No CLI selection - show full options (original behavior)
+                    optionsContainer.innerHTML = hostnameData.options.map((option, index) => {
+                        const isRecommended = option.recommended;
+                        const hasWarning = option.warning;
+                        const requiresMdns = option.requires_mdns && !hostnameData.mdns_available;
+
+                        return `
+                            <div class="relative">
+                                <label class="flex items-start gap-3 p-3 bg-slate-700/50 border ${isRecommended ? 'border-green-500/50' : 'border-slate-600'} rounded-lg cursor-pointer hover:bg-slate-700 transition-colors ${requiresMdns ? 'opacity-60' : ''}">
+                                    <input type="radio"
+                                           name="hostname-option"
+                                           value="${option.value}"
+                                           class="mt-1"
+                                           ${isRecommended ? 'checked' : ''}
+                                           ${requiresMdns ? 'disabled' : ''}
+                                           onchange="handleHostnameChange('${option.value}')">
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-slate-100 font-medium">${option.label}</span>
+                                            ${isRecommended ? '<span class="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/50">⭐ RECOMMENDED</span>' : ''}
+                                        </div>
+                                        <p class="text-xs text-slate-400 mt-1">${option.description}</p>
+                                        ${hasWarning ? `<p class="text-xs text-amber-400 mt-1">⚠️ ${option.warning}</p>` : ''}
+                                    </div>
+                                </label>
+                            </div>
+                        `;
+                    }).join('');
+
+                    // Set initial hostname value (recommended option)
+                    const recommendedOption = hostnameData.options.find(opt => opt.recommended);
+                    if (recommendedOption) {
+                        document.getElementById('hostname').value = recommendedOption.value;
+                        document.getElementById('hostname-display').textContent = recommendedOption.value;
+                        updateAdminEmail(recommendedOption.value);
+                    }
+                }
+
+            } catch (error) {
+                console.error('Failed to load system info:', error);
+                // Fallback: show simple text input
+                document.getElementById('hostname-options').innerHTML = `
+                    <p class="text-red-400">Failed to load hostname options. Please enter manually:</p>
+                    <input type="text" id="hostname-fallback" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100" placeholder="sting.local">
+                `;
+            }
+        }
+
+        function handleHostnameChange(value) {
+            const customInput = document.getElementById('custom-hostname-input');
+            const hostnameField = document.getElementById('hostname');
+            const hostnameDisplay = document.getElementById('hostname-display');
+
+            if (value === 'custom') {
+                // Show custom input field
+                customInput.classList.remove('hidden');
+
+                // Listen for custom input changes
+                const customValueInput = document.getElementById('custom-hostname-value');
+                customValueInput.addEventListener('input', function(e) {
+                    hostnameField.value = e.target.value;
+                    hostnameDisplay.textContent = e.target.value || 'custom';
+                    updateAdminEmail(e.target.value);
+                });
+
+                // Set focus to custom input
+                customValueInput.focus();
+            } else {
+                // Hide custom input and use selected value
+                customInput.classList.add('hidden');
+                hostnameField.value = value;
+                hostnameDisplay.textContent = value;
+                updateAdminEmail(value);
+            }
+        }
+
+        function showHostnameOptions() {
+            // Show expanded hostname options when user clicks "Change hostname (advanced)"
+            const expandedContainer = document.getElementById('hostname-options-expanded');
+            const hostnameData = window.hostnameOptionsData;
+
+            if (!hostnameData || !expandedContainer) return;
+
+            expandedContainer.classList.remove('hidden');
+
+            // Render the options
+            expandedContainer.innerHTML = hostnameData.options.map((option, index) => {
+                const isRecommended = option.recommended;
+                const hasWarning = option.warning;
+                const requiresMdns = option.requires_mdns && !hostnameData.mdns_available;
+
+                return `
+                    <div class="relative">
+                        <label class="flex items-start gap-3 p-3 bg-slate-700/50 border ${isRecommended ? 'border-green-500/50' : 'border-slate-600'} rounded-lg cursor-pointer hover:bg-slate-700 transition-colors ${requiresMdns ? 'opacity-60' : ''}">
+                            <input type="radio"
+                                   name="hostname-option"
+                                   value="${option.value}"
+                                   class="mt-1"
+                                   ${isRecommended ? 'checked' : ''}
+                                   ${requiresMdns ? 'disabled' : ''}
+                                   onchange="handleHostnameChange('${option.value}')">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-slate-100 font-medium">${option.label}</span>
+                                    ${isRecommended ? '<span class="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/50">⭐ SELECTED</span>' : ''}
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1">${option.description}</p>
+                                ${hasWarning ? `<p class="text-xs text-amber-400 mt-1">⚠️ ${option.warning}</p>` : ''}
+                            </div>
+                        </label>
+                    </div>
+                `;
+            }).join('');
+
+            // Hide the "Change hostname" button
+            const changeBtn = expandedContainer.previousElementSibling;
+            if (changeBtn) changeBtn.style.display = 'none';
+        }
+
+        function updateAdminEmail(hostname) {
+            // Update the admin email display to match the selected hostname
+            const adminEmailDisplay = document.getElementById('admin-email-display');
+            if (adminEmailDisplay && hostname) {
+                adminEmailDisplay.textContent = `admin@${hostname}`;
+            }
+        }
+
+        async function detectDisks() {
+            try {
+                const response = await fetch('/api/detect-disks');
+                const data = await response.json();
+
+                const listEl = document.getElementById('disk-list');
+                if (data.disks.length === 0) {
+                    listEl.innerHTML = '<p class="text-slate-300">No unmounted disks found</p>';
+                    return;
+                }
+
+                listEl.innerHTML = data.disks.map(disk => `
+                    <div class="glass-card-light rounded-lg p-4 flex justify-between items-center">
+                        <div class="text-slate-100">
+                            <strong class="text-slate-50">${disk.device}</strong> - ${disk.size}
+                        </div>
+                        <button onclick="formatDisk('${disk.device}')" class="bg-red-500 text-white font-medium px-4 py-2 rounded hover:bg-red-600">
+                            Format & Mount
+                        </button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to detect disks:', error);
+            }
+        }
+
+        async function formatDisk(device) {
+            if (!confirm(`Format ${device}? This will erase all data!`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/format-disk', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({device})
+                });
+
+                const data = await response.json();
+                alert(data.message);
+
+                if (data.success) {
+                    detectDisks();
+                }
+            } catch (error) {
+                alert('Failed to format disk: ' + error);
+            }
+        }
+
+        async function testLLMEndpoint() {
+            const endpoint = document.getElementById('llm-endpoint').value;
+            const model = document.getElementById('llm-model').value;
+            const resultDiv = document.getElementById('llm-test-result');
+
+            resultDiv.innerHTML = '<div class="bg-amber-400/90 border border-amber-500 rounded-lg p-4 backdrop-blur-sm"><p class="text-slate-900 font-semibold">Testing connection...</p></div>';
+
+            try {
+                const response = await fetch('/api/test-llm', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({endpoint, model})
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="bg-amber-400/90 border border-amber-500 rounded-lg p-4 backdrop-blur-sm">
+                            <p class="text-black font-semibold"><strong>✓ Success!</strong> ${data.message}</p>
+                            ${data.models.length > 0 ? `<p class="text-sm text-black mt-2">Available models: ${data.models.join(', ')}</p>` : ''}
+                        </div>
+                    `;
+
+                    // Show save button after successful test
+                    document.getElementById('save-llm-config-btn').classList.remove('hidden');
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="bg-amber-400/90 border border-amber-600 rounded-lg p-4 backdrop-blur-sm">
+                            <p class="text-black font-semibold"><strong>⚠ Failed:</strong> ${data.message}</p>
+                        </div>
+                    `;
+
+                    // Hide save button on failure
+                    document.getElementById('save-llm-config-btn').classList.add('hidden');
+                    document.getElementById('llm-config-saved').classList.add('hidden');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="bg-amber-400/90 border border-amber-600 rounded-lg p-4 backdrop-blur-sm">
+                        <p class="text-black font-semibold"><strong>⚠ Connection error:</strong> ${error}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function saveLLMConfig() {
+            const endpoint = document.getElementById('llm-endpoint').value;
+            const model = document.getElementById('llm-model').value;
+
+            // Save to config data
+            configData.llm = {
+                endpoint: endpoint,
+                model: model
+            };
+
+            // Hide save button
+            document.getElementById('save-llm-config-btn').classList.add('hidden');
+
+            // Show confirmation
+            document.getElementById('llm-config-saved').classList.remove('hidden');
+            document.getElementById('saved-endpoint').textContent = endpoint;
+            document.getElementById('saved-model').textContent = model;
+
+            // Persist to backend
+            fetch('/api/save-step', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({step: 4, data: {llm: {endpoint, model}}})
+            });
+        }
+
+        function toggleReportLLMConfig() {
+            const checkbox = document.getElementById('report-llm-enabled');
+            const configDiv = document.getElementById('report-llm-config');
+            configDiv.style.display = checkbox.checked ? 'block' : 'none';
+        }
+
+        async function testReportLLMEndpoint() {
+            const endpoint = document.getElementById('report-llm-endpoint').value;
+            const model = document.getElementById('report-llm-model').value;
+            const resultDiv = document.getElementById('report-llm-test-result');
+
+            resultDiv.innerHTML = '<div class="bg-amber-400/90 border border-amber-500 rounded-lg p-4 backdrop-blur-sm"><p class="text-slate-900 font-semibold">Testing connection...</p></div>';
+
+            try {
+                const response = await fetch('/api/test-llm', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({endpoint, model})
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="bg-amber-400/90 border border-amber-500 rounded-lg p-4 backdrop-blur-sm">
+                            <p class="text-black font-semibold"><strong>✓ Success!</strong> ${data.message}</p>
+                            ${data.models.length > 0 ? `<p class="text-sm text-black mt-2">Available models: ${data.models.join(', ')}</p>` : ''}
+                        </div>
+                    `;
+
+                    // Show save button after successful test
+                    document.getElementById('save-report-llm-config-btn').classList.remove('hidden');
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="bg-amber-400/90 border border-amber-600 rounded-lg p-4 backdrop-blur-sm">
+                            <p class="text-black font-semibold"><strong>⚠ Failed:</strong> ${data.message}</p>
+                        </div>
+                    `;
+
+                    // Hide save button on failure
+                    document.getElementById('save-report-llm-config-btn').classList.add('hidden');
+                    document.getElementById('report-llm-config-saved').classList.add('hidden');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="bg-amber-400/90 border border-amber-600 rounded-lg p-4 backdrop-blur-sm">
+                        <p class="text-black font-semibold"><strong>⚠ Connection error:</strong> ${error}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testSMTPConnection() {
+            const host = document.getElementById('smtp-host').value;
+            const port = document.getElementById('smtp-port').value;
+            const username = document.getElementById('smtp-username').value;
+            const password = document.getElementById('smtp-password').value;
+            const resultDiv = document.getElementById('smtp-test-result');
+
+            if (!host || !port || !username || !password) {
+                resultDiv.innerHTML = `
+                    <div class="bg-amber-400/90 border border-amber-600 rounded-lg p-4 backdrop-blur-sm">
+                        <p class="text-black font-semibold"><strong>⚠ Missing fields:</strong> Please fill in all SMTP fields</p>
+                    </div>
+                `;
+                return;
+            }
+
+            resultDiv.innerHTML = '<div class="bg-amber-400/90 border border-amber-500 rounded-lg p-4 backdrop-blur-sm"><p class="text-slate-900 font-semibold">Testing SMTP connection...</p></div>';
+
+            try {
+                const response = await fetch('/api/test-smtp', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({host, port, username, password})
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="bg-green-400/90 border border-green-500 rounded-lg p-4 backdrop-blur-sm">
+                            <p class="text-black font-semibold"><strong>✓ Success!</strong> ${data.message}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="bg-red-400/90 border border-red-500 rounded-lg p-4 backdrop-blur-sm">
+                            <p class="text-black font-semibold"><strong>⚠ Failed:</strong> ${data.message}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="bg-red-400/90 border border-red-500 rounded-lg p-4 backdrop-blur-sm">
+                        <p class="text-black font-semibold"><strong>⚠ Connection error:</strong> ${error}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function saveReportLLMConfig() {
+            const endpoint = document.getElementById('report-llm-endpoint').value;
+            const model = document.getElementById('report-llm-model').value;
+            const fallbackModel = document.getElementById('report-llm-fallback-model').value;
+            const maxTokens = document.getElementById('report-max-tokens').value;
+
+            // Save to config data
+            configData.report_llm = {
+                endpoint: endpoint,
+                model: model,
+                fallback_model: fallbackModel,
+                max_tokens: maxTokens
+            };
+
+            // Hide save button
+            document.getElementById('save-report-llm-config-btn').classList.add('hidden');
+
+            // Show confirmation
+            document.getElementById('report-llm-config-saved').classList.remove('hidden');
+            document.getElementById('saved-report-endpoint').textContent = endpoint;
+            document.getElementById('saved-report-model').textContent = model;
+            document.getElementById('saved-report-max-tokens').textContent = maxTokens;
+
+            // Persist to backend
+            fetch('/api/save-step', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({step: 5, data: {report_llm: {endpoint, model, fallback_model: fallbackModel, max_tokens: maxTokens}}})
+            });
+        }
+
+        async function saveStepData(step) {
+            const stepData = {};
+
+            // Collect data based on step
+            // Steps: 1=System, 2=DataDisk, 3=Admin, 4=LLM, 5=ReportLLM, 6=Email, 7=SSL, 8=Review
+            switch(step) {
+                case 1:
+                    stepData.system = {
+                        hostname: document.getElementById('hostname').value,
+                        timezone: document.getElementById('timezone').value
+                    };
+                    break;
+                case 3:
+                    // Get admin email from input, or null if empty (skip admin creation)
+                    const adminEmail = document.getElementById('admin-email').value.trim();
+                    stepData.admin = {
+                        email: adminEmail || null
+                    };
+                    break;
+                case 4:
+                    stepData.llm = {
+                        endpoint: document.getElementById('llm-endpoint').value,
+                        model: document.getElementById('llm-model').value
+                    };
+                    break;
+                case 6:
+                    // Email configuration (Step 6, not Step 5)
+                    if (document.getElementById('email-enabled').checked) {
+                        stepData.email = {
+                            host: document.getElementById('smtp-host').value,
+                            port: document.getElementById('smtp-port').value,
+                            username: document.getElementById('smtp-username').value,
+                            password: document.getElementById('smtp-password').value
+                        };
+                    }
+                    break;
+                case 7:
+                    // SSL/TLS Configuration
+                    const sslType = document.querySelector('input[name="ssl-type"]:checked')?.value || 'self-signed';
+                    stepData.ssl = {
+                        type: sslType
+                    };
+                    if (sslType === 'letsencrypt') {
+                        stepData.ssl.domain = document.getElementById('letsencrypt-domain').value.trim();
+                        stepData.ssl.email = document.getElementById('letsencrypt-email').value.trim();
+                    } else if (sslType === 'upload') {
+                        // Handle custom certificate upload
+                        const certFile = document.getElementById('ssl-cert').files[0];
+                        const keyFile = document.getElementById('ssl-key').files[0];
+                        
+                        if (certFile && keyFile) {
+                            // Upload the certificate files
+                            const formData = new FormData();
+                            formData.append('cert', certFile);
+                            formData.append('key', keyFile);
+                            
+                            try {
+                                const uploadResponse = await fetch('/api/upload-certs', {
+                                    method: 'POST',
+                                    body: formData
+                                });
+                                
+                                if (uploadResponse.ok) {
+                                    const uploadResult = await uploadResponse.json();
+                                    stepData.ssl.cert_path = uploadResult.cert_path;
+                                    stepData.ssl.key_path = uploadResult.key_path;
+                                    stepData.ssl.uploaded = true;
+                                } else {
+                                    console.error('Failed to upload certificates');
+                                    // Add error indicator for user
+                                    stepData.ssl.upload_error = 'Failed to upload certificate files';
+                                }
+                            } catch (error) {
+                                console.error('Certificate upload error:', error);
+                                stepData.ssl.upload_error = error.message;
+                            }
+                        } else {
+                            stepData.ssl.upload_error = 'Both certificate and key files are required';
+                        }
+                    }
+                    break;
+            }
+
+            if (Object.keys(stepData).length > 0) {
+                configData = {...configData, ...stepData};
+
+                await fetch('/api/save-step', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({step, data: stepData})
+                });
+            }
+        }
+
+        async function renderConfigReview() {
+            const reviewDiv = document.getElementById('config-review');
+            reviewDiv.innerHTML = `
+                <pre class="text-sm bg-slate-900 p-4 rounded border border-slate-600 text-lime-400 font-mono">${JSON.stringify(configData, null, 2)}</pre>
+            `;
+
+            // Check if we're in dev mode and show appropriate warning
+            try {
+                const response = await fetch('/api/state');
+                const state = await response.json();
+
+                if (state.dev_mode) {
+                    document.getElementById('dev-mode-notice').style.display = 'block';
+                    document.getElementById('prod-warning').style.display = 'none';
+                    document.getElementById('macos-sudo-warning').style.display = 'none';
+                } else {
+                    document.getElementById('dev-mode-notice').style.display = 'none';
+                    document.getElementById('prod-warning').style.display = 'block';
+
+                    // Check server platform for macOS sudo timeout warning
+                    try {
+                        const platformResponse = await fetch('/api/server-platform');
+                        const platformData = await platformResponse.json();
+
+                        if (platformData.sudo_timeout_warning) {
+                            document.getElementById('macos-sudo-warning').style.display = 'block';
+                        } else {
+                            document.getElementById('macos-sudo-warning').style.display = 'none';
+                        }
+                    } catch (platformError) {
+                        console.error('Failed to check platform:', platformError);
+                        // Default to hiding the warning if we can't detect
+                        document.getElementById('macos-sudo-warning').style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to check dev mode:', error);
+            }
+        }
+
+        async function applyConfiguration() {
+            if (!confirm('Apply configuration and install STING? This cannot be undone.')) {
+                return;
+            }
+
+            // CRITICAL: Check sudo BEFORE starting installation
+            // On macOS, if user took their time in wizard, sudo may have expired
+            // We need them to refresh it NOW, not when the prompt gets buried in logs
+            try {
+                const sudoCheckResponse = await fetch('/api/pre-install-sudo-check', { method: 'POST' });
+                const sudoCheck = await sudoCheckResponse.json();
+
+                if (!sudoCheck.sudo_valid) {
+                    // Show blocking modal - don't proceed until sudo is refreshed
+                    const shouldProceed = await showSudoRefreshModal(sudoCheck.is_macos);
+                    if (!shouldProceed) {
+                        return; // User cancelled
+                    }
+                }
+            } catch (e) {
+                console.error('Sudo check failed:', e);
+                // Continue anyway - worst case they'll see the prompt during install
+            }
+
+            // Switch to installation progress view (Step 9)
+            document.querySelectorAll('.step-content').forEach(step => step.style.display = 'none');
+            document.querySelector('[data-step="9"]').style.display = 'block';
+            document.getElementById('prev-btn').style.display = 'none';
+            document.getElementById('next-btn').style.display = 'none';
+
+            // Show macOS reminder if on macOS
+            try {
+                const platformResponse = await fetch('/api/server-platform');
+                const platformData = await platformResponse.json();
+                if (platformData.is_macos) {
+                    document.getElementById('macos-install-reminder').style.display = 'block';
+                }
+            } catch (e) {
+                // Ignore platform detection errors
+            }
+
+            try {
+                // Start installation
+                const response = await fetch('/api/apply-config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({config: configData})
+                });
+
+                const data = await response.json();
+
+                if (data.install_id) {
+                    // Start streaming logs
+                    streamInstallLogs(data.install_id);
+                } else if (data.success) {
+                    // Installation completed immediately (shouldn't happen)
+                    showInstallComplete(data.redirect_url);
+                } else {
+                    showInstallError(data.error || 'Unknown error');
+                }
+            } catch (error) {
+                showInstallError('Installation failed: ' + error);
+            }
+        }
+
+        async function showSudoRefreshModal(isMacOS) {
+            return new Promise((resolve) => {
+                // Create modal overlay
+                const overlay = document.createElement('div');
+                overlay.id = 'sudo-refresh-modal';
+                overlay.className = 'fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50';
+                overlay.innerHTML = `
+                    <div class="bg-slate-800 border-2 border-amber-500 rounded-xl p-8 max-w-lg mx-4 shadow-2xl">
+                        <div class="flex items-start gap-4 mb-6">
+                            <div class="text-4xl">${isMacOS ? '🍎' : '🔐'}</div>
+                            <div>
+                                <h3 class="text-xl font-bold text-amber-400 mb-2">Sudo Credentials Expired</h3>
+                                <p class="text-slate-300">
+                                    ${isMacOS
+                                        ? 'Your macOS sudo session has timed out. This is normal after browsing the wizard for a few minutes.'
+                                        : 'Your sudo session has expired.'}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 rounded-lg p-5 mb-6">
+                            <p class="text-slate-200 font-medium mb-3">Please do this now:</p>
+                            <ol class="text-slate-300 space-y-3 ml-4 list-decimal">
+                                <li>Go to your <strong class="text-amber-400">terminal window</strong> (where you ran the installer)</li>
+                                <li>Run this command:
+                                    <div class="bg-slate-800 rounded px-4 py-2 mt-2 font-mono text-lime-400 text-lg flex items-center justify-between">
+                                        <span>sudo -v</span>
+                                        <button onclick="copyToClipboard('sudo -v'); this.textContent='✅'" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-slate-300">Copy</button>
+                                    </div>
+                                </li>
+                                <li>Enter your password ${isMacOS ? 'or use TouchID' : ''}</li>
+                                <li>Come back here and click <strong class="text-lime-400">"Continue Installation"</strong></li>
+                            </ol>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button id="sudo-modal-retry" class="flex-1 bg-lime-500 hover:bg-lime-600 text-slate-900 font-bold py-3 px-6 rounded-lg transition-colors">
+                                ✓ Continue Installation
+                            </button>
+                            <button id="sudo-modal-cancel" class="bg-slate-700 hover:bg-slate-600 text-slate-300 py-3 px-6 rounded-lg transition-colors">
+                                Cancel
+                            </button>
+                        </div>
+
+                        <p class="text-xs text-slate-500 mt-4 text-center">
+                            Installation will verify sudo access before starting.
+                        </p>
+                    </div>
+                `;
+
+                document.body.appendChild(overlay);
+
+                // Handle retry button - check sudo again
+                document.getElementById('sudo-modal-retry').addEventListener('click', async () => {
+                    const btn = document.getElementById('sudo-modal-retry');
+                    btn.disabled = true;
+                    btn.textContent = 'Checking...';
+
+                    try {
+                        const recheckResponse = await fetch('/api/pre-install-sudo-check', { method: 'POST' });
+                        const recheck = await recheckResponse.json();
+
+                        if (recheck.sudo_valid) {
+                            overlay.remove();
+                            resolve(true); // Proceed with installation
+                        } else {
+                            btn.disabled = false;
+                            btn.textContent = '✓ Continue Installation';
+                            // Show error message
+                            alert('Sudo is still expired. Please run "sudo -v" in your terminal and enter your password, then try again.');
+                        }
+                    } catch (e) {
+                        btn.disabled = false;
+                        btn.textContent = '✓ Continue Installation';
+                        // On error, let them proceed anyway
+                        overlay.remove();
+                        resolve(true);
+                    }
+                });
+
+                // Handle cancel button
+                document.getElementById('sudo-modal-cancel').addEventListener('click', () => {
+                    overlay.remove();
+                    resolve(false); // Don't proceed
+                });
+            });
+        }
+
+        async function streamInstallLogs(installId) {
+            const logDiv = document.getElementById('install-log');
+            const statusSpan = document.getElementById('install-status');
+            const progressBar = document.getElementById('install-progress-bar');
+
+            let lastLength = 0;
+
+            const pollLogs = async () => {
+                try {
+                    const response = await fetch(`/api/install-log/${installId}`);
+                    const data = await response.json();
+
+                    if (data.log) {
+                        logDiv.textContent = data.log;
+                        // Auto-scroll to bottom
+                        logDiv.parentElement.scrollTop = logDiv.parentElement.scrollHeight;
+                    }
+
+                    if (data.status) {
+                        statusSpan.textContent = data.status;
+                    }
+
+                    if (data.progress !== undefined) {
+                        progressBar.style.width = data.progress + '%';
+                    }
+
+                    // Check if sudo reauth is needed
+                    if (data.sudo_reauth_needed) {
+                        showSudoReauthBanner();
+                    } else {
+                        hideSudoReauthBanner();
+                    }
+
+                    if (data.completed) {
+                        if (data.success) {
+                            progressBar.style.width = '100%';
+                            statusSpan.textContent = 'Installation Complete! ✅';
+                            setTimeout(() => {
+                                showInstallComplete(data.redirect_url, data.admin_email);
+                            }, 2000);
+                        } else {
+                            showInstallError(data.error || 'Installation failed');
+                        }
+                    } else {
+                        // Continue polling
+                        setTimeout(pollLogs, 2000);
+                    }
+                } catch (error) {
+                    console.error('Error polling logs:', error);
+                    setTimeout(pollLogs, 5000); // Retry after longer delay
+                }
+            };
+
+            pollLogs();
+        }
+
+        function showInstallComplete(redirectUrl, adminEmail) {
+            const logDiv = document.getElementById('install-log');
+            const logContent = logDiv.textContent || logDiv.innerText;
+
+            // Check for admin creation failures
+            const adminFailed = logContent.includes('Admin creation failed') ||
+                               logContent.includes('Could not create admin');
+
+            logDiv.innerHTML += '\n\n' +
+                '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+                '✅ Installation Complete!\n' +
+                '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+
+            if (redirectUrl) {
+                if (adminFailed) {
+                    logDiv.innerHTML +=
+                        '⚠️  Admin account creation failed (see logs above).\n' +
+                        '🔧 Create admin manually after launching STING:\n' +
+                        '   sudo msting create admin ' + (adminEmail || 'admin@sting.local') + '\n\n';
+                    
+                    // Add copyable command below the log window
+                    addManualAdminCommand(adminEmail || 'admin@sting.local');
+                } else {
+                    logDiv.innerHTML +=
+                        '🐝 Admin account created: ' + (adminEmail || 'admin@sting.local') + '\n' +
+                        '🔐 Check your email for the magic link to verify and set up security.\n\n';
+                }
+
+                // Add Launch button to navigation area
+                const nextBtn = document.getElementById('next-btn');
+                nextBtn.textContent = '🚀 Launch STING';
+                nextBtn.style.display = 'block';
+                nextBtn.classList.remove('bg-amber-400', 'hover:bg-amber-500');
+                nextBtn.classList.add('bg-lime-500', 'hover:bg-lime-600', 'font-bold', 'text-lg', 'px-8', 'py-3');
+                nextBtn.onclick = async () => {
+                    // Shutdown wizard server gracefully
+                    nextBtn.disabled = true;
+                    nextBtn.textContent = '🚀 Launching...';
+                    try {
+                        await fetch('/api/shutdown', { method: 'POST' });
+                    } catch (e) {
+                        // Expected - server is shutting down
+                    }
+                    // Wait a moment for server to shutdown, then redirect
+                    setTimeout(() => {
+                        window.location.href = redirectUrl;
+                    }, 1500);
+                };
+            } else {
+                logDiv.innerHTML +=
+                    '💡 This was a dev mode test - configuration saved but not installed.\n' +
+                    '📝 Review the output above for production deployment instructions.\n';
+            }
+        }
+
+        function addManualAdminCommand(adminEmail) {
+            // Create the copyable command section below the installation window
+            const wizardCard = document.querySelector('.glass-card:last-child');
+            
+            // Check if command section already exists
+            if (document.getElementById('manual-admin-section')) {
+                return;
+            }
+
+            const commandSection = document.createElement('div');
+            commandSection.id = 'manual-admin-section';
+            commandSection.className = 'glass-card rounded-lg shadow-xl p-6 mt-6';
+            
+            const command = `sudo msting create admin ${adminEmail}`;
+            
+            commandSection.innerHTML = `
+                <div class="bg-amber-900/30 border-2 border-amber-600 rounded-lg p-5">
+                    <div class="flex items-start gap-3">
+                        <div class="text-3xl">⚠️</div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold text-amber-400 mb-2">Admin Creation Failed</h3>
+                            <p class="text-amber-300 mb-4">
+                                The automatic admin account setup encountered an issue. You can create the admin account manually using the command below:
+                            </p>
+                            
+                            <div class="bg-slate-900 rounded-lg p-4 mb-4">
+                                <div class="flex items-center justify-between">
+                                    <code class="text-lime-400 font-mono text-sm flex-1 select-all" id="admin-command">${command}</code>
+                                    <button 
+                                        onclick="copyAdminCommand()" 
+                                        class="ml-3 bg-lime-500 hover:bg-lime-600 text-slate-900 px-3 py-1 rounded text-xs font-medium transition-colors"
+                                        title="Copy command to clipboard"
+                                    >
+                                        📋 Copy
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <p class="text-xs text-amber-200">
+                                <strong>💡 Usage:</strong> After STING starts, open a terminal and run this command to create your admin account.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Insert after the main wizard card
+            wizardCard.parentNode.insertBefore(commandSection, wizardCard.nextSibling);
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                // Brief visual feedback could be added here if needed
+            }).catch(function(err) {
+                console.error('Could not copy text: ', err);
+            });
+        }
+
+        function copyAdminCommand() {
+            const commandElement = document.getElementById('admin-command');
+            const command = commandElement.textContent;
+
+            navigator.clipboard.writeText(command).then(function() {
+                // Show success feedback
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = '✅ Copied!';
+                button.classList.remove('bg-lime-500', 'hover:bg-lime-600');
+                button.classList.add('bg-green-500');
+
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('bg-green-500');
+                    button.classList.add('bg-lime-500', 'hover:bg-lime-600');
+                }, 2000);
+            }).catch(function(err) {
+                // Fallback for older browsers
+                console.error('Could not copy text: ', err);
+                alert('Command copied to clipboard manually:\n\n' + command);
+            });
+        }
+
+        function showInstallError(error) {
+            const statusSpan = document.getElementById('install-status');
+            const logDiv = document.getElementById('install-log');
+
+            statusSpan.textContent = 'Installation Failed ❌';
+            logDiv.innerHTML += '\n\n' +
+                '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+                '❌ Installation Failed\n' +
+                '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+                'Error: ' + error + '\n\n' +
+                'Please check the logs above for more details.\n';
+        }
+
+        function showSudoReauthBanner() {
+            const banner = document.getElementById('sudo-reauth-banner');
+            if (banner) {
+                banner.style.display = 'block';
+            }
+        }
+
+        function hideSudoReauthBanner() {
+            const banner = document.getElementById('sudo-reauth-banner');
+            if (banner) {
+                banner.style.display = 'none';
+            }
+        }
+
+        async function checkSudoStatus() {
+            try {
+                const response = await fetch('/api/sudo-check');
+                const data = await response.json();
+
+                if (data.valid) {
+                    hideSudoReauthBanner();
+                    // Show success message briefly
+                    const statusSpan = document.getElementById('install-status');
+                    const oldStatus = statusSpan.textContent;
+                    statusSpan.textContent = '✓ Sudo refreshed - resuming installation...';
+                    setTimeout(() => {
+                        statusSpan.textContent = oldStatus;
+                    }, 3000);
+                } else {
+                    // Still invalid - show message
+                    alert('Sudo credentials are still expired. Please run:\n\nsudo -v\n\nin your terminal and try again.');
+                }
+            } catch (error) {
+                console.error('Error checking sudo status:', error);
+                alert('Error checking sudo status. Please try again.');
+            }
+        }
+    </script>
+</body>
+</html>

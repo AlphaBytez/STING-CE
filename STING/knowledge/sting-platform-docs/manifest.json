@@ -1,0 +1,219 @@
+{
+  "id": "sting-platform-docs",
+  "name": "STING Platform Knowledge",
+  "version": "1.2.0",
+  "description": "Official STING platform documentation for AI-powered knowledge retrieval with comprehensive guides, API reference, use cases, and integration examples",
+  "created": "2025-08-30",
+  "author": "AlphaBytez",
+  "license": "MIT",
+  "type": "documentation",
+  "tags": ["documentation", "api", "platform", "knowledge-base"],
+  
+  "honey_jar": {
+    "owner": "admin@sting.local",
+    "type": "public",
+    "status": "active",
+    "permissions": {
+      "public_read": true,
+      "public_write": false,
+      "admin_only": false
+    },
+    "config": {
+      "chunk_size": 1000,
+      "overlap": 200,
+      "embedding_model": "all-MiniLM-L6-v2"
+    }
+  },
+  
+  "documents": {
+    "core": [
+      {
+        "file": "README.md",
+        "title": "STING Platform Knowledge Base Index",
+        "description": "Main index and navigation for the knowledge base",
+        "type": "index"
+      },
+      {
+        "file": "sting-overview.md", 
+        "title": "STING Platform Overview",
+        "description": "Complete platform introduction and core features",
+        "type": "overview",
+        "references": [
+          "docs/STING_TECHNICAL_WHITEPAPER.md",
+          "docs/ARCHITECTURE.md", 
+          "docs/BUSINESS_OVERVIEW.md",
+          "docs/PRODUCT_ARCHITECTURE.md"
+        ]
+      }
+    ],
+    "guides": [
+      {
+        "file": "authentication-guide.md",
+        "title": "Authentication Guide",
+        "description": "Passwordless authentication system guide",
+        "type": "guide",
+        "references": [
+          "docs/features/PASSWORDLESS_AUTHENTICATION.md",
+          "docs/KRATOS_INTEGRATION_GUIDE.md",
+          "docs/guides/PASSKEY_QUICKSTART.md",
+          "docs/KRATOS_PASSKEY_GUIDE.md"
+        ]
+      },
+      {
+        "file": "honey-jars-guide.md",
+        "title": "Honey Jars Guide",
+        "description": "Knowledge management system guide",
+        "type": "guide",
+        "references": [
+          "docs/features/HONEY_JAR_USER_GUIDE.md",
+          "docs/features/HONEY_JAR_TECHNICAL_REFERENCE.md",
+          "docs/features/HONEY_JAR_EXPORT_IMPORT_SYSTEM.md",
+          "docs/features/HONEY_JAR_ACCESS_CONTROL.md"
+        ]
+      },
+      {
+        "file": "api-reference.md",
+        "title": "API Reference Guide",
+        "description": "Complete REST API documentation with examples",
+        "type": "reference",
+        "references": [
+          "app/routes/",
+          "docs/API_REFERENCE.md"
+        ]
+      },
+      {
+        "file": "report-generation.md",
+        "title": "Report Generation System",
+        "description": "Long-form report generation, PDF export, and queue management",
+        "type": "guide",
+        "references": [
+          "app/services/report_service.py",
+          "app/workers/report_generators.py",
+          "docs/features/REPORT_GENERATION_EXPLAINED.md"
+        ]
+      },
+      {
+        "file": "use-cases-metrics.md",
+        "title": "Use Cases & Real-World Metrics",
+        "description": "Industry-specific use cases with quantifiable ROI and performance metrics",
+        "type": "guide",
+        "references": [
+          "docs/BUSINESS_OVERVIEW.md"
+        ]
+      },
+      {
+        "file": "marketplace-monetization.md",
+        "title": "Marketplace & Knowledge Monetization",
+        "description": "Revenue sharing, pricing strategies, and selling knowledge products",
+        "type": "guide",
+        "references": [
+          "docs/BUSINESS_OVERVIEW.md"
+        ]
+      },
+      {
+        "file": "integration-examples.md",
+        "title": "Integration Examples & Third-Party Connectors",
+        "description": "Healthcare EHR, IoT, financial systems, and OpenAI-compatible API integration",
+        "type": "guide",
+        "references": [
+          "app/routes/",
+          "docs/API_REFERENCE.md"
+        ]
+      },
+      {
+        "file": "pii-detection-specifics.md",
+        "title": "PII Detection & Data Privacy System",
+        "description": "50+ PII entity types, compliance profiles (HIPAA, GDPR, CCPA), and custom patterns",
+        "type": "guide",
+        "references": [
+          "docs/features/PII_DETECTION_SYSTEM.md"
+        ]
+      }
+    ]
+  },
+
+  "references": {
+    "source_directory": "docs/",
+    "comprehensive_docs": true,
+    "key_documents": [
+      "docs/CLAUDE.md",
+      "docs/README.md", 
+      "docs/STING_TECHNICAL_WHITEPAPER.md",
+      "docs/ARCHITECTURE.md",
+      "docs/API_REFERENCE.md",
+      "docs/ADMIN_GUIDE.md",
+      "docs/INSTALLATION.md"
+    ],
+    "feature_docs": [
+      "docs/features/HONEY_JAR_USER_GUIDE.md",
+      "docs/features/PASSWORDLESS_AUTHENTICATION.md", 
+      "docs/features/PII_DETECTION_SYSTEM.md",
+      "docs/features/BEE_CHAT_MESSAGING_ARCHITECTURE.md",
+      "docs/features/REPORT_GENERATION_EXPLAINED.md"
+    ],
+    "architecture_docs": [
+      "docs/architecture/system-architecture.md",
+      "docs/architecture/security-architecture.md",
+      "docs/architecture/data-architecture.md"
+    ]
+  },
+
+  "metadata": {
+    "document_count": 9,
+    "estimated_tokens": 95000,
+    "content_summary": "Comprehensive STING platform documentation including guides, API reference, use cases with metrics, marketplace monetization, integration examples, and detailed PII detection specifications",
+    "update_frequency": "As needed with platform changes",
+    "compatibility": {
+      "sting_version": ">=1.0.0",
+      "knowledge_service_version": ">=1.0.0",
+      "hjx_format_version": "1.0"
+    }
+  },
+
+  "changelog": [
+    {
+      "version": "1.2.0",
+      "date": "2024-11-12",
+      "changes": [
+        "Added comprehensive Report Generation System documentation",
+        "Documented long-form report generation, PDF export, queue management, and timeout configuration",
+        "Added Use Cases & Real-World Metrics with quantifiable results across 8 industries",
+        "Documented Marketplace & Knowledge Monetization with 85/15 revenue sharing model",
+        "Added Integration Examples for healthcare EHR (Epic, FHIR), IoT/MQTT, financial systems, and OpenAI-compatible APIs",
+        "Created detailed PII Detection & Data Privacy System documentation covering 50+ entity types",
+        "Documented compliance profiles for HIPAA, GDPR, CCPA, FERPA, and PCI-DSS",
+        "Added practical code examples in Python, JavaScript, and cURL for all integrations",
+        "Included performance benchmarks, accuracy metrics, and troubleshooting guides",
+        "Total document count increased from 5 to 9 comprehensive guides"
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2024-11-12",
+      "changes": [
+        "Added comprehensive API reference documentation",
+        "Documented 30+ REST API endpoints with examples",
+        "Added authentication flow examples (Python, JavaScript, cURL)",
+        "Included report generation API documentation",
+        "Added request/response samples for all endpoints"
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2025-08-30",
+      "changes": [
+        "Initial versioned knowledge package",
+        "Corrected STING acronym definition",
+        "Added references to comprehensive documentation",
+        "Structured for AI-powered knowledge retrieval"
+      ]
+    }
+  ],
+
+  "usage_notes": [
+    "This package provides summaries optimized for Bee Chat responses",
+    "For complete technical details, reference the source documentation in /docs/",
+    "Package is designed for semantic search and AI question-answering",
+    "Update version when significant documentation changes occur"
+  ]
+}

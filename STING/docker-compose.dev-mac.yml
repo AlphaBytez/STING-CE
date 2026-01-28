@@ -1,0 +1,39 @@
+# Docker Compose override for macOS development with hot reload
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.frontend-nginx.yml -f docker-compose.dev-mac.yml up
+version: '3.8'
+
+services:
+  # Override frontend to use webpack dev server for hot reload on macOS
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.react-dev
+    environment:
+      # Override production settings for development
+      NODE_ENV: "development"
+      REACT_APP_API_URL: "https://localhost:5050"
+      REACT_APP_KRATOS_PUBLIC_URL: "https://localhost:4433"
+      PUBLIC_URL: "https://localhost:8443"
+      # Enable HTTPS for development
+      HTTPS: "true"
+      SSL_CRT_FILE: "/app/certs/server.crt"
+      SSL_KEY_FILE: "/app/certs/server.key"
+      # Ignore certificate issues for development
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
+      # Indicate we're running in Docker for proxy configuration
+      REACT_APP_IN_DOCKER: "true"
+    volumes:
+      # Mount source code for hot reload
+      - ./frontend:/app
+      - /app/node_modules
+      - sting_certs:/app/certs
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    ports:
+      - ${REACT_PORT:-8443}:8443
+    # Use the original command for dev server
+    command: >
+      sh -c "
+        echo 'Starting React dev server with hot reload...' && 
+        sh /app/update-env.sh &&
+        npm start
+      "

@@ -1,0 +1,1031 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  FolderOpen,
+  FileText,
+  Trash2,
+  Archive,
+  Search,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  MoreVertical,
+  RefreshCw,
+  Database,
+  Download,
+  Eye,
+  ExternalLink,
+  X
+} from 'lucide-react';
+import BasketIcon from '../icons/BasketIcon';
+
+// Demo data for when API returns empty results or for demonstration
+const generateDemoData = () => {
+  const now = new Date();
+  const oneDay = 24 * 60 * 60 * 1000;
+
+  return {
+    user_id: 'demo',
+    storage_quota: 1073741824, // 1GB
+    total_used: 287654912, // ~275MB
+    usage_percentage: 26.8,
+    storage_status: 'healthy',
+    breakdown: {
+      documents: 245760000, // ~234MB
+      temp_files: 41894912, // ~40MB
+      other: 0
+    },
+    honey_jars: [
+      {
+        id: 'demo_jar_1',
+        name: 'Bee Reports',
+        type: 'private',
+        documents: [
+          {
+            id: 'demo_doc_1',
+            filename: 'quarterly_analysis_2025.md',
+            size: 45678,
+            created_at: new Date(now - 2 * oneDay).toISOString(),
+            status: 'active'
+          },
+          {
+            id: 'demo_doc_2',
+            filename: 'market_insights_report.md',
+            size: 32456,
+            created_at: new Date(now - 5 * oneDay).toISOString(),
+            status: 'active'
+          },
+          {
+            id: 'demo_doc_3',
+            filename: 'customer_feedback_summary.md',
+            size: 28900,
+            created_at: new Date(now - 7 * oneDay).toISOString(),
+            status: 'active'
+          }
+        ],
+        total_size: 107034,
+        document_count: 3
+      },
+      {
+        id: 'demo_jar_2',
+        name: 'Engineering Documentation',
+        type: 'team',
+        documents: [
+          {
+            id: 'demo_doc_4',
+            filename: 'api_reference_v2.pdf',
+            size: 2456789,
+            created_at: new Date(now - 3 * oneDay).toISOString(),
+            status: 'active'
+          },
+          {
+            id: 'demo_doc_5',
+            filename: 'system_architecture.docx',
+            size: 1234567,
+            created_at: new Date(now - 10 * oneDay).toISOString(),
+            status: 'active'
+          },
+          {
+            id: 'demo_doc_6',
+            filename: 'deployment_guide.md',
+            size: 89012,
+            created_at: new Date(now - 14 * oneDay).toISOString(),
+            status: 'active'
+          },
+          {
+            id: 'demo_doc_7',
+            filename: 'security_guidelines.txt',
+            size: 56789,
+            created_at: new Date(now - 20 * oneDay).toISOString(),
+            status: 'active'
+          }
+        ],
+        total_size: 3837157,
+        document_count: 4
+      },
+      {
+        id: 'demo_jar_3',
+        name: 'Marketing Materials',
+        type: 'team',
+        documents: [
+          {
+            id: 'demo_doc_8',
+            filename: 'product_brochure_2025.pdf',
+            size: 5678901,
+            created_at: new Date(now - 1 * oneDay).toISOString(),
+            status: 'active'
+          },
+          {
+            id: 'demo_doc_9',
+            filename: 'case_study_enterprise.docx',
+            size: 234567,
+            created_at: new Date(now - 8 * oneDay).toISOString(),
+            status: 'active'
+          }
+        ],
+        total_size: 5913468,
+        document_count: 2
+      }
+    ],
+    cleanup_opportunities: [
+      {
+        type: 'temp_files',
+        description: 'Delete 5 old temporary files',
+        potential_savings: 41894912,
+        count: 5
+      },
+      {
+        type: 'large_files',
+        description: 'Review 2 large files (>10MB)',
+        potential_savings: 15678901,
+        count: 2
+      }
+    ],
+    total_cleanup_potential: 57573813,
+    recommendations: [
+      {
+        type: 'organization',
+        priority: 'medium',
+        message: 'Consider organizing your documents into more specific folders'
+      }
+    ],
+    statistics: {
+      total_documents: 9,
+      total_honey_jars: 3,
+      total_temp_files: 5,
+      largest_file_size: 5678901,
+      oldest_document: new Date(now - 20 * oneDay).toISOString()
+    },
+    timestamp: now.toISOString(),
+    is_demo: true // Flag to indicate this is demo data
+  };
+};
+
+const BasketPage = () => {
+  const [basketData, setBasketData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [sortBy, setSortBy] = useState('date_desc');
+  const [showCleanupModal, setShowCleanupModal] = useState(false);
+  const [cleanupType, setCleanupType] = useState('temp_files');
+  const [bulkOperation, setBulkOperation] = useState(null);
+  const [showingDemo, setShowingDemo] = useState(false);
+  const [openMenu, setOpenMenu] = useState(null); // Track which file's menu is open
+  const [viewingFile, setViewingFile] = useState(null); // Track file being viewed
+  const menuRef = useRef(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setOpenMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Handle download
+  const handleDownload = async (document) => {
+    try {
+      const response = await fetch(`/api/basket/documents/${document.id}/download`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = document.filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      setOpenMenu(null);
+    } catch (err) {
+      console.error('Download failed:', err);
+      alert('Failed to download file');
+    }
+  };
+
+  // Handle view
+  const handleView = async (document) => {
+    try {
+      const response = await fetch(`/api/basket/documents/${document.id}/view`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('View failed');
+      }
+
+      const data = await response.json();
+      setViewingFile({ ...document, content: data.content || data.url });
+      setOpenMenu(null);
+    } catch (err) {
+      console.error('View failed:', err);
+      // Fallback: open in new tab
+      window.open(`/api/basket/documents/${document.id}/view`, '_blank');
+    }
+  };
+
+  // Handle single file delete
+  const handleDelete = async (document) => {
+    if (!window.confirm(`Delete "${document.filename}"?`)) return;
+
+    try {
+      const response = await fetch(`/api/basket/documents/${document.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        await fetchBasketData();
+      } else {
+        throw new Error('Delete failed');
+      }
+    } catch (err) {
+      console.error('Delete failed:', err);
+      alert('Failed to delete file');
+    }
+    setOpenMenu(null);
+  };
+
+  // Fetch basket overview data
+  const fetchBasketData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setShowingDemo(false);
+
+      // Try the basket overview endpoint first
+      const basketResponse = await fetch('/api/basket/overview', {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (basketResponse.ok) {
+        const data = await basketResponse.json();
+        // Check if we got real data with documents
+        if (data.honey_jars && data.honey_jars.length > 0) {
+          setBasketData(data);
+          return;
+        }
+      }
+
+      // Fallback to existing storage APIs
+      const [usageResponse, filesResponse] = await Promise.all([
+        fetch('/api/files/honey-reserve/usage', {
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        }),
+        fetch('/api/files/', {
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        })
+      ]);
+
+      let usageData = null;
+      let filesData = { files: [] };
+
+      if (usageResponse.ok) {
+        usageData = await usageResponse.json();
+      }
+
+      if (filesResponse.ok) {
+        filesData = await filesResponse.json();
+      }
+
+      // Check if we have any real data
+      const hasRealData = (usageData?.used > 0) || (filesData.files?.length > 0);
+
+      if (!hasRealData) {
+        // Show demo data when no real data exists
+        console.log('📦 No basket data found, showing demo data');
+        setBasketData(generateDemoData());
+        setShowingDemo(true);
+        return;
+      }
+
+      // Transform the data to match BasketPage expectations
+      const transformedData = {
+        user_id: 1,
+        storage_quota: usageData?.quota || 1073741824, // 1GB default
+        total_used: usageData?.used || 0,
+        usage_percentage: usageData ? (usageData.used / usageData.quota) * 100 : 0,
+        storage_status: usageData?.status || 'healthy',
+        breakdown: {
+          documents: usageData?.breakdown?.documents || 0,
+          temp_files: usageData?.breakdown?.temp_files || 0,
+          other: usageData?.breakdown?.other || 0
+        },
+        honey_jars: [], // Will be populated from files data
+        cleanup_opportunities: [],
+        total_cleanup_potential: 0,
+        recommendations: [],
+        statistics: {
+          total_documents: filesData.files?.length || 0,
+          total_honey_jars: 0,
+          total_temp_files: 0,
+          largest_file_size: 0,
+          oldest_document: new Date().toISOString()
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      setBasketData(transformedData);
+    } catch (err) {
+      console.error('Failed to fetch basket data:', err);
+      // On error, show demo data instead of error message
+      console.log('📦 Error fetching basket data, showing demo data');
+      setBasketData(generateDemoData());
+      setShowingDemo(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBasketData();
+  }, [fetchBasketData]);
+
+  // Format bytes helper
+  const formatBytes = (bytes) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  // Handle file selection
+  const toggleFileSelection = (fileId) => {
+    const newSelected = new Set(selectedFiles);
+    if (newSelected.has(fileId)) {
+      newSelected.delete(fileId);
+    } else {
+      newSelected.add(fileId);
+    }
+    setSelectedFiles(newSelected);
+  };
+
+  // Select all files
+  const selectAllFiles = () => {
+    if (!basketData) return;
+    
+    const allFileIds = basketData.honey_jars.reduce((acc, jar) => {
+      return acc.concat(jar.documents.map(doc => doc.id));
+    }, []);
+    
+    setSelectedFiles(new Set(allFileIds));
+  };
+
+  // Clear selection
+  const clearSelection = () => {
+    setSelectedFiles(new Set());
+  };
+
+  // Handle cleanup operation
+  const handleCleanup = async (type, dryRun = false) => {
+    try {
+      const response = await fetch('/api/basket/cleanup', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: type,
+          dry_run: dryRun,
+          file_ids: type === 'selected_files' ? Array.from(selectedFiles) : undefined
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Refresh data after cleanup
+        await fetchBasketData();
+        
+        // Clear selection if files were cleaned
+        if (type === 'selected_files') {
+          clearSelection();
+        }
+        
+        // Show success message (you could add a toast notification here)
+        console.log(result.message);
+      } else {
+        setError(result.error || 'Cleanup failed');
+      }
+    } catch (err) {
+      console.error('Cleanup failed:', err);
+      setError('Failed to perform cleanup operation');
+    }
+  };
+
+  // Handle bulk operations
+  const handleBulkOperation = async (operation, targetHoneyJarId = null) => {
+    try {
+      const response = await fetch('/api/basket/documents/bulk', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          operation: operation,
+          document_ids: Array.from(selectedFiles),
+          target_honey_jar_id: targetHoneyJarId
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Refresh data after operation
+        await fetchBasketData();
+        clearSelection();
+        
+        console.log(result.message);
+      } else {
+        setError(result.error || 'Bulk operation failed');
+      }
+    } catch (err) {
+      console.error('Bulk operation failed:', err);
+      setError('Failed to perform bulk operation');
+    }
+  };
+
+  // Get usage color based on percentage
+  const getUsageColor = (percentage) => {
+    if (percentage >= 90) return 'text-red-400';
+    if (percentage >= 75) return 'text-orange-400';
+    if (percentage >= 50) return 'text-yellow-400';
+    return 'text-green-400';
+  };
+
+  const getUsageBarColor = (percentage) => {
+    if (percentage >= 90) return 'bg-red-500';
+    if (percentage >= 75) return 'bg-orange-500';
+    if (percentage >= 50) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+
+  // Filter and sort documents
+  const getFilteredDocuments = () => {
+    if (!basketData) return [];
+    
+    let allDocuments = basketData.honey_jars.reduce((acc, jar) => {
+      return acc.concat(jar.documents.map(doc => ({
+        ...doc,
+        honey_jar_name: jar.name,
+        honey_jar_id: jar.id
+      })));
+    }, []);
+
+    // Apply search filter
+    if (searchQuery) {
+      allDocuments = allDocuments.filter(doc => 
+        doc.filename.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Apply type filter
+    if (filterType !== 'all') {
+      const extension = filterType.toLowerCase();
+      allDocuments = allDocuments.filter(doc => 
+        doc.filename.toLowerCase().endsWith(`.${extension}`)
+      );
+    }
+
+    // Apply sorting
+    switch (sortBy) {
+      case 'name_asc':
+        allDocuments.sort((a, b) => a.filename.localeCompare(b.filename));
+        break;
+      case 'name_desc':
+        allDocuments.sort((a, b) => b.filename.localeCompare(a.filename));
+        break;
+      case 'size_asc':
+        allDocuments.sort((a, b) => a.size - b.size);
+        break;
+      case 'size_desc':
+        allDocuments.sort((a, b) => b.size - a.size);
+        break;
+      case 'date_asc':
+        allDocuments.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        break;
+      case 'date_desc':
+      default:
+        allDocuments.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        break;
+    }
+
+    return allDocuments;
+  };
+
+  if (loading) {
+    return (
+      <div className="h-full atmospheric-vignette p-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <h1 className="text-2xl font-bold text-white">Loading Your Basket...</h1>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-full atmospheric-vignette p-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-red-900/20 border border-red-600/50 rounded-lg p-6">
+            <div className="flex items-center gap-3 text-red-400">
+              <AlertTriangle className="w-6 h-6" />
+              <div>
+                <h1 className="text-xl font-semibold">Error Loading Basket</h1>
+                <p className="text-sm text-red-300 mt-1">{error}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setError(null);
+                fetchBasketData();
+              }}
+              className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!basketData) return null;
+
+  const filteredDocuments = getFilteredDocuments();
+  const usagePercentage = basketData.usage_percentage;
+  const usageColor = getUsageColor(usagePercentage);
+  const usageBarColor = getUsageBarColor(usagePercentage);
+
+  return (
+    <div className="h-full atmospheric-vignette p-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <BasketIcon size={24} className="text-amber-400" />
+            <div>
+              <h1 className="text-xl font-bold text-white">Your Storage Basket</h1>
+              <p className="text-sm text-slate-400">Manage your documents and files</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={fetchBasketData}
+              className="p-2 sting-glass-medium hover:sting-glass-strong border border-slate-600 text-slate-300 rounded-lg transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Demo Data Banner */}
+        {showingDemo && (
+          <div className="bg-amber-900/20 border border-amber-600/50 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <Database className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-amber-300 font-medium">Demo Mode</h3>
+                <p className="text-amber-200/80 text-sm mt-1">
+                  This is sample data showing how your Basket will look with files.
+                  Generate a report in Bee Chat and click "Add to Basket" to add real content,
+                  or upload documents to your Honey Jars to see them here.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Storage Overview */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Main Usage Card */}
+          <div className="lg:col-span-2 sting-glass-card sting-elevation-medium rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">Storage Usage</h3>
+              <span className={`text-sm font-medium ${usageColor}`}>
+                {basketData.storage_status.charAt(0).toUpperCase() + basketData.storage_status.slice(1)}
+              </span>
+            </div>
+            
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-slate-300">Used Space</span>
+                <span className={`font-bold ${usageColor}`}>
+                  {formatBytes(basketData.total_used)} / {formatBytes(basketData.storage_quota)} ({usagePercentage}%)
+                </span>
+              </div>
+              
+              <div className="w-full bg-slate-700 rounded-full h-3">
+                <div 
+                  className={`h-3 rounded-full transition-all duration-300 ${usageBarColor}`}
+                  style={{ width: `${Math.min(usagePercentage, 100)}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Storage Breakdown */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-green-400" />
+                  <span className="text-sm text-slate-400">Documents</span>
+                </div>
+                <span className="text-sm text-slate-200 font-medium">
+                  {formatBytes(basketData.breakdown.documents)}
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-orange-400" />
+                  <span className="text-sm text-slate-400">Temp Files</span>
+                </div>
+                <span className="text-sm text-slate-200 font-medium">
+                  {formatBytes(basketData.breakdown.temp_files)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="sting-glass-card sting-elevation-medium rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Quick Stats</h3>
+            
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-400" />
+                  <span className="text-sm text-slate-400">Documents</span>
+                </div>
+                <span className="text-sm text-slate-200 font-medium">
+                  {basketData.statistics.total_documents}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Database className="w-4 h-4 text-yellow-400" />
+                  <span className="text-sm text-slate-400">Honey Jars</span>
+                </div>
+                <span className="text-sm text-slate-200 font-medium">
+                  {basketData.statistics.total_honey_jars}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-orange-400" />
+                  <span className="text-sm text-slate-400">Temp Files</span>
+                </div>
+                <span className="text-sm text-slate-200 font-medium">
+                  {basketData.statistics.total_temp_files}
+                </span>
+              </div>
+
+              {basketData.cleanup_opportunities.length > 0 && (
+                <div className="pt-3 border-t border-slate-700">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-green-400">
+                      <Trash2 className="w-4 h-4" />
+                      <span className="text-sm">Cleanup Available</span>
+                    </div>
+                    <span className="text-sm text-green-300 font-medium">
+                      {formatBytes(basketData.total_cleanup_potential)}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setShowCleanupModal(true)}
+                    className="mt-2 text-xs px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                  >
+                    Start Cleanup
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Document Management Section */}
+        <div className="sting-glass-card sting-elevation-medium border border-slate-700 rounded-lg p-6">
+          {/* Controls */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            {/* Search */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search documents..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Filters */}
+            <div className="flex gap-2">
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Files</option>
+                <option value="pdf">PDF</option>
+                <option value="docx">Word</option>
+                <option value="txt">Text</option>
+                <option value="md">Markdown</option>
+              </select>
+
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="date_desc">Newest First</option>
+                <option value="date_asc">Oldest First</option>
+                <option value="name_asc">Name A-Z</option>
+                <option value="name_desc">Name Z-A</option>
+                <option value="size_desc">Largest First</option>
+                <option value="size_asc">Smallest First</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Bulk Actions */}
+          {selectedFiles.size > 0 && (
+            <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-blue-400" />
+                  <span className="text-blue-300 font-medium">
+                    {selectedFiles.size} file{selectedFiles.size !== 1 ? 's' : ''} selected
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleBulkOperation('delete')}
+                    className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3 inline mr-1" />
+                    Delete
+                  </button>
+                  
+                  <button
+                    onClick={() => handleBulkOperation('archive')}
+                    className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded transition-colors"
+                  >
+                    <Archive className="w-3 h-3 inline mr-1" />
+                    Archive
+                  </button>
+                  
+                  <button
+                    onClick={clearSelection}
+                    className="px-3 py-1 bg-slate-600 hover:bg-slate-700 text-white text-sm rounded transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Document List */}
+          <div className="space-y-2">
+            {/* Header */}
+            <div className="flex items-center gap-4 px-4 py-2 bg-slate-800/50 rounded-lg text-sm font-medium text-slate-400">
+              <input
+                type="checkbox"
+                checked={selectedFiles.size === filteredDocuments.length && filteredDocuments.length > 0}
+                onChange={() => selectedFiles.size === filteredDocuments.length ? clearSelection() : selectAllFiles()}
+                className="w-4 h-4"
+              />
+              <div className="flex-1">Name</div>
+              <div className="w-24">Size</div>
+              <div className="w-32">Honey Jar</div>
+              <div className="w-24">Date</div>
+              <div className="w-8"></div>
+            </div>
+
+            {/* Document Rows */}
+            {filteredDocuments.length > 0 ? (
+              filteredDocuments.map((document) => (
+                <div
+                  key={document.id}
+                  className={`flex items-center gap-4 px-4 py-3 border border-slate-700 rounded-lg hover:bg-slate-800/30 transition-colors ${
+                    selectedFiles.has(document.id) ? 'bg-blue-900/20 border-blue-600/50' : ''
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedFiles.has(document.id)}
+                    onChange={() => toggleFileSelection(document.id)}
+                    className="w-4 h-4"
+                  />
+                  
+                  <div className="flex-1 flex items-center gap-3 min-w-0">
+                    <FileText className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                    <span className="text-slate-200 truncate" title={document.filename}>
+                      {document.filename}
+                    </span>
+                  </div>
+                  
+                  <div className="w-24 text-sm text-slate-400">
+                    {formatBytes(document.size)}
+                  </div>
+                  
+                  <div className="w-32 text-sm text-slate-400 truncate" title={document.honey_jar_name}>
+                    {document.honey_jar_name}
+                  </div>
+                  
+                  <div className="w-24 text-sm text-slate-400">
+                    {new Date(document.created_at).toLocaleDateString()}
+                  </div>
+
+                  <div className="w-8 relative" ref={menuRef}>
+                    <button
+                      onClick={() => setOpenMenu(openMenu === document.id ? null : document.id)}
+                      className={`p-1 hover:bg-slate-700 rounded ${openMenu === document.id ? 'bg-slate-700' : ''}`}
+                    >
+                      <MoreVertical className="w-4 h-4 text-slate-400" />
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {openMenu === document.id && (
+                      <div className="absolute right-0 top-8 z-50 w-40 bg-slate-800 border border-slate-600 rounded-lg shadow-lg py-1">
+                        <button
+                          onClick={() => handleView(document)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-200 hover:bg-slate-700"
+                        >
+                          <Eye className="w-4 h-4 text-blue-400" />
+                          View
+                        </button>
+                        <button
+                          onClick={() => handleDownload(document)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-200 hover:bg-slate-700"
+                        >
+                          <Download className="w-4 h-4 text-green-400" />
+                          Download
+                        </button>
+                        <hr className="my-1 border-slate-600" />
+                        <button
+                          onClick={() => handleDelete(document)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-slate-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <FolderOpen className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                <p className="text-slate-400">No documents found</p>
+                <p className="text-sm text-slate-500 mt-1">
+                  {searchQuery ? 'Try adjusting your search terms' : 'Upload some documents to get started'}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Cleanup Modal */}
+        {showCleanupModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="sting-glass-card sting-elevation-high border border-slate-700 rounded-lg p-6 w-full max-w-md mx-4">
+              <h3 className="text-lg font-semibold text-white mb-4">Storage Cleanup</h3>
+              
+              <div className="space-y-4 mb-6">
+                {basketData.cleanup_opportunities.map((opportunity, index) => (
+                  <div key={index} className="p-3 bg-slate-800/50 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-slate-200">
+                        {opportunity.description}
+                      </span>
+                      <span className="text-sm text-green-400 font-medium">
+                        {formatBytes(opportunity.potential_savings)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      {opportunity.count} items
+                    </p>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowCleanupModal(false)}
+                  className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    handleCleanup('temp_files', false);
+                    setShowCleanupModal(false);
+                  }}
+                  className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                >
+                  Start Cleanup
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* View File Modal */}
+        {viewingFile && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="sting-glass-card sting-elevation-high border border-slate-600 rounded-lg w-full max-w-4xl max-h-[80vh] flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-slate-600">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-5 h-5 text-blue-400" />
+                  <h3 className="text-lg font-semibold text-white truncate">{viewingFile.filename}</h3>
+                </div>
+                <button
+                  onClick={() => setViewingFile(null)}
+                  className="p-1 hover:bg-slate-700 rounded"
+                >
+                  <X className="w-5 h-5 text-slate-400" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-auto p-4">
+                {viewingFile.content ? (
+                  <pre className="text-sm text-slate-200 whitespace-pre-wrap font-mono">
+                    {viewingFile.content}
+                  </pre>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                    <ExternalLink className="w-12 h-12 mb-3" />
+                    <p>Preview not available</p>
+                    <button
+                      onClick={() => handleDownload(viewingFile)}
+                      className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download to View
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between p-4 border-t border-slate-600 bg-slate-800/50">
+                <span className="text-sm text-slate-400">
+                  {formatBytes(viewingFile.size)} • {new Date(viewingFile.created_at).toLocaleString()}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDownload(viewingFile)}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download
+                  </button>
+                  <button
+                    onClick={() => setViewingFile(null)}
+                    className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default BasketPage;

@@ -1,0 +1,378 @@
+# STING-CE Configuration
+# Community Edition - Minimal Setup
+
+# System Configuration
+system:
+  # Domain/IP address for accessing STING
+  # Installation wizard auto-detects and sets this (prefers IP addresses for simplicity)
+  # You can manually change this later with: ./update_hostname.sh
+  domain: localhost
+  protocol: https
+  ports:
+    frontend: 8443
+    api: 5050
+    kratos: 4433
+
+# Edition
+edition:
+  type: ce  # Community Edition
+  hide_enterprise_ui: true
+
+# Core Application
+application:
+  env: production
+  debug: false
+  host: 0.0.0.0
+  port: 5050
+  install_dir: "${INSTALL_DIR}"
+  models_dir: "${MODELS_DIR:-${INSTALL_DIR}/models}"
+  ssl:
+    enabled: true
+    cert_dir: "${INSTALL_DIR}/certs"
+
+# Database
+database:
+  host: db
+  port: 5432
+  name: sting_app
+  user: postgres
+  connection_timeout: 30
+  max_connections: 100
+
+# Security
+security:
+  authentication:
+    aal2_session_timeout: "8h"
+  message_pii_protection:
+    enabled: true
+
+    # Serialization settings
+    serialization:
+      enabled: true
+      redis_db: 3  # Dedicated Redis DB for PII cache
+      token_format: "${EntityType}{Instance}_{PIIType}_hash"
+
+      # Cache TTL management
+      cache_ttl:
+        default: 300  # 5 minutes
+        on_error: 3600  # 1 hour
+        max_per_user: 50
+        max_total_size_mb: 50
+
+      # Cleanup strategy
+      cleanup:
+        strategy: "lru"
+        run_interval: 300
+        force_cleanup_threshold: 0.9
+
+    # Mode-specific settings
+    modes:
+      # Local - minimal protection for localhost AI
+      local:
+        applies_to:
+          - "ollama_local"
+        protection_level: "minimal"
+        enabled: false
+        pii_types:
+          - "ssn"
+          - "credit_card"
+          - "bank_account"
+
+      # External - strict protection for cloud AI services
+      external:
+        applies_to:
+          - "openai"
+          - "anthropic"
+          - "external_ollama"
+        protection_level: "strict"
+        enabled: true
+        pii_types:
+          - "person_name"
+          - "email"
+          - "phone"
+          - "ssn"
+          - "credit_card"
+          - "bank_account"
+          - "address"
+          - "ip_address"
+          - "medical_record"
+          - "account_number"
+          - "date_of_birth"
+
+      # Trusted Network - relaxed protection for LAN/VPN AI
+      trusted:
+        applies_to:
+          - "lm_studio"
+          - "local_network"
+          - "tailscale"
+        protection_level: "relaxed"
+        enabled: false
+        pii_types:
+          - "ssn"
+          - "credit_card"
+          - "bank_account"
+          - "medical_record"
+          - "drivers_license"
+          - "passport"
+
+      # Report - selective protection for analytical reports
+      report:
+        applies_to:
+          - "report_generation"
+        protection_level: "selective"
+        enabled: true
+        pii_types:
+          - "ssn"
+          - "credit_card"
+          - "bank_account"
+          - "medical_record"
+          - "drivers_license"
+          - "passport"
+
+    # Network-based mode detection
+    auto_mode_detection:
+      enabled: true
+      trusted_networks:
+        - "127.0.0.0/8"
+        - "10.0.0.0/8"
+        - "172.16.0.0/12"
+        - "192.168.0.0/16"
+        - "100.64.0.0/10"  # Tailscale/CGNAT
+      trusted_domains:
+        - "localhost"
+        - "*.local"
+        - "*.lan"
+        - "*.tailscale"
+      fallback_mode: "external"
+
+    # Request-level PII overrides
+    request_overrides:
+      enabled: true
+      require_header: "X-STING-PII-Override"
+      allowed_roles:
+        - "admin"
+        - "analyst"
+        - "developer"
+      log_overrides: true
+
+    # Audit and compliance logging
+    audit:
+      log_serialization_events: true
+      log_deserialization_events: true
+      log_cache_operations: false
+      include_token_mappings: false
+      retention_days: 90
+
+    # Performance tuning
+    performance:
+      async_serialization: true
+      batch_deserialize: true
+      cache_warming: false
+
+    # Visual Indicators
+    visual_indicators:
+      enabled: true
+      show_protection_badge: true
+      badge_position: "corner"
+      colors:
+        low_risk: "#2196F3"
+        medium_risk: "#ff9800"
+        high_risk: "#ef5350"
+      underline_style: "dotted"
+      underline_thickness: 2
+      tooltips:
+        enabled: true
+        show_pii_type: true
+        show_risk_level: true
+        show_protection_icon: true
+        delay_ms: 200
+      admin_features:
+        show_token_id: false
+        show_source: false
+        show_confidence_score: false
+      user_customizable:
+        can_disable: true
+        can_change_colors: false
+        can_adjust_sensitivity: false
+      accessibility:
+        high_contrast_mode: false
+        screen_reader_announcements: true
+        keyboard_navigation: true
+
+# Vault Configuration
+vault:
+  host: vault
+  port: 8200
+  scheme: http
+  auth_method: token
+  kv_mount: kv
+  transit_mount: transit
+
+# Authentication (Kratos)
+kratos:
+  public_url: https://localhost:4433
+  admin_url: http://kratos:4434
+  browser_url: https://localhost:8443
+
+# Redis Cache
+redis:
+  host: redis
+  port: 6379
+  databases:
+    cache: 0
+    sessions: 1
+    queue: 2
+    pii_cache: 3
+
+# Email Configuration
+email:
+  mode: "${EMAIL_MODE:-development}"
+  development:
+    provider: "mailpit"
+    host: "mailpit"
+    port: 1025
+  production:
+    provider: "${SMTP_PROVIDER:-smtp}"
+    host: "${SMTP_HOST:-mailpit}"      # Default to mailpit for development
+    port: "${SMTP_PORT:-1025}"          # Mailpit SMTP port (use 587 for real SMTP)
+    use_tls: true
+    username: "${SMTP_USERNAME:-}"      # Empty for mailpit (no auth needed)
+    from_address: "${SMTP_FROM_ADDRESS:-noreply@yourdomain.com}"
+
+# AI Services Configuration
+ai:
+  # Default LLM Configuration
+  llm:
+    enabled: true
+    provider: "${LLM_PROVIDER:-ollama}"
+    endpoint: "${LLM_ENDPOINT:-http://host.docker.internal:11434}"
+    model: "${LLM_MODEL:-llama3.2}"
+    timeout: 120
+
+  # Knowledge Base (ChromaDB)
+  knowledge:
+    enabled: true
+    host: chroma
+    port: 8000
+    collection: "sting_knowledge"
+
+  # BEE Assistant
+  bee:
+    enabled: true
+    name: "B.E.E."
+    description: "Bee Enhanced Entity - Your AI Security Assistant"
+    personality: "helpful"
+
+  # QE Bee (Quality Engineering Bee) - Output Validation Agent
+  # ⚠️ DEPRECATED: QE Bee is being replaced by ReviewBee (review_bee)
+  # ReviewBee provides unified quality assurance with:
+  #   - Requirements validation against original user request
+  #   - PII safety checks (unresolved token detection)
+  #   - Content quality and completeness checks
+  #   - Critic-Revise architecture for intelligent improvements
+  # 
+  # Migration: Set qe_bee.enabled=false and review_bee.enabled=true
+  # See docs: https://docs.stingassistant.com/docs/bee-features/review-bee/
+  qe_bee:
+    enabled: "${QE_BEE_ENABLED:-false}"  # DEPRECATED: Use review_bee instead
+    # Model for quality reviews (fast model recommended: microsoft/phi-4-mini-reasoning, llama3.2, etc.)
+    model: "${QE_BEE_MODEL:-microsoft/phi-4-mini-reasoning}"
+    # Enable LLM-powered quality checks (can be disabled for faster reviews)
+    llm_enabled: "${QE_BEE_LLM_ENABLED:-true}"
+    # Review timeout in seconds
+    timeout: "${QE_BEE_TIMEOUT:-30}"
+    # Poll interval for new reviews in seconds
+    poll_interval: "${QE_BEE_POLL_INTERVAL:-5}"
+    # Webhook notifications
+    webhooks:
+      # Enable webhook notifications on review completion
+      enabled: "${QE_BEE_WEBHOOKS_ENABLED:-false}"  # DEPRECATED
+      # Maximum webhooks per user (CE edition)
+      max_per_user: 5
+
+  # ReviewBee (RBee) - Intelligent Report Quality Assurance
+  # Uses Critic-Revise architecture: lightweight model critiques, powerful model regenerates
+  # 
+  # How it works:
+  #   1. Extract requirements from original user request (word count, sections, explicit asks)
+  #   2. Compare generated report against those requirements
+  #   3. Check grammar, structure, and professional quality
+  #   4. Generate structured task list for improvements
+  #   5. Regenerate if score below threshold AND validate revision quality
+  #
+  # Security: All data is ephemeral - dies with the request. No persistence needed.
+  # See docs/technical/review-bee-architecture.md for full documentation.
+  #
+  review_bee:
+    # Master toggle - disabled by default (enable for production quality assurance)
+    enabled: "${REVIEW_BEE_ENABLED:-false}"
+    
+    # Critic model configuration (lightweight, fast analysis)
+    # The critic reviews reports and identifies issues - doesn't need to be powerful
+    critic:
+      model: "${REVIEW_BEE_CRITIC_MODEL:-phi4}"
+      fallback_model: "qwen2.5-7b-instruct"
+      timeout_seconds: 30
+    
+    # Review behavior modes:
+    # - critique_only: Analyze but never regenerate (safe, for monitoring)
+    # - critique_and_revise: Analyze and regenerate if needed (recommended)
+    mode: "${REVIEW_BEE_MODE:-critique_and_revise}"
+    
+    # Score threshold for triggering revision (0.0-1.0)
+    # Lower = more revisions, Higher = only revise poor reports
+    # Recommended: 0.7-0.8 for production
+    revision_threshold: "${REVIEW_BEE_THRESHOLD:-0.75}"
+    
+    # Maximum revision iterations (usually 1 is enough)
+    # Future: Multi-pass refinement with convergence detection
+    max_iterations: 1
+    
+    # Quality validation thresholds (prevent accepting worse revisions)
+    quality_validation:
+      min_length_ratio: 0.7        # Revision must be ≥70% of original length
+      max_unexpected_chars: 5       # Reject if too many unexpected characters appear
+      min_structure_ratio: 0.5      # Revision must keep ≥50% of headers
+    
+    # Critique categories to evaluate
+    enabled_categories:
+      - accuracy
+      - clarity
+      - completeness
+      - tone
+      - structure
+      - grammar
+    category_weights:
+      clarity: 0.25
+      completeness: 0.25
+      accuracy: 0.20
+      tone: 0.15
+      structure: 0.15
+    
+    # PII awareness - allows critic to understand [PII_*] tokens are intentional
+    include_pii_context: true
+    
+    # Webhook notifications for external integrations
+    # Send review results to external systems (alerting, dashboards, audit)
+    webhooks:
+      enabled: "${REVIEW_BEE_WEBHOOKS_ENABLED:-false}"
+      # URL to POST review results to (empty = disabled)
+      url: "${REVIEW_BEE_WEBHOOK_URL:-}"
+      # Only send webhooks when safety or quality checks fail
+      notify_on_failure_only: true
+      # Timeout for webhook requests in seconds
+      timeout: 10
+
+# Feature Flags
+features:
+  passwordless: true
+  webauthn: true
+  mfa: true
+  magic_links: true
+  audit_logging: true
+
+# Logging
+logging:
+  level: "${LOG_LEVEL:-INFO}"
+  format: "json"
+  output: "stdout"

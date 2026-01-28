@@ -1,0 +1,60 @@
+# Honey Reserve Maintenance Cron Jobs
+# Copy this file to /etc/cron.d/sting-honey-reserve
+
+# Environment variables
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=admin@sting.local
+
+# Honey Reserve maintenance script location
+MAINT_SCRIPT=/opt/sting/scripts/maintenance/honey-reserve-maintenance.sh
+BACKUP_SCRIPT=/opt/sting/scripts/maintenance/honey-reserve-backup.sh
+REPORT_SCRIPT=/opt/sting/scripts/maintenance/generate-usage-reports.py
+
+# Every 15 minutes: Clean expired temporary files
+*/15 * * * * sting-maint $MAINT_SCRIPT clean-temp >/dev/null 2>&1
+
+# Hourly: Enforce storage quotas
+0 * * * * sting-maint $MAINT_SCRIPT enforce-quotas >/dev/null 2>&1
+
+# Daily at 2 AM: Full maintenance routine
+0 2 * * * sting-maint $MAINT_SCRIPT full >/var/log/sting/maintenance/daily-$(date +\%Y\%m\%d).log 2>&1
+
+# Daily at 3 AM: Generate storage reports
+0 3 * * * sting-maint $REPORT_SCRIPT --daily >/dev/null 2>&1
+
+# Weekly on Sunday at 3 AM: Storage optimization
+0 3 * * 0 sting-maint $MAINT_SCRIPT optimize >/dev/null 2>&1
+
+# Monthly on 1st at 4 AM: Archive old reports and logs
+0 4 1 * * sting-maint $MAINT_SCRIPT archive-old >/dev/null 2>&1
+
+# Backup jobs
+# Every 15 minutes: Incremental backup
+*/15 * * * * sting-backup $BACKUP_SCRIPT incremental >/dev/null 2>&1
+
+# Daily at 2:30 AM: Full backup
+30 2 * * * sting-backup $BACKUP_SCRIPT full >/dev/null 2>&1
+
+# Weekly on Sunday at 4 AM: Archive backup
+0 4 * * 0 sting-backup $BACKUP_SCRIPT archive >/dev/null 2>&1
+
+# Storage alerts
+# Every 30 minutes: Check storage usage alerts
+*/30 * * * * sting-maint $MAINT_SCRIPT check-alerts >/dev/null 2>&1
+
+# Data lifecycle management
+# Daily at 1 AM: Process retention policies
+0 1 * * * sting-maint python3 /opt/sting/scripts/maintenance/apply-retention-policies.py >/dev/null 2>&1
+
+# File integrity checks
+# Daily at 5 AM: Verify file checksums
+0 5 * * * sting-maint $MAINT_SCRIPT verify-integrity --sample-size=1000 >/dev/null 2>&1
+
+# Performance optimization
+# Weekly on Wednesday at 3 AM: Defragment storage
+0 3 * * 3 sting-maint $MAINT_SCRIPT defragment >/dev/null 2>&1
+
+# Emergency cleanup (only runs if storage critical)
+# Every 5 minutes: Check for critical storage and cleanup if needed
+*/5 * * * * sting-maint $MAINT_SCRIPT emergency-cleanup --threshold=95 >/dev/null 2>&1

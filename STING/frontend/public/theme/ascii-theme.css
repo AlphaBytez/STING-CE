@@ -1,0 +1,735 @@
+/*
+ * STING ASCII Art Theme
+ * Terminal-style UI with box-drawing characters
+ * Pure black background + STING yellow primary text
+ */
+
+/* === Core Variables === */
+:root[data-theme="ascii"] {
+  /* Primary - STING Yellow (terminal bright) */
+  --ascii-primary: #ffd700;
+  --ascii-primary-dim: #b8860b;
+  --ascii-primary-glow: rgba(255, 215, 0, 0.3);
+
+  /* Background - True terminal black */
+  --ascii-bg: #000000;
+  --ascii-bg-secondary: #0c0c0c;
+  --ascii-bg-tertiary: #141414;
+  --ascii-bg-panel: #0a0a0a;
+  --ascii-bg-hover: #1a1a00;
+
+  /* Text - Terminal amber/yellow palette */
+  --ascii-text: #ffd700;
+  --ascii-text-dim: #b8860b;
+  --ascii-text-muted: #8b6914;
+  --ascii-text-bright: #ffec8b;
+  --ascii-text-inverse: #000000;
+
+  /* Status Colors - Terminal style */
+  --ascii-success: #00ff00;
+  --ascii-warning: #ffff00;
+  --ascii-error: #ff4444;
+  --ascii-info: #00bfff;
+
+  /* Borders */
+  --ascii-border: #333333;
+  --ascii-border-dim: #222222;
+  --ascii-border-bright: #ffd700;
+
+  /* Typography */
+  --ascii-font-mono: 'JetBrains Mono', 'Fira Code', 'IBM Plex Mono', 'Courier New', monospace;
+
+  /* Component CSS Variables */
+  --color-primary: var(--ascii-primary);
+  --color-primary-hover: var(--ascii-primary-dim);
+  --color-text: var(--ascii-text);
+  --color-text-secondary: var(--ascii-text-dim);
+  --color-text-inverse: var(--ascii-text-inverse);
+  --color-bg: var(--ascii-bg);
+  --color-bg-elevated: var(--ascii-bg-tertiary);
+  --color-border: var(--ascii-border);
+}
+
+/* === Global Reset for ASCII Terminal === */
+[data-theme="ascii"] {
+  background-color: var(--ascii-bg) !important;
+  color: var(--ascii-text) !important;
+  font-family: var(--ascii-font-mono) !important;
+}
+
+[data-theme="ascii"] body,
+[data-theme="ascii"] #root,
+[data-theme="ascii"] main,
+[data-theme="ascii"] .ant-layout,
+[data-theme="ascii"] .ant-layout-content {
+  background-color: var(--ascii-bg) !important;
+  color: var(--ascii-text) !important;
+}
+
+[data-theme="ascii"] *,
+[data-theme="ascii"] *::before,
+[data-theme="ascii"] *::after {
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* === Terminal Panel Base === */
+[data-theme="ascii"] .terminal-panel,
+[data-theme="ascii"] .ascii-box,
+[data-theme="ascii"] .dashboard-card,
+[data-theme="ascii"] .card,
+[data-theme="ascii"] .panel,
+[data-theme="ascii"] .ant-card {
+  background-color: var(--ascii-bg-panel) !important;
+  border: 1px solid var(--ascii-border);
+  position: relative;
+}
+
+/* === ASCII Corner Decorations === */
+[data-theme="ascii"] .terminal-panel::before,
+[data-theme="ascii"] .ascii-box::before,
+[data-theme="ascii"] .dashboard-card::before,
+[data-theme="ascii"] .card::before {
+  content: '┌─ ' !important;
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  color: var(--ascii-primary);
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+[data-theme="ascii"] .terminal-panel::after,
+[data-theme="ascii"] .ascii-box::after,
+[data-theme="ascii"] .dashboard-card::after,
+[data-theme="ascii"] .card::after {
+  content: ' ─┐' !important;
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  color: var(--ascii-primary);
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+/* === Bottom corners === */
+[data-theme="ascii"] .terminal-panel .panel-footer::before,
+[data-theme="ascii"] .ascii-box .panel-footer::before {
+  content: '└─ ' !important;
+  color: var(--ascii-text-dim);
+  font-size: 10px;
+}
+
+[data-theme="ascii"] .terminal-panel .panel-footer::after,
+[data-theme="ascii"] .ascii-box .panel-footer::after {
+  content: ' ─┘' !important;
+  color: var(--ascii-text-dim);
+  font-size: 10px;
+}
+
+/* === Navigation === */
+[data-theme="ascii"] .floating-nav,
+[data-theme="ascii"] .ant-menu,
+[data-theme="ascii"] .w-56,
+[data-theme="ascii"] .ant-layout-sider {
+  background: var(--ascii-bg) !important;
+  border-right: 1px solid var(--ascii-border) !important;
+}
+
+[data-theme="ascii"] .floating-nav-item,
+[data-theme="ascii"] .ant-menu-item,
+[data-theme="ascii"] .w-56 nav a {
+  color: var(--ascii-text-dim) !important;
+  font-family: var(--ascii-font-mono) !important;
+  text-transform: lowercase;
+  letter-spacing: 0px;
+  border: none !important;
+}
+
+[data-theme="ascii"] .floating-nav-item:hover,
+[data-theme="ascii"] .ant-menu-item:hover,
+[data-theme="ascii"] .w-56 nav a:hover {
+  color: var(--ascii-text) !important;
+  background: transparent !important;
+}
+
+[data-theme="ascii"] .floating-nav-item.active,
+[data-theme="ascii"] .ant-menu-item-selected,
+[data-theme="ascii"] .w-56 nav a.active {
+  color: var(--ascii-bg) !important;
+  background: var(--ascii-primary) !important;
+}
+
+/* === Headers === */
+[data-theme="ascii"] .floating-header,
+[data-theme="ascii"] .header,
+[data-theme="ascii"] .header-bar,
+[data-theme="ascii"] .ant-layout-header {
+  background: var(--ascii-bg) !important;
+  border-bottom: 1px solid var(--ascii-border-bright);
+  color: var(--ascii-text) !important;
+}
+
+[data-theme="ascii"] h1,
+[data-theme="ascii"] h2,
+[data-theme="ascii"] h3,
+[data-theme="ascii"] h4,
+[data-theme="ascii"] .ant-typography {
+  color: var(--ascii-text) !important;
+  font-family: var(--ascii-font-mono) !important;
+  font-weight: normal;
+}
+
+[data-theme="ascii"] h1::before {
+  content: '# ' !important;
+  color: var(--ascii-primary);
+}
+
+[data-theme="ascii"] h2::before {
+  content: '## ' !important;
+  color: var(--ascii-primary-dim);
+}
+
+/* === Buttons === */
+[data-theme="ascii"] button,
+[data-theme="ascii"] .btn,
+[data-theme="ascii"] .ant-btn {
+  background: var(--ascii-bg-panel) !important;
+  border: 1px solid var(--ascii-border) !important;
+  color: var(--ascii-text) !important;
+  font-family: var(--ascii-font-mono) !important;
+  text-transform: lowercase;
+  border-radius: 0 !important;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+[data-theme="ascii"] button:hover,
+[data-theme="ascii"] .btn:hover,
+[data-theme="ascii"] .ant-btn:hover {
+  border-color: var(--ascii-primary) !important;
+  color: var(--ascii-primary) !important;
+  background: var(--ascii-bg-secondary) !important;
+}
+
+/* Primary button style */
+[data-theme="ascii"] button.ant-btn-primary,
+[data-theme="ascii"] .ant-btn-primary,
+[data-theme="ascii"] .bg-yellow-400 {
+  background: var(--ascii-bg-panel) !important;
+  border: 1px solid var(--ascii-primary) !important;
+  color: var(--ascii-primary) !important;
+}
+
+[data-theme="ascii"] button.ant-btn-primary:hover,
+[data-theme="ascii"] .ant-btn-primary:hover {
+  background: var(--ascii-primary) !important;
+  color: var(--ascii-bg) !important;
+}
+
+/* === Forms & Inputs === */
+[data-theme="ascii"] input,
+[data-theme="ascii"] textarea,
+[data-theme="ascii"] select,
+[data-theme="ascii"] .ant-input,
+[data-theme="ascii"] .ant-input-affix-wrapper {
+  background: var(--ascii-bg-panel) !important;
+  border: 1px solid var(--ascii-border) !important;
+  color: var(--ascii-text) !important;
+  font-family: var(--ascii-font-mono) !important;
+  border-radius: 0 !important;
+}
+
+[data-theme="ascii"] input::placeholder,
+[data-theme="ascii"] textarea::placeholder {
+  color: var(--ascii-text-muted) !important;
+}
+
+[data-theme="ascii"] input:focus,
+[data-theme="ascii"] textarea:focus,
+[data-theme="ascii"] select:focus,
+[data-theme="ascii"] .ant-input:focus,
+[data-theme="ascii"] .ant-input-affix-wrapper-focused {
+  border-color: var(--ascii-primary) !important;
+  outline: none;
+}
+
+[data-theme="ascii"] label,
+[data-theme="ascii"] .ant-form-item-label > label {
+  color: var(--ascii-text-dim) !important;
+  font-family: var(--ascii-font-mono) !important;
+  font-size: 0.75rem;
+}
+
+/* === Progress Bars - ASCII Style === */
+[data-theme="ascii"] .progress-bar,
+[data-theme="ascii"] [class*="progress"],
+[data-theme="ascii"] .ant-progress-inner {
+  background: var(--ascii-bg-panel) !important;
+  border: 1px solid var(--ascii-border);
+  height: 16px !important;
+}
+
+[data-theme="ascii"] .progress-fill,
+[data-theme="ascii"] .ant-progress-bg {
+  background: var(--ascii-bg-tertiary) !important;
+  border-right: 2px solid var(--ascii-primary);
+}
+
+/* === Tables === */
+[data-theme="ascii"] table,
+[data-theme="ascii"] .ant-table {
+  background: var(--ascii-bg-panel) !important;
+  border: 1px solid var(--ascii-border);
+  color: var(--ascii-text) !important;
+  font-family: var(--ascii-font-mono) !important;
+}
+
+[data-theme="ascii"] th,
+[data-theme="ascii"] .ant-table-thead > tr > th {
+  background: var(--ascii-bg) !important;
+  color: var(--ascii-primary) !important;
+  border-bottom: 1px solid var(--ascii-border-bright);
+  font-weight: normal;
+  text-transform: lowercase;
+}
+
+[data-theme="ascii"] td,
+[data-theme="ascii"] .ant-table-tbody > tr > td {
+  border-bottom: 1px solid var(--ascii-border-dim);
+  color: var(--ascii-text-dim) !important;
+}
+
+[data-theme="ascii"] .ant-table-tbody tr:hover > td {
+  background: var(--ascii-bg-hover) !important;
+}
+
+/* === Modals === */
+[data-theme="ascii"] .ant-modal,
+[data-theme="ascii"] .ant-modal-content {
+  background: var(--ascii-bg-panel) !important;
+  border: 1px solid var(--ascii-primary) !important;
+}
+
+[data-theme="ascii"] .ant-modal-header {
+  background: var(--ascii-bg) !important;
+  border-bottom: 1px solid var(--ascii-border);
+}
+
+[data-theme="ascii"] .ant-modal-title {
+  color: var(--ascii-primary) !important;
+  font-family: var(--ascii-font-mono) !important;
+}
+
+/* === Chat Interface === */
+[data-theme="ascii"] .chat-container,
+[data-theme="ascii"] .chat-messages {
+  background: var(--ascii-bg) !important;
+}
+
+[data-theme="ascii"] .message-bubble {
+  background: var(--ascii-bg-panel) !important;
+  border: 1px solid var(--ascii-border);
+  font-family: var(--ascii-font-mono) !important;
+}
+
+[data-theme="ascii"] .message-bubble.user {
+  border-color: var(--ascii-border-dim);
+}
+
+[data-theme="ascii"] .message-bubble.assistant {
+  border-color: var(--ascii-primary);
+  border-left: 3px solid var(--ascii-primary);
+}
+
+/* === Terminal Cursor Animation === */
+@keyframes terminal-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+[data-theme="ascii"] .cursor-blink::after {
+  content: '█';
+  animation: terminal-blink 1s step-end infinite;
+  color: var(--ascii-primary);
+  margin-left: 2px;
+}
+
+/* === Typing Animation === */
+@keyframes terminal-typing {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+[data-theme="ascii"] .typing-effect {
+  animation: terminal-typing 0.05s steps(10) forwards;
+}
+
+/* === Status Indicators === */
+[data-theme="ascii"] .status-online::before {
+  content: '[●] ' !important;
+  color: var(--ascii-success);
+}
+
+[data-theme="ascii"] .status-offline::before {
+  content: '[○] ' !important;
+  color: var(--ascii-text-muted);
+}
+
+[data-theme="ascii"] .status-warning::before {
+  content: '[!] ' !important;
+  color: var(--ascii-warning);
+}
+
+[data-theme="ascii"] .status-error::before {
+  content: '[X] ' !important;
+  color: var(--ascii-error);
+}
+
+/* === Service Status === */
+[data-theme="ascii"] .service-item {
+  border: 1px solid var(--ascii-border);
+  font-family: var(--ascii-font-mono) !important;
+  background: var(--ascii-bg-panel) !important;
+}
+
+[data-theme="ascii"] .service-status.healthy::before {
+  content: '[OK] ' !important;
+  color: var(--ascii-success);
+}
+
+[data-theme="ascii"] .service-status.unhealthy::before {
+  content: '[ERR] ' !important;
+  color: var(--ascii-error);
+}
+
+[data-theme="ascii"] .service-status.warning::before {
+  content: '[WARN] ' !important;
+  color: var(--ascii-warning);
+}
+
+[data-theme="ascii"] .service-status.pending::before {
+  content: '[--] ' !important;
+  color: var(--ascii-text-dim);
+}
+
+/* === ASCII Loader === */
+@keyframes ascii-spin {
+  0% { content: '◐'; }
+  25% { content: '◑'; }
+  50% { content: '◒'; }
+  75% { content: '◓'; }
+}
+
+[data-theme="ascii"] .loading-spinner::after {
+  content: '◐' !important;
+  animation: ascii-spin 1s steps(4) infinite;
+  color: var(--ascii-primary);
+}
+
+/* === Scanline Effect (subtle) === */
+[data-theme="ascii"]::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  z-index: 9999;
+}
+
+/* === Scrollbars === */
+[data-theme="ascii"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: var(--ascii-bg);
+}
+
+[data-theme="ascii"] ::-webkit-scrollbar-thumb {
+  background: var(--ascii-border);
+  border: 1px solid var(--ascii-bg);
+}
+
+[data-theme="ascii"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--ascii-primary);
+}
+
+/* === Links === */
+[data-theme="ascii"] a {
+  color: var(--ascii-primary) !important;
+  text-decoration: none;
+  border-bottom: 1px dashed var(--ascii-border-dim);
+}
+
+[data-theme="ascii"] a:hover {
+  border-bottom-color: var(--ascii-primary);
+}
+
+/* === Badges === */
+[data-theme="ascii"] .ant-badge-count,
+[data-theme="ascii"] .badge {
+  background: var(--ascii-bg-panel) !important;
+  border: 1px solid var(--ascii-primary) !important;
+  color: var(--ascii-primary) !important;
+  font-family: var(--ascii-font-mono) !important;
+}
+
+/* === Tabs === */
+[data-theme="ascii"] .ant-tabs-tab {
+  color: var(--ascii-text-dim) !important;
+  font-family: var(--ascii-font-mono) !important;
+}
+
+[data-theme="ascii"] .ant-tabs-tab:hover {
+  color: var(--ascii-text) !important;
+}
+
+[data-theme="ascii"] .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--ascii-primary) !important;
+}
+
+[data-theme="ascii"] .ant-tabs-ink-bar {
+  background: var(--ascii-primary) !important;
+}
+
+/* === Notifications === */
+[data-theme="ascii"] .ant-notification-notice {
+  background: var(--ascii-bg-panel) !important;
+  border: 1px solid var(--ascii-border);
+  color: var(--ascii-text) !important;
+}
+
+[data-theme="ascii"] .ant-notification-notice .ant-notification-notice-message,
+[data-theme="ascii"] .ant-notification-notice .ant-notification-notice-description,
+[data-theme="ascii"] .ant-notification-notice-content {
+  color: var(--ascii-text) !important;
+}
+
+/* Error notifications - red accent */
+[data-theme="ascii"] .ant-notification-notice-error {
+  border-color: var(--ascii-error) !important;
+  border-left: 3px solid var(--ascii-error) !important;
+}
+
+[data-theme="ascii"] .ant-notification-notice-error .ant-notification-notice-message,
+[data-theme="ascii"] .ant-notification-notice-error .ant-notification-notice-icon {
+  color: var(--ascii-error) !important;
+}
+
+/* Success notifications - green accent */
+[data-theme="ascii"] .ant-notification-notice-success {
+  border-color: var(--ascii-success) !important;
+  border-left: 3px solid var(--ascii-success) !important;
+}
+
+[data-theme="ascii"] .ant-notification-notice-success .ant-notification-notice-message,
+[data-theme="ascii"] .ant-notification-notice-success .ant-notification-notice-icon {
+  color: var(--ascii-success) !important;
+}
+
+/* Warning notifications - yellow accent */
+[data-theme="ascii"] .ant-notification-notice-warning {
+  border-color: var(--ascii-warning) !important;
+  border-left: 3px solid var(--ascii-warning) !important;
+}
+
+[data-theme="ascii"] .ant-notification-notice-warning .ant-notification-notice-message,
+[data-theme="ascii"] .ant-notification-notice-warning .ant-notification-notice-icon {
+  color: var(--ascii-warning) !important;
+}
+
+/* Info notifications - blue accent */
+[data-theme="ascii"] .ant-notification-notice-info {
+  border-left: 3px solid var(--ascii-info) !important;
+}
+
+[data-theme="ascii"] .ant-notification-notice-info .ant-notification-notice-message,
+[data-theme="ascii"] .ant-notification-notice-info .ant-notification-notice-icon {
+  color: var(--ascii-info) !important;
+}
+
+/* Ant Design Message component (toast-style) */
+[data-theme="ascii"] .ant-message .ant-message-notice-content {
+  background: var(--ascii-bg-panel) !important;
+  border: 1px solid var(--ascii-border);
+  color: var(--ascii-text) !important;
+}
+
+[data-theme="ascii"] .ant-message-custom-content {
+  color: var(--ascii-text) !important;
+}
+
+[data-theme="ascii"] .ant-message-custom-content span {
+  color: var(--ascii-text) !important;
+}
+
+/* Message type-specific colors */
+[data-theme="ascii"] .ant-message-error .ant-message-notice-content {
+  border-color: var(--ascii-error) !important;
+}
+
+[data-theme="ascii"] .ant-message-error .anticon {
+  color: var(--ascii-error) !important;
+}
+
+[data-theme="ascii"] .ant-message-success .ant-message-notice-content {
+  border-color: var(--ascii-success) !important;
+}
+
+[data-theme="ascii"] .ant-message-success .anticon {
+  color: var(--ascii-success) !important;
+}
+
+[data-theme="ascii"] .ant-message-warning .ant-message-notice-content {
+  border-color: var(--ascii-warning) !important;
+}
+
+[data-theme="ascii"] .ant-message-warning .anticon {
+  color: var(--ascii-warning) !important;
+}
+
+[data-theme="ascii"] .ant-message-info .ant-message-notice-content {
+  border-color: var(--ascii-info) !important;
+}
+
+[data-theme="ascii"] .ant-message-info .anticon {
+  color: var(--ascii-info) !important;
+}
+
+/* === Alerts === */
+[data-theme="ascii"] .alert,
+[data-theme="ascii"] [class*="alert-"] {
+  background: var(--ascii-bg-panel) !important;
+  border: 1px solid var(--ascii-border);
+  color: var(--ascii-text) !important;
+  font-family: var(--ascii-font-mono) !important;
+  padding: 12px 16px;
+}
+
+[data-theme="ascii"] .alert-error {
+  border-color: var(--ascii-error) !important;
+  border-left: 3px solid var(--ascii-error) !important;
+  color: var(--ascii-error) !important;
+}
+
+[data-theme="ascii"] .alert-success {
+  border-color: var(--ascii-success) !important;
+  border-left: 3px solid var(--ascii-success) !important;
+  color: var(--ascii-success) !important;
+}
+
+[data-theme="ascii"] .alert-warning {
+  border-color: var(--ascii-warning) !important;
+  border-left: 3px solid var(--ascii-warning) !important;
+  color: var(--ascii-warning) !important;
+}
+
+[data-theme="ascii"] .alert-info {
+  border-color: var(--ascii-info) !important;
+  border-left: 3px solid var(--ascii-info) !important;
+  color: var(--ascii-info) !important;
+}
+
+/* Ant Design Alert component */
+[data-theme="ascii"] .ant-alert {
+  background: var(--ascii-bg-panel) !important;
+  border: 1px solid var(--ascii-border);
+  color: var(--ascii-text) !important;
+  font-family: var(--ascii-font-mono) !important;
+}
+
+[data-theme="ascii"] .ant-alert-message,
+[data-theme="ascii"] .ant-alert-description {
+  color: var(--ascii-text) !important;
+}
+
+[data-theme="ascii"] .ant-alert-error {
+  border-color: var(--ascii-error) !important;
+}
+
+[data-theme="ascii"] .ant-alert-error .ant-alert-message,
+[data-theme="ascii"] .ant-alert-error .anticon {
+  color: var(--ascii-error) !important;
+}
+
+[data-theme="ascii"] .ant-alert-success {
+  border-color: var(--ascii-success) !important;
+}
+
+[data-theme="ascii"] .ant-alert-success .ant-alert-message,
+[data-theme="ascii"] .ant-alert-success .anticon {
+  color: var(--ascii-success) !important;
+}
+
+[data-theme="ascii"] .ant-alert-warning {
+  border-color: var(--ascii-warning) !important;
+}
+
+[data-theme="ascii"] .ant-alert-warning .ant-alert-message,
+[data-theme="ascii"] .ant-alert-warning .anticon {
+  color: var(--ascii-warning) !important;
+}
+
+[data-theme="ascii"] .ant-alert-info {
+  border-color: var(--ascii-info) !important;
+}
+
+[data-theme="ascii"] .ant-alert-info .ant-alert-message,
+[data-theme="ascii"] .ant-alert-info .anticon {
+  color: var(--ascii-info) !important;
+}
+
+/* === Stats Cards === */
+[data-theme="ascii"] .stat-card {
+  background: var(--ascii-bg-panel) !important;
+  border: 1px solid var(--ascii-border);
+}
+
+[data-theme="ascii"] .stat-value {
+  color: var(--ascii-text) !important;
+  font-family: var(--ascii-font-mono) !important;
+}
+
+[data-theme="ascii"] .stat-label {
+  color: var(--ascii-text-dim) !important;
+  font-family: var(--ascii-font-mono) !important;
+  font-size: 0.75rem;
+}
+
+/* === Quick Actions === */
+[data-theme="ascii"] .quick-action-btn {
+  background: var(--ascii-bg-panel) !important;
+  border: 1px solid var(--ascii-border);
+  color: var(--ascii-text-dim) !important;
+  font-family: var(--ascii-font-mono) !important;
+  font-size: 0.75rem;
+}
+
+[data-theme="ascii"] .quick-action-btn:hover {
+  border-color: var(--ascii-primary);
+  color: var(--ascii-primary) !important;
+}
+
+/* === Grid Layout === */
+[data-theme="ascii"] .dashboard-grid {
+  background: var(--ascii-bg) !important;
+}
+
+/* === Footer === */
+[data-theme="ascii"] .ant-layout-footer {
+  background: var(--ascii-bg) !important;
+  border-top: 1px solid var(--ascii-border);
+  color: var(--ascii-text-dim) !important;
+  font-family: var(--ascii-font-mono) !important;
+  font-size: 0.75rem;
+}

@@ -1,0 +1,314 @@
+#!/bin/bash
+# Centralized Configuration Generation via Utils Container
+# Eliminates local config generation for cross-platform compatibility
+
+# Global function to execute commands in utils container
+exec_in_utils() {
+    local cmd="$1"
+    local timeout_duration="${2:-30}"
+
+    # Determine timeout command based on platform
+    local use_timeout=false
+    local timeout_bin=""
+
+    if command -v timeout >/dev/null 2>&1; then
+        # GNU coreutils timeout (Linux)
+        use_timeout=true
+        timeout_bin="timeout"
+    elif command -v gtimeout >/dev/null 2>&1; then
+        # macOS with coreutils installed via brew
+        use_timeout=true
+        timeout_bin="gtimeout"
+    fi
+    # If no timeout available, proceed without it (Docker commands typically fail fast anyway)
+
+    # Use direct docker exec for better reliability after container startup
+    if [ "$use_timeout" = true ]; then
+        if $timeout_bin "$timeout_duration" docker exec sting-ce-utils bash -c "$cmd" 2>&1; then
+            return 0
+        else
+            # Fallback to docker compose exec if direct exec fails
+            if $timeout_bin "$timeout_duration" docker compose --profile installation exec utils bash -c "$cmd" 2>&1; then
+                return 0
+            fi
+        fi
+    else
+        # No timeout command available - run directly (macOS default)
+        if docker exec sting-ce-utils bash -c "$cmd" 2>&1; then
+            return 0
+        else
+            # Fallback to docker compose exec if direct exec fails
+            if docker compose --profile installation exec utils bash -c "$cmd" 2>&1; then
+                return 0
+            fi
+        fi
+    fi
+
+    # If we get here, both attempts failed
+    log_message "Failed to execute in utils container: $cmd" "ERROR"
+    return 1
+}
+
+# Ensure utils container is running and ready
+ensure_utils_container() {
+    local max_attempts=30
+    local attempt=1
+    
+    log_message "Ensuring utils container is available for config generation..."
+    
+    # Check if container exists and is running
+    if ! docker ps --format '{{.Names}}' | grep -q "sting-ce-utils"; then
+        log_message "Starting utils container..."
+        if ! docker compose --profile installation up -d utils; then
+            log_message "Failed to start utils container" "ERROR"
+            return 1
+        fi
+    else
+        # Container exists - verify it's using current image
+        local current_image_id=$(docker inspect sting-ce-utils --format '{{.Image}}' 2>/dev/null)
+        local latest_image_id=$(docker images sting-ce-utils:latest --format '{{.ID}}' 2>/dev/null)
+        
+        if [ -n "$current_image_id" ] && [ -n "$latest_image_id" ] && [ "$current_image_id" != "sha256:$latest_image_id" ]; then
+            log_message "Utils container is using outdated image, restarting with latest..."
+            docker compose --profile installation stop utils >/dev/null 2>&1
+            docker compose --profile installation up -d utils
+        fi
+    fi
+
+    # Wait for Docker health check to pass first (more reliable than manual checks)
+    log_message "Waiting for utils container health check..."
+    local health_attempts=0
+    local max_health_attempts=60  # 60 * 5s = 5 minutes max wait
+
+    while [ $health_attempts -lt $max_health_attempts ]; do
+        local health_status=$(docker inspect --format='{{.State.Health.Status}}' sting-ce-utils 2>/dev/null || echo "none")
+
+        if [ "$health_status" = "healthy" ]; then
+            log_message "Utils container is healthy" "SUCCESS"
+
+            # Brief stabilization delay - allow Docker exec to fully initialize
+            log_message "Allowing container exec environment to stabilize..."
+            sleep 5
+
+            # Double-check dependencies are accessible with generous timeout
+            if exec_in_utils "python3 -c 'import hvac; import yaml; import requests; print(\"Dependencies OK\")'" 30; then
+                log_message "Utils container is ready with all dependencies" "SUCCESS"
+                return 0
+            else
+                log_message "First verification attempt failed, retrying in 5 seconds..."
+                sleep 5
+                if exec_in_utils "python3 -c 'import hvac; import yaml; import requests; print(\"Dependencies OK\")'" 30; then
+                    log_message "Utils container is ready with all dependencies" "SUCCESS"
+                    return 0
+                fi
+            fi
+        fi
+
+        if [ "$health_status" = "none" ]; then
+            # Container has no health check configured (shouldn't happen with our setup)
+            log_message "Utils container has no health check, falling back to manual checks..."
+            break
+        fi
+
+        if [ $((health_attempts % 6)) -eq 0 ]; then
+            log_message "Utils container health: $health_status (waiting...)"
+        fi
+
+        sleep 5
+        health_attempts=$((health_attempts + 1))
+    done
+
+    # Fallback: try manual dependency checks if health check approach didn't work
+    log_message "Health check wait exceeded or unavailable, trying manual verification..."
+    attempt=1
+    while [ $attempt -le 10 ]; do
+        if exec_in_utils "python3 -c 'import hvac; import yaml; import requests; print(\"Dependencies OK\")'" 10; then
+            log_message "Utils container is ready with all dependencies" "SUCCESS"
+            return 0
+        fi
+
+        log_message "Waiting for utils container dependencies... (manual attempt $attempt/10)"
+        sleep 3
+        attempt=$((attempt + 1))
+    done
+
+    log_message "Utils container did not become ready in time" "ERROR"
+    return 1
+}
+
+# Centralized config generation function
+generate_config_via_utils() {
+    local mode="${1:-runtime}"
+    local config_file="${2:-config.yml}"
+    
+    log_message "Generating configuration files via utils container (mode: $mode)..."
+    
+    # CRITICAL: Sync config.yml to Docker volume BEFORE generation
+    # The utils container mounts config_data volume at /app/conf which MASKS
+    # the bind mount from /opt/sting-ce. Without this sync, config_loader.py
+    # reads STALE config and regenerates env files without recent changes.
+    sync_config_to_volume_internal
+    
+    # Ensure utils container is ready
+    if ! ensure_utils_container; then
+        log_message "Cannot proceed without utils container" "ERROR"
+        return 1
+    fi
+    
+    # Ensure directories exist in container
+    exec_in_utils "mkdir -p /app/env /app/conf" || {
+        log_message "Failed to create directories in utils container" "ERROR"
+        return 1
+    }
+    
+    # Run config generation in utils container
+    if exec_in_utils "cd /app/conf && INSTALL_DIR=/app python3 config_loader.py $config_file --mode $mode" 60; then
+        log_message "Configuration files generated successfully via utils container" "SUCCESS"
+        
+        # Copy generated env files from container to host
+        copy_config_from_utils
+        
+        return 0
+    else
+        log_message "Configuration generation failed in utils container" "ERROR"
+        return 1
+    fi
+}
+
+# Copy generated config files from utils container to host
+copy_config_from_utils() {
+    log_message "Copying generated environment files from utils container..."
+    
+    # Get list of generated env files from utils container
+    local env_files
+    env_files=$(exec_in_utils "find /app/env -name '*.env' -type f 2>/dev/null || true")
+    
+    if [ -n "$env_files" ]; then
+        # Copy each env file
+        local file_count=0
+        while IFS= read -r container_file; do
+            # Skip empty lines
+            if [ -n "$container_file" ] && [ "$container_file" != " " ]; then
+                local filename=$(basename "$container_file")
+                local host_path="${INSTALL_DIR}/env/$filename"
+                
+                # Copy from container to host
+                if docker cp "sting-ce-utils:$container_file" "$host_path" 2>/dev/null; then
+                    log_message "Copied $filename"
+                    file_count=$((file_count + 1))
+                    # Special check for observability.env
+                    if [ "$filename" = "observability.env" ]; then
+                        log_message "Observability services configuration ready" "SUCCESS"
+                    fi
+                else
+                    log_message "Failed to copy $filename" "WARNING"
+                fi
+            fi
+        done <<< "$env_files"
+        
+        log_message "Copied $file_count environment files from utils container"
+        
+        # Also copy to conf directory for backward compatibility
+        if [ -d "${INSTALL_DIR}/conf" ]; then
+            cp "${INSTALL_DIR}/env/"*.env "${INSTALL_DIR}/conf/" 2>/dev/null || true
+        fi
+        
+        log_message "Environment files copied successfully" "SUCCESS"
+    else
+        log_message "No environment files found in utils container" "WARNING"
+        return 1
+    fi
+}
+
+# Validate that config generation worked
+validate_config_generation() {
+    # All services that are started during installation need their env files
+    local required_files=(
+        # Core infrastructure
+        "db.env"              # PostgreSQL database
+        "vault.env"           # HashiCorp Vault for secrets
+        # Note: Redis configured directly in docker-compose.yml, no env file needed
+        
+        # Authentication & Security
+        "kratos.env"          # Ory Kratos authentication
+        
+        # Application services
+        "app.env"             # Flask backend
+        "frontend.env"        # React frontend
+        "knowledge.env"       # Knowledge service
+        "chatbot.env"         # Bee Chat service
+        
+        # Observability stack (if enabled)
+        "observability.env"   # Grafana, Loki, Promtail
+        
+        # Supporting services
+        "messaging.env"       # RabbitMQ messaging
+        "profile.env"         # Profile service configs
+    )
+    
+    log_message "Validating generated configuration files..."
+    
+    local missing_files=()
+    for file in "${required_files[@]}"; do
+        if [ ! -f "${INSTALL_DIR}/env/$file" ]; then
+            missing_files+=("$file")
+        fi
+    done
+    
+    if [ ${#missing_files[@]} -eq 0 ]; then
+        log_message "All required configuration files generated successfully" "SUCCESS"
+        return 0
+    else
+        log_message "Missing configuration files: ${missing_files[*]}" "ERROR"
+        return 1
+    fi
+}
+
+# Sync config.yml from host to Docker volume
+# CRITICAL: The utils container mounts config_data volume at /app/conf which MASKS
+# the bind mount from /opt/sting-ce. This means config.yml changes on the host
+# are NOT visible inside the utils container until synced to the volume.
+# Without this sync, config_loader.py reads STALE config and regenerates env files
+# without any changes made to config.yml (like MiniMax, SMTP, or other settings).
+sync_config_to_volume_internal() {
+    local config_volume_path="/var/lib/docker/volumes/config_data/_data"
+    local host_config="${INSTALL_DIR}/conf/config.yml"
+    
+    if [ ! -f "$host_config" ]; then
+        log_message "No config.yml found at $host_config" "WARNING"
+        return 1
+    fi
+    
+    if [ -d "$config_volume_path" ]; then
+        log_message "📋 Syncing config.yml to Docker volume..."
+        
+        # Compare and sync if different
+        if ! sudo diff -q "$host_config" "$config_volume_path/config.yml" >/dev/null 2>&1; then
+            sudo cp "$host_config" "$config_volume_path/config.yml"
+            log_message "✅ Config.yml synced to volume (changes detected)" "SUCCESS"
+        else
+            log_message "Config.yml already in sync with volume"
+        fi
+        
+        # Also sync config_loader.py if it exists and is different
+        if [ -f "${INSTALL_DIR}/conf/config_loader.py" ]; then
+            if ! sudo diff -q "${INSTALL_DIR}/conf/config_loader.py" "$config_volume_path/config_loader.py" >/dev/null 2>&1; then
+                sudo cp "${INSTALL_DIR}/conf/config_loader.py" "$config_volume_path/config_loader.py"
+                log_message "✅ Config_loader.py synced to volume" "SUCCESS"
+            fi
+        fi
+        
+        return 0
+    else
+        log_message "Config volume not found at $config_volume_path - might not be using Docker volumes" "INFO"
+        return 0  # Not an error - might be a different setup
+    fi
+}
+
+# Export functions for use in other modules
+export -f sync_config_to_volume_internal
+export -f exec_in_utils
+export -f ensure_utils_container
+export -f generate_config_via_utils
+export -f copy_config_from_utils
+export -f validate_config_generation

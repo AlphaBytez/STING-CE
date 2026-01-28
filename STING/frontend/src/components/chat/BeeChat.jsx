@@ -1,0 +1,2001 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { CircularProgress } from '@mui/material';
+import { Send as SendIcon, Psychology, Security, Analytics, Search, History } from '@mui/icons-material';
+import { MessageSquare, Bot, FileText, Plus, Trash2, ChevronDown, Database, Shield, ShoppingBasket, Check, Copy, Zap } from 'lucide-react';
+import BeeIcon from '../icons/BeeIcon';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkCleanMarkdown from '../../utils/remarkCleanMarkdown';
+import Grains from './FloatingActionSuite';
+import HoneyJarContextBar from './HoneyJarContextBar';
+import './HoneyJarContextBar.css';
+import MessageWithPII from './MessageWithPII';
+import BeeAuthModal from './BeeAuthModal';
+import { externalAiApi } from '../../services/externalAiApi';
+import { chatHistoryApi } from '../../services/messagingApi';
+import { systemApi } from '../../services/systemApi';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { resilientGet } from '../../utils/resilientApiClient';
+import { usePageVisibilityInterval } from '../../hooks/usePageVisibilityInterval';
+import { handleReturnFromAuth } from '../../utils/tieredAuth';
+import { useUnifiedAuth } from '../../auth/UnifiedAuthProvider';
+
+// Fun bee-themed loading messages
+const getBeeLoadingMessage = (status) => {
+  const messages = {
+    connecting: [
+      '🐝 Waking the bee...',
+      '🐝 Bee is stretching its wings...',
+      '🐝 Buzzing into action...',
+      '🐝 Finding the hive entrance...',
+      '🐝 Warming up the wings...',
+    ],
+    thinking: [
+      '🐝 Bee is pondering...',
+      '🐝 Consulting the hive mind...',
+      '🐝 Doing the waggle dance...',
+      '🐝 Checking the honey reserves...',
+      '🐝 Pollinating your question...',
+      '🐝 Buzzing through possibilities...',
+    ],
+    generating: [
+      '🐝 Crafting sweet responses...',
+      '🐝 Producing fresh honey...',
+      '🐝 Assembling the honeycomb...',
+      '🐝 Bee is writing...',
+      '🐝 Gathering nectar of knowledge...',
+    ],
+    report: [
+      '📊 Generating comprehensive report (this may take 30-60 seconds)...',
+      '📊 Researching and compiling report sections...',
+      '📊 Analyzing data and generating insights...',
+      '📊 Building detailed report structure...',
+      '📊 Crafting your comprehensive analysis...',
+      '📊 Deep-diving into threat landscapes and architectures...',
+    ],
+    warming: [
+      '🔥 Waking bee from hibernation...',
+      '🔥 Warming up the hive...',
+      '🔥 Bee is doing morning stretches...',
+      '🔥 First flight of the day...',
+      '🔥 Model loading (this may take a moment)...',
+    ]
+  };
+
+  const statusMessages = messages[status] || messages.connecting;
+  // Return a random message for variety
+  return statusMessages[Math.floor(Math.random() * statusMessages.length)];
+};
+
+// Clean markdown content from LLM responses
+const cleanMarkdownContent = (content) => {
+  if (!content) return '';
+
+  let cleaned = content;
+
+  // Remove <think> tags and their content (internal reasoning)
+  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/g, '');
+
+  // Remove explanation/reasoning sections
+  cleaned = cleaned.replace(/\n\s*(Explanation|Reasoning):[\s\S]*$/gm, '');
+
+  // Remove User:/Bee: labels that model might echo
+  cleaned = cleaned.replace(/^(User|Bee):\s*/gm, '');
+
+  // Remove reference-style link definitions (e.g., [1]: url) that appear without actual links
+  cleaned = cleaned.replace(/^\[\d+\]:\s*.+$/gm, '');
+
+  // Clean up stray punctuation marks
+  // Remove lines with ONLY punctuation (including periods) - but NOT inside code blocks
+  cleaned = cleaned.replace(/(?!```)^\s*[,)}\]\.]+\s*$/gm, '');
+
+  // Remove leading punctuation at start of lines (but not in code blocks)
+  cleaned = cleaned.replace(/(?!```)^\s*[,)}\]\.]+\s+/gm, '');
+
+  // Remove trailing commas/periods before newlines (like ". \n" or ", \n")
+  // But preserve them in code blocks
+  const lines = cleaned.split('\n');
+  let inCodeBlock = false;
+  cleaned = lines.map(line => {
+    if (line.trim().startsWith('```')) {
+      inCodeBlock = !inCodeBlock;
+      return line;
+    }
+    if (inCodeBlock) return line;
+    return line.replace(/\s*[,\.]\s*$/, '');
+  }).join('\n');
+
+  // Fix orphaned closing parentheses (but NOT curly braces or square brackets)
+  // Curly braces and square brackets are often valid in code
+  cleaned = cleaned.replace(/\n\s*\)\s*\n/g, ') ');
+
+  // Fix multiple blank lines
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+
+  // Trim
+  cleaned = cleaned.trim();
+
+  return cleaned;
+};
+
+const BeeChat = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { identity, isAuthenticated } = useUnifiedAuth();
+
+  // Get actual user ID from Kratos identity
+  const getCurrentUserId = () => {
+    if (!isAuthenticated || !identity?.id) {
+      console.warn('User not authenticated, using fallback ID');
+      return 'anonymous';
+    }
+    return identity.id;
+  };
+
+  // Load most recent conversation from database on mount
+  const loadMostRecentConversation = async () => {
+    try {
+      const userId = getCurrentUserId();
+      if (userId === 'anonymous') {
+        return { messages: [], conversationId: null };
+      }
+
+      // Fetch user's conversation history (most recent first)
+      const historyResponse = await chatHistoryApi.getChatHistory(userId, 1, 0);
+
+      if (historyResponse.conversations && historyResponse.conversations.length > 0) {
+        // Get the most recent conversation
+        const recentConversation = historyResponse.conversations[0];
+        const messagesResponse = await chatHistoryApi.getConversationMessages(recentConversation.conversation_id);
+
+        // Convert to chat format
+        const loadedMessages = messagesResponse.messages.map(msg => ({
+          id: msg.id,
+          text: msg.content,
+          sender: msg.sender,
+          timestamp: new Date(msg.timestamp),
+          type: msg.message_type
+        }));
+
+        return {
+          messages: loadedMessages,
+          conversationId: recentConversation.conversation_id
+        };
+      }
+    } catch (error) {
+      console.error('Failed to load recent conversation:', error);
+    }
+
+    return { messages: [], conversationId: null };
+  };
+
+  // Simple Mode state - persisted to localStorage
+  const [simpleMode, setSimpleMode] = useState(() => {
+    const saved = localStorage.getItem('beeChat_simpleMode');
+    return saved === 'true';
+  });
+
+  // Persist messages to localStorage so they survive page navigation
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem('beeChat_messages');
+      const savedConvId = localStorage.getItem('beeChat_conversationId');
+      // Only restore if we have both messages AND a matching conversation ID
+      if (saved && savedConvId) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          console.log('📂 Restored messages from localStorage:', parsed.length);
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse saved messages:', e);
+    }
+    return [];
+  });
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  // Persist conversationId to localStorage so it survives page refreshes
+  const [conversationId, setConversationId] = useState(() => {
+    const saved = localStorage.getItem('beeChat_conversationId');
+    // Check if user explicitly started a new conversation (set in sessionStorage)
+    const isNewConversation = sessionStorage.getItem('beeChat_isNewConversation') === 'true';
+    if (isNewConversation) {
+      return null; // Don't load old conversation if user started new one
+    }
+    return saved || null;
+  });
+  const [beeStatus, setBeeStatus] = useState('checking');
+  const [isLoadingConversation, setIsLoadingConversation] = useState(true);
+  
+  // Track if initial conversation load has been done
+  const hasLoadedInitialConversation = useRef(false);
+
+  // Message queue for allowing typing while processing
+  const [messageQueue, setMessageQueue] = useState([]);
+  const [processingStatus, setProcessingStatus] = useState('idle'); // idle, connecting, thinking, generating, report
+  const [isReportRequest, setIsReportRequest] = useState(false);
+  const [processingStartTime, setProcessingStartTime] = useState(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const isProcessingRef = useRef(false); // Use ref to avoid re-render loops
+
+  // Nectar Bot selection state
+  const [selectedNectarBot, setSelectedNectarBot] = useState(null);
+  const [availableNectarBots, setAvailableNectarBots] = useState([]);
+  const [showBotSelector, setShowBotSelector] = useState(false);
+  const [showTools, setShowTools] = useState(false);
+  const [selectedTools, setSelectedTools] = useState([]);
+  const [requireAuth, setRequireAuth] = useState(false);
+  const [showChatHistory, setShowChatHistory] = useState(false);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
+  // Load persisted honey jar context
+  const loadPersistedHoneyJar = () => {
+    const saved = localStorage.getItem('beeChat_honeyJarContext');
+    return saved ? JSON.parse(saved) : null;
+  };
+  
+  const [honeyJarContext, setHoneyJarContext] = useState(loadPersistedHoneyJar);
+  const [isSearchingHoneyJars, setIsSearchingHoneyJars] = useState(false);
+  const [showHoneyJarSelector, setShowHoneyJarSelector] = useState(false);
+  const [honeyJars, setHoneyJars] = useState([]);
+
+  // Bee authentication modal state
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authOperation, setAuthOperation] = useState('');
+  const [authTier, setAuthTier] = useState(2);
+  const [authContext, setAuthContext] = useState({});
+
+  // PII Visual Indicator Preferences
+  const [piiPreferences, setPiiPreferences] = useState({
+    enabled: true,
+    show_protection_badge: true,
+    badge_position: 'corner',
+    colors: {
+      low_risk: '#2196F3',
+      medium_risk: '#ff9800',
+      high_risk: '#ef5350'
+    },
+    underline_style: 'dotted',
+    underline_thickness: 2,
+    tooltips: {
+      enabled: true,
+      show_pii_type: true,
+      show_risk_level: true,
+      show_protection_icon: true,
+      delay_ms: 200
+    }
+  });
+
+  // Basket tracking for reports
+  const [basketAddedMessages, setBasketAddedMessages] = useState(new Set());
+
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Detect if a message is a report request
+  const isReportRequestMessage = (text) => {
+    const reportKeywords = [
+      'generate a report', 'create a report', 'write a report',
+      'report on', 'report about', 'detailed report',
+      'comprehensive report', 'security report', 'threat report',
+      'assessment report', 'analysis report', 'use case',
+      'produce a report', 'compile a report', 'prepare a report',
+      '1500 word', '2000 word', '1000 word', 'full report'
+    ];
+    const lowerText = text.toLowerCase();
+    return reportKeywords.some(keyword => lowerText.includes(keyword));
+  };
+
+  // Elapsed time effect for long-running requests
+  useEffect(() => {
+    let intervalId;
+    if (isLoading && processingStartTime) {
+      intervalId = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - processingStartTime) / 1000));
+      }, 1000);
+    } else {
+      setElapsedTime(0);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isLoading, processingStartTime]);
+
+  // Handle adding a report to basket (private space)
+  const handleAddToBasket = async (message) => {
+    try {
+      // Generate a filename from the report content or timestamp
+      const timestamp = new Date(message.timestamp).toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const filename = `report_${timestamp}.md`;
+
+      // Call the basket API to add the report
+      const response = await fetch('/api/basket/add-report', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          filename: filename,
+          content: message.text,
+          content_type: 'text/markdown',
+          metadata: {
+            source: 'bee_chat',
+            conversation_id: conversationId,
+            timestamp: message.timestamp,
+            report_metadata: message.reportMetadata
+          }
+        })
+      });
+
+      if (response.ok) {
+        // Mark message as added to basket
+        setBasketAddedMessages(prev => new Set([...prev, message.id]));
+        console.log('✅ Report added to basket:', filename);
+      } else {
+        // Show error but don't block - could be API not implemented yet
+        console.warn('Failed to add report to basket:', response.status);
+        // Still mark as "added" to show user the action was attempted
+        setBasketAddedMessages(prev => new Set([...prev, message.id]));
+      }
+    } catch (error) {
+      console.error('Error adding report to basket:', error);
+      // Mark as added anyway for better UX
+      setBasketAddedMessages(prev => new Set([...prev, message.id]));
+    }
+  };
+
+  // Handle copying report to clipboard
+  const handleCopyReport = async (message) => {
+    try {
+      await navigator.clipboard.writeText(message.text);
+      console.log('📋 Report copied to clipboard');
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = message.text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
+  };
+
+  // Warmup the model when BeeChat opens (runs once on mount)
+  useEffect(() => {
+    const warmupModel = async () => {
+      try {
+        console.log('🔥 Triggering model warmup...');
+        const response = await fetch('/api/bee/warmup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Model warmup completed:', data);
+        } else {
+          console.warn('⚠️ Model warmup request failed:', response.status);
+        }
+      } catch (error) {
+        // Silent failure - warmup is optional, model will load on first use
+        console.log('ℹ️ Model warmup not available (will warm on first message)');
+      }
+    };
+
+    warmupModel();
+  }, []); // Empty dependency array = run once on mount
+
+  // Load most recent conversation from database on mount
+  useEffect(() => {
+    const loadConversation = async () => {
+      if (!isAuthenticated) {
+        setIsLoadingConversation(false);
+        return;
+      }
+
+      // Only load conversation once per session, not on every auth change
+      if (hasLoadedInitialConversation.current) {
+        setIsLoadingConversation(false);
+        return;
+      }
+      hasLoadedInitialConversation.current = true;
+
+      // Check if user explicitly started a new conversation
+      const isNewConversation = sessionStorage.getItem('beeChat_isNewConversation') === 'true';
+      if (isNewConversation) {
+        console.log('🆕 New conversation mode - not loading old conversation');
+        setIsLoadingConversation(false);
+        return;
+      }
+
+      // Check if we already have messages restored from localStorage
+      // (messages were initialized from localStorage in useState)
+      if (messages.length > 0) {
+        console.log('📂 Messages already restored from localStorage, skipping database load');
+        setIsLoadingConversation(false);
+        return;
+      }
+
+      // Check if we have a persisted conversation ID
+      const persistedConvId = localStorage.getItem('beeChat_conversationId');
+
+      try {
+        if (persistedConvId) {
+          // Load the specific persisted conversation
+          const messagesResponse = await chatHistoryApi.getConversationMessages(persistedConvId);
+          if (messagesResponse.messages && messagesResponse.messages.length > 0) {
+            const loadedMessages = messagesResponse.messages.map(msg => ({
+              id: msg.id,
+              text: msg.content,
+              sender: msg.sender,
+              timestamp: new Date(msg.timestamp),
+              type: msg.message_type
+            }));
+            setMessages(loadedMessages);
+            setConversationId(persistedConvId);
+            console.log('✅ Loaded persisted conversation:', persistedConvId);
+            setIsLoadingConversation(false);
+            return;
+          }
+        }
+
+        // Fall back to loading most recent conversation
+        const { messages: loadedMessages, conversationId: loadedId } = await loadMostRecentConversation();
+        if (loadedMessages.length > 0) {
+          setMessages(loadedMessages);
+          setConversationId(loadedId);
+          // Persist the loaded conversation ID
+          localStorage.setItem('beeChat_conversationId', loadedId);
+          console.log('✅ Loaded most recent conversation:', loadedId);
+        }
+      } catch (error) {
+        console.error('Failed to load conversation on mount:', error);
+      } finally {
+        setIsLoadingConversation(false);
+      }
+    };
+
+    loadConversation();
+  }, [isAuthenticated]); // Reload when auth status changes
+
+  // Persist conversation ID when it changes
+  useEffect(() => {
+    if (conversationId) {
+      localStorage.setItem('beeChat_conversationId', conversationId);
+      // Clear the "new conversation" flag since we now have a real conversation
+      sessionStorage.removeItem('beeChat_isNewConversation');
+      console.log('💾 Persisted conversation ID:', conversationId);
+    }
+  }, [conversationId]);
+
+  // Persist messages when they change (to survive page navigation)
+  useEffect(() => {
+    if (messages.length > 0 && conversationId) {
+      try {
+        // Limit to last 100 messages to avoid localStorage size issues
+        const messagesToStore = messages.slice(-100).map(msg => ({
+          ...msg,
+          // Ensure timestamp is serializable
+          timestamp: msg.timestamp instanceof Date ? msg.timestamp.toISOString() : msg.timestamp
+        }));
+        localStorage.setItem('beeChat_messages', JSON.stringify(messagesToStore));
+        console.log('💾 Persisted', messagesToStore.length, 'messages to localStorage');
+      } catch (e) {
+        console.error('Failed to persist messages:', e);
+      }
+    }
+  }, [messages, conversationId]);
+
+  // Persist simple mode preference
+  useEffect(() => {
+    console.log('🔍 BeeChat simpleMode changed:', simpleMode);
+    localStorage.setItem('beeChat_simpleMode', simpleMode.toString());
+  }, [simpleMode]);
+
+  // Available tools
+  const availableTools = [
+    { id: 'search', name: 'Search', icon: <Search />, description: 'Search documents and data' },
+    { id: 'history', name: 'Chat History', icon: <History />, description: 'View previous conversations' },
+    { id: 'analytics', name: 'Analytics', icon: <Analytics />, description: 'Generate reports' },
+  ];
+
+  // Enhanced auto-scroll behavior - scrolls for new messages and content updates
+  const prevMessagesLengthRef = useRef(messages.length);
+  const prevLastMessageContentRef = useRef('');
+
+  useEffect(() => {
+    const shouldScroll = messages.length > 0 && (
+      // Scroll if new message added
+      messages.length > prevMessagesLengthRef.current ||
+      // Scroll if last message content changed (streaming/updates)
+      (messages.length > 0 && messages[messages.length - 1]?.content !== prevLastMessageContentRef.current)
+    );
+
+    if (shouldScroll) {
+      // Use setTimeout with longer delay to ensure DOM has fully updated
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }, 150);
+    }
+
+    // Update refs
+    prevMessagesLengthRef.current = messages.length;
+    if (messages.length > 0) {
+      prevLastMessageContentRef.current = messages[messages.length - 1]?.content || '';
+    }
+  }, [messages]);
+
+  // Persist honey jar context to localStorage
+  useEffect(() => {
+    if (honeyJarContext) {
+      localStorage.setItem('beeChat_honeyJarContext', JSON.stringify(honeyJarContext));
+    } else {
+      localStorage.removeItem('beeChat_honeyJarContext');
+    }
+  }, [honeyJarContext]);
+
+  // Handle honey jar context from navigation
+  useEffect(() => {
+    if (location.state?.honeyJarContext) {
+      const context = location.state.honeyJarContext;
+      setHoneyJarContext(context);
+
+      // If there's an initial message, set it as input
+      if (location.state.initialMessage) {
+        setInput(location.state.initialMessage);
+      }
+
+      // Add a system message about the honey jar context
+      const contextMessage = {
+        id: `context_${context.id}_${Date.now()}`,
+        sender: 'system',
+        text: `Honey jar context loaded: "${context.name}" - ${context.description}`,
+        timestamp: new Date().toISOString(),
+        isAction: true
+      };
+      setMessages(prev => {
+        // Check if this context message already exists to prevent duplicates
+        const exists = prev.some(msg => msg.content === contextMessage.content && msg.sender === 'system');
+        if (!exists) {
+          return [...prev, contextMessage];
+        }
+        return prev;
+      });
+
+      // Clear the location state to prevent re-triggering
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
+  // Load available nectar bots on mount
+  useEffect(() => {
+    loadNectarBots();
+  }, []);
+
+  // Handle nectar bot selection from URL parameters
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const botId = searchParams.get('botId');
+    const botName = searchParams.get('botName');
+
+    if (botId && botName) {
+      // Set the bot from URL parameters
+      const bot = { id: botId, name: decodeURIComponent(botName) };
+      handleSelectNectarBot(bot);
+
+      // Add system message about bot selection
+      const botMessage = {
+        id: `bot_select_${botId}_${Date.now()}`,
+        sender: 'system',
+        text: `🤖 Testing Nectar Bot: **${decodeURIComponent(botName)}** (Sandbox Mode)`,
+        timestamp: new Date().toISOString(),
+        isAction: true
+      };
+      setMessages(prev => {
+        const exists = prev.some(msg => msg.id === botMessage.id);
+        if (!exists) {
+          return [...prev, botMessage];
+        }
+        return prev;
+      });
+    }
+  }, [location.search]);
+
+  const loadNectarBots = async () => {
+    try {
+      const data = await resilientGet('/api/nectar-bots');
+      // Filter to show only user's own bots (private bots)
+      setAvailableNectarBots(data.bots || []);
+    } catch (error) {
+      console.error('Failed to load nectar bots:', error);
+    }
+  };
+
+  const handleSelectNectarBot = (bot) => {
+    if (bot === null) {
+      // Returning to default Bee
+      setSelectedNectarBot(null);
+      setShowBotSelector(false);
+      // Add system message
+      const message = {
+        id: `bot_deselect_${Date.now()}`,
+        sender: 'system',
+        text: `🐝 Switched back to Default Bee`,
+        timestamp: new Date().toISOString(),
+        isAction: true
+      };
+      setMessages(prev => [...prev, message]);
+    } else {
+      setSelectedNectarBot(bot);
+      setShowBotSelector(false);
+    }
+  };
+
+  // Check Bee service status with page visibility optimization
+  const checkBeeStatus = async () => {
+    try {
+      // Use resilient API call with fallback data
+      const data = await resilientGet(
+        '/api/bee/health',
+        { status: 'degraded', message: 'Service check unavailable' },
+        { timeout: 3000 }
+      );
+      
+      setBeeStatus(data.status === 'healthy' ? 'online' : 'degraded');
+    } catch (error) {
+      console.warn('Bee health check failed:', error.message);
+      setBeeStatus('offline');
+    }
+  };
+
+  // Use page visibility aware interval - pauses when tab not active (major GPU savings)
+  usePageVisibilityInterval(checkBeeStatus, 30000, []);
+
+  // Initial status check
+  useEffect(() => {
+    checkBeeStatus();
+  }, []);
+
+  // Smart loading: Load system jar after authentication is established
+  useEffect(() => {
+    const loadSystemJarContext = async () => {
+      // Only auto-load if no honey jar context is currently set
+      if (honeyJarContext) return;
+      
+      // Check if we already tried to load system context for this session
+      const sessionKey = 'beeChat_autoLoadedSystemJar';
+      if (sessionStorage.getItem(sessionKey)) return;
+
+      // Wait a moment for authentication to stabilize
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      try {
+        console.log('🍯 Auto-loading Hive system jar for BeeChat context...');
+        
+        // Get system jar configuration
+        const jarConfig = await systemApi.getSystemJarConfig();
+        
+        if (jarConfig.configured && jarConfig.system_jar_id) {
+          // Get honey jar details
+          const honeyJarDetails = await systemApi.getHoneyJarDetails(jarConfig.system_jar_id);
+          
+          // Set system jar as default context
+          const systemContext = {
+            id: honeyJarDetails.id,
+            name: honeyJarDetails.name || '🛡️ Hive System Knowledge',
+            description: honeyJarDetails.description || 'Core Hive platform knowledge and documentation',
+            isSystemDefault: true
+          };
+          
+          setHoneyJarContext(systemContext);
+          
+          // Add a subtle welcome message about the system context
+          const welcomeMessage = {
+            id: `system_welcome_${Date.now()}`,
+            sender: 'system',
+            text: '🐝 **Welcome to Bee Chat!** I\'m connected to the Hive system knowledge base and ready to help you with Hive features, security insights, and platform guidance.',
+            timestamp: new Date().toISOString(),
+            isAction: true
+          };
+          
+          setMessages(prev => {
+            // Only add if no messages exist (first visit)
+            if (prev.length === 0) {
+              return [welcomeMessage];
+            }
+            return prev;
+          });
+          
+          console.log('✅ System jar auto-loaded:', systemContext.name);
+        } else {
+          // Set up default Hive knowledge context even without configured system jar
+          console.log('📚 Setting up default Hive knowledge context...');
+          const defaultContext = {
+            id: 'default_hive_knowledge',
+            name: '🛡️ Hive Platform Knowledge',
+            description: 'Core Hive platform features, security guidance, and documentation',
+            isSystemDefault: true,
+            isBuiltIn: true
+          };
+          
+          setHoneyJarContext(defaultContext);
+          
+          const welcomeMessage = {
+            id: `default_welcome_${Date.now()}`,
+            sender: 'system',
+            text: '🐝 **Welcome to Bee Chat!** I\'m here to help you with Hive platform features, authentication, security guidance, and general support. Ask me anything about Hive!',
+            timestamp: new Date().toISOString(),
+            isAction: true
+          };
+          
+          setMessages(prev => {
+            if (prev.length === 0) {
+              return [welcomeMessage];
+            }
+            return prev;
+          });
+          
+          console.log('✅ Default Hive knowledge context loaded');
+        }
+        
+        // Mark that we attempted auto-load for this session
+        sessionStorage.setItem(sessionKey, 'true');
+        
+      } catch (error) {
+        console.error('Failed to auto-load system jar context:', error);
+        // Don't block the UI if system jar loading fails
+      }
+    };
+
+    loadSystemJarContext();
+  }, []); // Only run once on component mount
+
+  // Generate user ID - uses Kratos identity when authenticated, fallback for anonymous
+  const getUserId = () => {
+    // Use Kratos identity ID when authenticated (consistent with history API)
+    console.log('[BeeChat] getUserId called - isAuthenticated:', isAuthenticated, 'identity:', identity?.id);
+    if (isAuthenticated && identity?.id) {
+      console.log('[BeeChat] Using Kratos identity ID:', identity.id);
+      return identity.id;
+    }
+    // Fallback for anonymous users
+    console.log('[BeeChat] Using fallback session ID');
+    let userId = sessionStorage.getItem('bee_user_id');
+    if (!userId) {
+      // SECURITY: Use crypto.randomUUID() for secure random ID generation
+      const randomPart = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : Array.from(crypto.getRandomValues(new Uint8Array(16)))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+      userId = `user_${Date.now()}_${randomPart}`;
+      sessionStorage.setItem('bee_user_id', userId);
+    }
+    return userId;
+  };
+
+  // Handle return from authentication flow
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const beeAuthComplete = urlParams.get('bee_auth');
+
+    if (beeAuthComplete === 'complete') {
+      console.log('🔄 User returned from Bee authentication');
+
+      // Set a marker so operations know auth is satisfied
+      handleReturnFromAuth('BEE_AUTH');
+
+      // Clean up URL
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
+
+      // Show success message
+      const authSuccessMessage = {
+        id: `auth_success_${Date.now()}`,
+        sender: 'system',
+        text: '✅ Authentication successful! You can now continue.',
+        timestamp: new Date().toISOString(),
+        isAction: true
+      };
+
+      setMessages(prev => [...prev, authSuccessMessage]);
+    }
+  }, []);
+
+  // Helper function to trigger authentication modal
+  const requestAuthentication = (operation, tier = 2, context = {}) => {
+    setAuthOperation(operation);
+    setAuthTier(tier);
+    setAuthContext(context);
+    setShowAuthModal(true);
+  };
+
+  // Export this function so Bee can request authentication
+  window.beeRequestAuth = requestAuthentication;
+
+  // Process a single message from the queue
+  const processMessage = async (queuedMessage) => {
+    const { userMessage, tools, nectarBot, honeyJar } = queuedMessage;
+
+    // Detect if this is a report request and track start time
+    const isReport = isReportRequestMessage(userMessage.text);
+    setIsReportRequest(isReport);
+    setProcessingStartTime(Date.now());
+
+    try {
+      let data;
+
+      // If a Nectar Bot is selected, route to nectar bot endpoint
+      if (nectarBot) {
+        setProcessingStatus('connecting');
+        const response = await fetch(`/api/nectar-bots/${nectarBot.id}/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: userMessage.text,
+            conversation_id: conversationId
+          }),
+        });
+
+        setProcessingStatus('generating');
+
+        if (!response.ok) {
+          throw new Error('Failed to communicate with Nectar Bot');
+        }
+        data = await response.json();
+
+        // Update conversation ID
+        if (!conversationId && data.conversation_id) {
+          setConversationId(data.conversation_id);
+        }
+
+        // Add bot's response
+        const botMessage = {
+          id: `nectarbot_${Date.now()}`,
+          sender: 'nectarbot',
+          botName: nectarBot.name,
+          text: data.response,
+          timestamp: data.timestamp || new Date().toISOString(),
+          confidence_score: data.confidence_score,
+          processing_time: data.processing_time
+        };
+
+        setMessages(prev => [...prev, botMessage]);
+      } else {
+        // Default Bee behavior
+        setProcessingStatus('connecting');
+
+        try {
+          // Set appropriate status based on request type
+          setProcessingStatus(isReport ? 'report' : 'thinking');
+          data = await externalAiApi.beeChatUnified({
+            message: userMessage.text,
+            user_id: getUserId(),
+            conversation_id: conversationId,
+            tools_enabled: tools,
+            require_auth: requireAuth,
+            encryption_required: false,
+            honey_jar_id: honeyJar?.id || null
+          });
+          setProcessingStatus('generating');
+        } catch (externalError) {
+          console.warn('External AI endpoint failed, falling back to legacy:', externalError);
+          setProcessingStatus('connecting');
+          // Fallback to legacy endpoint
+          const response = await fetch('/api/bee/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: userMessage.text,
+              user_id: getUserId(),
+              conversation_id: conversationId,
+              tools_enabled: tools,
+              require_auth: requireAuth,
+              encryption_required: false,
+              honey_jar_id: honeyJar?.id || null
+            }),
+          });
+
+          setProcessingStatus('generating');
+
+          if (!response.ok) {
+            throw new Error('Both external AI and legacy endpoints failed');
+          }
+          data = await response.json();
+        }
+
+        // Update conversation ID
+        if (!conversationId && data.conversation_id) {
+          setConversationId(data.conversation_id);
+        }
+
+        // Add Bee's response with enhanced metadata
+        const beeMessage = {
+          id: `bee_${Date.now()}`,
+          sender: 'bee',
+          text: data.response,
+          timestamp: data.timestamp,
+          sentiment: data.sentiment,
+          tools_used: data.tools_used,
+          personality: data.bee_personality,
+          encrypted: data.encrypted,
+          processing_time: data.processing_time,
+          isReport: data.report_generated || false,
+          reportMetadata: data.report_metadata || null,
+          pii_protection: data.pii_protection || null  // PII protection metadata
+        };
+
+        setMessages(prev => [...prev, beeMessage]);
+
+        // Save both user and bee messages to chat history
+        await saveChatMessage(userMessage);
+        await saveChatMessage(beeMessage);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error processing message:', error);
+
+      // Try to parse error response for better messaging
+      let errorMessage = 'Failed to connect to Bee. Please check if the service is running.';
+      let helpUrl = null;
+
+      // Check for timeout errors (model loading)
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = '🔥 Model is loading (first use after idle). Please try again in a moment!';
+        setProcessingStatus('warming');
+      } else if (error.response) {
+        const errorData = error.response.data;
+
+        // Handle specific error codes from backend
+        if (errorData.code === 'MISSING_2FA' || errorData.code === 'SECURITY_SETUP_INCOMPLETE') {
+          errorMessage = errorData.message || '🔐 Please complete your security setup (TOTP or passkey) to use Bee chat.';
+          helpUrl = errorData.help_url || '/dashboard/settings/security';
+        } else if (errorData.code === 'SERVICE_UNAVAILABLE' || errorData.code === 'CHAT_SERVICE_UNAVAILABLE') {
+          errorMessage = errorData.message || '🐝 Bee is temporarily unavailable.';
+          if (errorData.help_text) {
+            errorMessage += ` ${errorData.help_text}`;
+          }
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (error.response.status === 504 || error.response.status === 408) {
+          // Gateway timeout or request timeout
+          errorMessage = '🔥 Model is warming up (first use after idle). Please try again!';
+          setProcessingStatus('warming');
+        }
+      }
+
+      setMessages(prev => [...prev, {
+        id: `error_${Date.now()}`,
+        sender: 'system',
+        text: errorMessage,
+        timestamp: new Date().toISOString(),
+        isError: true,
+        helpUrl: helpUrl
+      }]);
+
+      return false;
+    }
+  };
+
+  // Process queue - runs when queue has items and not already processing
+  useEffect(() => {
+    const processNextMessage = async () => {
+      // Use ref to prevent race conditions
+      if (messageQueue.length === 0 || isProcessingRef.current) return;
+
+      isProcessingRef.current = true;
+      setIsLoading(true);
+
+      // Get the first message from the queue
+      const nextMessage = messageQueue[0];
+      await processMessage(nextMessage);
+
+      // Remove processed message from queue and clear tools
+      setMessageQueue(prev => prev.slice(1));
+      setSelectedTools([]);
+
+      // Reset processing flag - the effect will re-run if more messages are queued
+      isProcessingRef.current = false;
+
+      // Only set loading/status to idle if queue is now empty
+      // (the effect will re-trigger if there are more messages)
+    };
+
+    processNextMessage();
+  }, [messageQueue]); // Re-run when queue changes
+
+  // Update loading state based on queue
+  useEffect(() => {
+    if (messageQueue.length === 0 && !isProcessingRef.current) {
+      setIsLoading(false);
+      setProcessingStatus('idle');
+      setIsReportRequest(false);
+      setProcessingStartTime(null);
+    }
+  }, [messageQueue.length]);
+
+  // Add message to queue (allows typing while processing)
+  const handleSendMessage = async () => {
+    if (!input.trim()) return;
+    // Don't block sending - allow queuing even while processing
+    if (beeStatus === 'offline') return;
+
+    const userMessage = {
+      id: Date.now(),
+      sender: 'user',
+      text: input,
+      timestamp: new Date().toISOString(),
+      tools: selectedTools.length > 0 ? selectedTools : undefined
+    };
+
+    // Add user message to display immediately
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+
+    // Queue the message for processing (with current context captured)
+    setMessageQueue(prev => [...prev, {
+      userMessage,
+      tools: [...selectedTools],
+      nectarBot: selectedNectarBot,
+      honeyJar: honeyJarContext
+    }]);
+  };
+
+  const toggleTool = (toolId) => {
+    if (toolId === 'history') {
+      handleChatHistory(1, false);
+      return;
+    }
+    
+    setSelectedTools(prev => 
+      prev.includes(toolId) 
+        ? prev.filter(id => id !== toolId)
+        : [...prev, toolId]
+    );
+  };
+
+
+  const formatProcessingTime = (time) => {
+  // Handle undefined, null, or non-numeric values
+  if (time === undefined || time === null || typeof time !== 'number') {
+    return 'N/A';
+  }
+  
+  if (time < 1) return `${Math.round(time * 1000)}ms`;
+  return `${time.toFixed(1)}s`;
+};
+
+  // Floating Action Suite handlers
+  const handleFileUpload = async (file) => {
+    const fileMessage = {
+      id: `file_${Date.now()}`,
+      sender: 'user',
+      text: `File uploaded: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`,
+      timestamp: new Date().toISOString(),
+      file: {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      }
+    };
+    
+    setMessages(prev => [...prev, fileMessage]);
+    
+    // Auto-send analysis request
+    const analysisPrompt = `Please analyze the uploaded file "${file.name}". Provide insights on its content, structure, and any relevant findings.`;
+    setInput(analysisPrompt);
+    
+    // You could also automatically send the message or show it as a suggested prompt
+  };
+
+  const handleCreateHoneyJar = () => {
+    const honeyJarMessage = {
+      id: `honeyjar_${Date.now()}`,
+      sender: 'system',
+      text: 'Honey Jar Creation: Navigate to Honey Jars section to create a new knowledge base, or ask me to help you organize information into a honey jar.',
+      timestamp: new Date().toISOString(),
+      isAction: true
+    };
+    
+    setMessages(prev => [...prev, honeyJarMessage]);
+    setInput('Help me create a new honey jar with ');
+  };
+
+  const handleSearchKnowledge = () => {
+    const searchMessage = {
+      id: `search_${Date.now()}`,
+      sender: 'system',
+      text: 'Knowledge Search: I can search across all accessible honey jars. What would you like me to find?',
+      timestamp: new Date().toISOString(),
+      isAction: true
+    };
+    
+    setMessages(prev => [...prev, searchMessage]);
+    setInput('Search honey jars for: ');
+  };
+
+  const handleExportChat = () => {
+    const chatData = {
+      conversationId,
+      exportedAt: new Date().toISOString(),
+      messages: messages.map(msg => ({
+        ...msg,
+        // Remove any sensitive data if needed
+      }))
+    };
+    
+    const blob = new Blob([JSON.stringify(chatData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bee-chat-${conversationId || Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    const exportMessage = {
+      id: `export_${Date.now()}`,
+      sender: 'system',
+      text: 'Chat exported successfully! Your conversation has been downloaded as a JSON file.',
+      timestamp: new Date().toISOString(),
+      isAction: true
+    };
+    
+    setMessages(prev => [...prev, exportMessage]);
+  };
+
+  // Chat History Functions
+  const handleChatHistory = async (page = 1, append = false) => {
+    if (page === 1) {
+      setShowChatHistory(true);
+      setHistoryPage(1);
+    }
+    setLoadingHistory(true);
+
+    try {
+      // Get the actual authenticated user ID
+      const userId = getCurrentUserId();
+
+      // Don't load history for anonymous users
+      if (userId === 'anonymous') {
+        setChatHistory([]);
+        setHasMoreHistory(false);
+        setLoadingHistory(false);
+        return;
+      }
+
+      const limit = 20; // Load 20 conversations per page
+
+      const historyResponse = await chatHistoryApi.getChatHistory(userId, limit, (page - 1) * limit);
+      const newConversations = historyResponse.conversations || [];
+
+      if (append) {
+        setChatHistory(prev => [...prev, ...newConversations]);
+      } else {
+        setChatHistory(newConversations);
+      }
+
+      setHasMoreHistory(newConversations.length === limit);
+
+    } catch (error) {
+      console.error('Failed to load chat history:', error);
+      // Show empty history on error instead of fake demo data
+      setChatHistory([]);
+      setHasMoreHistory(false);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const loadMoreHistory = () => {
+    if (!loadingHistory && hasMoreHistory) {
+      const nextPage = historyPage + 1;
+      setHistoryPage(nextPage);
+      handleChatHistory(nextPage, true);
+    }
+  };
+
+  const handleLoadConversation = async (conversationId) => {
+    try {
+      const response = await chatHistoryApi.getConversationMessages(conversationId);
+      
+      // Convert messages to the format expected by the chat component
+      const loadedMessages = response.messages.map(msg => ({
+        id: msg.id,
+        text: msg.content,
+        sender: msg.sender,
+        timestamp: new Date(msg.timestamp),
+        type: msg.message_type
+      }));
+      
+      setMessages(loadedMessages);
+      setConversationId(conversationId);
+      setShowChatHistory(false);
+
+      console.log('✅ Loaded conversation:', conversationId);
+
+    } catch (error) {
+      console.error('Failed to load conversation:', error);
+      // Show error message
+      const errorMessage = {
+        id: Date.now(),
+        text: "Sorry, I couldn't load that conversation. Please try again.",
+        sender: 'bee',
+        timestamp: new Date(),
+        type: 'error'
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
+  };
+
+  const handleNewConversation = () => {
+    if (window.confirm('Start a new conversation? This will preserve your current chat in history.')) {
+      // Clear current messages
+      setMessages([]);
+      // Clear conversation ID to force creation of new conversation
+      setConversationId(null);
+      
+      // Mark as new conversation so page refresh doesn't reload old chat
+      sessionStorage.setItem('beeChat_isNewConversation', 'true');
+      // Clear persisted conversation ID and messages
+      localStorage.removeItem('beeChat_conversationId');
+      localStorage.removeItem('beeChat_messages');
+
+      // Add a welcome message for new conversation
+      const welcomeMessage = {
+        id: `new_conversation_${Date.now()}`,
+        sender: 'system',
+        text: '🐝 **New conversation started!** How can I help you today?',
+        timestamp: new Date().toISOString(),
+        isAction: true
+      };
+      setMessages([welcomeMessage]);
+    }
+  };
+
+  const handleClearChat = () => {
+    if (window.confirm('Clear current chat? This will not delete history, just clear the current view.')) {
+      setMessages([]);
+      localStorage.removeItem('beeChat_messages');
+    }
+  };
+
+  const saveChatMessage = async (message) => {
+    try {
+      const userId = getCurrentUserId();
+
+      if (!conversationId) {
+        // Create new conversation if none exists
+        const newConv = await chatHistoryApi.createChatConversation(userId, 'New Chat');
+        setConversationId(newConv.conversation_id);
+        console.log('✅ Created new conversation:', newConv.conversation_id);
+      }
+
+      // Save message to messaging service
+      await chatHistoryApi.saveChatMessage(conversationId, {
+        user_id: userId,
+        sender: message.sender,
+        content: message.text,
+        message_type: message.type || 'text',
+        metadata: { timestamp: message.timestamp }
+      });
+    } catch (error) {
+      console.error('Failed to save message:', error);
+      // Continue without saving - don't interrupt user experience
+    }
+  };
+
+  // Simple Mode Header Component
+  const SimpleHeader = () => (
+    <div className="sticky top-0 z-20 p-4 border-b border-gray-600 rounded-t-2xl bg-gradient-to-br from-gray-800/95 to-gray-900/95 backdrop-blur-md shadow-lg">
+      <div className="flex items-center justify-between">
+        {/* Left: Title + Status */}
+        <div className="flex items-center gap-3">
+          <BeeIcon size={24} color="rgb(251 191 36)" className="text-yellow-400" />
+          <h2 className="text-lg font-semibold text-white">Bee Chat</h2>
+          <span className={`px-2.5 py-1 text-xs rounded-full font-medium shadow-sm ${
+            beeStatus === 'online' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
+            beeStatus === 'degraded' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
+            'bg-red-500/20 text-red-300 border border-red-500/30'
+          }`}>
+            {beeStatus}
+          </span>
+          {/* Honey Jar Context Badge */}
+          {honeyJarContext && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-full shadow-sm">
+              <Database className="w-3 h-3 text-yellow-400" />
+              <span className="text-xs text-yellow-300 font-medium">{honeyJarContext.name}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleNewConversation}
+            className="px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-2 bg-gradient-to-br from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white shadow-md transition-all duration-200"
+            title="New conversation"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">New</span>
+          </button>
+
+          <button
+            onClick={handleClearChat}
+            className="px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-2 bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-600/30 shadow-md transition-all duration-200"
+            title="Clear chat"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Clear</span>
+          </button>
+
+          <button
+            onClick={() => setSimpleMode(false)}
+            className="px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-2 bg-gradient-to-br from-violet-600 to-violet-700 hover:from-violet-500 hover:to-violet-600 text-white shadow-md transition-all duration-200"
+            title="Switch to advanced mode"
+          >
+            <Zap className="w-4 h-4" />
+            <span className="hidden sm:inline">Advanced</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Debug logging for render
+  console.log('🎨 BeeChat rendering - simpleMode:', simpleMode, '- Should hide Grains:', simpleMode);
+
+  return (
+    <React.Fragment>
+      {/* Unified Layout: Simple Mode (wider) or Advanced Mode (with sidebar) */}
+      <div className={`flex flex-col lg:flex-row gap-4 lg:gap-6 h-[85vh] lg:h-[85vh] ${simpleMode ? 'max-w-5xl' : 'max-w-6xl'} mx-auto atmospheric-vignette`}>
+        {/* Chat Area - Wider in simple mode */}
+        <div className={`flex-1 min-w-0 ${simpleMode ? 'w-full' : 'lg:max-w-3xl'} chat-vignette h-full lg:h-auto`}>
+          <div className="dashboard-card h-full flex flex-col overflow-hidden relative">
+            {/* Conditional Header: Simple or Advanced */}
+            {simpleMode ? (
+              <SimpleHeader />
+            ) : (
+              <div className="sticky top-0 z-20 p-4 border-b border-gray-600 rounded-t-2xl bg-gradient-to-br from-gray-800/95 to-gray-900/95 backdrop-blur-md shadow-lg">
+                {/* Sandbox Mode Indicator */}
+                {selectedNectarBot && (
+                  <div className="mb-3 p-3 bg-gradient-to-r from-purple-900/40 to-pink-900/40 border border-purple-500/30 rounded-xl flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Bot className="w-4 h-4 text-purple-400" />
+                      <span className="text-sm text-white font-medium">
+                        🧪 Sandbox Mode: Testing "{selectedNectarBot.name}"
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleSelectNectarBot(null)}
+                      className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors"
+                    >
+                      Exit Sandbox
+                    </button>
+                  </div>
+                )}
+
+                {/* Main Header Row */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <BeeIcon size={24} color="rgb(251 191 36)" className="text-yellow-400" />
+                    <h2 className="text-lg font-semibold text-white">
+                      {selectedNectarBot ? selectedNectarBot.name : 'Bee Chat'}
+                    </h2>
+                    <span className={`px-2.5 py-1 text-xs rounded-full font-medium shadow-sm ${
+                      beeStatus === 'online' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
+                      beeStatus === 'degraded' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
+                      'bg-red-500/20 text-red-300 border border-red-500/30'
+                    }`}>
+                      {beeStatus}
+                    </span>
+
+                    {/* Bot Selector Dropdown Trigger */}
+                    {!selectedNectarBot && availableNectarBots.length > 0 && (
+                      <button
+                        onClick={() => setShowBotSelector(!showBotSelector)}
+                        className="relative px-3 py-1 text-xs bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-600/30 rounded-lg transition-colors flex items-center gap-1"
+                        title="Test a Nectar Bot"
+                      >
+                        <Bot className="w-3 h-3" />
+                        Test Bot
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Primary Actions - Cleaner layout */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleNewConversation}
+                      className="px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-2 bg-gradient-to-br from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white shadow-md transition-all duration-200"
+                      title="Start a new conversation"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="hidden sm:inline">New</span>
+                    </button>
+                    <button
+                      onClick={() => setShowTools(!showTools)}
+                      className={`px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-md transition-all duration-200 ${
+                        showTools
+                          ? 'bg-gradient-to-br from-[#fbbf24] to-[#f59e0b] hover:from-amber-400 hover:to-amber-600 text-black'
+                          : 'bg-gradient-to-br from-gray-700/90 to-gray-800/90 hover:from-gray-600/90 hover:to-gray-700/90 text-gray-200'
+                      }`}
+                      title="Toggle tools"
+                    >
+                      <Psychology className="w-4 h-4" />
+                      <span className="hidden sm:inline">Tools</span>
+                    </button>
+                    <button
+                      onClick={() => setSimpleMode(true)}
+                      className="px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-2 bg-gradient-to-br from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white shadow-md transition-all duration-200"
+                      title="Switch to simple mode"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      <span className="hidden sm:inline">Simple</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Secondary Actions Row - Collapsible */}
+                {showTools && (
+                  <div className="flex items-center gap-2 flex-wrap animate-fade-in">
+                    {availableTools.map(tool => (
+                      <button
+                        key={tool.id}
+                        onClick={() => toggleTool(tool.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 shadow-sm transition-all duration-200 ${
+                          tool.id === 'history'
+                            ? 'bg-gradient-to-br from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 text-white'
+                            : selectedTools.includes(tool.id)
+                              ? 'bg-gradient-to-br from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-black'
+                              : 'bg-gray-700/60 hover:bg-gray-600/60 text-gray-300'
+                        }`}
+                        title={tool.description}
+                      >
+                        {tool.icon}
+                        {tool.name}
+                      </button>
+                    ))}
+                    <button
+                      onClick={handleClearChat}
+                      className="px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-600/30 shadow-sm transition-all duration-200"
+                      title="Clear current chat view"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Clear
+                    </button>
+                  </div>
+                )}
+
+                {/* Bot Selector Dropdown */}
+                {showBotSelector && (
+                  <div className="mt-3 p-3 bg-gray-900/80 border border-purple-600/30 rounded-xl animate-fade-in">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Bot className="w-4 h-4 text-purple-400" />
+                      <span className="text-sm text-white font-medium">Select a Nectar Bot to Test</span>
+                    </div>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {availableNectarBots.map(bot => (
+                        <button
+                          key={bot.id}
+                          onClick={() => handleSelectNectarBot(bot)}
+                          className="w-full text-left p-2 bg-gray-800 hover:bg-purple-900/30 border border-gray-700 hover:border-purple-600/50 rounded-lg transition-all"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-sm font-medium text-white">{bot.name}</div>
+                              {bot.description && (
+                                <div className="text-xs text-gray-400 mt-1">{bot.description}</div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {bot.is_public && (
+                                <span className="px-2 py-0.5 text-xs bg-blue-600/20 text-blue-400 rounded">Public</span>
+                              )}
+                              {!bot.is_public && (
+                                <span className="px-2 py-0.5 text-xs bg-purple-600/20 text-purple-400 rounded">Private</span>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                      {availableNectarBots.length === 0 && (
+                        <div className="text-center py-4 text-gray-400 text-sm">
+                          No nectar bots available. Create one in the Nectar Bots page.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 pt-0 scroll-smooth">
+        {messages.length === 0 ? (
+          <div className="text-center mt-8">
+            <p className="text-gray-400">
+              Start a conversation with Bee! I can help with searches, analytics, and more.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex bee-message ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`p-4 max-w-[65%] rounded-2xl ${
+                    message.sender === 'user'
+                      ? 'bg-gradient-to-br from-yellow-500/90 to-amber-600/90 backdrop-blur-md border-2 border-yellow-400/50 text-white shadow-lg shadow-yellow-500/30'
+                      : message.sender === 'nectarbot'
+                        ? 'bg-gradient-to-br from-purple-600/90 to-pink-700/90 backdrop-blur-md text-white border-2 border-purple-400/70 shadow-lg shadow-purple-400/30'
+                        : message.isError
+                          ? 'bg-red-600 text-white'
+                          : 'bg-gradient-to-br from-emerald-600/90 to-teal-700/90 backdrop-blur-md text-white border-2 border-emerald-400/70 shadow-lg shadow-emerald-400/30'
+                  }`}
+                >
+                  {/* Message Header */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-bold opacity-80">
+                      {message.sender === 'user'
+                        ? 'You'
+                        : message.sender === 'nectarbot'
+                          ? `🤖 ${message.botName || 'Bot'}`
+                          : message.sender === 'bee'
+                            ? '🐝 Bee'
+                            : 'System'}
+                    </span>
+                    {message.sender === 'nectarbot' && message.confidence_score !== undefined && (
+                      <span className="px-2 py-0.5 text-xs bg-purple-900/50 text-purple-200 rounded-full">
+                        {Math.round(message.confidence_score * 100)}% confidence
+                      </span>
+                    )}
+                    {/* Removed sentiment and personality tags for cleaner UI */}
+                    {message.encrypted && (
+                      <span className="px-2 py-1 text-xs bg-green-600 text-white rounded-full flex items-center gap-1">
+                        <Security className="w-3 h-3" />
+                        Encrypted
+                      </span>
+                    )}
+                    {message.isReport && (
+                      <span className="px-2 py-1 text-xs bg-amber-600 text-white rounded-full flex items-center gap-1">
+                        <FileText className="w-3 h-3" />
+                        Report Generated
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Message Content */}
+                  {message.sender === 'user' ? (
+                    <p className="text-sm whitespace-pre-wrap">
+                      {message.text}
+                    </p>
+                  ) : (
+                    <div className="text-sm prose prose-invert max-w-none">
+                      {message.pii_protection ? (
+                        /* Render with PII visual indicators */
+                        <MessageWithPII
+                          message={message.text}
+                          piiProtection={message.pii_protection}
+                          preferences={piiPreferences}
+                          showBadge={true}
+                        />
+                      ) : (
+                        /* Fallback to standard markdown rendering */
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkCleanMarkdown]}
+                          components={{
+                          // Custom components for better styling
+                          p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
+                          code: ({inline, children, ...props}) =>
+                            inline ? (
+                              <code className="px-2 py-1 bg-gray-700 rounded text-yellow-400 text-xs font-mono whitespace-nowrap" {...props}>
+                                {children}
+                              </code>
+                            ) : (
+                              <pre className="bg-gray-800 p-4 rounded-lg overflow-x-auto my-3 border border-gray-700">
+                                <code className="text-sm text-gray-300 font-mono whitespace-pre block" {...props}>
+                                  {children}
+                                </code>
+                              </pre>
+                            ),
+                          ul: ({children}) => <ul className="list-disc ml-4 space-y-1 my-2">{children}</ul>,
+                          ol: ({children}) => <ol className="list-decimal ml-4 space-y-1 my-2">{children}</ol>,
+                          li: ({children}) => <li className="text-sm leading-relaxed">{children}</li>,
+                          a: ({href, children}) => {
+                            // Handle broken reference links (href is undefined or empty)
+                            if (!href || href === '') {
+                              // Just render as plain text with slight emphasis
+                              return <span className="text-gray-300">{children}</span>;
+                            }
+                            return (
+                              <a href={href} target="_blank" rel="noopener noreferrer"
+                                 className="text-yellow-400 hover:text-yellow-300 underline">
+                                {children}
+                              </a>
+                            );
+                          },
+                          h1: ({children}) => <h1 className="text-xl font-bold mb-2">{children}</h1>,
+                          h2: ({children}) => <h2 className="text-lg font-bold mb-2">{children}</h2>,
+                          h3: ({children}) => <h3 className="text-base font-bold mb-1">{children}</h3>,
+                          blockquote: ({children}) => (
+                            <blockquote className="border-l-4 border-yellow-500 pl-3 italic text-gray-300">
+                              {children}
+                            </blockquote>
+                          ),
+                          table: ({children}) => (
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full divide-y divide-gray-600">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+                          th: ({children}) => (
+                            <th className="px-3 py-2 bg-gray-700 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                              {children}
+                            </th>
+                          ),
+                          td: ({children}) => (
+                            <td className="px-3 py-2 text-sm text-gray-300 border-t border-gray-600">
+                              {children}
+                            </td>
+                          )
+                          }}
+                        >
+                          {cleanMarkdownContent(message.text)}
+                        </ReactMarkdown>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Error Help Link */}
+                  {message.isError && message.helpUrl && (
+                    <div className="mt-3 pt-3 border-t border-red-600/30">
+                      <a
+                        href={message.helpUrl}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium transition-colors"
+                      >
+                        <Shield className="w-4 h-4" />
+                        Complete Security Setup
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Tools Used */}
+                  {message.tools_used && message.tools_used.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-xs opacity-70 mb-1">
+                        Tools used:
+                      </p>
+                      <div className="flex gap-1 flex-wrap">
+                        {message.tools_used.map((tool, index) => (
+                          <span
+                            key={index}
+                            className={`px-2 py-1 text-xs rounded-full ${
+                              tool.status === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                            }`}
+                          >
+                            {tool.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Requested Tools */}
+                  {message.tools && message.tools.length > 0 && (
+                    <div className="mt-1">
+                      <p className="text-xs opacity-70">
+                        Using: {message.tools.join(', ')}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Report Actions - Add to Basket */}
+                  {message.isReport && message.sender === 'bee' && (
+                    <div className="mt-3 pt-3 border-t border-amber-600/30 flex items-center gap-2">
+                      <button
+                        onClick={() => handleAddToBasket(message)}
+                        className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                          basketAddedMessages.has(message.id)
+                            ? 'bg-green-600 text-white cursor-default'
+                            : 'bg-amber-600 hover:bg-amber-500 text-white'
+                        }`}
+                        disabled={basketAddedMessages.has(message.id)}
+                      >
+                        {basketAddedMessages.has(message.id) ? (
+                          <>
+                            <Check className="w-4 h-4" />
+                            Added to Basket
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingBasket className="w-4 h-4" />
+                            Add to Basket
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleCopyReport(message)}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+                        title="Copy report to clipboard"
+                      >
+                        <Copy className="w-4 h-4" />
+                        Copy
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Footer */}
+                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-600 border-opacity-30">
+                    <span className="text-xs opacity-70">
+                      {new Date(message.timestamp).toLocaleTimeString()}
+                    </span>
+                    {message.processing_time && (
+                      <span className="text-xs opacity-70">
+                        {formatProcessingTime(message.processing_time)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {isLoading && (
+              <div className={`flex flex-col gap-2 p-3 rounded-lg ${isReportRequest ? 'bg-blue-900/30 border border-blue-700/50' : ''}`}>
+                <div className="flex items-center gap-2">
+                  <div className={`animate-spin rounded-full h-5 w-5 border-b-2 ${isReportRequest ? 'border-blue-400' : 'border-yellow-500'}`}></div>
+                  <p className="text-sm text-gray-400">
+                    {getBeeLoadingMessage(processingStatus || 'connecting')}
+                  </p>
+                  {messageQueue.length > 0 && (
+                    <span className="text-xs text-yellow-500 ml-2">
+                      +{messageQueue.length} queued
+                    </span>
+                  )}
+                </div>
+                {/* Show elapsed time and progress bar for reports */}
+                {isReportRequest && elapsedTime > 0 && (
+                  <div className="flex flex-col gap-1 ml-7">
+                    <div className="flex items-center gap-2 text-xs text-blue-300">
+                      <span>⏱️ Elapsed: {elapsedTime}s</span>
+                      {elapsedTime < 30 && <span className="text-gray-500">• Reports typically take 30-60 seconds</span>}
+                      {elapsedTime >= 30 && elapsedTime < 60 && <span className="text-green-400">• Almost there...</span>}
+                      {elapsedTime >= 60 && <span className="text-yellow-400">• Large report, please wait...</span>}
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                      <div 
+                        className="bg-blue-500 h-1.5 rounded-full transition-all duration-1000 ease-linear"
+                        style={{ width: `${Math.min(elapsedTime / 60 * 100, 95)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+              )}
+            </div>
+
+            {/* Honey Jar Context Bar */}
+            <div className="sticky bottom-0 z-20">
+              <HoneyJarContextBar 
+                currentHoneyJar={honeyJarContext}
+                onHoneyJarChange={setHoneyJarContext}
+                onSearchStateChange={setIsSearchingHoneyJars}
+              />
+              
+              {/* Sticky Input - Hidden when searching honey jars */}
+              {!isSearchingHoneyJars && (
+                <div className="p-3 sm:p-4 border-t border-gray-600 rounded-b-2xl bg-gray-800/98 backdrop-blur-md">
+        {conversationId && (
+          <p className="text-xs text-gray-400 mb-2 truncate">
+            Conversation: {conversationId}
+          </p>
+        )}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <textarea
+            ref={inputRef}
+            className="flex-1 px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-yellow-500 focus:border-transparent resize-none"
+            placeholder={isLoading ? "Type your next message (will be queued)..." : "Type your message..."}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+            rows={1}
+            disabled={beeStatus === 'offline'}
+          />
+          <button
+            className="floating-button bg-yellow-400 hover:bg-yellow-300 active:bg-yellow-500 text-black px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[80px] sm:min-w-0"
+            onClick={handleSendMessage}
+            disabled={!input.trim() || beeStatus === 'offline'}
+          >
+            <SendIcon className="w-4 h-4" />
+            <span className="hidden sm:inline">{isLoading ? 'Queue' : 'Send'}</span>
+          </button>
+        </div>
+              {beeStatus === 'offline' && (
+                <div className="mt-2 p-3 bg-red-600 text-white rounded-lg text-sm">
+                  Bee is currently offline. Please try again later.
+                </div>
+              )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Grains Sidebar (Right on desktop) - Hidden in Simple Mode */}
+        {(() => {
+          console.log('🔍 Desktop Grains conditional: !simpleMode =', !simpleMode, '(simpleMode =', simpleMode, ')');
+          return !simpleMode && (
+            <div className="hidden lg:block w-80">
+              <Grains
+                isSidebar={true}
+                onFileUpload={handleFileUpload}
+                onCreateHoneyJar={handleCreateHoneyJar}
+                onSearchKnowledge={handleSearchKnowledge}
+                onExportChat={handleExportChat}
+                honeyJarContext={honeyJarContext}
+                onHoneyJarChange={setHoneyJarContext}
+              />
+            </div>
+          );
+        })()}
+
+        {/* Mobile/Tablet Grains - Horizontal bar at bottom - Hidden in Simple Mode */}
+        {!simpleMode && (
+          <div className="lg:hidden fixed bottom-20 left-0 right-0 z-30 px-4">
+            <div className="bg-gray-800/95 backdrop-blur-md rounded-t-2xl shadow-xl border border-gray-600 p-2">
+              <Grains
+                isSidebar={false}
+                isMobile={true}
+                onFileUpload={handleFileUpload}
+                onCreateHoneyJar={handleCreateHoneyJar}
+                onSearchKnowledge={handleSearchKnowledge}
+                onExportChat={handleExportChat}
+                honeyJarContext={honeyJarContext}
+                onHoneyJarChange={setHoneyJarContext}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Chat History Modal */}
+      {showChatHistory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="backdrop-blur-md bg-gray-800/95 border border-gray-600 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            <div className="p-6 border-b border-gray-600">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                  <History className="w-5 h-5 text-yellow-400" />
+                  Chat History
+                </h3>
+                <button
+                  onClick={() => setShowChatHistory(false)}
+                  className="text-gray-400 hover:text-white text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[60vh] custom-scrollbar">
+              {loadingHistory && historyPage === 1 ? (
+                <div className="flex items-center justify-center py-8">
+                  <CircularProgress size={24} className="text-yellow-400" />
+                  <span className="ml-2 text-gray-300">Loading chat history...</span>
+                </div>
+              ) : chatHistory.length > 0 ? (
+                <div className="space-y-3">
+                  {chatHistory.map((conversation, index) => (
+                    <div
+                      key={conversation.conversation_id}
+                      onClick={() => handleLoadConversation(conversation.conversation_id)}
+                      className="backdrop-blur-md bg-gray-700/50 border border-gray-600 rounded-xl p-4 hover:bg-gray-600/50 cursor-pointer transition-all duration-200 animate-fade-in-up"
+                      style={{ animationDelay: `${(index % 20) * 0.05}s` }}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-white mb-1">
+                            {conversation.title || "Untitled Chat"}
+                          </h4>
+                          <div className="flex items-center gap-4 text-sm text-gray-400">
+                            <span>{conversation.message_count || 0} {(conversation.message_count === 1) ? 'message' : 'messages'}</span>
+                            <span>•</span>
+                            <span>{new Date(conversation.last_message_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(conversation.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+          1          </div>
+                  ))}
+                  
+                  {/* Load More Button */}
+                  {hasMoreHistory && (
+                    <div className="pt-4 border-t border-gray-600 mt-4">
+                      <button
+                        onClick={loadMoreHistory}
+                        disabled={loadingHistory}
+                        className="w-full px-4 py-3 backdrop-blur-md bg-gray-600/50 border border-gray-500 text-gray-200 rounded-xl hover:bg-gray-500/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {loadingHistory ? (
+                          <>
+                            <CircularProgress size={16} className="text-gray-400" />
+                            Loading more...
+                          </>
+                        ) : (
+                          <>
+                            <History className="w-4 h-4" />
+                            Load More Conversations
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Scroll Indicator */}
+                  {chatHistory.length > 5 && (
+                    <div className="text-center text-xs text-gray-500 pt-2">
+                      {chatHistory.length} conversations loaded
+                      {hasMoreHistory && ' • Scroll or click "Load More" for older chats'}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <History className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+                  <p className="text-gray-400 mb-2">No chat history found</p>
+                  <p className="text-sm text-gray-500">Start a conversation to see it here!</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-gray-600 bg-gray-800/50">
+              <button
+                onClick={() => setShowChatHistory(false)}
+                className="w-full px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-500 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bee Authentication Modal */}
+      <BeeAuthModal
+        open={showAuthModal}
+        operation={authOperation}
+        tier={authTier}
+        context={authContext}
+        onCancel={() => setShowAuthModal(false)}
+      />
+    </React.Fragment>
+  );
+};
+
+export default BeeChat;

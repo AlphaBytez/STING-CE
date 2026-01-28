@@ -1,0 +1,40 @@
+FROM python:3.12.8-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libmagic1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy minimal requirements first for better caching
+COPY requirements_minimal.txt .
+
+# Upgrade pip and install build tools
+RUN pip install --upgrade pip setuptools wheel
+
+# Install minimal Python dependencies
+RUN pip install --no-cache-dir -r requirements_minimal.txt
+
+# Copy the knowledge service code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/logs
+
+# Environment variables
+ENV PYTHONPATH=/app
+ENV KNOWLEDGE_PORT=8090
+ENV KNOWLEDGE_HOST=0.0.0.0
+ENV CHROMA_URL=http://chroma:8000
+
+# Expose port
+EXPOSE 8090
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"
+
+# Run the minimal knowledge service (fallback to full if available)
+CMD ["python", "app_minimal.py"]

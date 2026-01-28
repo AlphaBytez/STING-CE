@@ -1,0 +1,1 @@
+# Authentication modules for Knowledge Service

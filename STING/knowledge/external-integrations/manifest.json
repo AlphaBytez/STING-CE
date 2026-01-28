@@ -1,0 +1,50 @@
+{
+  "id": "external-integrations",
+  "name": "External Integration Documentation", 
+  "description": "MCP connectors, APIs, and third-party integration guides",
+  "version": "1.0.0",
+  "category": "integrations",
+  "tags": ["mcp", "api", "connectors", "github", "slack", "enterprise"],
+  "honey_jar": {
+    "type": "internal",
+    "status": "development",
+    "owner": "admin@sting.local", 
+    "permissions": {
+      "read": ["admin", "developer", "integration_specialist"],
+      "write": ["admin", "developer"],
+      "delete": ["admin"]
+    },
+    "config": {
+      "auto_index": true,
+      "chunk_strategy": "technical", 
+      "embedding_model": "all-MiniLM-L6-v2"
+    }
+  },
+  "documents": {
+    "mcp-servers": [
+      {
+        "file": "mcp-architecture.md",
+        "title": "Model Context Protocol Integration Architecture",
+        "description": "Overview of MCP implementation for enterprise connectivity",
+        "type": "architecture-guide",
+        "references": ["mcp", "enterprise", "connectivity", "anthropic"]
+      },
+      {
+        "file": "github-connector.md",
+        "title": "GitHub Knowledge Sync Connector",
+        "description": "Automatically sync documentation from GitHub repositories",
+        "type": "integration-guide", 
+        "references": ["github", "automation", "documentation", "version-control"]
+      }
+    ],
+    "api-connectors": [
+      {
+        "file": "slack-integration.md",
+        "title": "Slack Knowledge Base Integration", 
+        "description": "Connect team knowledge from Slack conversations and files",
+        "type": "integration-guide",
+        "references": ["slack", "team-knowledge", "conversations", "files"]
+      }
+    ]
+  }
+}

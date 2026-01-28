@@ -1,0 +1,1000 @@
+/**
+ * Garden Galaxy Theme for STING CE
+ * 
+ * Dark green cosmic background with purple/pink glass effects
+ * Dedicated to your wife with "feminily professional" inspiration
+ * 
+ * Features:
+ * - Deep forest green backgrounds
+ * - Purple and pink glass morphism effects
+ * - No blue colors - replaced with magentas and purples
+ * - Full application coverage (dashboard, settings, all pages)
+ * - Enhanced readability and professional aesthetics
+ * 
+ * Created: August 2025
+ */
+
+/* ========================================================================
+   1. COLOR PALETTE & CSS VARIABLES
+   ======================================================================== */
+
+:root[data-theme="garden-galaxy"] {
+  /* Primary Brand Colors - Forest Greens with Purple Accents */
+  --primary-color: #7c3aed;
+  --primary-hover: #6d28d9;
+  --primary-active: #5b21b6;
+  --primary-light: #a855f7;
+  --primary-dark: #4c1d95;
+  
+  /* Secondary Colors - Pink & Magenta Cosmic Tones */
+  --secondary-color: #ec4899;
+  --accent-color: #f97316;
+  
+  /* Background Colors - Deep Forest Green with Cosmic Glass */
+  --bg-primary: #0f1b0f;
+  --bg-secondary: #1a2e1a;
+  --bg-tertiary: #254025;
+  --bg-elevated: rgba(37, 64, 37, 0.8);
+  --bg-overlay: rgba(15, 27, 15, 0.9);
+  
+  /* Text Colors - High Contrast for Readability */
+  --text-primary: #f8fafc;
+  --text-secondary: #e2e8f0;
+  --text-tertiary: #cbd5e1;
+  --text-inverse: #0f1b0f;
+  --text-link: var(--primary-light);
+  --text-link-hover: #c084fc;
+  
+  /* Border & Divider Colors - Purple/Pink Glass Accents */
+  --border-primary: rgba(168, 85, 247, 0.4);
+  --border-secondary: rgba(168, 85, 247, 0.2);
+  --border-focus: var(--primary-light);
+  --divider-color: var(--border-secondary);
+  
+  /* Status Colors - NO BLUES */
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --error-color: #ef4444;
+  --info-color: #8b5cf6; /* Purple instead of blue */
+  
+  /* Success variations */
+  --success-bg: rgba(16, 185, 129, 0.1);
+  --success-border: rgba(16, 185, 129, 0.3);
+  
+  /* Warning variations */
+  --warning-bg: rgba(245, 158, 11, 0.1);
+  --warning-border: rgba(245, 158, 11, 0.3);
+  
+  /* Error variations */
+  --error-bg: rgba(239, 68, 68, 0.1);
+  --error-border: rgba(239, 68, 68, 0.3);
+  
+  /* Info variations - Purple instead of blue */
+  --info-bg: rgba(139, 92, 246, 0.1);
+  --info-border: rgba(139, 92, 246, 0.3);
+  
+  /* Shadow & Elevation - Purple Cosmic Depth */
+  --shadow-sm: 0 1px 3px rgba(124, 58, 237, 0.2);
+  --shadow-md: 0 4px 8px rgba(124, 58, 237, 0.25);
+  --shadow-lg: 0 12px 24px rgba(124, 58, 237, 0.3);
+  --shadow-xl: 0 24px 48px rgba(124, 58, 237, 0.4);
+  
+  /* Glass Effect Colors */
+  --glass-primary: rgba(168, 85, 247, 0.15);
+  --glass-secondary: rgba(236, 72, 153, 0.1);
+  --glass-border: rgba(168, 85, 247, 0.3);
+  
+  /* Border Radius - Organic Cosmic Shapes */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-full: 50%;
+  
+  /* Spacing Scale */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  
+  /* Typography Scale */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  
+  /* Font Weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* Transitions - Smooth Cosmic Movement */
+  --transition-fast: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Z-Index Scale */
+  --z-dropdown: 1000;
+  --z-sticky: 1010;
+  --z-fixed: 1020;
+  --z-modal-backdrop: 1030;
+  --z-modal: 1040;
+  --z-popover: 1050;
+  --z-tooltip: 1060;
+  --z-toast: 1070;
+}
+
+/* ========================================================================
+   2. GLOBAL BASE STYLES - FULL APPLICATION
+   ======================================================================== */
+
+[data-theme="garden-galaxy"] {
+  background: linear-gradient(135deg, 
+    var(--bg-primary) 0%, 
+    #1a2e1a 25%, 
+    #0f1b0f 50%, 
+    #254025 75%, 
+    var(--bg-primary) 100%
+  );
+  background-attachment: fixed;
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-size: var(--font-size-base);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+[data-theme="garden-galaxy"] *,
+[data-theme="garden-galaxy"] *::before,
+[data-theme="garden-galaxy"] *::after {
+  box-sizing: border-box;
+}
+
+/* ========================================================================
+   3. DYNAMIC CARD SYSTEM - PURPLE/PINK GLASS
+   ======================================================================== */
+
+/* Main cards with purple/pink glass effect */
+[data-theme="garden-galaxy"] .dynamic-card {
+  background: linear-gradient(145deg, var(--glass-primary), var(--glass-secondary));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-xl);
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme="garden-galaxy"] .dynamic-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(236, 72, 153, 0.6), 
+    rgba(168, 85, 247, 0.6), 
+    transparent
+  );
+  opacity: 0.8;
+}
+
+[data-theme="garden-galaxy"] .dynamic-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+  border-color: var(--primary-light);
+  background: linear-gradient(145deg, 
+    rgba(168, 85, 247, 0.2), 
+    rgba(236, 72, 153, 0.15)
+  );
+}
+
+/* Subtle cards for nested content */
+[data-theme="garden-galaxy"] .dynamic-card-subtle {
+  background: linear-gradient(135deg, 
+    rgba(37, 64, 37, 0.6), 
+    rgba(26, 46, 26, 0.4)
+  );
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  transition: all var(--transition-fast);
+}
+
+[data-theme="garden-galaxy"] .dynamic-card-subtle:hover {
+  background: linear-gradient(135deg, 
+    rgba(37, 64, 37, 0.8), 
+    rgba(26, 46, 26, 0.6)
+  );
+  border-color: var(--border-primary);
+}
+
+/* ========================================================================
+   4. TYPOGRAPHY SYSTEM
+   ======================================================================== */
+
+[data-theme="garden-galaxy"] h1,
+[data-theme="garden-galaxy"] h2,
+[data-theme="garden-galaxy"] h3,
+[data-theme="garden-galaxy"] h4,
+[data-theme="garden-galaxy"] h5,
+[data-theme="garden-galaxy"] h6 {
+  color: var(--text-primary);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.3;
+  margin: 0 0 var(--space-md) 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="garden-galaxy"] h1 { font-size: var(--font-size-3xl); }
+[data-theme="garden-galaxy"] h2 { font-size: var(--font-size-2xl); }
+[data-theme="garden-galaxy"] h3 { font-size: var(--font-size-xl); }
+[data-theme="garden-galaxy"] h4 { font-size: var(--font-size-lg); }
+[data-theme="garden-galaxy"] h5 { font-size: var(--font-size-base); }
+[data-theme="garden-galaxy"] h6 { font-size: var(--font-size-sm); }
+
+[data-theme="garden-galaxy"] p {
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-md) 0;
+  line-height: 1.6;
+}
+
+[data-theme="garden-galaxy"] a {
+  color: var(--text-link);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+  border-bottom: 1px solid transparent;
+}
+
+[data-theme="garden-galaxy"] a:hover {
+  color: var(--text-link-hover);
+  border-bottom-color: var(--text-link-hover);
+}
+
+/* ========================================================================
+   5. FLOATING BUTTON SYSTEM - PURPLE/PINK GLASS
+   ======================================================================== */
+
+[data-theme="garden-galaxy"] .floating-button {
+  background: linear-gradient(145deg, var(--primary-color), var(--secondary-color));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text-inverse);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  box-shadow: var(--shadow-md);
+}
+
+[data-theme="garden-galaxy"] .floating-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.2), 
+    transparent
+  );
+  transition: left var(--transition-slow);
+}
+
+[data-theme="garden-galaxy"] .floating-button:hover::before {
+  left: 100%;
+}
+
+[data-theme="garden-galaxy"] .floating-button:hover {
+  background: linear-gradient(145deg, var(--primary-hover), #db2777);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-xl);
+  border-color: var(--primary-light);
+}
+
+[data-theme="garden-galaxy"] .floating-button:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-md);
+}
+
+/* ========================================================================
+   6. ALERT SYSTEM - NO BLUES
+   ======================================================================== */
+
+[data-theme="garden-galaxy"] .alert-success {
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-radius: var(--radius-md);
+  color: var(--success-color);
+  padding: var(--space-lg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+[data-theme="garden-galaxy"] .alert-warning {
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-md);
+  color: var(--warning-color);
+  padding: var(--space-lg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+[data-theme="garden-galaxy"] .alert-error {
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  border-radius: var(--radius-md);
+  color: var(--error-color);
+  padding: var(--space-lg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+[data-theme="garden-galaxy"] .alert-info {
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-radius: var(--radius-md);
+  color: var(--info-color);
+  padding: var(--space-lg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ========================================================================
+   7. FORMS & INPUTS - PURPLE/PINK GLASS
+   ======================================================================== */
+
+[data-theme="garden-galaxy"] input[type="text"],
+[data-theme="garden-galaxy"] input[type="email"],
+[data-theme="garden-galaxy"] input[type="password"],
+[data-theme="garden-galaxy"] input[type="search"],
+[data-theme="garden-galaxy"] input[type="tel"],
+[data-theme="garden-galaxy"] input[type="url"],
+[data-theme="garden-galaxy"] input[type="number"],
+[data-theme="garden-galaxy"] textarea,
+[data-theme="garden-galaxy"] select {
+  background: linear-gradient(135deg, 
+    rgba(37, 64, 37, 0.8), 
+    rgba(26, 46, 26, 0.6)
+  );
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  width: 100%;
+  transition: all var(--transition-fast);
+  min-height: 48px;
+}
+
+[data-theme="garden-galaxy"] input:focus,
+[data-theme="garden-galaxy"] textarea:focus,
+[data-theme="garden-galaxy"] select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.3);
+  background: linear-gradient(135deg, 
+    rgba(37, 64, 37, 1), 
+    rgba(26, 46, 26, 0.8)
+  );
+}
+
+[data-theme="garden-galaxy"] input::placeholder,
+[data-theme="garden-galaxy"] textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+[data-theme="garden-galaxy"] input:disabled,
+[data-theme="garden-galaxy"] textarea:disabled,
+[data-theme="garden-galaxy"] select:disabled {
+  background: rgba(37, 64, 37, 0.3);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ========================================================================
+   8. NAVIGATION & SIDEBAR - FULL APPLICATION
+   ======================================================================== */
+
+/* Main Sidebar - Traditional and Compact */
+[data-theme="garden-galaxy"] .sidebar,
+[data-theme="garden-galaxy"] nav,
+[data-theme="garden-galaxy"] .navigation,
+[data-theme="garden-galaxy"] .traditional-sidebar,
+[data-theme="garden-galaxy"] .compact-sidebar {
+  background: linear-gradient(180deg, 
+    rgba(37, 64, 37, 0.95), 
+    rgba(26, 46, 26, 0.9)
+  ) !important;
+  backdrop-filter: blur(25px) !important;
+  -webkit-backdrop-filter: blur(25px) !important;
+  border-right: 1px solid var(--glass-border) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* Header - Floating */
+[data-theme="garden-galaxy"] .floating-header,
+[data-theme="garden-galaxy"] .glass-dark {
+  background: linear-gradient(135deg, 
+    rgba(37, 64, 37, 0.9), 
+    rgba(26, 46, 26, 0.85)
+  ) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* Navigation Items */
+[data-theme="garden-galaxy"] .nav-item,
+[data-theme="garden-galaxy"] .sidebar-item,
+[data-theme="garden-galaxy"] .menu-item {
+  color: var(--text-secondary) !important;
+  transition: all var(--transition-fast) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--space-md) !important;
+}
+
+[data-theme="garden-galaxy"] .nav-item:hover,
+[data-theme="garden-galaxy"] .sidebar-item:hover,
+[data-theme="garden-galaxy"] .menu-item:hover,
+[data-theme="garden-galaxy"] .nav-item.active,
+[data-theme="garden-galaxy"] .sidebar-item.active,
+[data-theme="garden-galaxy"] .menu-item.active {
+  background: linear-gradient(135deg, var(--glass-primary), var(--glass-secondary)) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--glass-border) !important;
+}
+
+/* Traditional Sidebar Specific Styling */
+[data-theme="garden-galaxy"] .traditional-sidebar {
+  width: 240px !important;
+}
+
+[data-theme="garden-galaxy"] .traditional-sidebar .menu-item {
+  margin: var(--space-sm) 0 !important;
+  padding: var(--space-lg) !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+/* Compact Sidebar Specific Styling */
+[data-theme="garden-galaxy"] .compact-sidebar {
+  width: 90px !important;
+}
+
+[data-theme="garden-galaxy"] .compact-sidebar .menu-item {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  padding: var(--space-md) !important;
+  border-radius: var(--radius-md) !important;
+  text-align: center !important;
+}
+
+/* ========================================================================
+   9. DASHBOARD & MAIN CONTENT
+   ======================================================================== */
+
+/* Main Content Areas */
+[data-theme="garden-galaxy"] .dashboard,
+[data-theme="garden-galaxy"] .main-content,
+[data-theme="garden-galaxy"] .content-area,
+[data-theme="garden-galaxy"] .layout-content {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  min-height: 100vh !important;
+}
+
+/* Ant Design Layout Components */
+[data-theme="garden-galaxy"] .ant-layout,
+[data-theme="garden-galaxy"] .ant-layout-content {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="garden-galaxy"] .ant-layout-sider {
+  background: linear-gradient(180deg, 
+    rgba(37, 64, 37, 0.95), 
+    rgba(26, 46, 26, 0.9)
+  ) !important;
+  backdrop-filter: blur(25px) !important;
+  -webkit-backdrop-filter: blur(25px) !important;
+  border-right: 1px solid var(--glass-border) !important;
+}
+
+[data-theme="garden-galaxy"] .ant-layout-header {
+  background: linear-gradient(135deg, 
+    rgba(37, 64, 37, 0.9), 
+    rgba(26, 46, 26, 0.85)
+  ) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* Cards and Widgets */
+[data-theme="garden-galaxy"] .dashboard-card,
+[data-theme="garden-galaxy"] .stat-card,
+[data-theme="garden-galaxy"] .widget,
+[data-theme="garden-galaxy"] .ant-card {
+  background: linear-gradient(145deg, var(--glass-primary), var(--glass-secondary)) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: var(--space-lg) !important;
+  transition: all var(--transition-base) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="garden-galaxy"] .ant-card-head {
+  background: transparent !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="garden-galaxy"] .ant-card-body {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="garden-galaxy"] .dashboard-card:hover,
+[data-theme="garden-galaxy"] .stat-card:hover,
+[data-theme="garden-galaxy"] .widget:hover,
+[data-theme="garden-galaxy"] .ant-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border-color: var(--primary-light) !important;
+}
+
+/* Page Containers */
+[data-theme="garden-galaxy"] .page-container,
+[data-theme="garden-galaxy"] .main-container {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  padding: var(--space-lg) !important;
+}
+
+/* Ant Design Menu Components */
+[data-theme="garden-galaxy"] .ant-menu,
+[data-theme="garden-galaxy"] .ant-menu-dark {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="garden-galaxy"] .ant-menu-item,
+[data-theme="garden-galaxy"] .ant-menu-submenu-title {
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  transition: all var(--transition-fast) !important;
+  border-radius: var(--radius-md) !important;
+  margin: var(--space-xs) 0 !important;
+}
+
+[data-theme="garden-galaxy"] .ant-menu-item:hover,
+[data-theme="garden-galaxy"] .ant-menu-submenu-title:hover,
+[data-theme="garden-galaxy"] .ant-menu-item-selected {
+  background: linear-gradient(135deg, var(--glass-primary), var(--glass-secondary)) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--glass-border) !important;
+}
+
+[data-theme="garden-galaxy"] .ant-menu-item-selected::after {
+  border-right-color: var(--primary-color) !important;
+}
+
+/* ========================================================================
+   10. SCROLLBARS - PURPLE THEME
+   ======================================================================== */
+
+[data-theme="garden-galaxy"] *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme="garden-galaxy"] *::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+[data-theme="garden-galaxy"] *::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--primary-color), var(--secondary-color));
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+[data-theme="garden-galaxy"] *::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--primary-hover), #db2777);
+}
+
+/* Firefox Scrollbars */
+[data-theme="garden-galaxy"] * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-color) var(--bg-secondary);
+}
+
+/* ========================================================================
+   11. TABLES - PURPLE/PINK GLASS
+   ======================================================================== */
+
+[data-theme="garden-galaxy"] table {
+  width: 100%;
+  background: linear-gradient(145deg, var(--glass-primary), var(--glass-secondary));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+}
+
+[data-theme="garden-galaxy"] th {
+  background: linear-gradient(135deg, 
+    rgba(124, 58, 237, 0.3), 
+    rgba(236, 72, 153, 0.2)
+  );
+  color: var(--text-primary);
+  font-weight: var(--font-weight-semibold);
+  text-align: left;
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--glass-border);
+  font-size: var(--font-size-sm);
+}
+
+[data-theme="garden-galaxy"] td {
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border-secondary);
+  color: var(--text-secondary);
+}
+
+[data-theme="garden-galaxy"] tr:hover td {
+  background: linear-gradient(135deg, 
+    rgba(124, 58, 237, 0.1), 
+    rgba(236, 72, 153, 0.05)
+  );
+}
+
+/* ========================================================================
+   12. MODALS & OVERLAYS
+   ======================================================================== */
+
+[data-theme="garden-galaxy"] .modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: var(--z-modal-backdrop);
+}
+
+[data-theme="garden-galaxy"] .modal-content {
+  background: linear-gradient(145deg, var(--glass-primary), var(--glass-secondary));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: var(--z-modal);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+  padding: var(--space-xl);
+}
+
+/* ========================================================================
+   13. SETTINGS PAGE SPECIFIC STYLES
+   ======================================================================== */
+
+[data-theme="garden-galaxy"] .settings-container,
+[data-theme="garden-galaxy"] .settings-panel {
+  background: transparent;
+  color: var(--text-primary);
+}
+
+[data-theme="garden-galaxy"] .settings-card {
+  background: linear-gradient(145deg, var(--glass-primary), var(--glass-secondary));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-lg);
+}
+
+/* ========================================================================
+   14. LOADING STATES - PURPLE/PINK
+   ======================================================================== */
+
+[data-theme="garden-galaxy"] .loading-spinner {
+  color: var(--primary-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme="garden-galaxy"] .loading-spinner::after {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-secondary);
+  border-top: 2px solid var(--primary-color);
+  border-radius: 50%;
+  animation: galaxy-spin 1s linear infinite;
+}
+
+@keyframes galaxy-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ========================================================================
+   15. COSMIC EFFECTS & ANIMATIONS
+   ======================================================================== */
+
+/* Subtle star field effect */
+[data-theme="garden-galaxy"] body::before,
+[data-theme="garden-galaxy"] .cosmic-bg::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(1px 1px at 20px 30px, rgba(168, 85, 247, 0.4), transparent),
+    radial-gradient(1px 1px at 40px 70px, rgba(236, 72, 153, 0.3), transparent),
+    radial-gradient(1px 1px at 90px 40px, rgba(168, 85, 247, 0.35), transparent),
+    radial-gradient(1px 1px at 130px 80px, rgba(236, 72, 153, 0.25), transparent);
+  background-repeat: repeat;
+  background-size: 150px 100px;
+  opacity: 0.3;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Enhanced glass morphism for special elements */
+[data-theme="garden-galaxy"] .enhanced-glass {
+  background: linear-gradient(145deg, 
+    rgba(168, 85, 247, 0.2), 
+    rgba(236, 72, 153, 0.15)
+  );
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 
+    inset 0 1px 0 rgba(168, 85, 247, 0.2),
+    0 8px 32px rgba(124, 58, 237, 0.3);
+}
+
+/* Cosmic glow for primary elements */
+[data-theme="garden-galaxy"] .primary-glow {
+  box-shadow: 0 0 20px rgba(124, 58, 237, 0.4);
+}
+
+/* ========================================================================
+   16. MOBILE RESPONSIVENESS
+   ======================================================================== */
+
+@media (max-width: 768px) {
+  [data-theme="garden-galaxy"] .dynamic-card {
+    padding: var(--space-lg);
+  }
+  
+  [data-theme="garden-galaxy"] .modal-content {
+    margin: var(--space-lg);
+    max-width: calc(100vw - var(--space-xl));
+  }
+  
+  [data-theme="garden-galaxy"] .floating-button {
+    min-height: 48px;
+    min-width: 48px;
+  }
+}
+
+/* ========================================================================
+   17. ACCESSIBILITY & HIGH CONTRAST
+   ======================================================================== */
+
+[data-theme="garden-galaxy"] *:focus {
+  outline: 2px solid var(--primary-light);
+  outline-offset: 2px;
+}
+
+[data-theme="garden-galaxy"] .floating-button:focus {
+  outline: 2px solid var(--primary-light);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.3);
+}
+
+/* High Contrast Support */
+@media (prefers-contrast: high) {
+  [data-theme="garden-galaxy"] {
+    --border-primary: #a855f7;
+    --border-secondary: #7c3aed;
+    --text-primary: #ffffff;
+    --text-secondary: #f8fafc;
+    --bg-primary: #000000;
+    --bg-secondary: #0f1b0f;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="garden-galaxy"] *,
+  [data-theme="garden-galaxy"] *::before,
+  [data-theme="garden-galaxy"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ========================================================================
+   18. UTILITY CLASSES & UNIVERSAL OVERRIDES
+   ======================================================================== */
+
+[data-theme="garden-galaxy"] .text-center { text-align: center; }
+[data-theme="garden-galaxy"] .text-left { text-align: left; }
+[data-theme="garden-galaxy"] .text-right { text-align: right; }
+
+[data-theme="garden-galaxy"] .font-medium { font-weight: var(--font-weight-medium); }
+[data-theme="garden-galaxy"] .font-semibold { font-weight: var(--font-weight-semibold); }
+[data-theme="garden-galaxy"] .font-bold { font-weight: var(--font-weight-bold); }
+
+[data-theme="garden-galaxy"] .space-y-4 > * + * { margin-top: var(--space-lg); }
+[data-theme="garden-galaxy"] .space-y-6 > * + * { margin-top: var(--space-xl); }
+
+[data-theme="garden-galaxy"] .opacity-60 { opacity: 0.6; }
+
+/* ========================================================================
+   19. LOGO & IMAGE DISPLAY
+   ======================================================================== */
+
+/* Ensure STING logo displays properly in Garden Galaxy theme */
+[data-theme="garden-galaxy"] img[alt="STING Logo"],
+[data-theme="garden-galaxy"] .sting-logo {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: var(--radius-md) !important;
+  background: transparent !important;
+  /* Add subtle glow effect to match theme */
+  filter: drop-shadow(0 4px 8px rgba(124, 58, 237, 0.3)) !important;
+  transition: all var(--transition-base) !important;
+}
+
+[data-theme="garden-galaxy"] img[alt="STING Logo"]:hover,
+[data-theme="garden-galaxy"] .sting-logo:hover {
+  filter: drop-shadow(0 6px 12px rgba(124, 58, 237, 0.5)) !important;
+  transform: scale(1.05) !important;
+}
+
+/* General image display for Garden Galaxy theme */
+[data-theme="garden-galaxy"] img {
+  display: block !important;
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+/* ========================================================================
+   20. UNIVERSAL TEXT & BACKGROUND OVERRIDES
+   ======================================================================== */
+
+/* Universal text color override for Garden Galaxy */
+[data-theme="garden-galaxy"] div,
+[data-theme="garden-galaxy"] span,
+[data-theme="garden-galaxy"] p,
+[data-theme="garden-galaxy"] h1,
+[data-theme="garden-galaxy"] h2,
+[data-theme="garden-galaxy"] h3,
+[data-theme="garden-galaxy"] h4,
+[data-theme="garden-galaxy"] h5,
+[data-theme="garden-galaxy"] h6,
+[data-theme="garden-galaxy"] label,
+[data-theme="garden-galaxy"] .text-default {
+  color: var(--text-primary) !important;
+}
+
+/* Secondary text elements */
+[data-theme="garden-galaxy"] .text-secondary,
+[data-theme="garden-galaxy"] .text-muted,
+[data-theme="garden-galaxy"] small {
+  color: var(--text-secondary) !important;
+}
+
+/* Background overrides for common containers */
+[data-theme="garden-galaxy"] .bg-white,
+[data-theme="garden-galaxy"] .bg-gray-50,
+[data-theme="garden-galaxy"] .bg-gray-100,
+[data-theme="garden-galaxy"] .bg-gray-200,
+[data-theme="garden-galaxy"] .bg-slate-50,
+[data-theme="garden-galaxy"] .bg-slate-100,
+[data-theme="garden-galaxy"] .bg-slate-200,
+[data-theme="garden-galaxy"] .bg-slate-800,
+[data-theme="garden-galaxy"] .bg-slate-900 {
+  background: transparent !important;
+}
+
+/* Ant Design specific overrides */
+[data-theme="garden-galaxy"] .ant-typography {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="garden-galaxy"] .ant-typography-title {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="garden-galaxy"] .ant-typography-paragraph {
+  color: var(--text-secondary) !important;
+}
+
+/* Button overrides for better theme integration */
+[data-theme="garden-galaxy"] .ant-btn-default {
+  background: linear-gradient(145deg, var(--glass-primary), var(--glass-secondary)) !important;
+  border-color: var(--glass-border) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="garden-galaxy"] .ant-btn-primary {
+  background: linear-gradient(145deg, var(--primary-color), var(--secondary-color)) !important;
+  border-color: var(--primary-color) !important;
+  color: var(--text-inverse) !important;
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  [data-theme="garden-galaxy"] .floating-button,
+  [data-theme="garden-galaxy"] button {
+    min-height: 48px;
+    min-width: 48px;
+  }
+  
+  [data-theme="garden-galaxy"] input,
+  [data-theme="garden-galaxy"] textarea,
+  [data-theme="garden-galaxy"] select {
+    min-height: 48px;
+  }
+}

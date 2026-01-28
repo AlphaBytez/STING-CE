@@ -1,0 +1,16 @@
+[Unit]
+Description=STING-CE First Boot Setup
+After=network-online.target docker.service
+Wants=network-online.target
+ConditionPathExists=!/opt/sting-ce/.installed
+
+[Service]
+Type=oneshot
+ExecStart=/opt/sting-ce-source/packer/files/sting-first-boot.sh
+RemainAfterExit=yes
+StandardOutput=journal+console
+StandardError=journal+console
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

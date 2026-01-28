@@ -1,0 +1,15 @@
+FROM python:3.12.8-slim
+
+WORKDIR /app
+COPY ./conf/ /app/src/conf/
+
+RUN pip install pip-tools
+COPY ./conf/requirements.in /conf/requirements.in
+RUN pip-compile --generate-hashes requirements.in -o requirements.txt
+
+RUN pip install pyyaml hvac
+
+ENV INIT_MODE=bootstrap
+
+CMD ["python", "/app/src/conf/config_loader.py", "/app/src/conf/config.yml", "--env-file", "/app/conf/.env"]
+

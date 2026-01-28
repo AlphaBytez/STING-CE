@@ -1,0 +1,41 @@
+services:
+  # Use simpler DB config to avoid initialization errors
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      # Use a different DB name to avoid conflicts
+      POSTGRES_DB: kratos_test
+    # No volume to ensure fresh DB each time
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    # Map port to access for debugging
+    ports:
+      - '5433:5432'
+
+  kratos:
+    image: oryd/kratos:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DSN=postgresql://postgres:postgres@db:5432/kratos_test
+    volumes:
+      - ./identity.schema.json:/etc/config/kratos/identity.schema.json:ro
+      - ./kratos.yml:/etc/config/kratos/kratos.yml:ro
+    ports:
+      - '4433:4433'
+      - '4434:4434'
+    # Run migration then serve
+    entrypoint: []
+    command: sh -c "kratos migrate sql -e --yes && kratos serve --dev --config /etc/config/kratos/kratos.yml"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --spider http://localhost:4434/admin/health/ready || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s

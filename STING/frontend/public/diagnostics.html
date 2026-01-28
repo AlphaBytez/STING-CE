@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>STING Diagnostics</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #f1f5f9;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { font-size: 24px; margin-bottom: 16px; color: #f59e0b; }
+        h2 { font-size: 18px; margin: 24px 0 12px; color: #94a3b8; }
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .status { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .ok { background: #22c55e; }
+        .error { background: #ef4444; }
+        .warn { background: #f59e0b; }
+        .label { font-weight: 600; }
+        .value { color: #94a3b8; font-family: monospace; font-size: 13px; word-break: break-all; }
+        .error-log {
+            background: #450a0a;
+            border: 1px solid #991b1b;
+            border-radius: 4px;
+            padding: 12px;
+            margin-top: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #fca5a5;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        button {
+            background: #f59e0b;
+            color: #0f172a;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+        #errors-container { margin-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐝 STING Diagnostics</h1>
+        
+        <div class="card">
+            <h2>Device Info</h2>
+            <div class="status">
+                <span class="label">User Agent:</span>
+            </div>
+            <div class="value" id="ua"></div>
+            
+            <div class="status" style="margin-top: 12px;">
+                <span class="label">Screen:</span>
+                <span class="value" id="screen"></span>
+            </div>
+            
+            <div class="status">
+                <span class="label">Is Mobile:</span>
+                <span class="value" id="is-mobile"></span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>JavaScript Status</h2>
+            <div class="status">
+                <span class="dot ok" id="js-dot"></span>
+                <span id="js-status">JavaScript is working</span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Feature Detection</h2>
+            <div id="features"></div>
+        </div>
+        
+        <div class="card">
+            <h2>Try Loading React App</h2>
+            <p style="color: #94a3b8; margin-bottom: 12px;">Click to attempt loading the main app and capture any errors:</p>
+            <button onclick="testReactLoad()">Test React Load</button>
+            <div id="react-result"></div>
+        </div>
+        
+        <div class="card">
+            <h2>Error Log</h2>
+            <p style="color: #94a3b8; margin-bottom: 8px;">Any JavaScript errors will appear below:</p>
+            <div id="errors-container">
+                <p style="color: #64748b; font-style: italic;">No errors captured yet</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Capture all errors
+        const errors = [];
+        
+        window.onerror = function(message, source, lineno, colno, error) {
+            const errorInfo = {
+                message: message,
+                source: source,
+                line: lineno,
+                col: colno,
+                stack: error ? error.stack : 'N/A',
+                time: new Date().toISOString()
+            };
+            errors.push(errorInfo);
+            updateErrorLog();
+            return false;
+        };
+        
+        window.addEventListener('unhandledrejection', function(event) {
+            const errorInfo = {
+                message: 'Unhandled Promise Rejection: ' + event.reason,
+                source: 'Promise',
+                line: 'N/A',
+                col: 'N/A',
+                stack: event.reason && event.reason.stack ? event.reason.stack : 'N/A',
+                time: new Date().toISOString()
+            };
+            errors.push(errorInfo);
+            updateErrorLog();
+        });
+        
+        function updateErrorLog() {
+            const container = document.getElementById('errors-container');
+            if (errors.length === 0) {
+                container.innerHTML = '<p style="color: #64748b; font-style: italic;">No errors captured yet</p>';
+                return;
+            }
+            
+            container.innerHTML = errors.map(e => `
+                <div class="error-log">
+<strong>Time:</strong> ${e.time}
+<strong>Message:</strong> ${e.message}
+<strong>Source:</strong> ${e.source}
+<strong>Line:</strong> ${e.line}, Col: ${e.col}
+<strong>Stack:</strong>
+${e.stack}
+                </div>
+            `).join('');
+        }
+        
+        // Device info
+        document.getElementById('ua').textContent = navigator.userAgent;
+        document.getElementById('screen').textContent = window.innerWidth + ' x ' + window.innerHeight;
+        
+        const isMobile = /Android.*Mobile|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        document.getElementById('is-mobile').textContent = isMobile ? 'Yes' : 'No';
+        
+        // Feature detection
+        const features = [
+            ['ES6 Arrow Functions', () => { (() => {})(); return true; }],
+            ['ES6 Promises', () => typeof Promise !== 'undefined'],
+            ['ES6 Symbol', () => typeof Symbol !== 'undefined'],
+            ['ES2018 Regex Lookbehind', () => {
+                try {
+                    new RegExp('(?<=a)b');
+                    return true;
+                } catch(e) {
+                    return false;
+                }
+            }],
+            ['Optional Chaining', () => {
+                try {
+                    eval('const x = {}; x?.a?.b;');
+                    return true;
+                } catch(e) {
+                    return false;
+                }
+            }],
+            ['Nullish Coalescing', () => {
+                try {
+                    eval('const x = null ?? "default";');
+                    return true;
+                } catch(e) {
+                    return false;
+                }
+            }],
+            ['CSS Variables', () => CSS.supports('--test', '1')],
+            ['Flexbox', () => CSS.supports('display', 'flex')],
+            ['CSS Grid', () => CSS.supports('display', 'grid')],
+            ['Fetch API', () => typeof fetch !== 'undefined'],
+            ['LocalStorage', () => typeof localStorage !== 'undefined'],
+            ['SessionStorage', () => typeof sessionStorage !== 'undefined'],
+        ];
+        
+        const featuresHtml = features.map(([name, test]) => {
+            let supported = false;
+            try {
+                supported = test();
+            } catch(e) {
+                supported = false;
+            }
+            const dotClass = supported ? 'ok' : 'error';
+            const status = supported ? '✓ Supported' : '✗ Not supported';
+            return `<div class="status"><span class="dot ${dotClass}"></span><span>${name}: ${status}</span></div>`;
+        }).join('');
+        
+        document.getElementById('features').innerHTML = featuresHtml;
+        
+        // Test React load
+        function testReactLoad() {
+            const resultDiv = document.getElementById('react-result');
+            resultDiv.innerHTML = '<p style="color: #f59e0b; margin-top: 12px;">Loading main.js...</p>';
+            
+            // Get the actual main.js filename from the page
+            fetch('/')
+                .then(res => res.text())
+                .then(html => {
+                    const match = html.match(/src="(\/static\/js\/main\.[^"]+\.js)"/);
+                    if (!match) {
+                        resultDiv.innerHTML = '<p style="color: #ef4444; margin-top: 12px;">Could not find main.js in index.html</p>';
+                        return;
+                    }
+                    
+                    const mainJs = match[1];
+                    resultDiv.innerHTML = '<p style="color: #f59e0b; margin-top: 12px;">Found: ' + mainJs + '<br>Loading...</p>';
+                    
+                    const script = document.createElement('script');
+                    script.src = mainJs;
+                    script.onerror = function(e) {
+                        resultDiv.innerHTML = '<p style="color: #ef4444; margin-top: 12px;">Failed to load script: ' + e.message + '</p>';
+                    };
+                    script.onload = function() {
+                        resultDiv.innerHTML = '<p style="color: #22c55e; margin-top: 12px;">Script loaded! Check error log above for any runtime errors.</p>';
+                    };
+                    document.body.appendChild(script);
+                })
+                .catch(err => {
+                    resultDiv.innerHTML = '<p style="color: #ef4444; margin-top: 12px;">Error: ' + err.message + '</p>';
+                });
+        }
+    </script>
+</body>
+</html>

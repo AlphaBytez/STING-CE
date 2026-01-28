@@ -1,0 +1,46 @@
+{{ define "main" }}
+<div class="hero">
+    <div class="glass-medium" style="padding: var(--spacing-xl); border-radius: 24px; max-width: 800px; margin: 0 auto;">
+        <h1>{{ .Site.Title }}</h1>
+        <p>{{ .Site.Params.slogan }}</p>
+        
+        {{ if .Site.Params.hero_image }}
+        <div style="margin: var(--spacing-lg) 0; position: relative; overflow: hidden; border-radius: 16px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);">
+            <img src="{{ .Site.Params.hero_image | relURL }}" alt="STING Platform" style="width: 100%; height: auto; display: block;">
+            <div style="position: absolute; inset: 0; background: linear-gradient(180deg, transparent 60%, rgba(30, 41, 59, 0.8) 100%);"></div>
+        </div>
+        {{ end }}
+        
+        <div style="display: flex; gap: var(--spacing-sm); justify-content: center; flex-wrap: wrap;">
+            <a href="{{ .Site.Params.cta_link }}" class="cta-button">Get Started</a>
+            <a href="#features" class="cta-button" style="background: transparent; border: 2px solid var(--sting-yellow); color: var(--sting-yellow);">Learn More</a>
+        </div>
+    </div>
+</div>
+
+<div class="content">
+    {{ if .Content }}
+    <div class="card">
+        {{ .Content }}
+    </div>
+    {{ end }}
+    
+    <section id="features" style="margin-top: var(--spacing-xl);">
+        <h2 style="text-align: center; margin-bottom: var(--spacing-lg);">Why Choose STING?</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--spacing-md);">
+            <div class="card">
+                <h3 style="color: var(--sting-yellow);">🐝 Smart Security</h3>
+                <p>Advanced threat detection powered by swarm intelligence algorithms.</p>
+            </div>
+            <div class="card">
+                <h3 style="color: var(--sting-yellow);">🔒 Enterprise Ready</h3>
+                <p>Built for scale with enterprise-grade security and compliance.</p>
+            </div>
+            <div class="card">
+                <h3 style="color: var(--sting-yellow);">⚡ Real-time Protection</h3>
+                <p>Instant response to threats with our hive-mind defense system.</p>
+            </div>
+        </div>
+    </section>
+</div>
+{{ end }}

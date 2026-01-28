@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Test - STING</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #ff6600;
+            color: white;
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            padding: 20px;
+        }
+        .emoji { font-size: 48px; text-align: center; margin-bottom: 16px; }
+        h1 { font-size: 20px; text-align: center; margin-bottom: 8px; }
+        p { font-size: 14px; text-align: center; opacity: 0.9; margin-bottom: 16px; }
+        .card {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .card h2 { font-size: 14px; margin-bottom: 8px; }
+        .card .value { font-size: 12px; opacity: 0.8; word-break: break-all; }
+        .status { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 13px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .ok { background: #22c55e; }
+        .err { background: #ef4444; }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: rgba(0,0,0,0.3);
+            color: white;
+            border: 2px solid white;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+        .error-box {
+            background: #7f1d1d;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            font-size: 11px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="emoji">🐝</div>
+    <h1>STING Mobile Diagnostics</h1>
+    <p id="status">JavaScript: Checking...</p>
+    
+    <div class="card">
+        <h2>📱 Device</h2>
+        <div class="value" id="ua">Loading...</div>
+        <div class="value" id="screen" style="margin-top: 4px;"></div>
+    </div>
+    
+    <div class="card">
+        <h2>🔧 Feature Support</h2>
+        <div id="features">Testing...</div>
+    </div>
+    
+    <button onclick="testReact()">🚀 Test React Bundle Load</button>
+    
+    <div class="card">
+        <h2>📋 Error Log</h2>
+        <div id="errors">No errors yet</div>
+    </div>
+    
+    <script>
+        // Error capture
+        var errors = [];
+        window.onerror = function(msg, src, line, col, err) {
+            errors.push('ERROR: ' + msg + '\nFile: ' + src + '\nLine: ' + line);
+            updateErrors();
+            return false;
+        };
+        window.addEventListener('unhandledrejection', function(e) {
+            errors.push('PROMISE ERROR: ' + e.reason);
+            updateErrors();
+        });
+        function updateErrors() {
+            var el = document.getElementById('errors');
+            if (errors.length === 0) {
+                el.innerHTML = '<span style="opacity:0.6">No errors yet</span>';
+            } else {
+                el.innerHTML = '<div class="error-box">' + errors.join('\n\n') + '</div>';
+            }
+        }
+        
+        // Basic info
+        document.getElementById('status').textContent = 'JavaScript: ✅ Working!';
+        document.getElementById('ua').textContent = navigator.userAgent;
+        document.getElementById('screen').textContent = 'Screen: ' + window.innerWidth + ' x ' + window.innerHeight;
+        
+        // Feature detection
+        var tests = [
+            ['Promises', function() { return typeof Promise !== 'undefined'; }],
+            ['Fetch API', function() { return typeof fetch !== 'undefined'; }],
+            ['Regex Lookbehind', function() { 
+                try { new RegExp('(?<=a)b'); return true; } 
+                catch(e) { return false; } 
+            }],
+            ['Optional Chaining', function() { 
+                try { eval('var x={}; x?.a'); return true; } 
+                catch(e) { return false; } 
+            }],
+            ['Nullish Coalescing', function() { 
+                try { eval('var x=null??1'); return true; } 
+                catch(e) { return false; } 
+            }],
+        ];
+        
+        var html = '';
+        for (var i = 0; i < tests.length; i++) {
+            var name = tests[i][0];
+            var fn = tests[i][1];
+            var ok = false;
+            try { ok = fn(); } catch(e) { ok = false; }
+            var dot = ok ? 'ok' : 'err';
+            var symbol = ok ? '✓' : '✗';
+            html += '<div class="status"><span class="dot ' + dot + '"></span>' + symbol + ' ' + name + '</div>';
+        }
+        document.getElementById('features').innerHTML = html;
+        
+        // Test React load
+        function testReact() {
+            document.getElementById('errors').innerHTML = '<span style="opacity:0.6">Loading React bundle...</span>';
+            
+            fetch('/')
+                .then(function(res) { return res.text(); })
+                .then(function(html) {
+                    var match = html.match(/src="(\/static\/js\/main\.[^"]+\.js)"/);
+                    if (!match) {
+                        errors.push('Could not find main.js in index.html');
+                        updateErrors();
+                        return;
+                    }
+                    
+                    var mainJs = match[1];
+                    errors.push('Found bundle: ' + mainJs + '\nLoading...');
+                    updateErrors();
+                    
+                    var script = document.createElement('script');
+                    script.src = mainJs;
+                    script.onerror = function(e) {
+                        errors.push('SCRIPT LOAD ERROR: Failed to load ' + mainJs);
+                        updateErrors();
+                    };
+                    script.onload = function() {
+                        errors.push('Script loaded! If no other errors, React might be working.');
+                        updateErrors();
+                    };
+                    document.body.appendChild(script);
+                })
+                .catch(function(err) {
+                    errors.push('FETCH ERROR: ' + err.message);
+                    updateErrors();
+                });
+        }
+    </script>
+</body>
+</html>

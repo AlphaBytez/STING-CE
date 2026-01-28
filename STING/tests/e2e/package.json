@@ -1,0 +1,27 @@
+{
+  "name": "sting-e2e-tests",
+  "version": "1.0.0",
+  "description": "End-to-end tests for STING platform login and authentication",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report"
+  },
+  "keywords": [
+    "sting",
+    "e2e",
+    "playwright",
+    "authentication"
+  ],
+  "author": "AlphaBytez",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
+  }
+}

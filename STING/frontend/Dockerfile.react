@@ -1,0 +1,33 @@
+FROM node:18.20.6-alpine
+
+WORKDIR /app
+
+# Copy package files first for better caching
+COPY package*.json ./
+
+# Install dependencies with cache mount
+# Note: We need all dependencies (including dev) to build the React app
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
+
+# Copy the rest of the frontend code
+COPY . .
+
+# Copy and setup env.js generation script
+COPY update-env.sh /app/update-env.sh
+
+# Fix permissions for the script explicitly
+RUN chmod 755 /app/update-env.sh && \
+    chmod +x /app/start-react.sh
+
+EXPOSE 8443
+
+# Set environment variable to indicate we're running in Docker
+ENV REACT_APP_IN_DOCKER=true
+
+# Set SSL certificate paths for development HTTPS
+ENV SSL_CRT_FILE=/app/certs/server.crt
+ENV SSL_KEY_FILE=/app/certs/server.key
+
+# Use start-react.sh for development mode with HTTPS
+CMD ["/bin/sh", "-c", "sh /app/update-env.sh && /app/start-react.sh"]

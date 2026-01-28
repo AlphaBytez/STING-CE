@@ -1,0 +1,9 @@
+baseURL = "https://yourusername.github.io/sting-teaser-site/"
+languageCode = "en-us"
+title = "STING Platform"
+enableRobotsTXT = true
+
+[params]
+  slogan = "Bee Smart. Bee Secure."
+  cta_link = "/contact/"
+  hero_image = "images/sting-logo.webp"

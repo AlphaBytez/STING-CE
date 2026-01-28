@@ -1,0 +1,62 @@
+# Lightweight Profile Sync Worker Container
+# Only includes minimal dependencies for database syncing
+
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Install only essential Python packages directly
+RUN pip install --no-cache-dir \
+    psycopg2-binary==2.9.9 \
+    sqlalchemy==2.0.23 \
+    requests==2.31.0 \
+    python-dotenv==1.0.0 \
+    flask-sqlalchemy==3.1.1 \
+    flask==3.0.0 \
+    flask-cors==4.0.0 \
+    flask-session==0.5.0 \
+    redis==5.0.1
+
+# Copy minimal application files needed by worker
+COPY app/__init__.py app/
+COPY app/database.py app/
+COPY app/models/ app/models/
+COPY app/services/user_sync_service.py app/services/
+COPY app/services/__init__.py app/services/
+COPY app/workers/ app/workers/
+
+# Create health check script
+RUN echo '#!/usr/bin/env python3\n\
+import sys\n\
+import os\n\
+sys.path.insert(0, "/app")\n\
+\n\
+try:\n\
+    from app.workers.profile_sync_worker import profile_worker\n\
+    status = profile_worker.get_status()\n\
+    print(f"Worker running: {status[\"running\"]}")\n\
+    sys.exit(0 if status["running"] else 1)\n\
+except Exception as e:\n\
+    print(f"Health check failed: {e}")\n\
+    sys.exit(1)' > /app/health_check.py
+
+RUN chmod +x /app/health_check.py
+
+# Run as non-root user
+RUN groupadd -r worker && useradd -r -g worker worker
+RUN chown -R worker:worker /app
+USER worker
+
+# Default command
+CMD ["python3", "-m", "app.workers.profile_sync_worker"]
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD python3 /app/health_check.py

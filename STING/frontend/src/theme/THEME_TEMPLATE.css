@@ -1,0 +1,1893 @@
+/**
+ * STING CE Theme Template
+ * 
+ * This template provides a complete checklist and structure for creating new themes.
+ * Based on the Modern Glass Premium theme (default), it covers all UI elements
+ * that need to be styled for a complete, consistent theme experience.
+ * 
+ * Usage:
+ * 1. Copy this file to create a new theme: your-theme-name.css
+ * 2. Replace [THEME-NAME] with your theme's data-theme attribute value
+ * 3. Define your color palette in the :root section
+ * 4. Style each section according to your theme's design language
+ * 5. Test across all major UI components and admin features
+ * 
+ * Last updated: August 2025
+ */
+
+/* ========================================================================
+   THEME CHECKLIST - Ensure all these elements are styled:
+   ======================================================================== */
+
+/*
+✓ Color Variables & Typography
+✓ Global Base Styles (body, html, container backgrounds)
+✓ Navigation Systems (floating nav, traditional sidebar, breadcrumbs)
+✓ Authentication Pages (login, register, password change, TOTP setup)
+✓ Main Interface Layout (header, content areas, responsive behavior)
+✓ Dashboard Components (cards, widgets, metrics, charts)
+✓ Forms & Inputs (text inputs, selects, textareas, checkboxes, radio buttons)
+✓ Buttons & Controls (primary, secondary, danger, floating action buttons)
+✓ Tables & Lists (data tables, navigation lists, sortable headers)
+✓ Modals & Overlays (dialogs, tooltips, popovers, notifications)
+✓ Tabs & Panels (tab navigation, content panels, settings sections)
+✓ Loading States (spinners, skeletons, progress bars)
+✓ Error & Status States (success, warning, error, info messages)
+✓ Scrollbars & Overflow (custom scrollbars, scrollable containers)
+✓ Icons & Badges (icon colors/sizes, notification badges, status indicators)
+✓ Chat Interface (Bee Chat components, message bubbles, input areas)
+✓ Admin Panel Components (user management, system settings, reports)
+✓ Settings Pages (theme switcher, preferences, security settings)
+✓ Honey Jar System (knowledge base cards, document upload areas)
+✓ Reports Interface (charts, data visualization, export buttons)
+✓ Mobile Responsiveness (breakpoints, mobile navigation, touch targets)
+✓ Accessibility (focus states, contrast ratios, screen reader compatibility)
+✓ Performance Considerations (animations, transitions, hardware acceleration)
+*/
+
+/* ========================================================================
+   1. COLOR PALETTE & CSS VARIABLES
+   ======================================================================== */
+
+:root[data-theme="[THEME-NAME]"] {
+  /* Primary Brand Colors */
+  --primary-color: #your-primary-color;
+  --primary-hover: #your-primary-hover;
+  --primary-active: #your-primary-active;
+  --primary-light: #your-primary-light;
+  --primary-dark: #your-primary-dark;
+  
+  /* Secondary Colors */
+  --secondary-color: #your-secondary-color;
+  --accent-color: #your-accent-color;
+  
+  /* Background Colors */
+  --bg-primary: #your-main-background;
+  --bg-secondary: #your-secondary-background;
+  --bg-tertiary: #your-tertiary-background;
+  --bg-elevated: #your-elevated-surface;
+  --bg-overlay: rgba(0, 0, 0, 0.5); /* For modals/overlays */
+  
+  /* Text Colors */
+  --text-primary: #your-primary-text;
+  --text-secondary: #your-secondary-text;
+  --text-tertiary: #your-tertiary-text;
+  --text-inverse: #your-inverse-text;
+  --text-link: var(--primary-color);
+  --text-link-hover: var(--primary-hover);
+  
+  /* Border & Divider Colors */
+  --border-primary: #your-primary-border;
+  --border-secondary: #your-secondary-border;
+  --border-focus: var(--primary-color);
+  --divider-color: var(--border-secondary);
+  
+  /* Status Colors */
+  --success-color: #22c55e;
+  --warning-color: #f59e0b;
+  --error-color: #ef4444;
+  --info-color: #3b82f6;
+  
+  /* Success variations */
+  --success-bg: rgba(34, 197, 94, 0.1);
+  --success-border: rgba(34, 197, 94, 0.3);
+  
+  /* Warning variations */
+  --warning-bg: rgba(245, 158, 11, 0.1);
+  --warning-border: rgba(245, 158, 11, 0.3);
+  
+  /* Error variations */
+  --error-bg: rgba(239, 68, 68, 0.1);
+  --error-border: rgba(239, 68, 68, 0.3);
+  
+  /* Info variations */
+  --info-bg: rgba(59, 130, 246, 0.1);
+  --info-border: rgba(59, 130, 246, 0.3);
+  
+  /* Shadow & Elevation */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+  
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 50%;
+  
+  /* Spacing Scale */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  
+  /* Typography Scale */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  
+  /* Font Weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* Transitions */
+  --transition-fast: 150ms ease-in-out;
+  --transition-base: 200ms ease-in-out;
+  --transition-slow: 300ms ease-in-out;
+  
+  /* Z-Index Scale */
+  --z-dropdown: 1000;
+  --z-sticky: 1010;
+  --z-fixed: 1020;
+  --z-modal-backdrop: 1030;
+  --z-modal: 1040;
+  --z-popover: 1050;
+  --z-tooltip: 1060;
+  --z-toast: 1070;
+}
+
+/* ========================================================================
+   2. GLOBAL BASE STYLES
+   ======================================================================== */
+
+[data-theme="[THEME-NAME]"] {
+  /* Document-level styles */
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+
+[data-theme="[THEME-NAME]"] *,
+[data-theme="[THEME-NAME]"] *::before,
+[data-theme="[THEME-NAME]"] *::after {
+  /* Global reset - customize as needed */
+  box-sizing: border-box;
+}
+
+/* ========================================================================
+   3. TYPOGRAPHY SYSTEM
+   ======================================================================== */
+
+[data-theme="[THEME-NAME]"] h1,
+[data-theme="[THEME-NAME]"] h2,
+[data-theme="[THEME-NAME]"] h3,
+[data-theme="[THEME-NAME]"] h4,
+[data-theme="[THEME-NAME]"] h5,
+[data-theme="[THEME-NAME]"] h6 {
+  color: var(--text-primary);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.2;
+  margin: 0 0 var(--space-md) 0;
+}
+
+[data-theme="[THEME-NAME]"] h1 { font-size: var(--font-size-3xl); }
+[data-theme="[THEME-NAME]"] h2 { font-size: var(--font-size-2xl); }
+[data-theme="[THEME-NAME]"] h3 { font-size: var(--font-size-xl); }
+[data-theme="[THEME-NAME]"] h4 { font-size: var(--font-size-lg); }
+[data-theme="[THEME-NAME]"] h5 { font-size: var(--font-size-base); }
+[data-theme="[THEME-NAME]"] h6 { font-size: var(--font-size-sm); }
+
+[data-theme="[THEME-NAME]"] p {
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-md) 0;
+}
+
+[data-theme="[THEME-NAME]"] a {
+  color: var(--text-link);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+[data-theme="[THEME-NAME]"] a:hover {
+  color: var(--text-link-hover);
+  text-decoration: underline;
+}
+
+/* ========================================================================
+   4. NAVIGATION SYSTEMS
+   ======================================================================== */
+
+/* Floating Navigation (Modern themes) */
+[data-theme="[THEME-NAME]"] .floating-nav {
+  /* Position and layout */
+  position: fixed;
+  left: var(--space-md);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: var(--z-fixed);
+  
+  /* Visual styling */
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-md);
+  
+  /* Theme-specific effects (glass, neon, etc.) */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+[data-theme="[THEME-NAME]"] .floating-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  transition: all var(--transition-base);
+  margin-bottom: var(--space-sm);
+}
+
+[data-theme="[THEME-NAME]"] .floating-nav-item:hover {
+  background: var(--primary-color);
+  color: var(--text-inverse);
+  transform: scale(1.1);
+}
+
+[data-theme="[THEME-NAME]"] .floating-nav-item.active {
+  background: var(--primary-color);
+  color: var(--text-inverse);
+}
+
+/* Traditional Sidebar (Minimal/Performance themes) */
+[data-theme="[THEME-NAME]"] .w-56 {
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-md);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  width: 14rem;
+  z-index: var(--z-fixed);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-xl) var(--space-lg);
+}
+
+/* Sidebar Logo Area - Option 1: Hide for Consistency (RECOMMENDED) */
+/* Hide sidebar logo/title - keep in header instead for consistent UX */
+[data-theme="[THEME-NAME]"] .w-56 .flex.flex-col.items-center,
+[data-theme="[THEME-NAME]"] .w-56 h1,
+[data-theme="[THEME-NAME]"] .w-56 .logo,
+[data-theme="[THEME-NAME]"] .w-56 .brand,
+[data-theme="[THEME-NAME]"] .w-56 img[src*="logo"] {
+  display: none !important;
+}
+
+/* Adjust sidebar padding since no logo section */
+[data-theme="[THEME-NAME]"] .w-56 {
+  padding-top: var(--space-lg) !important;
+}
+
+/* Sidebar Logo Area - Option 2: Style If Keeping Logo (Alternative) */
+/* Uncomment this section if you want to keep logo in sidebar
+[data-theme="[THEME-NAME]"] .w-56 .flex.flex-col.items-center {
+  background: transparent;
+  color: var(--text-primary);
+  padding: 0 0 var(--space-lg) 0;
+  border-bottom: 1px solid var(--border-secondary);
+  margin-bottom: var(--space-lg);
+}
+
+[data-theme="[THEME-NAME]"] .w-56 h1 {
+  color: var(--text-primary);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  margin: var(--space-sm) 0 0 0;
+}
+
+[data-theme="[THEME-NAME]"] .w-56 img[src*="logo"] {
+  max-width: 3rem;
+  max-height: 3rem;
+  object-fit: contain;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs);
+  background: var(--bg-primary);
+}
+*/
+
+/* Sidebar Navigation Links */
+[data-theme="[THEME-NAME]"] .w-56 nav a,
+[data-theme="[THEME-NAME]"] .w-56 .flex.items-center {
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+  padding: var(--space-md);
+  margin-bottom: var(--space-sm);
+  border-radius: var(--radius-md);
+  background: transparent;
+  text-decoration: none;
+  transition: all var(--transition-base);
+  border: 1px solid transparent;
+}
+
+[data-theme="[THEME-NAME]"] .w-56 nav a:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+}
+
+[data-theme="[THEME-NAME]"] .w-56 nav a.active,
+[data-theme="[THEME-NAME]"] .w-56 nav a[class*="bg-amber"] {
+  background: var(--primary-color);
+  color: var(--text-inverse);
+  border-color: var(--primary-color);
+}
+
+/* Sidebar Icons */
+[data-theme="[THEME-NAME]"] .w-56 svg {
+  width: 20px;
+  height: 20px;
+  margin-right: var(--space-md);
+  flex-shrink: 0;
+  color: inherit;
+}
+
+/* ========================================================================
+   5. AUTHENTICATION PAGES
+   ======================================================================== */
+
+/* Login & Registration Forms */
+[data-theme="[THEME-NAME]"] .auth-container {
+  background: var(--bg-primary);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+[data-theme="[THEME-NAME]"] .auth-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-2xl);
+  width: 100%;
+  max-width: 400px;
+}
+
+[data-theme="[THEME-NAME]"] .auth-header {
+  text-align: center;
+  margin-bottom: var(--space-xl);
+}
+
+[data-theme="[THEME-NAME]"] .auth-header h1 {
+  color: var(--text-primary);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--space-sm);
+}
+
+[data-theme="[THEME-NAME]"] .auth-header p {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* TOTP Setup & 2FA Components */
+[data-theme="[THEME-NAME]"] .totp-qr-container {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  text-align: center;
+  margin: var(--space-lg) 0;
+}
+
+[data-theme="[THEME-NAME]"] .totp-backup-codes {
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  margin: var(--space-lg) 0;
+}
+
+/* ========================================================================
+   6. MAIN INTERFACE LAYOUT
+   ======================================================================== */
+
+[data-theme="[THEME-NAME]"] .main-content {
+  background: var(--bg-primary);
+  min-height: 100vh;
+  padding: var(--space-lg);
+}
+
+[data-theme="[THEME-NAME]"] .floating-header {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-md) var(--space-lg);
+  position: fixed;
+  top: var(--space-lg);
+  right: var(--space-lg);
+  left: 100px; /* Adjust based on sidebar width */
+  z-index: var(--z-sticky);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+[data-theme="[THEME-NAME]"] .dashboard-container {
+  margin-top: 100px; /* Account for floating header */
+  padding: var(--space-lg);
+}
+
+/* ========================================================================
+   7. DASHBOARD COMPONENTS
+   ======================================================================== */
+
+/* Dashboard Cards */
+[data-theme="[THEME-NAME]"] .dashboard-card,
+[data-theme="[THEME-NAME]"] .metric-card,
+[data-theme="[THEME-NAME]"] .stats-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-lg);
+  transition: all var(--transition-base);
+}
+
+[data-theme="[THEME-NAME]"] .dashboard-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+/* Widget Headers */
+[data-theme="[THEME-NAME]"] .widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: between;
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+[data-theme="[THEME-NAME]"] .widget-title {
+  color: var(--text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
+
+/* Metrics & Statistics */
+[data-theme="[THEME-NAME]"] .metric-value {
+  color: var(--primary-color);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+}
+
+[data-theme="[THEME-NAME]"] .metric-label {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  margin-top: var(--space-sm);
+}
+
+/* System Health Widget */
+[data-theme="[THEME-NAME]"] .service-list {
+  max-height: 300px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-primary) var(--bg-secondary);
+}
+
+[data-theme="[THEME-NAME]"] .service-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-secondary);
+  transition: background-color var(--transition-fast);
+}
+
+[data-theme="[THEME-NAME]"] .service-item:hover {
+  background: var(--bg-tertiary);
+}
+
+[data-theme="[THEME-NAME]"] .service-status {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+[data-theme="[THEME-NAME]"] .service-status.healthy {
+  background: var(--success-bg);
+  color: var(--success-color);
+  border: 1px solid var(--success-border);
+}
+
+[data-theme="[THEME-NAME]"] .service-status.unhealthy {
+  background: var(--error-bg);
+  color: var(--error-color);
+  border: 1px solid var(--error-border);
+}
+
+[data-theme="[THEME-NAME]"] .service-status.warning {
+  background: var(--warning-bg);
+  color: var(--warning-color);
+  border: 1px solid var(--warning-border);
+}
+
+/* ========================================================================
+   8. FORMS & INPUTS
+   ======================================================================== */
+
+/* Text Inputs */
+[data-theme="[THEME-NAME]"] input[type="text"],
+[data-theme="[THEME-NAME]"] input[type="email"],
+[data-theme="[THEME-NAME]"] input[type="password"],
+[data-theme="[THEME-NAME]"] input[type="search"],
+[data-theme="[THEME-NAME]"] input[type="tel"],
+[data-theme="[THEME-NAME]"] input[type="url"],
+[data-theme="[THEME-NAME]"] input[type="number"],
+[data-theme="[THEME-NAME]"] textarea,
+[data-theme="[THEME-NAME]"] select {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  padding: var(--space-md);
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  width: 100%;
+  transition: all var(--transition-fast);
+}
+
+[data-theme="[THEME-NAME]"] input:focus,
+[data-theme="[THEME-NAME]"] textarea:focus,
+[data-theme="[THEME-NAME]"] select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(var(--primary-color), 0.1);
+}
+
+[data-theme="[THEME-NAME]"] input:disabled,
+[data-theme="[THEME-NAME]"] textarea:disabled,
+[data-theme="[THEME-NAME]"] select:disabled {
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Form Labels */
+[data-theme="[THEME-NAME]"] label {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--space-xs);
+  display: block;
+}
+
+/* Form Groups */
+[data-theme="[THEME-NAME]"] .form-group {
+  margin-bottom: var(--space-lg);
+}
+
+[data-theme="[THEME-NAME]"] .form-group.error input,
+[data-theme="[THEME-NAME]"] .form-group.error textarea,
+[data-theme="[THEME-NAME]"] .form-group.error select {
+  border-color: var(--error-color);
+  box-shadow: 0 0 0 3px var(--error-bg);
+}
+
+[data-theme="[THEME-NAME]"] .form-error {
+  color: var(--error-color);
+  font-size: var(--font-size-xs);
+  margin-top: var(--space-xs);
+}
+
+/* Checkboxes & Radio Buttons */
+[data-theme="[THEME-NAME]"] input[type="checkbox"],
+[data-theme="[THEME-NAME]"] input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-color);
+  margin-right: var(--space-sm);
+}
+
+/* ========================================================================
+   9. BUTTONS & CONTROLS
+   ======================================================================== */
+
+/* Base Button Styles */
+[data-theme="[THEME-NAME]"] button,
+[data-theme="[THEME-NAME]"] .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Primary Buttons */
+[data-theme="[THEME-NAME]"] .btn-primary,
+[data-theme="[THEME-NAME]"] button[type="submit"],
+[data-theme="[THEME-NAME]"] .ant-btn-primary {
+  background: var(--primary-color);
+  color: var(--text-inverse);
+  border-color: var(--primary-color);
+}
+
+[data-theme="[THEME-NAME]"] .btn-primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+[data-theme="[THEME-NAME]"] .btn-primary:active {
+  background: var(--primary-active);
+  transform: translateY(0);
+}
+
+/* Secondary Buttons */
+[data-theme="[THEME-NAME]"] .btn-secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border-color: var(--border-primary);
+}
+
+[data-theme="[THEME-NAME]"] .btn-secondary:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-secondary);
+}
+
+/* Danger Buttons */
+[data-theme="[THEME-NAME]"] .btn-danger {
+  background: var(--error-color);
+  color: var(--text-inverse);
+  border-color: var(--error-color);
+}
+
+[data-theme="[THEME-NAME]"] .btn-danger:hover {
+  background: #dc2626; /* Darker red */
+  border-color: #dc2626;
+}
+
+/* Floating Action Buttons */
+[data-theme="[THEME-NAME]"] .floating-button {
+  position: fixed;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--primary-color);
+  color: var(--text-inverse);
+  border: none;
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-fixed);
+  transition: all var(--transition-base);
+}
+
+[data-theme="[THEME-NAME]"] .floating-button:hover {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-xl);
+}
+
+/* Button Sizes */
+[data-theme="[THEME-NAME]"] .btn-sm {
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
+}
+
+[data-theme="[THEME-NAME]"] .btn-lg {
+  padding: var(--space-lg) var(--space-xl);
+  font-size: var(--font-size-lg);
+}
+
+/* Disabled Buttons */
+[data-theme="[THEME-NAME]"] button:disabled,
+[data-theme="[THEME-NAME]"] .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ========================================================================
+   10. TABLES & LISTS
+   ======================================================================== */
+
+/* Data Tables */
+[data-theme="[THEME-NAME]"] table,
+[data-theme="[THEME-NAME]"] .ant-table {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+}
+
+[data-theme="[THEME-NAME]"] th,
+[data-theme="[THEME-NAME]"] .ant-table-thead > tr > th {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: var(--font-weight-semibold);
+  text-align: left;
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border-primary);
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+[data-theme="[THEME-NAME]"] td,
+[data-theme="[THEME-NAME]"] .ant-table-tbody > tr > td {
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border-secondary);
+  color: var(--text-secondary);
+}
+
+[data-theme="[THEME-NAME]"] tr:hover td,
+[data-theme="[THEME-NAME]"] .ant-table-tbody > tr:hover > td {
+  background: var(--bg-tertiary);
+}
+
+/* Sortable Headers */
+[data-theme="[THEME-NAME]"] th.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+[data-theme="[THEME-NAME]"] th.sortable:hover {
+  background: var(--bg-tertiary);
+}
+
+/* ========================================================================
+   11. MODALS & OVERLAYS
+   ======================================================================== */
+
+/* Modal Backdrop */
+[data-theme="[THEME-NAME]"] .modal-backdrop,
+[data-theme="[THEME-NAME]"] .ant-modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: var(--z-modal-backdrop);
+}
+
+/* Modal Content */
+[data-theme="[THEME-NAME]"] .modal-content,
+[data-theme="[THEME-NAME]"] .ant-modal-content {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: var(--z-modal);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+/* Modal Header */
+[data-theme="[THEME-NAME]"] .modal-header,
+[data-theme="[THEME-NAME]"] .ant-modal-header {
+  background: transparent;
+  padding: var(--space-xl);
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+[data-theme="[THEME-NAME]"] .modal-title,
+[data-theme="[THEME-NAME]"] .ant-modal-title {
+  color: var(--text-primary);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
+
+/* Modal Body */
+[data-theme="[THEME-NAME]"] .modal-body,
+[data-theme="[THEME-NAME]"] .ant-modal-body {
+  padding: var(--space-xl);
+}
+
+/* Modal Footer */
+[data-theme="[THEME-NAME]"] .modal-footer,
+[data-theme="[THEME-NAME]"] .ant-modal-footer {
+  padding: var(--space-xl);
+  border-top: 1px solid var(--border-secondary);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-md);
+}
+
+/* Tooltips */
+[data-theme="[THEME-NAME]"] .tooltip,
+[data-theme="[THEME-NAME]"] .ant-tooltip-inner {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-xs);
+  z-index: var(--z-tooltip);
+}
+
+/* Notifications/Toasts */
+[data-theme="[THEME-NAME]"] .notification,
+[data-theme="[THEME-NAME]"] .ant-notification-notice {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-lg);
+  z-index: var(--z-toast);
+}
+
+[data-theme="[THEME-NAME]"] .notification.success {
+  border-left: 4px solid var(--success-color);
+}
+
+[data-theme="[THEME-NAME]"] .notification.warning {
+  border-left: 4px solid var(--warning-color);
+}
+
+[data-theme="[THEME-NAME]"] .notification.error {
+  border-left: 4px solid var(--error-color);
+}
+
+[data-theme="[THEME-NAME]"] .notification.info {
+  border-left: 4px solid var(--info-color);
+}
+
+/* ========================================================================
+   12. TABS & PANELS
+   ======================================================================== */
+
+/* Tab Navigation */
+[data-theme="[THEME-NAME]"] .ant-tabs-nav,
+[data-theme="[THEME-NAME]"] .tab-nav {
+  background: transparent;
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+[data-theme="[THEME-NAME]"] .ant-tabs-tab,
+[data-theme="[THEME-NAME]"] .tab-button {
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+  padding: var(--space-md) var(--space-lg);
+  border: none;
+  background: transparent;
+  transition: all var(--transition-fast);
+}
+
+[data-theme="[THEME-NAME]"] .ant-tabs-tab:hover,
+[data-theme="[THEME-NAME]"] .tab-button:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+[data-theme="[THEME-NAME]"] .ant-tabs-tab-active,
+[data-theme="[THEME-NAME]"] .ant-tabs-tab-active .ant-tabs-tab-btn,
+[data-theme="[THEME-NAME]"] .tab-button.active {
+  color: var(--primary-color);
+  font-weight: var(--font-weight-semibold);
+  background: var(--bg-tertiary);
+}
+
+[data-theme="[THEME-NAME]"] .ant-tabs-ink-bar,
+[data-theme="[THEME-NAME]"] .tab-indicator {
+  background: var(--primary-color);
+  height: 2px;
+  border-radius: var(--radius-full);
+}
+
+/* Tab Content */
+[data-theme="[THEME-NAME]"] .ant-tabs-content-holder,
+[data-theme="[THEME-NAME]"] .tab-content {
+  background: var(--bg-primary);
+  padding: var(--space-xl);
+}
+
+/* ========================================================================
+   13. LOADING STATES & ANIMATIONS
+   ======================================================================== */
+
+/* Loading Spinners */
+[data-theme="[THEME-NAME]"] .loading-spinner,
+[data-theme="[THEME-NAME]"] .ant-spin-dot {
+  color: var(--primary-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* For minimal/performance themes, consider disabling animations */
+[data-theme="[THEME-NAME]"] .loading-spinner::after {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-secondary);
+  border-top: 2px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Skeleton Loaders */
+[data-theme="[THEME-NAME]"] .skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 25%,
+    var(--bg-tertiary) 50%,
+    var(--bg-secondary) 75%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--radius-md);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Progress Bars */
+[data-theme="[THEME-NAME]"] .progress-bar {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  height: 8px;
+}
+
+[data-theme="[THEME-NAME]"] .progress-fill {
+  background: var(--primary-color);
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width var(--transition-slow);
+}
+
+/* ========================================================================
+   14. SCROLLBARS & OVERFLOW
+   ======================================================================== */
+
+/* Custom Scrollbars */
+[data-theme="[THEME-NAME]"] .custom-scrollbar,
+[data-theme="[THEME-NAME]"] *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme="[THEME-NAME]"] .custom-scrollbar::-webkit-scrollbar-track,
+[data-theme="[THEME-NAME]"] *::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+[data-theme="[THEME-NAME]"] .custom-scrollbar::-webkit-scrollbar-thumb,
+[data-theme="[THEME-NAME]"] *::-webkit-scrollbar-thumb {
+  background: var(--border-primary);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+[data-theme="[THEME-NAME]"] .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+[data-theme="[THEME-NAME]"] *::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
+}
+
+/* Firefox Scrollbars */
+[data-theme="[THEME-NAME]"] .custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-primary) var(--bg-secondary);
+}
+
+/* ========================================================================
+   15. ICONS & BADGES
+   ======================================================================== */
+
+/* Icon Sizes */
+[data-theme="[THEME-NAME]"] .icon-xs { width: 12px; height: 12px; }
+[data-theme="[THEME-NAME]"] .icon-sm { width: 16px; height: 16px; }
+[data-theme="[THEME-NAME]"] .icon-md { width: 20px; height: 20px; }
+[data-theme="[THEME-NAME]"] .icon-lg { width: 24px; height: 24px; }
+[data-theme="[THEME-NAME]"] .icon-xl { width: 32px; height: 32px; }
+
+/* Icon Colors */
+[data-theme="[THEME-NAME]"] .icon-primary { color: var(--primary-color); }
+[data-theme="[THEME-NAME]"] .icon-secondary { color: var(--text-secondary); }
+[data-theme="[THEME-NAME]"] .icon-success { color: var(--success-color); }
+[data-theme="[THEME-NAME]"] .icon-warning { color: var(--warning-color); }
+[data-theme="[THEME-NAME]"] .icon-error { color: var(--error-color); }
+
+/* Notification Badges */
+[data-theme="[THEME-NAME]"] .badge,
+[data-theme="[THEME-NAME]"] .ant-badge-count {
+  background: var(--error-color);
+  color: var(--text-inverse);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-full);
+  min-width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Status Badges */
+[data-theme="[THEME-NAME]"] .badge-success {
+  background: var(--success-bg);
+  color: var(--success-color);
+  border: 1px solid var(--success-border);
+}
+
+[data-theme="[THEME-NAME]"] .badge-warning {
+  background: var(--warning-bg);
+  color: var(--warning-color);
+  border: 1px solid var(--warning-border);
+}
+
+[data-theme="[THEME-NAME]"] .badge-error {
+  background: var(--error-bg);
+  color: var(--error-color);
+  border: 1px solid var(--error-border);
+}
+
+/* ========================================================================
+   16. BEE CHAT INTERFACE
+   ======================================================================== */
+
+/* Chat Container */
+[data-theme="[THEME-NAME]"] .chat-container {
+  background: var(--bg-primary);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Chat Messages */
+[data-theme="[THEME-NAME]"] .chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Message Bubbles */
+[data-theme="[THEME-NAME]"] .message-bubble {
+  max-width: 70%;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  word-wrap: break-word;
+  position: relative;
+}
+
+[data-theme="[THEME-NAME]"] .message-bubble.user {
+  background: var(--primary-color);
+  color: var(--text-inverse);
+  align-self: flex-end;
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+[data-theme="[THEME-NAME]"] .message-bubble.assistant {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+  align-self: flex-start;
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+/* Chat Input Area */
+[data-theme="[THEME-NAME]"] .chat-input-container {
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-primary);
+  padding: var(--space-lg);
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-end;
+}
+
+[data-theme="[THEME-NAME]"] .chat-input {
+  flex: 1;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md) var(--space-lg);
+  color: var(--text-primary);
+  resize: none;
+  min-height: 44px;
+  max-height: 120px;
+}
+
+[data-theme="[THEME-NAME]"] .chat-send-button {
+  background: var(--primary-color);
+  color: var(--text-inverse);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+[data-theme="[THEME-NAME]"] .chat-send-button:hover {
+  background: var(--primary-hover);
+  transform: scale(1.05);
+}
+
+/* ========================================================================
+   17. ADMIN PANEL COMPONENTS
+   ======================================================================== */
+
+/* Admin Header */
+[data-theme="[THEME-NAME]"] .admin-header {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-xl);
+}
+
+[data-theme="[THEME-NAME]"] .admin-title {
+  color: var(--text-primary);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  margin: 0 0 var(--space-sm) 0;
+}
+
+[data-theme="[THEME-NAME]"] .admin-subtitle {
+  color: var(--text-secondary);
+  font-size: var(--font-size-lg);
+  margin: 0;
+}
+
+/* Admin Tabs */
+[data-theme="[THEME-NAME]"] .admin-tabs {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* User Management Table */
+[data-theme="[THEME-NAME]"] .user-table {
+  width: 100%;
+  background: var(--bg-elevated);
+}
+
+[data-theme="[THEME-NAME]"] .user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--primary-color);
+  color: var(--text-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-semibold);
+}
+
+[data-theme="[THEME-NAME]"] .user-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+}
+
+[data-theme="[THEME-NAME]"] .user-role-admin {
+  background: var(--error-bg);
+  color: var(--error-color);
+  border: 1px solid var(--error-border);
+}
+
+[data-theme="[THEME-NAME]"] .user-role-user {
+  background: var(--info-bg);
+  color: var(--info-color);
+  border: 1px solid var(--info-border);
+}
+
+/* ========================================================================
+   18. SETTINGS PAGES
+   ======================================================================== */
+
+/* Settings Layout */
+[data-theme="[THEME-NAME]"] .settings-container {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: var(--space-xl);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+[data-theme="[THEME-NAME]"] .settings-sidebar {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  height: fit-content;
+  position: sticky;
+  top: var(--space-lg);
+}
+
+[data-theme="[THEME-NAME]"] .settings-content {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+}
+
+/* Settings Navigation */
+[data-theme="[THEME-NAME]"] .settings-nav {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+[data-theme="[THEME-NAME]"] .settings-nav-item {
+  margin-bottom: var(--space-sm);
+}
+
+[data-theme="[THEME-NAME]"] .settings-nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+[data-theme="[THEME-NAME]"] .settings-nav-link:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+[data-theme="[THEME-NAME]"] .settings-nav-link.active {
+  background: var(--primary-color);
+  color: var(--text-inverse);
+}
+
+/* Settings Sections */
+[data-theme="[THEME-NAME]"] .settings-section {
+  margin-bottom: var(--space-2xl);
+}
+
+[data-theme="[THEME-NAME]"] .settings-section-title {
+  color: var(--text-primary);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 var(--space-lg) 0;
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+/* Theme Switcher */
+[data-theme="[THEME-NAME]"] .theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-lg);
+  margin-top: var(--space-lg);
+}
+
+[data-theme="[THEME-NAME]"] .theme-card {
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme="[THEME-NAME]"] .theme-card:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+[data-theme="[THEME-NAME]"] .theme-card.active {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: var(--text-inverse);
+}
+
+[data-theme="[THEME-NAME]"] .theme-preview {
+  width: 100%;
+  height: 60px;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-md);
+  position: relative;
+  overflow: hidden;
+}
+
+/* ========================================================================
+   19. HONEY JAR SYSTEM
+   ======================================================================== */
+
+/* Honey Jar Grid */
+[data-theme="[THEME-NAME]"] .honey-jar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-lg);
+  margin-top: var(--space-lg);
+}
+
+/* Honey Jar Cards */
+[data-theme="[THEME-NAME]"] .honey-jar-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  transition: all var(--transition-base);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme="[THEME-NAME]"] .honey-jar-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary-color);
+}
+
+[data-theme="[THEME-NAME]"] .honey-jar-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+[data-theme="[THEME-NAME]"] .honey-jar-title {
+  color: var(--text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
+
+[data-theme="[THEME-NAME]"] .honey-jar-type-badge {
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+[data-theme="[THEME-NAME]"] .honey-jar-public {
+  background: var(--success-bg);
+  color: var(--success-color);
+  border: 1px solid var(--success-border);
+}
+
+[data-theme="[THEME-NAME]"] .honey-jar-private {
+  background: var(--error-bg);
+  color: var(--error-color);
+  border: 1px solid var(--error-border);
+}
+
+[data-theme="[THEME-NAME]"] .honey-jar-team {
+  background: var(--info-bg);
+  color: var(--info-color);
+  border: 1px solid var(--info-border);
+}
+
+[data-theme="[THEME-NAME]"] .honey-jar-description {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  margin: var(--space-sm) 0 var(--space-md) 0;
+  line-height: 1.4;
+}
+
+[data-theme="[THEME-NAME]"] .honey-jar-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-tertiary);
+  font-size: var(--font-size-xs);
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-secondary);
+}
+
+/* Document Upload Area */
+[data-theme="[THEME-NAME]"] .upload-area {
+  background: var(--bg-secondary);
+  border: 2px dashed var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2xl);
+  text-align: center;
+  transition: all var(--transition-base);
+  cursor: pointer;
+}
+
+[data-theme="[THEME-NAME]"] .upload-area:hover,
+[data-theme="[THEME-NAME]"] .upload-area.dragover {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: var(--text-inverse);
+}
+
+[data-theme="[THEME-NAME]"] .upload-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--text-tertiary);
+  margin: 0 auto var(--space-md) auto;
+  transition: color var(--transition-fast);
+}
+
+[data-theme="[THEME-NAME]"] .upload-area:hover .upload-icon {
+  color: var(--text-inverse);
+}
+
+/* ========================================================================
+   20. REPORTS INTERFACE
+   ======================================================================== */
+
+/* Report Cards */
+[data-theme="[THEME-NAME]"] .report-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  transition: all var(--transition-base);
+}
+
+[data-theme="[THEME-NAME]"] .report-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+[data-theme="[THEME-NAME]"] .report-title {
+  color: var(--text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 var(--space-sm) 0;
+}
+
+[data-theme="[THEME-NAME]"] .report-description {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  margin: 0 0 var(--space-lg) 0;
+  line-height: 1.4;
+}
+
+/* Chart Container */
+[data-theme="[THEME-NAME]"] .chart-container {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  margin: var(--space-lg) 0;
+}
+
+[data-theme="[THEME-NAME]"] .chart-title {
+  color: var(--text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 var(--space-lg) 0;
+  text-align: center;
+}
+
+/* Export Buttons */
+[data-theme="[THEME-NAME]"] .export-buttons {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+[data-theme="[THEME-NAME]"] .export-btn {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+[data-theme="[THEME-NAME]"] .export-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--primary-color);
+}
+
+/* ========================================================================
+   21. MOBILE RESPONSIVENESS
+   ======================================================================== */
+
+/* Mobile Breakpoints */
+@media (max-width: 768px) {
+  [data-theme="[THEME-NAME]"] .floating-nav {
+    left: var(--space-sm);
+    transform: none;
+    top: auto;
+    bottom: var(--space-lg);
+    flex-direction: row;
+    padding: var(--space-md) var(--space-lg);
+  }
+  
+  [data-theme="[THEME-NAME]"] .floating-nav-item {
+    margin-bottom: 0;
+    margin-right: var(--space-sm);
+  }
+  
+  [data-theme="[THEME-NAME]"] .w-56 {
+    transform: translateX(-100%);
+    transition: transform var(--transition-base);
+  }
+  
+  [data-theme="[THEME-NAME]"] .w-56.open {
+    transform: translateX(0);
+  }
+  
+  [data-theme="[THEME-NAME]"] .main-content {
+    padding: var(--space-md);
+  }
+  
+  [data-theme="[THEME-NAME]"] .floating-header {
+    left: var(--space-sm);
+    right: var(--space-sm);
+    top: var(--space-sm);
+  }
+  
+  [data-theme="[THEME-NAME]"] .settings-container {
+    grid-template-columns: 1fr;
+  }
+  
+  [data-theme="[THEME-NAME]"] .honey-jar-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  [data-theme="[THEME-NAME]"] .theme-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  [data-theme="[THEME-NAME]"] .message-bubble {
+    max-width: 85%;
+  }
+  
+  [data-theme="[THEME-NAME]"] .modal-content {
+    margin: var(--space-lg);
+    max-width: calc(100vw - var(--space-xl));
+  }
+}
+
+/* Tablet Breakpoints */
+@media (max-width: 1024px) and (min-width: 769px) {
+  [data-theme="[THEME-NAME]"] .honey-jar-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
+  
+  [data-theme="[THEME-NAME]"] .settings-container {
+    grid-template-columns: 200px 1fr;
+    gap: var(--space-lg);
+  }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  [data-theme="[THEME-NAME]"] button,
+  [data-theme="[THEME-NAME]"] .btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  [data-theme="[THEME-NAME]"] .floating-nav-item {
+    width: 56px;
+    height: 56px;
+  }
+  
+  [data-theme="[THEME-NAME]"] input,
+  [data-theme="[THEME-NAME]"] textarea,
+  [data-theme="[THEME-NAME]"] select {
+    min-height: 44px;
+  }
+}
+
+/* ========================================================================
+   22. ACCESSIBILITY FEATURES
+   ======================================================================== */
+
+/* Focus States */
+[data-theme="[THEME-NAME]"] *:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+[data-theme="[THEME-NAME]"] button:focus,
+[data-theme="[THEME-NAME]"] .btn:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(var(--primary-color), 0.2);
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  [data-theme="[THEME-NAME]"] {
+    --border-primary: #000000;
+    --border-secondary: #333333;
+    --text-primary: #000000;
+    --text-secondary: #333333;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f5;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="[THEME-NAME]"] *,
+  [data-theme="[THEME-NAME]"] *::before,
+  [data-theme="[THEME-NAME]"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Screen Reader Only Content */
+[data-theme="[THEME-NAME]"] .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip Navigation */
+[data-theme="[THEME-NAME]"] .skip-nav {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: var(--primary-color);
+  color: var(--text-inverse);
+  padding: 8px;
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  z-index: var(--z-tooltip);
+}
+
+[data-theme="[THEME-NAME]"] .skip-nav:focus {
+  top: 6px;
+}
+
+/* ========================================================================
+   23. PERFORMANCE OPTIMIZATIONS
+   ======================================================================== */
+
+/* Hardware Acceleration for Smooth Animations */
+[data-theme="[THEME-NAME]"] .floating-nav,
+[data-theme="[THEME-NAME]"] .floating-header,
+[data-theme="[THEME-NAME]"] .modal-content,
+[data-theme="[THEME-NAME]"] .honey-jar-card:hover {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Optimize Large Lists */
+[data-theme="[THEME-NAME]"] .virtual-list {
+  contain: layout style paint;
+}
+
+/* Optimize Images */
+[data-theme="[THEME-NAME]"] img {
+  max-width: 100%;
+  height: auto;
+  loading: lazy;
+}
+
+/* GPU Acceleration for Backgrounds */
+[data-theme="[THEME-NAME]"] .bg-pattern,
+[data-theme="[THEME-NAME]"] .glass-effect {
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* ========================================================================
+   24. THEME-SPECIFIC CUSTOMIZATIONS
+   ======================================================================== */
+
+/*
+Add any theme-specific customizations here that don't fit into the standard categories above.
+Examples:
+- Unique visual effects (neon glows, glass morphism, retro CRT effects)
+- Special animations or transitions
+- Theme-specific component variations
+- Custom decorative elements
+*/
+
+/* Example: Glass Morphism Effects */
+[data-theme="[THEME-NAME]"] .glass-effect {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Example: Neon Glow Effects */
+[data-theme="[THEME-NAME]"] .neon-glow {
+  text-shadow: 0 0 5px var(--primary-color), 0 0 10px var(--primary-color);
+  box-shadow: 0 0 5px var(--primary-color), inset 0 0 5px var(--primary-color);
+}
+
+/* Example: Retro CRT Effects */
+[data-theme="[THEME-NAME]"] .crt-effect {
+  position: relative;
+}
+
+[data-theme="[THEME-NAME]"] .crt-effect::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.1) 2px,
+    rgba(0, 0, 0, 0.1) 4px
+  );
+  pointer-events: none;
+}
+
+/* ========================================================================
+   25. UTILITY CLASSES
+   ======================================================================== */
+
+/* Spacing Utilities */
+[data-theme="[THEME-NAME]"] .m-0 { margin: 0; }
+[data-theme="[THEME-NAME]"] .m-1 { margin: var(--space-xs); }
+[data-theme="[THEME-NAME]"] .m-2 { margin: var(--space-sm); }
+[data-theme="[THEME-NAME]"] .m-3 { margin: var(--space-md); }
+[data-theme="[THEME-NAME]"] .m-4 { margin: var(--space-lg); }
+[data-theme="[THEME-NAME]"] .m-5 { margin: var(--space-xl); }
+
+[data-theme="[THEME-NAME]"] .p-0 { padding: 0; }
+[data-theme="[THEME-NAME]"] .p-1 { padding: var(--space-xs); }
+[data-theme="[THEME-NAME]"] .p-2 { padding: var(--space-sm); }
+[data-theme="[THEME-NAME]"] .p-3 { padding: var(--space-md); }
+[data-theme="[THEME-NAME]"] .p-4 { padding: var(--space-lg); }
+[data-theme="[THEME-NAME]"] .p-5 { padding: var(--space-xl); }
+
+/* Display Utilities */
+[data-theme="[THEME-NAME]"] .d-none { display: none; }
+[data-theme="[THEME-NAME]"] .d-block { display: block; }
+[data-theme="[THEME-NAME]"] .d-flex { display: flex; }
+[data-theme="[THEME-NAME]"] .d-grid { display: grid; }
+[data-theme="[THEME-NAME]"] .d-inline { display: inline; }
+[data-theme="[THEME-NAME]"] .d-inline-block { display: inline-block; }
+[data-theme="[THEME-NAME]"] .d-inline-flex { display: inline-flex; }
+
+/* Text Utilities */
+[data-theme="[THEME-NAME]"] .text-left { text-align: left; }
+[data-theme="[THEME-NAME]"] .text-center { text-align: center; }
+[data-theme="[THEME-NAME]"] .text-right { text-align: right; }
+[data-theme="[THEME-NAME]"] .text-justify { text-align: justify; }
+
+[data-theme="[THEME-NAME]"] .font-normal { font-weight: var(--font-weight-normal); }
+[data-theme="[THEME-NAME]"] .font-medium { font-weight: var(--font-weight-medium); }
+[data-theme="[THEME-NAME]"] .font-semibold { font-weight: var(--font-weight-semibold); }
+[data-theme="[THEME-NAME]"] .font-bold { font-weight: var(--font-weight-bold); }
+
+/* Color Utilities */
+[data-theme="[THEME-NAME]"] .text-primary { color: var(--text-primary); }
+[data-theme="[THEME-NAME]"] .text-secondary { color: var(--text-secondary); }
+[data-theme="[THEME-NAME]"] .text-tertiary { color: var(--text-tertiary); }
+[data-theme="[THEME-NAME]"] .text-success { color: var(--success-color); }
+[data-theme="[THEME-NAME]"] .text-warning { color: var(--warning-color); }
+[data-theme="[THEME-NAME]"] .text-error { color: var(--error-color); }
+
+[data-theme="[THEME-NAME]"] .bg-primary { background-color: var(--bg-primary); }
+[data-theme="[THEME-NAME]"] .bg-secondary { background-color: var(--bg-secondary); }
+[data-theme="[THEME-NAME]"] .bg-elevated { background-color: var(--bg-elevated); }
+[data-theme="[THEME-NAME]"] .bg-success { background-color: var(--success-bg); }
+[data-theme="[THEME-NAME]"] .bg-warning { background-color: var(--warning-bg); }
+[data-theme="[THEME-NAME]"] .bg-error { background-color: var(--error-bg); }
+
+/* ========================================================================
+   END OF TEMPLATE
+   ======================================================================== */
+
+/*
+THEME DEVELOPMENT CHECKLIST:
+□ Replace all [THEME-NAME] placeholders with your theme name
+□ Define complete color palette in CSS variables
+□ Test authentication pages (login, register, TOTP setup)
+□ Test main dashboard and navigation (both floating and sidebar)
+□ Test all form elements and inputs
+□ Test modal dialogs and overlays
+□ Test admin panel functionality
+□ Test settings pages and theme switcher
+□ Test Bee Chat interface
+□ Test Honey Jar system
+□ Test reports and data visualization
+□ Test mobile responsiveness on multiple devices
+□ Test keyboard navigation and accessibility
+□ Test with high contrast and reduced motion preferences
+□ Verify consistent icon sizes and colors
+□ Verify proper loading states and animations
+□ Performance test with large datasets
+□ Cross-browser compatibility testing
+□ Dark/light mode variations if applicable
+*/

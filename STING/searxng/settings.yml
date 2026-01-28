@@ -1,0 +1,120 @@
+# SearXNG Settings for STING-CE
+# Self-hosted meta-search engine for AI context enhancement
+
+use_default_settings:
+  engines:
+    keep_only:
+      - google
+      - bing
+      - brave
+      - duckduckgo
+      - wikipedia
+      - qwant
+
+general:
+  instance_name: "STING Search"
+  debug: false
+  enable_metrics: false
+
+search:
+  # Safe search (0=off, 1=moderate, 2=strict)
+  safe_search: 0
+  # Default language
+  default_lang: "en"
+  # Max results per page
+  max_page: 3
+  # Autocomplete provider
+  autocomplete: ""
+  # Default results format
+  formats:
+    - html
+    - json
+
+server:
+  # Bind to all interfaces (container networking)
+  bind_address: "0.0.0.0"
+  port: 8080
+  # Secret key (generate unique one for production)
+  secret_key: "sting-searxng-secret-change-in-production"
+  # Limiter (disable for internal service use)
+  limiter: false
+  # Public instance (disable for internal use)
+  public_instance: false
+  # Image proxy (disabled - we only need text)
+  image_proxy: false
+
+ui:
+  # Minimal UI since this is API-only
+  static_use_hash: true
+  default_theme: simple
+  # Results on first page
+  results_on_new_tab: false
+
+# Outgoing requests configuration
+outgoing:
+  # Request timeout
+  request_timeout: 5.0
+  # Max request timeout
+  max_request_timeout: 15.0
+  # User agent rotation
+  useragent_suffix: ""
+  # Pool connections
+  pool_connections: 100
+  pool_maxsize: 20
+
+# Enabled search engines
+# Prioritize privacy-respecting engines
+engines:
+  # DuckDuckGo - Primary (no tracking)
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    disabled: false
+    weight: 1.5
+
+  # Wikipedia - For factual info
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wp
+    disabled: false
+    weight: 1.2
+
+  # Brave Search - Privacy-focused
+  - name: brave
+    engine: brave
+    shortcut: br
+    disabled: false
+    weight: 1.0
+
+  # Qwant - European privacy search
+  - name: qwant
+    engine: qwant
+    shortcut: qw
+    disabled: false
+    weight: 0.8
+
+  # Bing - Fallback with good results
+  - name: bing
+    engine: bing
+    shortcut: bi
+    disabled: false
+    weight: 0.5
+
+  # Google - Best for medical/professional searches
+  - name: google
+    engine: google
+    shortcut: g
+    disabled: false
+    weight: 2.0
+
+  # Disable engines that require API keys or are slow
+  - name: google scholar
+    disabled: true
+  - name: yahoo
+    disabled: true
+
+# Plugins
+enabled_plugins:
+  - 'Hash plugin'
+  - 'Hostname replace'
+  - 'Tracker URL remover'

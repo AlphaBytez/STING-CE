@@ -1,0 +1,72 @@
+#===============================================================================
+# STING Backup Cron Template
+# Copy this to /etc/cron.d/sting-backup or use setup-backup-cron.sh
+#===============================================================================
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=root
+
+# Environment variables - UPDATE THESE FOR YOUR INSTALLATION
+STING_INSTALL_DIR=/opt/sting-ce
+BACKUP_DIR=/opt/sting-backups
+BACKUP_USER=root
+
+#---------------------------------------------------------------------------
+# STING Backup Jobs
+#---------------------------------------------------------------------------
+
+# Daily full backup at 2:30 AM
+30 2 * * * root /opt/sting-ce/scripts/backup/backup-wrapper.sh backup --directory /opt/sting-backups >> /opt/sting-backups/backup.log 2>&1
+
+# Weekly full backup with encryption on Sunday at 3:30 AM
+30 3 * * 0 root /opt/sting-ce/scripts/backup/backup-wrapper.sh backup --directory /opt/sting-backups --encrypt >> /opt/sting-backups/backup.log 2>&1
+
+# Vault backup every 6 hours
+0 */6 * * * root /opt/sting-ce/vault/scripts/backup-vault.sh >> /vault/backups/vault_backup.log 2>&1
+
+#---------------------------------------------------------------------------
+# STING Backup Monitoring Jobs
+#---------------------------------------------------------------------------
+
+# Hourly backup freshness check (alerts if backup is older than 48 hours)
+0 * * * * root /opt/sting-ce/scripts/backup/backup-monitor.sh freshness --backup-dir /opt/sting-backups
+
+# Daily comprehensive health check at 6 AM
+0 6 * * * root /opt/sting-ce/scripts/backup/backup-monitor.sh check --backup-dir /opt/sting-backups
+
+# Weekly integrity verification on Sunday at 7 AM
+0 7 * * 0 root /opt/sting-ce/scripts/backup/backup-monitor.sh integrity --backup-dir /opt/sting-backups
+
+#---------------------------------------------------------------------------
+# Backup Rotation (daily at 4 AM)
+#---------------------------------------------------------------------------
+0 4 * * * root /opt/sting-ce/scripts/backup/backup-wrapper.sh rotate --directory /opt/sting-backups
+
+#===============================================================================
+# Alternative: Minimal Backup Schedule (for low-resource systems)
+#===============================================================================
+# Uncomment below for minimal backup setup
+#
+## Daily backup at 2 AM
+#0 2 * * * root /opt/sting-ce/scripts/backup/backup-wrapper.sh backup --directory /opt/sting-backups >> /opt/sting-backups/backup.log 2>&1
+#
+## Daily health check at 8 AM
+#0 8 * * * root /opt/sting-ce/scripts/backup/backup-monitor.sh check --backup-dir /opt/sting-backups
+#
+## Vault backup daily at midnight
+#0 0 * * * root /opt/sting-ce/vault/scripts/backup-vault.sh >> /vault/backups/vault_backup.log 2>&1
+
+#===============================================================================
+# Alternative: Frequent Backups (for critical systems)
+#===============================================================================
+# Uncomment below for more frequent backups
+#
+## Every 6 hours
+#0 */6 * * * root /opt/sting-ce/scripts/backup/backup-wrapper.sh backup --directory /opt/sting-backups >> /opt/sting-backups/backup.log 2>&1
+#
+## Every 3 hours
+#0 */3 * * * root /opt/sting-ce/scripts/backup/backup-monitor.sh freshness --backup-dir /opt/sting-backups
+#
+## Every 12 hours integrity check
+#0 */12 * * * root /opt/sting-ce/scripts/backup/backup-monitor.sh integrity --backup-dir /opt/sting-backups

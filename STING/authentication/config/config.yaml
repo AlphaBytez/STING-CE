@@ -1,0 +1,47 @@
+# authentication/config/config.yaml
+postgresql_config:
+  host: "db"
+  port: 5432
+  user: "postgres"
+  password: ${POSTGRES_PASSWORD}
+  database_name: ${POSTGRES_DB}
+  connection_pool_size: 10
+  key_value_table_schema: "public"
+  
+core_config:
+  port: 3567
+  host: "0.0.0.0"
+  framework: "flask"
+  api_key: ["${ST_API_KEY}"]
+
+dashboard_config:
+  api_keys: ["${ST_DASHBOARD_API_KEY}"]
+
+access_token_validity: 3600
+refresh_token_validity: 2592000
+
+email_password_enabled: true
+passwordless_enabled: true    # enable email magic-link fallback
+webauthn_enabled: true        # enable WebAuthn (passkeys)
+
+# authentication/config/config.yaml
+cors_allowed_origins: 
+  - "http://frontend:8443"  # Frontend service name
+  - "http://app:5050"       # App service name
+  - "http://localhost:8443" # For external browser access
+  - "http://localhost:5050" # For external browser access
+
+# If you're using the web-server service (nginx)
+  - "http://web-server:80" # For nginx proxy
+  - "http://localhost:80"  # For external nginx access
+
+cors_allowed_methods: ["GET", "PUT", "POST", "DELETE", "OPTIONS", "PATCH"]
+cors_allowed_headers: [
+  "content-type",
+  "st-auth-mode", 
+  "authorization",
+  "Access-Control-Allow-Origin",
+  "Access-Control-Allow-Credentials"
+]
+cors_allowed_credentials: true
+cors_exposed_headers: []

@@ -1,0 +1,12 @@
+FROM oryd/kratos:latest
+
+# Copy the configuration files
+COPY main.kratos.yml /etc/config/kratos/kratos.yml
+COPY identity.schema.json /etc/config/kratos/identity.schema.json
+COPY passkey-identity.schema.json /etc/config/kratos/passkey-identity.schema.json
+
+# Expose the Kratos ports
+EXPOSE 4433 4434
+
+# Run Kratos with the custom configuration
+ENTRYPOINT ["kratos", "migrate", "sql", "-e", "--yes", "&&", "kratos", "serve", "-c", "/etc/config/kratos/kratos.yml"]

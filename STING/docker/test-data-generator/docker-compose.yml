@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  test-data-generator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sting-test-data-generator
+    environment:
+      # Configurable generation parameters
+      - NUM_PATIENTS=1000          # Number of synthetic patients
+      - NUM_LEGAL_DOCS=500         # Number of legal documents
+      - NUM_FINANCIAL_RECORDS=1000 # Number of financial records
+    volumes:
+      # Mount local directory for output
+      - ./output:/data/output
+      # Mount STING generators if available
+      - ../../app/services:/app/sting_generators:ro
+    working_dir: /app
+    command: python3 generate_test_data.py
+    
+    # Resource limits to prevent runaway processes
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+    
+    # Remove container after completion
+    restart: "no"
