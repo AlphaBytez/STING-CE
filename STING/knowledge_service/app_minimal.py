@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 STING Knowledge Service with ChromaDB
-FastAPI service that provides honey pot knowledge management
+FastAPI service that provides honey jar knowledge management
 with ChromaDB vector database support.
 """
 
@@ -79,7 +79,7 @@ class SearchResponse(BaseModel):
 # Create FastAPI app
 app = FastAPI(
     title="STING Knowledge Service - The Hive",
-    description="Honey pot knowledge management system with ChromaDB support",
+    description="Honey jar knowledge management system with ChromaDB support",
     version="1.0.0"
 )
 
@@ -139,8 +139,8 @@ async def root():
         "message": "STING Knowledge Service - Minimal Mode",
         "endpoints": [
             "/health",
-            "/honey-pots",
-            "/honey-pots/{id}",
+            "/honey-jars",
+            "/honey-jars/{id}",
             "/search",
             "/bee/context"
         ],
@@ -148,9 +148,9 @@ async def root():
     }
 
 # Honey Jar Management Endpoints
-@app.get("/honey-pots")
+@app.get("/honey-jars")
 async def list_honey_jars():
-    """List all honey pots"""
+    """List all honey jars"""
     honey_jars = []
     for hp_id, hp_data in honey_jars_db.items():
         honey_jars.append(HoneyJarResponse(
@@ -174,11 +174,11 @@ async def list_honey_jars():
         "has_more": False
     }
 
-@app.get("/honey-pots/{honey_jar_id}")
+@app.get("/honey-jars/{honey_jar_id}")
 async def get_honey_jar(honey_jar_id: str):
-    """Get a specific honey pot"""
+    """Get a specific honey jar"""
     if honey_jar_id not in honey_jars_db:
-        raise HTTPException(status_code=404, detail="Honey pot not found")
+        raise HTTPException(status_code=404, detail="Honey jar not found")
     
     hp_data = honey_jars_db[honey_jar_id]
     return HoneyJarResponse(
@@ -194,9 +194,9 @@ async def get_honey_jar(honey_jar_id: str):
         stats=hp_data["stats"]
     )
 
-@app.post("/honey-pots")
+@app.post("/honey-jars")
 async def create_honey_jar(request: HoneyJarCreateRequest):
-    """Create a new honey pot"""
+    """Create a new honey jar"""
     honey_jar_id = str(uuid.uuid4())
     
     honey_jar_data = {
@@ -233,19 +233,19 @@ async def create_honey_jar(request: HoneyJarCreateRequest):
         stats=honey_jar_data["stats"]
     )
 
-@app.delete("/honey-pots/{honey_jar_id}")
+@app.delete("/honey-jars/{honey_jar_id}")
 async def delete_honey_jar(honey_jar_id: str):
-    """Delete a honey pot"""
+    """Delete a honey jar"""
     if honey_jar_id not in honey_jars_db:
-        raise HTTPException(status_code=404, detail="Honey pot not found")
+        raise HTTPException(status_code=404, detail="Honey jar not found")
     
     del honey_jars_db[honey_jar_id]
-    return {"message": "Honey pot deleted successfully"}
+    return {"message": "Honey jar deleted successfully"}
 
 # Search Endpoints
 @app.post("/search")
 async def search_knowledge(request: SearchRequest):
-    """Search across honey pots with ChromaDB or fallback to mock"""
+    """Search across honey jars with ChromaDB or fallback to mock"""
     import time
     start_time = time.time()
     

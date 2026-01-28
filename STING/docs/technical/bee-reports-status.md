@@ -7,27 +7,27 @@ Successfully renamed across the following files:
 - `frontend/src/components/pages/SwarmOrchestrationPage.jsx`
   - Line 397: "Honey Jar federation" → "Honey Jar federation"
 - `frontend/src/components/pages/TeamsPage.jsx`
-  - Line 219: "Honey Pots" → "Honey Jars"
-  - Line 308: "Honey Pots" → "Honey Jars"
-  - Line 386: "Honey Jar Access" → "Honey Jar Access"
-  - Line 122: "Added Honey Jar management UI" → "Added Honey Jar management UI"
+  - Line 219: "Honey Jars"
+  - Line 308: "Honey Jars"
+  - Line 386: "Honey Jar Access"
+  - Line 122: "Added Honey Jar management UI"
 - `frontend/src/components/pages/MarketplacePage.jsx`
-  - Line 351: "Honey Jar Marketplace" → "Honey Jar Marketplace"
-  - Line 376: "Available Honey Pots" → "Available Honey Jars"
-  - Line 467: placeholder "Search honey pots..." → "Search honey jars..."
-  - Line 532: "honey pots" → "honey jars"
-  - Line 534: "Honey Pots Grid/List" → "Honey Jars Grid/List"
-  - Line 802: "No honey pots found" → "No honey jars found"
+  - Line 351: "Honey Jar Marketplace"
+  - Line 376: "Available Honey Jars"
+  - Line 467: placeholder "Search honey jars..."
+  - Line 532: "honey jars"
+  - Line 534: "Honey Jars Grid/List"
+  - Line 802: "No honey jars found"
 - `frontend/src/components/pages/HiveManagerPage.jsx`
-  - Line 186: "Create Honey Jar" → "Create Honey Jar"
-  - Line 212: "Total Honey Pots" → "Total Honey Jars"
-  - Line 294: "Storage Usage by Honey Jar" → "Storage Usage by Honey Jar"
-  - Line 483: "Create New Honey Jar" → "Create New Honey Jar"
-  - Line 491: placeholder "Enter honey pot name" → "Enter honey jar name"
-  - Line 471: "control access to your Honey Pots" → "control access to your Honey Jars"
+  - Line 186: "Create Honey Jar"
+  - Line 212: "Total Honey Jars"
+  - Line 294: "Storage Usage by Honey Jar"
+  - Line 483: "Create New Honey Jar"
+  - Line 491: placeholder "Enter honey jar name"
+  - Line 471: "control access to your Honey Jars"
 - `frontend/src/components/MainInterfaceV2.js`
-  - Line 74: navigation item "Honey Pots" → "Honey Jars"
-  - Line 104: display name 'Pots' → 'Jars'
+  - Line 74: navigation item "Honey Jars"
+  - Line 104: display name 'Jars'
 
 ## Research Completed 📋
 

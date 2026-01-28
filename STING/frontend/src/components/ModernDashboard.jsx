@@ -181,7 +181,7 @@ const ModernDashboard = () => {
     {
       id: 'honey-jars',
       title: 'Honey Jars',
-      description: 'Manage your deceptive honeypots and trap configurations',
+      description: 'Manage your knowledge bases and document collections',
       icon: Database,
       locked: !isUserAdmin && userLevel < 1,
       requirement: isUserAdmin ? 'Admin Access' : 'Available from start',

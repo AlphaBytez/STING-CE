@@ -3134,7 +3134,7 @@ async def bee_chat(request: BeeChatRequest):
             universal_report_instructions = """
 **CRITICAL PLATFORM IDENTITY NOTICE**:
 STING is a **knowledge management and AI document analysis platform**. It is:
-- A secure document repository system (Honey Jars store DOCUMENTS, not cyber threats)
+- A secure document repository system (Honey Jars store DOCUMENTS)
 - An AI-powered search and Q&A system for your uploaded documents
 - A report generation platform that analyzes YOUR documents
 
@@ -3142,9 +3142,9 @@ STING is **NOT**:
 - A cybersecurity honeypot or deception technology
 - A threat detection or intrusion detection system  
 - A security monitoring or incident response platform
-- Related to the cybersecurity concept of "honeypots" that trap attackers
+- Related to cybersecurity "honeypots" that trap attackers
 
-If web search results mention "honeypots" or "deception technology" in a CYBERSECURITY context, those articles are NOT about STING. Do NOT attribute those capabilities to STING. The term "Honey Jar" in STING refers to document repositories, NOT security decoys.
+When searching the web, ignore any results about cybersecurity "honeypots" or "deception technology" - those are NOT about STING. The term "Honey Jar" in STING refers to document repositories for knowledge management.
 
 **CRITICAL ANTI-HALLUCINATION RULES - MANDATORY COMPLIANCE REQUIRED**:
 
@@ -3205,7 +3205,7 @@ GUIDELINES:
    - Comprehensive audit logging: Track who accessed what and when
    - Report generation: AI-powered analysis and report creation from your knowledge base
    
-   **IMPORTANT**: STING is a secure knowledge management and AI document analysis platform. It is NOT a cybersecurity honeypot, threat detection system, or deception technology platform. Do not describe STING as having capabilities it doesn't have.
+   **IMPORTANT**: STING is a secure knowledge management and AI document analysis platform. It is NOT a cybersecurity honeypot, threat detection system, or deception technology platform.
 
 5. **Include real-world context** - If the user mentions a timeframe (e.g., "2024-2025 threats"), you MUST include specific, realistic examples of actual or plausible incidents, vulnerabilities, or attack vectors from that period. Name specific threat types, protocols, or attack techniques relevant to the domain.
 

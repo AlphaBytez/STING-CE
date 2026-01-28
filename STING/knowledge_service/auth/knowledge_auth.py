@@ -235,13 +235,13 @@ class KnowledgeAuth:
     
     async def can_create_honey_jar(self, user: Dict[str, Any]) -> bool:
         """
-        Check if user can create new Honey Pots
+        Check if user can create new Honey Jars
         
         Args:
             user: User information
             
         Returns:
-            True if user can create Honey Pots, False otherwise
+            True if user can create Honey Jars, False otherwise
         """
         try:
             user_role = user.get("role", "user")

@@ -84,7 +84,7 @@ curl -s -X POST "$API_BASE/honey jars" \
 echo -e "\n${YELLOW}Importing threat intelligence...${NC}"
 
 # Create threat intelligence knowledge base
-curl -s -X POST "$KNOWLEDGE_API/honey-pots" \
+curl -s -X POST "$KNOWLEDGE_API/honey-jars" \
     -H "Content-Type: application/json" \
     -d '{
         "name": "Global Threat Intelligence",

@@ -27,7 +27,7 @@ class PollinationEngine:
         filters: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
         """
-        Perform semantic search across specified Honey Pots
+        Perform semantic search across specified Honey Jars
         
         Args:
             query: Search query
@@ -39,7 +39,7 @@ class PollinationEngine:
             List of search results with content, metadata, and scores
         """
         try:
-            logger.info(f"Searching across {len(honey_jar_ids)} Honey Pots for: {query}")
+            logger.info(f"Searching across {len(honey_jar_ids)} Honey Jars for: {query}")
             
             # Use honeycomb manager to search multiple collections
             results = await self.honeycomb_manager.search_multiple_collections(
@@ -134,7 +134,7 @@ class PollinationEngine:
         max_context_length: int = 2000
     ) -> List[Dict[str, Any]]:
         """
-        Get relevant context for Bee from accessible Honey Pots
+        Get relevant context for Bee from accessible Honey Jars
         
         Args:
             query: User's query to Bee
@@ -146,14 +146,14 @@ class PollinationEngine:
             List of relevant context chunks for Bee
         """
         try:
-            # Get user's accessible Honey Pots
+            # Get user's accessible Honey Jars
             # This would normally query the hive_manager, for now using mock data
             accessible_honey_jars = await self._get_user_honey_jars(user)
             
             if not accessible_honey_jars:
                 return []
             
-            # Search across accessible Honey Pots
+            # Search across accessible Honey Jars
             results = await self.search(
                 query=query,
                 honey_jar_ids=accessible_honey_jars,
@@ -209,7 +209,7 @@ class PollinationEngine:
         
         Args:
             query: Search query
-            honey_jar_ids: Honey Pots to search
+            honey_jar_ids: Honey Jars to search
             top_k: Number of results
             rerank_by: Reranking strategy (relevance, recency, popularity)
             

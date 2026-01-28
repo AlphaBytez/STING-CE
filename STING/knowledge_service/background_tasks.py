@@ -48,7 +48,7 @@ def process_document_task(self, honey_jar_id: str, document_id: str, file_path: 
     Background task to process uploaded documents
     """
     try:
-        logger.info(f"Starting document processing for {document_id} in honey pot {honey_jar_id}")
+        logger.info(f"Starting document processing for {document_id} in honey jar {honey_jar_id}")
         
         # Update task progress
         self.update_state(
@@ -143,7 +143,7 @@ def bulk_process_documents_task(self, honey_jar_id: str, document_specs: List[Di
     Background task to process multiple documents in batch
     """
     try:
-        logger.info(f"Starting bulk processing of {len(document_specs)} documents for honey pot {honey_jar_id}")
+        logger.info(f"Starting bulk processing of {len(document_specs)} documents for honey jar {honey_jar_id}")
         
         total_docs = len(document_specs)
         processed_docs = []
@@ -206,7 +206,7 @@ def bulk_process_documents_task(self, honey_jar_id: str, document_specs: List[Di
         }
         
     except Exception as e:
-        logger.error(f"Bulk processing failed for honey pot {honey_jar_id}: {str(e)}")
+        logger.error(f"Bulk processing failed for honey jar {honey_jar_id}: {str(e)}")
         self.update_state(
             state='FAILURE',
             meta={
@@ -221,10 +221,10 @@ def bulk_process_documents_task(self, honey_jar_id: str, document_specs: List[Di
 @celery_app.task(bind=True, name='rebuild_honey_jar_index')
 def rebuild_honey_jar_index_task(self, honey_jar_id: str):
     """
-    Background task to rebuild vector index for a honey pot
+    Background task to rebuild vector index for a honey jar
     """
     try:
-        logger.info(f"Starting index rebuild for honey pot {honey_jar_id}")
+        logger.info(f"Starting index rebuild for honey jar {honey_jar_id}")
         
         self.update_state(
             state='PROGRESS',
@@ -248,11 +248,11 @@ def rebuild_honey_jar_index_task(self, honey_jar_id: str):
             }
         )
         
-        logger.info(f"Successfully rebuilt index for honey pot {honey_jar_id}")
+        logger.info(f"Successfully rebuilt index for honey jar {honey_jar_id}")
         return result
         
     except Exception as e:
-        logger.error(f"Failed to rebuild index for honey pot {honey_jar_id}: {str(e)}")
+        logger.error(f"Failed to rebuild index for honey jar {honey_jar_id}: {str(e)}")
         self.update_state(
             state='FAILURE',
             meta={

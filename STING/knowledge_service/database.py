@@ -2,7 +2,7 @@
 """
 Database Models for Knowledge Service
 
-SQLAlchemy models for PostgreSQL persistence of honey pot metadata.
+SQLAlchemy models for PostgreSQL persistence of honey jar metadata.
 """
 
 import os
@@ -101,13 +101,13 @@ def drop_tables():
 
 # Database operations
 class HoneyJarRepository:
-    """Repository for honey pot operations"""
+    """Repository for honey jar operations"""
     
     def __init__(self, db_session):
         self.db = db_session
     
     def create_honey_jar(self, data: dict) -> HoneyJar:
-        """Create a new honey pot"""
+        """Create a new honey jar"""
         honey_jar = HoneyJar(
             name=data['name'],
             description=data['description'],
@@ -122,7 +122,7 @@ class HoneyJarRepository:
         return honey_jar
     
     def get_honey_jar(self, honey_jar_id: str) -> HoneyJar:
-        """Get honey pot by ID"""
+        """Get honey jar by ID"""
         try:
             # Convert string to UUID if needed
             if isinstance(honey_jar_id, str):
@@ -135,14 +135,14 @@ class HoneyJarRepository:
             return None
     
     def list_honey_jars(self, owner: str = None, limit: int = 50, offset: int = 0):
-        """List honey pots with optional filtering"""
+        """List honey jars with optional filtering"""
         query = self.db.query(HoneyJar)
         if owner:
             query = query.filter(HoneyJar.owner == owner)
         return query.offset(offset).limit(limit).all()
     
     def update_honey_jar(self, honey_jar_id: str, data: dict) -> HoneyJar:
-        """Update honey pot"""
+        """Update honey jar"""
         honey_jar = self.get_honey_jar(honey_jar_id)  # get_honey_jar already handles UUID conversion
         if honey_jar:
             for key, value in data.items():
@@ -154,7 +154,7 @@ class HoneyJarRepository:
         return honey_jar
 
     def delete_honey_jar(self, honey_jar_id: str) -> bool:
-        """Delete honey pot"""
+        """Delete honey jar"""
         honey_jar = self.get_honey_jar(honey_jar_id)  # get_honey_jar already handles UUID conversion
         if honey_jar:
             self.db.delete(honey_jar)
@@ -163,7 +163,7 @@ class HoneyJarRepository:
         return False
     
     def update_stats(self, honey_jar_id: str, stats: dict):
-        """Update honey pot statistics"""
+        """Update honey jar statistics"""
         honey_jar = self.get_honey_jar(honey_jar_id)  # get_honey_jar already handles UUID conversion
         if honey_jar:
             honey_jar.document_count = stats.get('document_count', honey_jar.document_count)
@@ -279,7 +279,7 @@ class DocumentRepository:
             return None
     
     def list_documents(self, honey_jar_id: str, limit: int = 100, offset: int = 0):
-        """List documents for a honey pot"""
+        """List documents for a honey jar"""
         try:
             # Convert string to UUID if needed
             if isinstance(honey_jar_id, str):

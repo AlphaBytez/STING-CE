@@ -39,7 +39,7 @@
  WHAT STING DOES NOT HAVE (Hallucination Red Flags):
  -------------------------------------------------------------------------
  ✗ Threat detection / intrusion detection
- ✗ Honey pots / honey jars / deception technology
+ ✗ Deception technology / security honeypots
  ✗ Real-time security monitoring
  ✗ Automated incident response
  ✗ Encrypted data stream analysis
@@ -125,7 +125,7 @@
 
    STING cannot (do not claim):
    - Detect threats in real-time
-   - Deploy honey pots
+   - Deploy security honeypots
    - Monitor network traffic
 
  ============================================================================
@@ -180,7 +180,7 @@
  STING IS NOT:
  • A security monitoring system
  • A threat detection platform
- • A deception technology (honeypot) system
+ • A deception technology (security honeypot) system
  • An intrusion detection system
  • A network security tool
  • A drone/UAV security solution

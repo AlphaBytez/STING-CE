@@ -212,9 +212,9 @@ paths:
 ### 2. Honey Jar Management (Knowledge Bases)
 
 ```yaml
-  /honey-pots:
+  /honey-jars:
     get:
-      summary: List honey pots (knowledge bases)
+      summary: List honey jars (knowledge bases)
       tags: [Knowledge Management]
       parameters:
         - name: page
@@ -242,7 +242,7 @@ paths:
             enum: [public, private, premium, marketplace]
       responses:
         200:
-          description: List of honey pots
+          description: List of honey jars
           content:
             application/json:
               schema:
@@ -256,7 +256,7 @@ paths:
                     $ref: '#/components/schemas/Pagination'
 
     post:
-      summary: Create new honey pot (knowledge base)
+      summary: Create new honey jar (knowledge base)
       tags: [Knowledge Management]
       requestBody:
         required: true
@@ -266,15 +266,15 @@ paths:
               $ref: '#/components/schemas/HoneyJarCreate'
       responses:
         201:
-          description: Honey pot created
+          description: Honey jar created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HoneyJar'
 
-  /honey-pots/{id}:
+  /honey-jars/{id}:
     get:
-      summary: Get honey pot details
+      summary: Get honey jar details
       tags: [Knowledge Management]
       parameters:
         - name: id
@@ -285,14 +285,14 @@ paths:
             format: uuid
       responses:
         200:
-          description: Honey pot details
+          description: Honey jar details
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HoneyJarDetail'
 
     put:
-      summary: Update honey pot
+      summary: Update honey jar
       tags: [Knowledge Management]
       parameters:
         - name: id
@@ -309,14 +309,14 @@ paths:
               $ref: '#/components/schemas/HoneyJarUpdate'
       responses:
         200:
-          description: Honey pot updated
+          description: Honey jar updated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HoneyJar'
 
     delete:
-      summary: Delete honey pot
+      summary: Delete honey jar
       tags: [Knowledge Management]
       parameters:
         - name: id
@@ -327,11 +327,11 @@ paths:
             format: uuid
       responses:
         204:
-          description: Honey pot deleted
+          description: Honey jar deleted
 
-  /honey-pots/{id}/documents:
+  /honey-jars/{id}/documents:
     get:
-      summary: List documents in honey pot
+      summary: List documents in honey jar
       tags: [Knowledge Management]
       parameters:
         - name: id
@@ -356,7 +356,7 @@ paths:
                     $ref: '#/components/schemas/Pagination'
 
     post:
-      summary: Upload document to honey pot
+      summary: Upload document to honey jar
       tags: [Knowledge Management]
       parameters:
         - name: id
@@ -387,7 +387,7 @@ paths:
 ```yaml
   /documents:
     get:
-      summary: List documents across honey pots
+      summary: List documents across honey jars
       tags: [Documents]
       parameters:
         - name: honey_jar_id

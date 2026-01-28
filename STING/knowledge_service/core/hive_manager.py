@@ -28,7 +28,7 @@ class HiveManager:
         self._initialize_data()
     
     def _initialize_data(self):
-        """Initialize default Honey Pots and permissions if files don't exist"""
+        """Initialize default Honey Jars and permissions if files don't exist"""
         if not os.path.exists(self.honey_jars_file):
             default_honey_jars = [
                 {
@@ -178,7 +178,7 @@ class HiveManager:
                 }
             }
             
-            # Load existing honey pots
+            # Load existing honey jars
             honey_jars = self._load_honey_jars()
             honey_jars.append(honey_jar)
             
@@ -209,11 +209,11 @@ class HiveManager:
             raise
     
     async def list_honey_jars(self) -> List[Dict[str, Any]]:
-        """List all Honey Pots"""
+        """List all Honey Jars"""
         try:
             return self._load_honey_jars()
         except Exception as e:
-            logger.error(f"Failed to list Honey Pots: {e}")
+            logger.error(f"Failed to list Honey Jars: {e}")
             return []
     
     async def list_user_honey_jars(
@@ -222,7 +222,7 @@ class HiveManager:
         type_filter: Optional[str] = None,
         tag_filter: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """List Honey Pots accessible to a specific user"""
+        """List Honey Jars accessible to a specific user"""
         try:
             all_honey_jars = self._load_honey_jars()
             accessible_honey_jars = []
@@ -238,11 +238,11 @@ class HiveManager:
                     
                     accessible_honey_jars.append(honey_jar)
             
-            logger.info(f"User {user.get('email', 'unknown')} has access to {len(accessible_honey_jars)} Honey Pots")
+            logger.info(f"User {user.get('email', 'unknown')} has access to {len(accessible_honey_jars)} Honey Jars")
             return accessible_honey_jars
             
         except Exception as e:
-            logger.error(f"Failed to list user Honey Pots: {e}")
+            logger.error(f"Failed to list user Honey Jars: {e}")
             return []
     
     async def update_honey_jar(
@@ -340,14 +340,14 @@ class HiveManager:
             return False
     
     def _load_honey_jars(self) -> List[Dict[str, Any]]:
-        """Load Honey Pots from storage"""
+        """Load Honey Jars from storage"""
         try:
             with open(self.honey_jars_file, 'r') as f:
                 return json.load(f)
         except FileNotFoundError:
             return []
         except Exception as e:
-            logger.error(f"Failed to load Honey Pots: {e}")
+            logger.error(f"Failed to load Honey Jars: {e}")
             return []
     
     def _load_permissions(self) -> Dict[str, Any]:
@@ -419,7 +419,7 @@ class HiveManager:
             return {}
     
     def _get_popular_tags(self, honey_jars: List[Dict[str, Any]]) -> List[str]:
-        """Get most popular tags across all Honey Pots"""
+        """Get most popular tags across all Honey Jars"""
         tag_counts = {}
         
         for honey_jar in honey_jars:

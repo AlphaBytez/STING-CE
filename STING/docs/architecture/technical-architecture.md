@@ -207,16 +207,16 @@ sequenceDiagram
 
 ```python
 # Resource-based URLs
-GET    /api/v1/honey-pots           # List honey pots
-POST   /api/v1/honey-pots           # Create honey pot
-GET    /api/v1/honey-pots/{id}      # Get honey pot
-PUT    /api/v1/honey-pots/{id}      # Update honey pot
-DELETE /api/v1/honey-pots/{id}      # Delete honey pot
+GET    /api/v1/honey-jars           # List honey jars
+POST   /api/v1/honey-jars           # Create honey jar
+GET    /api/v1/honey-jars/{id}      # Get honey jar
+PUT    /api/v1/honey-jars/{id}      # Update honey jar
+DELETE /api/v1/honey-jars/{id}      # Delete honey jar
 
 # Nested Resources
-GET    /api/v1/honey-pots/{id}/documents
-GET    /api/v1/honey-pots/{id}/search
-POST   /api/v1/honey-pots/{id}/upload
+GET    /api/v1/honey-jars/{id}/documents
+GET    /api/v1/honey-jars/{id}/search
+POST   /api/v1/honey-jars/{id}/upload
 
 # Search and Filtering
 GET    /api/v1/documents?type=pdf&honey_jar={id}&from=2024-01-01

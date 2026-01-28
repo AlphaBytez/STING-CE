@@ -20,7 +20,7 @@ Comprehensive mobile optimization has been implemented across STING to ensure a 
 
 ### 3. Pages Updated
 - **HiveManagerPage**: Fixed modal responsiveness, grid layouts
-- **HoneyPotPage**: Converted to ResponsiveModal, fixed grid stacking
+- **HoneyJarPage**: Converted to ResponsiveModal, fixed grid stacking
 - **BeeChat**: Complete mobile layout overhaul with floating grains
 - **KratosDebug**: Added table wrapper for environment information
 
@@ -61,7 +61,7 @@ Comprehensive mobile optimization has been implemented across STING to ensure a 
 - `/frontend/src/components/chat/FloatingActionSuite.css`
 - `/frontend/src/components/chat/BeeChat.jsx`
 - `/frontend/src/components/pages/HiveManagerPage.jsx`
-- `/frontend/src/components/pages/HoneyPotPage.jsx`
+- `/frontend/src/components/pages/HoneyJarPage.jsx`
 - `/frontend/src/components/auth/KratosDebug.jsx`
 - `/frontend/src/App.js` (imported mobile utilities)
 

@@ -333,7 +333,7 @@ python3 create_admin.py --email admin@company.com --temp-password
 - **Government**: Classified information processing with air-gapped deployment
 
 ### **Knowledge Monetization**
-- **Consulting Firms**: Package expertise into sellable Honey Pots
+- **Consulting Firms**: Package expertise into sellable Honey Jars
 - **Educational Institutions**: Create and distribute course materials
 - **Technical Organizations**: Monetize documentation and best practices
 - **Industry Experts**: Build subscription-based knowledge services

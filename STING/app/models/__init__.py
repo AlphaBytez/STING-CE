@@ -28,7 +28,7 @@ from .support_ticket_models import (
     IssueType, SupportSessionType, SupportSessionStatus
 )
 
-# Temporarily disable honey pot models until full integration
+# Temporarily disable honey jar models until full integration
 # from .honey_jar_models import HoneyJar, HoneyJarType, HoneyJarStatus
 
 __all__ = [
