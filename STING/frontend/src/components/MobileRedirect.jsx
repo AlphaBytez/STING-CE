@@ -114,12 +114,32 @@ const MobileRedirect = ({ children, to = '/m/', enabled = true }) => {
   // Check if already on a mobile route - don't redirect if so!
   const isAlreadyOnMobileRoute = location.pathname.startsWith('/m');
 
-  // Redirect mobile users to mobile routes (only if not already on mobile routes)
-  if (enabled && isMobile && !isAlreadyOnMobileRoute) {
+  // CRITICAL: Don't redirect on auth routes - this causes infinite loops!
+  // Mobile users need to access these routes before being redirected to /m/
+  const authRoutes = [
+    '/login',
+    '/register',
+    '/logout',
+    '/verification',
+    '/error',
+    '/change-password',
+    '/credential-setup',
+    '/post-registration',
+    '/security-upgrade',
+    '/session-check',
+    '/quick-logout',
+    '/enrollment',
+    '/first-run',
+    '/debug',
+  ];
+  const isOnAuthRoute = authRoutes.some(route => location.pathname.startsWith(route));
+
+  // Redirect mobile users to mobile routes (only if not already on mobile routes or auth routes)
+  if (enabled && isMobile && !isAlreadyOnMobileRoute && !isOnAuthRoute) {
     return <Navigate to={to} replace />;
   }
 
-  // Render children for desktop users OR mobile users already on /m/* routes
+  // Render children for desktop users, mobile users on /m/*, or users on auth routes
   return children;
 };
 

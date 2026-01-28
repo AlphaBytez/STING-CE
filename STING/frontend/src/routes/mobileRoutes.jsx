@@ -88,15 +88,21 @@ const withSuspense = (Component) => (props) => (
 
 /**
  * Auth guard for mobile routes
- * Does NOT block rendering - renders content while auth checks in background
+ * Shows loading spinner while auth checks in background
  * Redirects to login only if auth fails (not while loading)
  */
 const RequireAuth = ({ children }) => {
   const { isAuthenticated, isLoading } = useUnifiedAuth();
 
-  // Don't block rendering while checking auth
+  // Show loading while auth is being checked
+  if (isLoading) {
+    return <MobileLoadingSpinner />;
+  }
+
   // If not authenticated after loading completes, redirect
-  if (!isLoading && !isAuthenticated) {
+  if (!isAuthenticated) {
+    // Store the mobile redirect path so login can redirect back
+    sessionStorage.setItem('redirectAfterLogin', '/m/');
     return <Navigate to="/login" replace state={{ from: '/m/' }} />;
   }
 

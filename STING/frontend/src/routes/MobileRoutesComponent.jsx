@@ -26,8 +26,15 @@ const LoadingFallback = () => (
 const RequireAuth = ({ children }) => {
   const { isAuthenticated, isLoading } = useUnifiedAuth();
 
-  // Don't block rendering while checking auth
-  if (!isLoading && !isAuthenticated) {
+  // Show loading while auth is being checked
+  if (isLoading) {
+    return <MobileLoadingSpinner />;
+  }
+
+  // Only redirect when auth check is DONE and user is NOT authenticated
+  if (!isAuthenticated) {
+    // Store the mobile redirect path so login can redirect back
+    sessionStorage.setItem('redirectAfterLogin', '/m/');
     return <Navigate to="/login" replace state={{ from: '/m/' }} />;
   }
 
