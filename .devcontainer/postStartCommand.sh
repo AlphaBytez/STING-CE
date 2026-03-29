@@ -1,16 +1,16 @@
 #!/bin/bash
 
-# Post-start script to ensure Tailscale is running
-echo "Checking Tailscale status..."
+# Post-start script - runs every time the container starts
 
-# Ensure socket directory exists
-sudo mkdir -p /var/run/tailscale
-sudo chown -R vscode:vscode /var/run/tailscale
+if command -v tailscaled &> /dev/null; then
+    echo "Checking Tailscale status..."
+    sudo mkdir -p /var/run/tailscale
+    sudo chown -R vscode:vscode /var/run/tailscale
 
-# Start tailscale if needed
-/usr/local/bin/start-tailscale.sh
-
-# Add tailscale to PATH for current session
-export PATH="/usr/bin:$PATH"
-
-echo "Tailscale post-start setup complete!"
+    if [ -x /usr/local/bin/start-tailscale.sh ]; then
+        /usr/local/bin/start-tailscale.sh
+    fi
+    echo "Tailscale post-start setup complete!"
+else
+    echo "Tailscale not installed — skipping. Run install_sting.sh if needed."
+fi

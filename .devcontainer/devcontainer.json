@@ -2,10 +2,17 @@
   "name": "STING-CE Development Environment",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
   "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "dockerDashComposeVersion": "v2",
+      "installDockerBuildx": true
+    },
     "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers/features/python:1": {},
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11"
+    },
     "ghcr.io/devcontainers/features/node:1": {}
   },
+  "privileged": true,
   "customizations": {
     "vscode": {
       "extensions": [
