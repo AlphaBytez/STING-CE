@@ -757,8 +757,8 @@ class ConfigurationManager:
                         logger.error(f"Failed to migrate encryption key to Vault: {e}")
                 return existing_key
             
-            # Only generate new encryption key during initial setup (mode='initialize')
-            if self.mode != 'initialize':
+            # Only generate new encryption key during initial setup
+            if self.mode not in ('initialize', 'bootstrap'):
                 logger.error(f"CRITICAL: Encryption key at '{path}' not found in Vault!")
                 logger.error(f"This key is required to decrypt user files. Options:")
                 logger.error(f"  1. Restore the key from backup")
