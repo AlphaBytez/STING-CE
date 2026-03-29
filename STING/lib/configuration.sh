@@ -250,6 +250,16 @@ generate_initial_configuration() {
         # Ensure env directory exists in container for config generation
         exec_in_utils "mkdir -p /app/env"
         
+        # Sync config files into the container's config_data volume
+        # The named volume at /app/conf shadows the bind mount, so on fresh installs
+        # the config files from the repo aren't visible. Copy them in explicitly.
+        log_message "Syncing configuration files into utils container..."
+        exec_in_utils "mkdir -p /app/conf"
+        docker cp "${CONFIG_DIR}/config.yml" sting-ce-utils:/app/conf/config.yml 2>/dev/null || true
+        docker cp "${SOURCE_DIR}/conf/config_loader.py" sting-ce-utils:/app/conf/config_loader.py 2>/dev/null || true
+        docker cp "${SOURCE_DIR}/conf/config_schema.py" sting-ce-utils:/app/conf/config_schema.py 2>/dev/null || true
+        docker cp "${SOURCE_DIR}/conf/__init__.py" sting-ce-utils:/app/conf/__init__.py 2>/dev/null || true
+        
         # Run config generation in utils container using bash for reliable path handling
         log_message "Running config generation with mode: $mode"
         if exec_in_utils "cd /app/conf && INSTALL_DIR=/app python3 config_loader.py config.yml --mode $mode"; then
