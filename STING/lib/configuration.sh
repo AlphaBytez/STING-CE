@@ -250,15 +250,27 @@ generate_initial_configuration() {
         # Ensure env directory exists in container for config generation
         exec_in_utils "mkdir -p /app/env"
         
-        # Sync config files into the container's config_data volume
-        # The named volume at /app/conf shadows the bind mount, so on fresh installs
-        # the config files from the repo aren't visible. Copy them in explicitly.
+        # Populate config_data volume on fresh installs
+        # The named volume at /app/conf shadows files baked into the Docker image.
+        # On first run the volume is empty, so we restore from /app/conf-defaults/
+        # which is a backup copy in the image that doesn't get shadowed.
         log_message "Syncing configuration files into utils container..."
-        exec_in_utils "mkdir -p /app/conf"
-        docker cp "${CONFIG_DIR}/config.yml" sting-ce-utils:/app/conf/config.yml 2>/dev/null || true
-        docker cp "${SOURCE_DIR}/conf/config_loader.py" sting-ce-utils:/app/conf/config_loader.py 2>/dev/null || true
-        docker cp "${SOURCE_DIR}/conf/config_schema.py" sting-ce-utils:/app/conf/config_schema.py 2>/dev/null || true
-        docker cp "${SOURCE_DIR}/conf/__init__.py" sting-ce-utils:/app/conf/__init__.py 2>/dev/null || true
+        exec_in_utils "
+            if [ ! -f /app/conf/config_loader.py ] && [ -d /app/conf-defaults ]; then
+                echo 'Fresh config_data volume — populating from image defaults...'
+                cp -a /app/conf-defaults/* /app/conf/
+            fi
+        "
+        # Copy the generated config.yml from host into the container volume
+        docker cp '${CONFIG_DIR}/config.yml' sting-ce-utils:/app/conf/config.yml 2>&1 || true
+        
+        # Final verification
+        if ! exec_in_utils "test -f /app/conf/config_loader.py && test -f /app/conf/config.yml"; then
+            log_message "CRITICAL: Config files missing from container after sync" "ERROR"
+            exec_in_utils "ls -la /app/conf/" || true
+            exec_in_utils "ls -la /app/conf-defaults/ 2>/dev/null" || true
+            return 1
+        fi
         
         # Run config generation in utils container using bash for reliable path handling
         log_message "Running config generation with mode: $mode"

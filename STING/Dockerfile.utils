@@ -4,6 +4,9 @@ WORKDIR /app
 
 # Copy all configuration files and app requirements
 COPY ./conf/ /app/conf/
+# Keep a backup copy that won't be shadowed by the config_data named volume
+# On fresh installs, the named volume is empty and shadows /app/conf
+COPY ./conf/ /app/conf-defaults/
 COPY ./app/requirements.txt /app/app/requirements.txt
 
 # Install Python dependencies from both sources
