@@ -1089,6 +1089,13 @@ class ConfigurationManager:
         if self.cache_key in self._config_cache:
             logger.debug(f"Using cached configuration for {self.cache_key}")
             self.processed_config = self._config_cache[self.cache_key]
+            # Still need to populate secrets from Vault even when using in-memory cache
+            # These are accessed directly by generate_env_file() and kratos.yml generation
+            self.db_password = self._clean_value(self._get_secret('database', 'password', supertokens_safe=False))
+            self.honey_reserve_master_key = self._clean_value(self._get_secret('honey_reserve', 'master_key', supertokens_safe=False))
+            self.service_api_key = self._clean_value(self._get_secret('sting/service_auth', 'api_key', supertokens_safe=False))
+            bee_api_secret = self._get_secret('service/bee-api-key', 'api_key')
+            self.bee_service_api_key = self._clean_value(bee_api_secret) if bee_api_secret else None
             return self.processed_config
 
         # State management check
@@ -1502,6 +1509,8 @@ class ConfigurationManager:
             'HONEY_RESERVE_MASTER_KEY': self._clean_value(self.honey_reserve_master_key),
             # Service API key for inter-service authentication
             'STING_SERVICE_API_KEY': self._clean_value(self.service_api_key),
+            # Alias for public-bee compatibility
+            'STING_API_KEY': self._clean_value(self.service_api_key),
         })
 
         logger.info(f"Config keys present: {list(self.processed_config.keys())}")
@@ -1514,7 +1523,10 @@ class ConfigurationManager:
         
         # Cache and save state
         self._config_cache[self.cache_key] = self.processed_config
-        self._save_config_state(self.processed_config)
+        try:
+            self._save_config_state(self.processed_config)
+        except OSError as e:
+            logger.warning(f"Could not save config state (non-fatal): {e}")
         
         return self.processed_config
     
@@ -1834,6 +1846,15 @@ class ConfigurationManager:
         env_vars['COURIER_SMTP_FROM_ADDRESS'] = email_env_vars.get('COURIER_SMTP_FROM_ADDRESS', 'noreply@sting.local')
         env_vars['COURIER_SMTP_FROM_NAME'] = email_env_vars.get('COURIER_SMTP_FROM_NAME', 'STING Platform')
         
+        # Webhook token for Kratos → App webhooks (uses service API key from Vault)
+        env_vars['KRATOS_WEBHOOK_TOKEN'] = self._clean_value(self.service_api_key) if self.service_api_key else ''
+        
+        # Add to processed_config so kratos.yml template substitution can access them
+        self.processed_config['SMTP_CONNECTION_URI'] = courier_smtp_uri
+        self.processed_config['KRATOS_WEBHOOK_TOKEN'] = env_vars['KRATOS_WEBHOOK_TOKEN']
+        self.processed_config['COURIER_SMTP_FROM_ADDRESS'] = env_vars['COURIER_SMTP_FROM_ADDRESS']
+        self.processed_config['COURIER_SMTP_FROM_NAME'] = env_vars['COURIER_SMTP_FROM_NAME']
+        
         # Add WebAuthn values to processed_config for app.env generation
         self.processed_config['WEBAUTHN_RP_ID'] = webauthn_rp_id
         self.processed_config['WEBAUTHN_RP_NAME'] = webauthn_display_name
@@ -1883,6 +1904,21 @@ class ConfigurationManager:
         chunk_size = str(processing.get('chunk_size', 1000))
         chunk_overlap = str(processing.get('chunk_overlap', 200))
         chunking_strategy = processing.get('chunking_strategy', 'sentence')
+        
+        # Session jar configuration
+        session_jars_config = knowledge_config.get('session_jars', {})
+        session_jars_enabled = str(session_jars_config.get('enabled', True)).lower()
+        session_jars_max_size_mb = str(session_jars_config.get('max_size_mb', 50))
+        session_jars_max_size_bytes = str(int(session_jars_config.get('max_size_mb', 50)) * 1024 * 1024)
+        session_jars_max_files = str(session_jars_config.get('max_files_per_jar', 20))
+        session_jars_cleanup_days = str(session_jars_config.get('cleanup_after_days', 30))
+        session_jars_allowed_types = ','.join(session_jars_config.get('allowed_file_types', [
+            'text/plain', 'text/markdown', 'text/html', 'application/pdf',
+            'application/json', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        ]))
+        promotion_config = session_jars_config.get('promotion', {})
+        session_jars_ai_summary = str(promotion_config.get('ai_summary_enabled', True)).lower()
+        session_jars_default_visibility = promotion_config.get('default_visibility', 'private')
         
         # Search configuration
         search_config = knowledge_config.get('search', {})
@@ -1936,6 +1972,15 @@ class ConfigurationManager:
             'KNOWLEDGE_CHUNK_SIZE': chunk_size,
             'KNOWLEDGE_CHUNK_OVERLAP': chunk_overlap,
             'KNOWLEDGE_CHUNKING_STRATEGY': chunking_strategy,
+            
+            # Session jar configuration
+            'SESSION_JAR_ENABLED': session_jars_enabled,
+            'SESSION_JAR_MAX_SIZE_BYTES': session_jars_max_size_bytes,
+            'SESSION_JAR_MAX_FILES': session_jars_max_files,
+            'SESSION_JAR_CLEANUP_DAYS': session_jars_cleanup_days,
+            'SESSION_JAR_ALLOWED_TYPES': session_jars_allowed_types,
+            'SESSION_JAR_AI_SUMMARY': session_jars_ai_summary,
+            'SESSION_JAR_DEFAULT_VISIBILITY': session_jars_default_visibility,
             
             # Search configuration
             'KNOWLEDGE_MAX_RESULTS': max_results,
@@ -2246,18 +2291,53 @@ class ConfigurationManager:
                 llm_model = llm_model or ollama_config.get('default_model', 'phi3:mini')
                 llm_provider = llm_provider or 'openai-compatible'  # LM Studio default
 
+            # Resolve nested config sections
+            ollama_config = nectar_config.get('ollama', {})
+            limits_config = nectar_config.get('limits', {})
+            performance_config = nectar_config.get('performance', {})
+
+            # STING API (internal service-to-service calls)
+            sting_api_key = self._get_secret('nectar_worker', 'api_key') if hasattr(self, '_get_secret') else ''
+            if not sting_api_key:
+                sting_api_key = self.processed_config.get('STING_INTERNAL_API_KEY', '')
+
+            llm_endpoint_resolved = (llm_endpoint or ollama_config.get('url', 'http://llm-gateway-proxy:11434')).rstrip('/')
+            llm_model_resolved = llm_model or ollama_config.get('default_model', 'phi3:mini')
+            llm_provider_resolved = llm_provider or 'openai-compatible'
+            keep_alive = ollama_config.get('keep_alive', '30m')
+
             return {
-                # Redis Configuration (using defaults or from config)
+                # STING API (internal)
+                'STING_API_URL': 'http://app:5000',
+                'STING_API_KEY': sting_api_key,
+
+                # Redis Configuration
                 'REDIS_HOST': 'redis',
                 'REDIS_PORT': '6379',
                 'REDIS_DB': str(nectar_config.get('redis_db', 2)),
                 'CONVERSATION_TTL': str(nectar_config.get('conversation_ttl', 3600)),
 
-                # LLM Configuration (LLM-agnostic from config)
-                'LLM_PROVIDER': llm_provider or 'openai-compatible',
-                'LLM_ENDPOINT': llm_endpoint.rstrip('/'),  # Remove trailing slash
-                'LLM_MODEL': llm_model or 'phi3:mini',
-                'LLM_API_KEY': '',  # For OpenAI, Anthropic, etc. (empty for local endpoints)
+                # LLM Configuration (LLM-agnostic)
+                'LLM_PROVIDER': llm_provider_resolved,
+                'LLM_ENDPOINT': llm_endpoint_resolved,
+                'LLM_MODEL': llm_model_resolved,
+                'LLM_API_KEY': nectar_config.get('llm_api_key', ''),
+
+                # Ollama-specific aliases (used by main.py / ollama_client.py)
+                'OLLAMA_URL': llm_endpoint_resolved,
+                'OLLAMA_KEEP_ALIVE': keep_alive,
+                'DEFAULT_MODEL': llm_model_resolved,
+
+                # Feature limits
+                'MAX_HONEY_JARS_PER_BOT': str(limits_config.get('max_honey_jars_per_bot', 3)),
+                'MAX_CONTEXT_TOKENS': str(limits_config.get('max_context_tokens', 2000)),
+
+                # Caching
+                'BOT_CACHE_TTL': str(performance_config.get('bot_config_cache_ttl', 300)),
+                'CONTEXT_CACHE_TTL': str(performance_config.get('honey_jar_cache_ttl', 300)),
+
+                # PII config path
+                'CONFIG_PATH': '/app/conf/config.yml',
 
                 # Service metadata
                 'NECTAR_WORKER_ENABLED': str(nectar_config.get('enabled', True)).lower(),
@@ -2267,29 +2347,34 @@ class ConfigurationManager:
 
         except Exception as e:
             logger.error(f"Failed to generate nectar-worker environment variables: {e}")
-            # Return minimal fallback configuration
-            fallback_api_key = self._generate_secret(32)
-
             return {
-                'STING_API_URL': 'https://app:5050',
-                'STING_API_KEY': fallback_api_key,
-                'OLLAMA_URL': 'http://ollama:11434',
-                'DEFAULT_MODEL': 'phi3:mini',
+                'STING_API_URL': 'http://app:5000',
+                'STING_API_KEY': '',
+                'REDIS_HOST': 'redis',
+                'REDIS_PORT': '6379',
+                'REDIS_DB': '2',
+                'CONVERSATION_TTL': '3600',
+                'LLM_PROVIDER': 'openai-compatible',
+                'LLM_ENDPOINT': 'http://llm-gateway-proxy:11434',
+                'LLM_MODEL': 'phi3:mini',
+                'LLM_API_KEY': '',
+                'OLLAMA_URL': 'http://llm-gateway-proxy:11434',
                 'OLLAMA_KEEP_ALIVE': '30m',
+                'DEFAULT_MODEL': 'phi3:mini',
                 'MAX_HONEY_JARS_PER_BOT': '3',
                 'MAX_CONTEXT_TOKENS': '2000',
-                'MAX_CONCURRENT_REQUESTS': '10',
-                'REQUEST_TIMEOUT': '60',
-                'HONEY_JAR_CACHE_SIZE': '100',
-                'HONEY_JAR_CACHE_TTL': '300',
-                'BOT_CONFIG_CACHE_TTL': '300',
-                'LOG_LEVEL': 'INFO',
-                'NECTAR_WORKER_ENABLED': 'true'
+                'BOT_CACHE_TTL': '300',
+                'CONTEXT_CACHE_TTL': '300',
+                'CONFIG_PATH': '/app/conf/config.yml',
+                'NECTAR_WORKER_ENABLED': 'true',
+                'NECTAR_WORKER_PORT': '9002',
+                'LOG_LEVEL': 'INFO'
             }
 
     def _generate_public_bee_env_vars(self):
         """Generate public-bee environment variables from configuration"""
         try:
+            # Get public_bee config from top-level section if it exists
             public_bee_config = self.raw_config.get('public_bee', {})
 
             # Get database credentials (URL-encoded password for DATABASE_URL)
@@ -2301,6 +2386,11 @@ class ConfigurationManager:
             # URL-encode the password to handle special characters
             encoded_password = quote_plus(postgres_password) if postgres_password else ''
 
+            # Hive Mode / ChatOps config (Phase 3-4.5)
+            hive_config = public_bee_config.get('hive', {})
+            sting_api_key = self.processed_config.get('STING_API_KEY', '')
+            system_hostname = self.raw_config.get('system', {}).get('hostname', 'localhost')
+
             return {
                 'PUBLIC_BEE_PORT': str(public_bee_config.get('port', 8092)),
                 'PUBLIC_BEE_HOST': public_bee_config.get('host', '0.0.0.0'),
@@ -2308,7 +2398,17 @@ class ConfigurationManager:
                 'EXTERNAL_AI_URL': public_bee_config.get('external_ai_url', 'http://external-ai:8091'),
                 'CHATBOT_URL': public_bee_config.get('chatbot_url', 'http://chatbot:8888'),
                 'KNOWLEDGE_SERVICE_URL': public_bee_config.get('knowledge_service_url', 'http://knowledge:8090'),
-                'LOG_LEVEL': public_bee_config.get('log_level', 'INFO')
+                'LOG_LEVEL': public_bee_config.get('log_level', 'INFO'),
+                # Hive Mode — Bee Connector
+                'HIVE_MODE': str(hive_config.get('enabled', False)).lower(),
+                'PUBLIC_BEE_BASE_URL': hive_config.get('base_url', f'https://{system_hostname}'),
+                # ChatOps Authorization
+                'STING_API_URL': 'http://app:5000',
+                'STING_API_KEY': sting_api_key,
+                'CHATOPS_CHALLENGE_SECRET': hive_config.get('challenge_secret', sting_api_key),
+                'CHATOPS_MAGIC_LINK_TTL': str(hive_config.get('magic_link_ttl_minutes', 15)),
+                'CHATOPS_SESSION_TTL': str(hive_config.get('session_ttl_hours', 8) * 3600),
+                'CHATOPS_MAX_ATTEMPTS': str(hive_config.get('max_challenge_attempts', 3)),
             }
         except Exception as e:
             logger.error(f"Failed to generate public-bee environment variables: {e}")
@@ -2319,7 +2419,45 @@ class ConfigurationManager:
                 'EXTERNAL_AI_URL': 'http://external-ai:8091',
                 'CHATBOT_URL': 'http://chatbot:8888',
                 'KNOWLEDGE_SERVICE_URL': 'http://knowledge:8090',
-                'LOG_LEVEL': 'INFO'
+                'LOG_LEVEL': 'INFO',
+                'HIVE_MODE': 'false',
+                'PUBLIC_BEE_BASE_URL': 'http://localhost:8092',
+                'STING_API_URL': 'http://app:5000',
+                'STING_API_KEY': '',
+                'CHATOPS_CHALLENGE_SECRET': '',
+                'CHATOPS_MAGIC_LINK_TTL': '15',
+                'CHATOPS_SESSION_TTL': '28800',
+                'CHATOPS_MAX_ATTEMPTS': '3',
+            }
+
+    def _generate_report_bee_env_vars(self):
+        """Generate report-bee (QE Bee) environment variables from config.yml review_bee section"""
+        try:
+            ai_config = self.raw_config.get('ai', {})
+            review_bee_config = ai_config.get('review_bee', {})
+            critic_config = review_bee_config.get('critic', {})
+
+            # Resolve model: critic model → fallback_model → global fallback
+            global_fallback = self.processed_config.get('LLM_DEFAULT_MODEL', 'qwen3.5-1m:latest')
+            model = critic_config.get('model', '') or critic_config.get('fallback_model', '') or global_fallback
+
+            return {
+                'APP_SERVICE_URL': 'https://app:5050',
+                'LLM_SERVICE_URL': 'http://external-ai:8091',
+                'QE_BEE_LLM_ENABLED': str(review_bee_config.get('enabled', False)).lower(),
+                'QE_BEE_MODEL': model,
+                'QE_BEE_TIMEOUT': str(critic_config.get('timeout_seconds', 30)),
+                'QE_BEE_POLL_INTERVAL': str(review_bee_config.get('poll_interval', 5)),
+            }
+        except Exception as e:
+            logger.error(f"Failed to generate report-bee environment variables: {e}")
+            return {
+                'APP_SERVICE_URL': 'https://app:5050',
+                'LLM_SERVICE_URL': 'http://external-ai:8091',
+                'QE_BEE_LLM_ENABLED': 'false',
+                'QE_BEE_MODEL': 'qwen3.5-1m:latest',
+                'QE_BEE_TIMEOUT': '30',
+                'QE_BEE_POLL_INTERVAL': '5',
             }
 
     def _generate_email_secrets(self):
@@ -2628,6 +2766,18 @@ class ConfigurationManager:
                     'WEB_SEARCH_FETCH_CONTENT': str(self.raw_config.get('llm_service', {}).get('external_ai', {}).get('web_search', {}).get('fetch_content', True)).lower(),
                     'WEB_SEARCH_MAX_RESULTS': str(self.raw_config.get('llm_service', {}).get('external_ai', {}).get('web_search', {}).get('max_results', 5)),
                     'WEB_SEARCH_TIMEOUT': str(self.raw_config.get('llm_service', {}).get('external_ai', {}).get('web_search', {}).get('timeout', 5)),
+                    # Model configuration for sub-tasks (query optimization, summarization)
+                    # These default to empty string, letting the code pick a sensible default from available models
+                    'QUERY_OPTIMIZER_MODEL': (
+                        self.raw_config.get('llm_service', {}).get('external_ai', {}).get('query_optimizer_model', '') or
+                        self.raw_config.get('ai', {}).get('external_ai', {}).get('query_optimizer_model', '')
+                    ),
+                    'BEE_CONVERSATION_SUMMARY_MODEL': (
+                        self.raw_config.get('llm_service', {}).get('external_ai', {}).get('conversation_summary_model', '') or
+                        self.raw_config.get('ai', {}).get('external_ai', {}).get('conversation_summary_model', '')
+                    ),
+                    # System timezone for Bee and time-related features
+                    'SYSTEM_TIMEZONE': self.raw_config.get('system', {}).get('timezone', 'UTC'),
                     # Bee Chat Enhancement Settings
                     # Chat-first logic: determine if queries should be handled in chat vs reports
                     'BEE_CHAT_FIRST_ENABLED': str(self.raw_config.get('ai', {}).get('bee', {}).get('chat_first', {}).get('enabled', True)).lower(),
@@ -2646,7 +2796,9 @@ class ConfigurationManager:
                 'observability.env': self._generate_observability_env_vars(),
                 'headscale.env': self._generate_headscale_env_vars(),
                 'public-bee.env': self._generate_public_bee_env_vars(),
-                'email.env': self._generate_email_env_vars()
+                'email.env': self._generate_email_env_vars(),
+                'nectar-worker.env': self._generate_nectar_worker_env_vars(),
+                'report-bee.env': self._generate_report_bee_env_vars()
                 # SUPERTOKENS IS COMPLETELY REMOVED - DO NOT UNCOMMENT
                 # DO NOT ADD ANY SUPERTOKENS ENV FILES HERE
             }
@@ -2700,6 +2852,12 @@ class ConfigurationManager:
         logger.info("===== AFTER ENV GENERATION =====")
         for key in ['POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB', 'HF_TOKEN']:
             logger.info(f"{key}: {'[SET]' if self.processed_config.get(key) else '[EMPTY]'}")
+
+        # ─── Generate SearXNG settings.yml ───
+        # Substitutes the Brave Search API key from config.yml into the SearXNG template
+        # Must run before Kratos generation (which may return early)
+        self._generate_searxng_config()
+
         # Generate a concrete Kratos YAML configuration based on environment variables
         kratos_conf_dir = os.path.join(self.config_dir, 'kratos')
         os.makedirs(kratos_conf_dir, exist_ok=True)
@@ -2707,26 +2865,25 @@ class ConfigurationManager:
         # Generate kratos.yml to ${INSTALL_DIR}/kratos/ (where docker-compose expects it)
         kratos_path = os.path.join(self.install_dir, 'kratos', 'kratos.yml')
 
-        # Check if kratos.yml already exists (generated by update_hostname.sh during installation)
-        # IMPORTANT: Do NOT regenerate kratos.yml if it exists - update_hostname.sh is the authoritative
-        # source for hostname configuration in kratos.yml. Regenerating would overwrite proper config.
+        # Always regenerate kratos.yml from template to ensure env vars (SMTP, webhooks,
+        # hostnames) are current. Back up existing config before overwriting.
         if os.path.exists(kratos_path):
-            logger.info(f"Kratos config already exists at {kratos_path}, skipping generation (preserves hostname config)")
-            return True
+            backup_path = kratos_path + '.prev'
+            try:
+                import shutil
+                shutil.copy2(kratos_path, backup_path)
+                logger.info(f"Backed up existing Kratos config to {backup_path}")
+            except Exception as e:
+                logger.warning(f"Could not backup Kratos config: {e}")
 
-        # If kratos.yml doesn't exist, generate it from template
-        # Templates are in ${INSTALL_DIR}/kratos/ (e.g., /opt/sting-ce/kratos/kratos.yml.template)
+        # Generate from template — templates are in ${INSTALL_DIR}/kratos/
         template_kratos_path = os.path.join(self.install_dir, 'kratos', 'kratos.yml.template')
-        full_kratos_path = os.path.join(self.install_dir, 'kratos', 'kratos.yml')
         minimal_kratos_path = os.path.join(self.install_dir, 'kratos', 'minimal.kratos.yml')
 
-        # Prefer template, then full config, then minimal as fallback
+        # Prefer template, then minimal as fallback
         if os.path.exists(template_kratos_path):
             template_path = template_kratos_path
             template_type = "template"
-        elif os.path.exists(full_kratos_path):
-            template_path = full_kratos_path
-            template_type = "full"
         else:
             template_path = minimal_kratos_path
             template_type = "minimal"
@@ -2737,12 +2894,26 @@ class ConfigurationManager:
                 with open(template_path, 'r') as src:
                     content = src.read()
 
-                # If using template, substitute hostname
+                # If using template, substitute hostname and port
                 if template_type == "template":
                     # Use resolved sting_domain (from .sting_domain file, env, or config)
                     sting_hostname = self.sting_domain
                     content = content.replace('__STING_HOSTNAME__', sting_hostname)
-                    logger.info(f"Generated Kratos config from template with hostname: {sting_hostname}")
+                    
+                    # Resolve frontend port — use 443 for production domains, 8443 for local dev
+                    ports = self.raw_config.get('ports', {})
+                    if sting_hostname not in ('localhost', '127.0.0.1') and '.' in sting_hostname:
+                        frontend_port = 443
+                    else:
+                        frontend_port = ports.get('frontend', 8443)
+                    
+                    # Replace port: standard HTTPS (443) doesn't need explicit port in URLs
+                    if frontend_port == 443:
+                        content = content.replace(':8443', '')
+                    elif frontend_port != 8443:
+                        content = content.replace(':8443', f':{frontend_port}')
+                    
+                    logger.info(f"Generated Kratos config from template with hostname: {sting_hostname}, port: {frontend_port}")
                 else:
                     # For non-template files (full/minimal), replace localhost with actual domain
                     if self.sting_domain != 'localhost':
@@ -2750,11 +2921,15 @@ class ConfigurationManager:
                         logger.info(f"Replaced localhost with {self.sting_domain} in Kratos config")
 
                 # Update os.environ with generated env vars so template substitution works
-                # This is needed because SMTP_CONNECTION_URI is set in env_vars but not os.environ
-                # Note: os is already imported at module level, don't re-import here
                 for key, value in self.processed_config.items():
                     if value and isinstance(value, str):
                         os.environ[key] = value
+                
+                # Ensure critical kratos template vars are in os.environ
+                if self.service_api_key:
+                    os.environ['KRATOS_WEBHOOK_TOKEN'] = self._clean_value(self.service_api_key)
+                else:
+                    logger.warning("service_api_key not available — KRATOS_WEBHOOK_TOKEN will be empty")
 
                 # Substitute all environment variables in template content
                 # This handles ${VAR} patterns like ${SMTP_CONNECTION_URI}
@@ -2881,7 +3056,58 @@ class ConfigurationManager:
         except Exception as e:
             logger.error(f"Failed to generate Kratos config: {e}")
 
-    def _refresh_vault_token(self):
+    def _generate_searxng_config(self):
+        """Generate SearXNG settings.yml with Brave Search API key from config.
+
+        The SearXNG settings template in the repo uses a __BRAVE_SEARCH_API_KEY__
+        placeholder. This method reads the key from config.yml (under
+        llm_service.external_ai.web_search.brave_search_api_key or
+        ai.external_ai.web_search.brave_search_api_key) and writes the
+        resolved settings.yml to ${INSTALL_DIR}/searxng/.
+        """
+        searxng_dir = os.path.join(self.install_dir, 'searxng')
+        settings_path = os.path.join(searxng_dir, 'settings.yml')
+        template_path = os.path.join(searxng_dir, 'settings.yml')
+
+        # Read API key from config — support both config structures
+        web_search = (
+            self.raw_config.get('llm_service', {}).get('external_ai', {}).get('web_search', {}) or
+            self.raw_config.get('ai', {}).get('external_ai', {}).get('web_search', {})
+        )
+        brave_api_key = web_search.get('brave_search_api_key', '') or ''
+
+        if not os.path.exists(template_path):
+            logger.debug("SearXNG settings.yml not found — skipping generation")
+            return
+
+        try:
+            with open(template_path, 'r') as f:
+                content = f.read()
+
+            # Only write if the placeholder is present (avoid re-processing already-resolved files)
+            if '__BRAVE_SEARCH_API_KEY__' in content:
+                content = content.replace('__BRAVE_SEARCH_API_KEY__', brave_api_key)
+
+                # If no API key provided, disable braveapi engine to avoid errors
+                if not brave_api_key:
+                    content = content.replace(
+                        "    disabled: false\n    weight: 2.5\n    results_per_page: 10",
+                        "    disabled: true  # No API key configured — enable by setting brave_search_api_key in config.yml\n    weight: 2.5\n    results_per_page: 10",
+                    )
+                    logger.warning(
+                        "No Brave Search API key configured. braveapi engine disabled in SearXNG. "
+                        "Get a free key at https://brave.com/search/api/ and set "
+                        "llm_service.external_ai.web_search.brave_search_api_key in config.yml"
+                    )
+
+                with open(settings_path, 'w') as f:
+                    f.write(content)
+                os.chmod(settings_path, 0o644)
+                logger.info(f"Generated SearXNG config at {settings_path} (brave_api_key={'configured' if brave_api_key else 'empty'})")
+            else:
+                logger.debug("SearXNG settings.yml has no placeholder — already resolved or manually configured")
+        except Exception as e:
+            logger.error(f"Failed to generate SearXNG config: {e}")
         """Refresh Vault token if needed"""
         if self.client and self.client.is_authenticated():
             try:

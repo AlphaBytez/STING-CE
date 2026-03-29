@@ -16,7 +16,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r /app/conf/requirements.in && \
     pip install -r /app/app/requirements.txt
 
-ENV INIT_MODE=development
+ENV INIT_MODE=bootstrap
 
 # Run warmup script on startup (from mounted volume), then tail to keep container alive
 # If warmup script doesn't exist (e.g., old deployment), skip it gracefully
