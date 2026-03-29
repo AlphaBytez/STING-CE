@@ -183,14 +183,7 @@ const MobileHoneyJars = () => {
           </button>
         </div>
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: 'var(--mobile-space-md)',
-            paddingBottom: '80px',
-          }}
-        >
+        <div className="mobile-card-grid-2" style={{ paddingBottom: '80px' }}>
           {honeyJars.map((jar) => (
             <div
               key={jar.id}
@@ -199,7 +192,8 @@ const MobileHoneyJars = () => {
               style={{
                 display: 'flex',
                 flexDirection: 'column',
-                padding: 'var(--mobile-space-md)',
+                padding: 'var(--mobile-space-md, 16px)',
+                minHeight: '120px',
               }}
             >
               {/* Icon and Actions Row */}

@@ -59,18 +59,21 @@ const MobileBottomNav = () => {
     navigate(path);
   };
 
-  // DEBUG: Inline styles for iOS Safari
+  // Inline styles for iOS Safari with safe area support
   const navStyle = {
     position: 'fixed',
     bottom: 0,
     left: 0,
     right: 0,
-    height: '60px',
+    height: 'calc(60px + env(safe-area-inset-bottom, 0px))',
+    paddingBottom: 'env(safe-area-inset-bottom, 0px)',
     background: '#1a1f2e',
     borderTop: '1px solid #3a4356',
     zIndex: 1000,
     display: 'flex',
     alignItems: 'stretch',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
   };
 
   const scrollStyle = {
@@ -78,7 +81,11 @@ const MobileBottomNav = () => {
     overflowX: 'auto',
     overflowY: 'hidden',
     width: '100%',
+    height: '60px',
     WebkitOverflowScrolling: 'touch',
+    paddingLeft: 'max(4px, env(safe-area-inset-left, 0px))',
+    paddingRight: 'max(4px, env(safe-area-inset-right, 0px))',
+    scrollbarWidth: 'none',
   };
 
   const getNavItemStyle = (active) => ({

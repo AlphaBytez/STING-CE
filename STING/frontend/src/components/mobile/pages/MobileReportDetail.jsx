@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { message, Spin, Button, Dropdown, Space } from 'antd';
+import { message, Spin, Dropdown, Progress } from 'antd';
 import {
   ArrowLeftOutlined,
   DownloadOutlined,
@@ -13,8 +13,10 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
+  LoadingOutlined,
+  ShoppingCartOutlined,
 } from '@ant-design/icons';
-import { externalAiApi } from '../../../services/externalAiApi';
+import reportApi from '../../../services/reportApi';
 import { useUnifiedAuth } from '../../../auth/UnifiedAuthProvider';
 import MobileLoadingSpinner from '../MobileLoadingSpinner';
 import '../../../styles/mobile.css';
@@ -63,7 +65,7 @@ const formatDate = (dateString) => {
 
 /**
  * MobileReportDetail - Mobile report detail page
- * Full report content display with export options and regeneration
+ * Full report content display with export options - parity with desktop
  */
 const MobileReportDetail = () => {
   const { reportId } = useParams();
@@ -73,11 +75,11 @@ const MobileReportDetail = () => {
   // State
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState(null);
-  const [regenerating, setRegenerating] = useState(false);
-  const [exporting, setExporting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [addedToBasket, setAddedToBasket] = useState(false);
 
-  // Fetch report data
+  // Fetch report data using reportApi - same as desktop
   const fetchReport = useCallback(async () => {
     if (!reportId) {
       navigate('/m/reports');
@@ -86,119 +88,33 @@ const MobileReportDetail = () => {
 
     setLoading(true);
     try {
-      const response = await externalAiApi.getReport(reportId);
+      const response = await reportApi.getReport(reportId);
 
-      if (response) {
+      if (response.success && response.data) {
+        const reportData = response.data;
         setReport({
           id: reportId,
-          title: response.title || 'Untitled Report',
-          content: response.content || response.report || 'No content available',
-          status: response.status || 'completed',
-          createdAt: response.created_at || response.createdAt || new Date().toISOString(),
-          duration: response.duration || null,
-          type: response.type || 'custom',
-          metadata: response.metadata || {},
+          title: reportData.title || 'Untitled Report',
+          description: reportData.description || '',
+          status: reportData.status || 'completed',
+          created_at: reportData.created_at || new Date().toISOString(),
+          completed_at: reportData.completed_at,
+          template: reportData.template,
+          result_file_id: reportData.result_file_id,
+          result_size_bytes: reportData.result_size_bytes,
+          download_count: reportData.download_count || 0,
+          progress_percentage: reportData.progress_percentage,
+          status_message: reportData.status_message,
+          error_message: reportData.error_message,
         });
       } else {
-        // Fallback mock report
-        setReport({
-          id: reportId,
-          title: 'Sample Report Analysis',
-          content: `# Report Analysis
-
-## Executive Summary
-
-This report provides comprehensive insights based on the available data. The analysis reveals several key findings that can drive strategic decision-making.
-
-## Key Findings
-
-### Customer Behavior Patterns
-- Customer engagement has increased by 23% over the past quarter
-- Mobile usage accounts for 65% of total interactions
-- Peak activity occurs during evening hours (6-9 PM)
-
-### Market Trends
-- Industry growth rate of 15% year-over-year
-- Emerging segments show strong potential
-- Competitive landscape is evolving rapidly
-
-## Recommendations
-
-1. **Focus on mobile optimization** - Given the high mobile usage, investing in mobile-first experiences will yield the best returns.
-
-2. **Leverage evening peak hours** - Schedule marketing campaigns and content releases during peak engagement periods.
-
-3. **Explore emerging segments** - Early investment in growing market segments can provide competitive advantage.
-
-## Conclusion
-
-The analysis indicates positive trends across key metrics. Continued monitoring and strategic adjustments will help maintain momentum and capitalize on emerging opportunities.
-
----
-*Report generated on ${formatDate(new Date().toISOString())}*
-*Processing time: ${Math.random() * 5 + 1}.${Math.floor(Math.random() * 9)}s*`,
-          status: 'completed',
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-          duration: '3.2s',
-          type: 'customer-insights',
-          metadata: {
-            provider: 'ollama',
-            model: 'phi3:mini',
-            confidence: 0.92,
-          },
-        });
+        message.error('Report not found');
+        navigate('/m/reports');
       }
     } catch (error) {
       console.error('Failed to fetch report:', error);
       message.error('Failed to load report');
-
-      // Fallback mock report on error
-      setReport({
-        id: reportId,
-        title: 'Sample Report Analysis',
-        content: `# Report Analysis
-
-## Executive Summary
-
-This report provides comprehensive insights based on the available data. The analysis reveals several key findings that can drive strategic decision-making.
-
-## Key Findings
-
-### Customer Behavior Patterns
-- Customer engagement has increased by 23% over the past quarter
-- Mobile usage accounts for 65% of total interactions
-- Peak activity occurs during evening hours (6-9 PM)
-
-### Market Trends
-- Industry growth rate of 15% year-over-year
-- Emerging segments show strong potential
-- Competitive landscape is evolving rapidly
-
-## Recommendations
-
-1. **Focus on mobile optimization** - Given the high mobile usage, investing in mobile-first experiences will yield the best returns.
-
-2. **Leverage evening peak hours** - Schedule marketing campaigns and content releases during peak engagement periods.
-
-3. **Explore emerging segments** - Early investment in growing market segments can provide competitive advantage.
-
-## Conclusion
-
-The analysis indicates positive trends across key metrics. Continued monitoring and strategic adjustments will help maintain momentum and capitalize on emerging opportunities.
-
----
-*Report generated on ${formatDate(new Date().toISOString())}*
-*Processing time: 3.2s*`,
-        status: 'completed',
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-        duration: '3.2s',
-        type: 'customer-insights',
-        metadata: {
-          provider: 'ollama',
-          model: 'phi3:mini',
-          confidence: 0.92,
-        },
-      });
+      navigate('/m/reports');
     } finally {
       setLoading(false);
     }
@@ -206,24 +122,25 @@ The analysis indicates positive trends across key metrics. Continued monitoring 
 
   // Poll for status updates if report is still processing
   useEffect(() => {
-    if (report?.status === 'processing' || report?.status === 'generating') {
+    if (report?.status === 'processing' || report?.status === 'pending' || report?.status === 'queued') {
       const pollInterval = setInterval(async () => {
         try {
-          const statusResponse = await externalAiApi.getReportStatus(reportId);
-          if (statusResponse.status) {
+          const response = await reportApi.getReport(reportId);
+          if (response.success && response.data) {
+            const newData = response.data;
             setReport((prev) => ({
               ...prev,
-              status: statusResponse.status,
-              duration: statusResponse.duration || prev.duration,
+              status: newData.status,
+              progress_percentage: newData.progress_percentage,
+              status_message: newData.status_message,
+              result_file_id: newData.result_file_id,
+              completed_at: newData.completed_at,
             }));
 
-            if (statusResponse.status === 'completed' && statusResponse.content) {
-              setReport((prev) => ({
-                ...prev,
-                content: statusResponse.content,
-              }));
+            if (newData.status === 'completed') {
+              message.success('Report generation completed!');
               clearInterval(pollInterval);
-            } else if (statusResponse.status === 'failed') {
+            } else if (newData.status === 'failed') {
               message.error('Report generation failed');
               clearInterval(pollInterval);
             }
@@ -231,7 +148,7 @@ The analysis indicates positive trends across key metrics. Continued monitoring 
         } catch (error) {
           console.error('Status check failed:', error);
         }
-      }, 5000); // Poll every 5 seconds
+      }, 3000); // Poll every 3 seconds
 
       return () => clearInterval(pollInterval);
     }
@@ -242,474 +159,525 @@ The analysis indicates positive trends across key metrics. Continued monitoring 
     fetchReport();
   }, [fetchReport]);
 
-  // Handle regenerate report
-  const handleRegenerate = async () => {
-    if (!report) return;
+  // Handle download report - same as desktop
+  const handleDownload = async () => {
+    if (!report || !report.result_file_id) {
+      message.warning('Report file not available');
+      return;
+    }
 
-    setRegenerating(true);
+    setDownloading(true);
     try {
-      const response = await externalAiApi.generateReport({
-        title: report.title,
-        type: report.type,
-        user_id: user?.id,
-        regenerate: true,
-        original_report_id: reportId,
-      });
-
-      message.success('Report regeneration started');
-      setReport((prev) => ({
+      await reportApi.downloadReport(reportId);
+      message.success('Report downloaded successfully');
+      // Update local download count
+      setReport(prev => ({
         ...prev,
-        status: 'processing',
-        duration: null,
+        download_count: (prev.download_count || 0) + 1
       }));
     } catch (error) {
-      console.error('Failed to regenerate report:', error);
-      message.error('Failed to regenerate report');
+      console.error('Failed to download report:', error);
+      message.error('Failed to download report');
     } finally {
-      setRegenerating(false);
+      setDownloading(false);
     }
   };
 
-  // Handle export report
-  const handleExport = async (format) => {
+  // Handle add to basket - same as desktop
+  const handleAddToBasket = async () => {
     if (!report) return;
-
-    setExporting(true);
+    
     try {
-      let content = report.content;
-      let filename = `${report.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`;
+      const timestamp = new Date(report.created_at).toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const sanitizedTitle = (report.title || 'report').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30);
+      const filename = `${sanitizedTitle}_${timestamp}.md`;
 
-      // Convert content based on format
-      switch (format) {
-        case 'pdf':
-          // For PDF, we'll create a printable HTML and print it
-          const printWindow = window.open('', '_blank');
-          printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <title>${report.title}</title>
-              <style>
-                body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-                h1 { color: #333; }
-                pre { white-space: pre-wrap; }
-              </style>
-            </head>
-            <body>
-              <h1>${report.title}</h1>
-              ${content.replace(/\n/g, '<br>')}
-            </body>
-            </html>
-          `);
-          printWindow.document.close();
-          printWindow.print();
-          break;
+      const reportContent = `# ${report.title}
 
-        case 'markdown':
-          // Content is already in markdown format
-          filename += '.md';
-          break;
+**Generated:** ${new Date(report.created_at).toLocaleString()}
+**Status:** ${report.status}
+**Type:** ${report.template?.category || 'analytics'}
 
-        case 'html':
-          content = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>${report.title}</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
-    h1, h2, h3 { color: #333; }
-    code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; }
-    pre { background: #f4f4f4; padding: 12px; border-radius: 8px; overflow-x: auto; }
-  </style>
-</head>
-<body>
-  <h1>${report.title}</h1>
-  ${content.split('\n').map(line => {
-    if (line.startsWith('# ')) return `<h1>${line.substring(2)}</h1>`;
-    if (line.startsWith('## ')) return `<h2>${line.substring(3)}</h2>`;
-    if (line.startsWith('### ')) return `<h3>${line.substring(4)}</h3>`;
-    if (line.startsWith('- ')) return `<li>${line.substring(2)}</li>`;
-    if (line.match(/^\d+\. /)) return `<p>${line}</p>`;
-    return `<p>${line}</p>`;
-  }).join('')}
-  <hr>
-  <p><small>Generated: ${formatDate(report.createdAt)}</small></p>
-</body>
-</html>`;
-          filename += '.html';
-          break;
+## Description
+${report.description || 'No description provided'}
 
-        default:
-          break;
-      }
+## Report Details
+- **Report ID:** ${report.id}
+- **Template:** ${report.template?.name || 'Unknown'}
+- **File Size:** ${report.result_size_bytes ? formatFileSize(report.result_size_bytes) : 'N/A'}
+- **Downloads:** ${report.download_count || 0}
 
-      // Download file (except for PDF which opens print window)
-      if (format !== 'pdf') {
-        const blob = new Blob([content], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
+---
+*This report was exported to your Basket from Report Bee (Mobile).*
+`;
 
-      message.success(`Report exported as ${format.toUpperCase()}`);
+      const response = await fetch('/api/basket/add-report', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename,
+          content: reportContent,
+          content_type: 'text/markdown',
+          metadata: {
+            source: 'mobile_report_detail',
+            report_id: report.id,
+            report_title: report.title,
+            exported_at: new Date().toISOString()
+          }
+        })
+      });
+
+      setAddedToBasket(true);
+      message.success(response.ok ? 'Report added to Basket' : 'Report marked for export');
     } catch (error) {
-      console.error('Failed to export report:', error);
-      message.error('Failed to export report');
-    } finally {
-      setExporting(false);
+      console.error('Error adding report to basket:', error);
+      setAddedToBasket(true);
+      message.info('Report marked for export');
     }
   };
 
-  // Handle copy to clipboard
+  // Handle retry failed report
+  const handleRetry = async () => {
+    try {
+      const response = await reportApi.retryReport(reportId);
+      if (response.success) {
+        message.success('Report queued for retry');
+        setReport(prev => ({ ...prev, status: 'pending' }));
+      }
+    } catch (error) {
+      console.error('Failed to retry report:', error);
+      message.error('Failed to retry report');
+    }
+  };
+
+  // Handle cancel report
+  const handleCancel = async () => {
+    try {
+      const response = await reportApi.cancelReport(reportId);
+      if (response.success) {
+        message.success('Report cancelled');
+        navigate('/m/reports');
+      }
+    } catch (error) {
+      console.error('Failed to cancel report:', error);
+      message.error('Failed to cancel report');
+    }
+  };
+
+  // Handle copy report info
   const handleCopy = async () => {
     if (!report) return;
-
+    
+    const textToCopy = `Report: ${report.title}\nStatus: ${report.status}\nCreated: ${formatDate(report.created_at)}\nID: ${report.id}`;
     try {
-      await navigator.clipboard.writeText(report.content);
+      await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
-      message.success('Report content copied to clipboard');
+      message.success('Report info copied to clipboard');
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error('Failed to copy:', error);
-      message.error('Failed to copy content');
+      message.error('Failed to copy');
     }
   };
 
-  // Export dropdown menu items
-  const exportMenuItems = [
-    {
-      key: 'pdf',
-      icon: <FilePdfOutlined />,
-      label: 'Export as PDF',
-    },
-    {
-      key: 'markdown',
-      icon: <FileMarkdownOutlined />,
-      label: 'Export as Markdown',
-    },
-    {
-      key: 'html',
-      icon: <Html5Outlined />,
-      label: 'Export as HTML',
-    },
-  ];
+  // Format file size helper
+  const formatFileSize = (bytes) => {
+    if (!bytes) return null;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+  };
 
   // Loading state
   if (loading) {
     return <MobileLoadingSpinner />;
   }
 
-  // Handle processing state
-  if (report?.status === 'processing' || report?.status === 'generating') {
+  // Handle processing/pending/queued state
+  if (report?.status === 'processing' || report?.status === 'pending' || report?.status === 'queued') {
     const statusConfig = getStatusConfig(report.status);
     return (
-      <div className="mobile-page">
+      <div style={{ padding: '0', minHeight: '100%' }}>
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--mobile-space-sm)', marginBottom: 'var(--mobile-space-lg)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
           <button
             onClick={() => navigate('/m/reports')}
             style={{
-              background: 'var(--mobile-surface)',
-              border: '1px solid var(--mobile-border)',
-              borderRadius: 'var(--mobile-radius-md, 8px)',
-              padding: 'var(--mobile-space-sm)',
-              color: 'var(--mobile-text-primary)',
+              background: '#2a3142',
+              border: '1px solid #3a4356',
+              borderRadius: '8px',
+              padding: '8px',
+              color: '#f1f5f9',
               cursor: 'pointer',
             }}
-            aria-label="Go back"
           >
             <ArrowLeftOutlined />
           </button>
-          <h1 className="mobile-page-title" style={{ margin: 0, flex: 1 }}>Generating Report...</h1>
+          <h1 style={{ margin: 0, flex: 1, fontSize: '18px', fontWeight: 600, color: '#f1f5f9' }}>
+            Generating Report...
+          </h1>
         </div>
 
-        {/* Processing State */}
-        <div className="mobile-card" style={{ textAlign: 'center', padding: 'var(--mobile-space-xl)' }}>
-          <Spin size="large" style={{ marginBottom: 'var(--mobile-space-md)' }} />
-          <div style={{ marginBottom: 'var(--mobile-space-md)' }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                fontSize: 'var(--mobile-font-base)',
-                color: statusConfig.color,
-              }}
-            >
+        {/* Processing State Card */}
+        <div style={{
+          background: '#2a3142',
+          borderRadius: '12px',
+          border: '1px solid #3a4356',
+          padding: '24px',
+          textAlign: 'center',
+        }}>
+          <LoadingOutlined style={{ fontSize: '48px', color: '#eab308', marginBottom: '16px' }} />
+          <h3 style={{ margin: '0 0 8px 0', color: '#f1f5f9' }}>{report.title}</h3>
+          <div style={{ marginBottom: '16px' }}>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '14px',
+              color: statusConfig.color,
+              background: `${statusConfig.color}20`,
+              padding: '4px 12px',
+              borderRadius: '16px',
+            }}>
               {statusConfig.icon}
               {statusConfig.label}
             </span>
           </div>
-          <p style={{ color: 'var(--mobile-text-secondary)', marginBottom: 'var(--mobile-space-lg)' }}>
-            Your report "{report.title}" is being generated. This may take a few minutes...
+          
+          {report.status_message && (
+            <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '16px', fontStyle: 'italic' }}>
+              {report.status_message}
+            </p>
+          )}
+          
+          {report.progress_percentage > 0 && (
+            <div style={{ marginBottom: '16px' }}>
+              <Progress 
+                percent={report.progress_percentage} 
+                size="small" 
+                status="active"
+                strokeColor={{ '0%': '#f59e0b', '100%': '#10b981' }}
+                trailColor="#374151"
+              />
+            </div>
+          )}
+
+          <p style={{ color: '#64748b', fontSize: '12px', marginBottom: '16px' }}>
+            Report generation may take a few minutes depending on data complexity.
           </p>
-          <div
-            style={{
-              background: 'var(--mobile-surface)',
-              borderRadius: 'var(--mobile-radius-md, 8px)',
-              padding: 'var(--mobile-space-md)',
-              textAlign: 'left',
-            }}
-          >
-            <h4 style={{ margin: '0 0 var(--mobile-space-sm) 0', color: 'var(--mobile-text-primary)' }}>
-              What&apos;s happening?
-            </h4>
-            <ul style={{ margin: 0, paddingLeft: 'var(--mobile-space-lg)', color: 'var(--mobile-text-secondary)', fontSize: 'var(--mobile-font-sm)' }}>
-              <li>Analyzing your data</li>
-              <li>Generating insights</li>
-              <li>Formatting the report</li>
-            </ul>
+
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <button
+              onClick={() => navigate('/m/reports')}
+              style={{
+                padding: '10px 20px',
+                background: 'transparent',
+                border: '1px solid #3a4356',
+                borderRadius: '8px',
+                color: '#f1f5f9',
+                cursor: 'pointer',
+              }}
+            >
+              Back to Reports
+            </button>
+            <button
+              onClick={handleCancel}
+              style={{
+                padding: '10px 20px',
+                background: 'transparent',
+                border: '1px solid #ef4444',
+                borderRadius: '8px',
+                color: '#ef4444',
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
           </div>
-          <button
-            onClick={() => navigate('/m/reports')}
-            style={{
-              marginTop: 'var(--mobile-space-lg)',
-              padding: 'var(--mobile-space-sm) var(--mobile-space-lg)',
-              background: 'var(--mobile-surface)',
-              border: '1px solid var(--mobile-border)',
-              borderRadius: 'var(--mobile-radius-md, 8px)',
-              color: 'var(--mobile-text-primary)',
-              cursor: 'pointer',
-            }}
-          >
-            Continue in Background
-          </button>
         </div>
       </div>
     );
   }
 
+  // Handle failed state
+  if (report?.status === 'failed') {
+    return (
+      <div style={{ padding: '0', minHeight: '100%' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+          <button
+            onClick={() => navigate('/m/reports')}
+            style={{
+              background: '#2a3142',
+              border: '1px solid #3a4356',
+              borderRadius: '8px',
+              padding: '8px',
+              color: '#f1f5f9',
+              cursor: 'pointer',
+            }}
+          >
+            <ArrowLeftOutlined />
+          </button>
+          <h1 style={{ margin: 0, flex: 1, fontSize: '18px', fontWeight: 600, color: '#f1f5f9' }}>
+            Report Failed
+          </h1>
+        </div>
+
+        {/* Failed State Card */}
+        <div style={{
+          background: '#2a3142',
+          borderRadius: '12px',
+          border: '1px solid #ef4444',
+          padding: '24px',
+          textAlign: 'center',
+        }}>
+          <ExclamationCircleOutlined style={{ fontSize: '48px', color: '#ef4444', marginBottom: '16px' }} />
+          <h3 style={{ margin: '0 0 8px 0', color: '#f1f5f9' }}>{report.title}</h3>
+          <p style={{ color: '#ef4444', fontSize: '13px', marginBottom: '16px' }}>
+            {report.error_message || 'Report generation failed. Please try again.'}
+          </p>
+          
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <button
+              onClick={() => navigate('/m/reports')}
+              style={{
+                padding: '10px 20px',
+                background: 'transparent',
+                border: '1px solid #3a4356',
+                borderRadius: '8px',
+                color: '#f1f5f9',
+                cursor: 'pointer',
+              }}
+            >
+              Back to Reports
+            </button>
+            <button
+              onClick={handleRetry}
+              style={{
+                padding: '10px 20px',
+                background: '#ef4444',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Completed report view
+  const hasFile = report?.result_file_id;
+
   return (
-    <div className="mobile-page">
+    <div style={{ padding: '0', minHeight: '100%', paddingBottom: '24px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--mobile-space-sm)', marginBottom: 'var(--mobile-space-md)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
         <button
           onClick={() => navigate('/m/reports')}
           style={{
-            background: 'var(--mobile-surface)',
-            border: '1px solid var(--mobile-border)',
-            borderRadius: 'var(--mobile-radius-md, 8px)',
-            padding: 'var(--mobile-space-sm)',
-            color: 'var(--mobile-text-primary)',
+            background: '#2a3142',
+            border: '1px solid #3a4356',
+            borderRadius: '8px',
+            padding: '8px',
+            color: '#f1f5f9',
             cursor: 'pointer',
           }}
-          aria-label="Go back"
         >
           <ArrowLeftOutlined />
         </button>
-        <h1 className="mobile-page-title" style={{ margin: 0, flex: 1, fontSize: 'var(--mobile-font-lg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <h1 style={{ margin: 0, flex: 1, fontSize: '18px', fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {report?.title}
         </h1>
       </div>
 
-      {/* Report Meta */}
-      <div className="mobile-report-meta" style={{ marginBottom: 'var(--mobile-space-md)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--mobile-space-sm)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--mobile-space-sm)' }}>
-            {(() => {
-              const statusConfig = getStatusConfig(report?.status);
-              return (
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    fontSize: 'var(--mobile-font-xs)',
-                    color: statusConfig.color,
-                    background: `${statusConfig.color}15`,
-                    padding: '2px 8px',
-                    borderRadius: 'var(--mobile-radius-sm, 4px)',
-                  }}
-                >
-                  {statusConfig.icon}
-                  {statusConfig.label}
-                </span>
-              );
-            })()}
-            <span style={{ fontSize: 'var(--mobile-font-xs)', color: 'var(--mobile-text-tertiary)' }}>
-              {formatDate(report?.createdAt)}
+      {/* Report Info Card */}
+      <div style={{
+        background: '#2a3142',
+        borderRadius: '12px',
+        border: '1px solid #3a4356',
+        padding: '16px',
+        marginBottom: '16px',
+      }}>
+        {/* Status and Meta */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: '12px',
+            color: '#52c41a',
+            background: 'rgba(82, 196, 26, 0.15)',
+            padding: '4px 10px',
+            borderRadius: '12px',
+          }}>
+            <CheckCircleOutlined />
+            Completed
+          </span>
+          {report?.template?.category && (
+            <span style={{
+              fontSize: '11px',
+              color: '#94a3b8',
+              background: '#1a1f2e',
+              padding: '4px 8px',
+              borderRadius: '4px',
+            }}>
+              {report.template.category}
             </span>
-            {report?.duration && (
-              <span style={{ fontSize: 'var(--mobile-font-xs)', color: 'var(--mobile-text-tertiary)' }}>
-                • {report.duration}
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: 'var(--mobile-space-xs)' }}>
-            <button
-              onClick={handleCopy}
-              style={{
-                padding: 'var(--mobile-space-xs) var(--mobile-space-sm)',
-                background: copied ? '#52c41a' : 'var(--mobile-surface)',
-                border: '1px solid var(--mobile-border)',
-                borderRadius: 'var(--mobile-radius-md, 8px)',
-                color: copied ? '#fff' : 'var(--mobile-text-primary)',
-                cursor: 'pointer',
-                fontSize: 'var(--mobile-font-xs)',
-              }}
-            >
-              {copied ? <CheckCircleOutlined /> : <CopyOutlined />}
-            </button>
-            <Dropdown
-              menu={{
-                items: exportMenuItems,
-                onClick: ({ key }) => handleExport(key),
-              }}
-              trigger={['click']}
-            >
-              <button
-                style={{
-                  padding: 'var(--mobile-space-xs) var(--mobile-space-sm)',
-                  background: 'var(--mobile-primary)',
-                  border: 'none',
-                  borderRadius: 'var(--mobile-radius-md, 8px)',
-                  color: 'var(--mobile-text-inverse)',
-                  cursor: 'pointer',
-                  fontSize: 'var(--mobile-font-xs)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <DownloadOutlined />
-                Export
-              </button>
-            </Dropdown>
-          </div>
+          )}
         </div>
-      </div>
 
-      {/* Report Content */}
-      <div className="mobile-report-content mobile-card" style={{ padding: 'var(--mobile-space-md)' }}>
-        <div
-          style={{
-            fontFamily: 'system-ui, -apple-system, sans-serif',
-            lineHeight: 1.7,
-            color: 'var(--mobile-text-primary)',
-          }}
-        >
-          {/* Render report content as styled elements */}
-          {report?.content.split('\n').map((line, index) => {
-            // Heading 1
-            if (line.startsWith('# ')) {
-              return (
-                <h1 key={index} style={{ fontSize: '1.5rem', fontWeight: 600, margin: '1.5rem 0 0.75rem 0', color: 'var(--mobile-text-primary)', borderBottom: '1px solid var(--mobile-border)', paddingBottom: '0.5rem' }}>
-                  {line.substring(2)}
-                </h1>
-              );
-            }
-            // Heading 2
-            if (line.startsWith('## ')) {
-              return (
-                <h2 key={index} style={{ fontSize: '1.25rem', fontWeight: 600, margin: '1.25rem 0 0.5rem 0', color: 'var(--mobile-text-primary)' }}>
-                  {line.substring(3)}
-                </h2>
-              );
-            }
-            // Heading 3
-            if (line.startsWith('### ')) {
-              return (
-                <h3 key={index} style={{ fontSize: '1.1rem', fontWeight: 600, margin: '1rem 0 0.5rem 0', color: 'var(--mobile-text-primary)' }}>
-                  {line.substring(4)}
-                </h3>
-              );
-            }
-            // Bullet point
-            if (line.startsWith('- ')) {
-              return (
-                <li key={index} style={{ marginLeft: '1.5rem', marginBottom: '0.25rem', color: 'var(--mobile-text-secondary)' }}>
-                  {line.substring(2)}
-                </li>
-              );
-            }
-            // Numbered list
-            if (line.match(/^\d+\. /)) {
-              return (
-                <p key={index} style={{ marginLeft: '1.5rem', marginBottom: '0.25rem', color: 'var(--mobile-text-secondary)' }}>
-                  {line}
-                </p>
-              );
-            }
-            // Horizontal rule
-            if (line.startsWith('---')) {
-              return <hr key={index} style={{ border: 'none', borderTop: '1px solid var(--mobile-border)', margin: '1rem 0' }} />;
-            }
-            // Bold text
-            if (line.includes('**')) {
-              const parts = line.split('**');
-              return (
-                <p key={index} style={{ marginBottom: '0.5rem', color: 'var(--mobile-text-secondary)' }}>
-                  {parts.map((part, i) =>
-                    i % 2 === 1 ? <strong key={i} style={{ color: 'var(--mobile-text-primary)' }}>{part}</strong> : part
-                  )}
-                </p>
-              );
-            }
-            // Empty line
-            if (line.trim() === '') {
-              return <div key={index} style={{ height: '0.5rem' }} />;
-            }
-            // Regular paragraph
-            return (
-              <p key={index} style={{ marginBottom: '0.5rem', color: 'var(--mobile-text-secondary)' }}>
-                {line}
-              </p>
-            );
-          })}
+        {/* Description */}
+        {report?.description && (
+          <p style={{ margin: '0 0 12px 0', color: '#94a3b8', fontSize: '13px', lineHeight: 1.5 }}>
+            {report.description}
+          </p>
+        )}
+
+        {/* Details Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
+          <div>
+            <span style={{ color: '#64748b' }}>Created: </span>
+            <span style={{ color: '#f1f5f9' }}>{formatDate(report?.created_at)}</span>
+          </div>
+          {report?.completed_at && (
+            <div>
+              <span style={{ color: '#64748b' }}>Completed: </span>
+              <span style={{ color: '#f1f5f9' }}>{formatDate(report.completed_at)}</span>
+            </div>
+          )}
+          {report?.result_size_bytes && (
+            <div>
+              <span style={{ color: '#64748b' }}>Size: </span>
+              <span style={{ color: '#f1f5f9' }}>{formatFileSize(report.result_size_bytes)}</span>
+            </div>
+          )}
+          <div>
+            <span style={{ color: '#64748b' }}>Downloads: </span>
+            <span style={{ color: '#f1f5f9' }}>{report?.download_count || 0}</span>
+          </div>
         </div>
       </div>
 
       {/* Action Buttons */}
-      <div style={{ marginTop: 'var(--mobile-space-lg)', display: 'flex', gap: 'var(--mobile-space-sm)' }}>
-        <button
-          onClick={handleRegenerate}
-          disabled={regenerating}
-          style={{
-            flex: 1,
-            padding: 'var(--mobile-space-md)',
-            background: regenerating ? 'var(--mobile-text-tertiary)' : 'var(--mobile-surface)',
-            border: '1px solid var(--mobile-border)',
-            borderRadius: 'var(--mobile-radius-md, 8px)',
-            color: regenerating ? 'var(--mobile-text-inverse)' : 'var(--mobile-text-primary)',
-            cursor: regenerating ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 'var(--mobile-space-xs)',
-          }}
-        >
-          {regenerating ? <Spin size="small" /> : <ReloadOutlined />}
-          Regenerate Report
-        </button>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+      }}>
+        {hasFile && (
+          <>
+            {/* Download Button - Primary Action */}
+            <button
+              onClick={handleDownload}
+              disabled={downloading}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: downloading ? '#64748b' : '#eab308',
+                border: 'none',
+                borderRadius: '10px',
+                color: '#1a1f2e',
+                fontSize: '15px',
+                fontWeight: 600,
+                cursor: downloading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+              }}
+            >
+              {downloading ? (
+                <>
+                  <Spin size="small" />
+                  Downloading...
+                </>
+              ) : (
+                <>
+                  <DownloadOutlined style={{ fontSize: '18px' }} />
+                  Download Report
+                </>
+              )}
+            </button>
+
+            {/* Secondary Actions Row */}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={handleAddToBasket}
+                disabled={addedToBasket}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: 'transparent',
+                  border: '1px solid #3a4356',
+                  borderRadius: '10px',
+                  color: addedToBasket ? '#52c41a' : '#f1f5f9',
+                  fontSize: '14px',
+                  cursor: addedToBasket ? 'default' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                <ShoppingCartOutlined />
+                {addedToBasket ? 'Added' : 'Add to Basket'}
+              </button>
+              <button
+                onClick={handleCopy}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: 'transparent',
+                  border: '1px solid #3a4356',
+                  borderRadius: '10px',
+                  color: copied ? '#52c41a' : '#f1f5f9',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                {copied ? <CheckCircleOutlined /> : <CopyOutlined />}
+                {copied ? 'Copied!' : 'Copy Info'}
+              </button>
+            </div>
+          </>
+        )}
+
+        {!hasFile && (
+          <div style={{
+            padding: '24px',
+            background: '#1a1f2e',
+            borderRadius: '10px',
+            textAlign: 'center',
+            color: '#64748b',
+          }}>
+            <ExclamationCircleOutlined style={{ fontSize: '24px', marginBottom: '8px' }} />
+            <p style={{ margin: 0, fontSize: '13px' }}>Report file is not available for download.</p>
+          </div>
+        )}
       </div>
 
-      {/* Metadata Footer */}
-      {report?.metadata && (
-        <div
-          style={{
-            marginTop: 'var(--mobile-space-lg)',
-            padding: 'var(--mobile-space-sm) var(--mobile-space-md)',
-            background: 'var(--mobile-surface)',
-            borderRadius: 'var(--mobile-radius-md, 8px)',
-            fontSize: 'var(--mobile-font-xs)',
-            color: 'var(--mobile-text-tertiary)',
-          }}
-        >
-          <div style={{ marginBottom: 'var(--mobile-space-xs)' }}>
-            <strong>Generated by:</strong> {report.metadata.provider?.toUpperCase() || 'AI'} {report.metadata.model && `(${report.metadata.model})`}
-          </div>
-          {report.metadata.confidence && (
-            <div style={{ marginBottom: 'var(--mobile-space-xs)' }}>
-              <strong>Confidence:</strong> {Math.round(report.metadata.confidence * 100)}%
-            </div>
-          )}
+      {/* Template Info */}
+      {report?.template && (
+        <div style={{
+          marginTop: '16px',
+          padding: '12px 16px',
+          background: '#1a1f2e',
+          borderRadius: '8px',
+          fontSize: '12px',
+          color: '#64748b',
+        }}>
+          <span style={{ color: '#94a3b8' }}>Template: </span>
+          {report.template.display_name || report.template.name}
         </div>
       )}
     </div>

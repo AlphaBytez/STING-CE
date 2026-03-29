@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { message, Spin } from 'antd';
-import { SendOutlined, PlusOutlined } from '@ant-design/icons';
+import { SendOutlined, PlusOutlined, CheckCircleOutlined, StarOutlined } from '@ant-design/icons';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { externalAiApi } from '../../../services/externalAiApi';
 import { chatHistoryApi } from '../../../services/messagingApi';
 import { useUnifiedAuth } from '../../../auth/UnifiedAuthProvider';
@@ -189,33 +191,63 @@ const MobileChat = () => {
     try {
       // Use current or URL conversation ID
       const convId = currentConversationId || urlConversationId;
+      let data;
       
-      // Call Bee chat API
-      const response = await externalAiApi.beeChatUnified({
-        message: userMessage.content,
-        conversation_id: convId?.startsWith('temp_') ? null : convId,
-        context: messages.slice(-10), // Send last 10 messages as context
-        user_id: user?.id,
-      });
+      try {
+        // Try external AI endpoint first (same as desktop)
+        data = await externalAiApi.beeChatUnified({
+          message: userMessage.content,
+          conversation_id: convId?.startsWith('temp_') ? null : convId,
+          user_id: user?.id || localStorage.getItem('beeChat_userId'),
+        });
+      } catch (externalError) {
+        console.warn('External AI endpoint failed, falling back to legacy:', externalError);
+        
+        // Fallback to legacy endpoint (same as desktop)
+        const response = await fetch('/api/bee/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: userMessage.content,
+            user_id: user?.id || localStorage.getItem('beeChat_userId'),
+            conversation_id: convId?.startsWith('temp_') ? null : convId,
+          }),
+        });
 
-      // Add assistant response
+        if (!response.ok) {
+          throw new Error('Both external AI and legacy endpoints failed');
+        }
+        data = await response.json();
+      }
+
+      // Update conversation ID if new
+      if (data.conversation_id && !currentConversationId) {
+        setCurrentConversationId(data.conversation_id);
+        localStorage.setItem('beeChat_conversationId', data.conversation_id);
+      }
+
+      // Add assistant response with review metadata
       const assistantMessage = {
         id: `assistant_${Date.now()}`,
         type: MESSAGE_TYPES.ASSISTANT,
-        content: response.response || response.message || 'I couldn\'t generate a response. Please try again.',
+        content: data.response || data.message || 'I couldn\'t generate a response. Please try again.',
         timestamp: new Date().toISOString(),
+        review: data.review || null,
+        strategy: data.strategy || null,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Failed to send message:', error);
-      message.error('Failed to send message');
+      message.error('Failed to send message. Please try again.');
 
       // Add error message
       const errorMessage = {
         id: `error_${Date.now()}`,
         type: MESSAGE_TYPES.SYSTEM,
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: 'Sorry, I encountered an error connecting to Bee. Please try again.',
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -334,6 +366,7 @@ const MobileChat = () => {
           messages.map((msg) => (
             <div
               key={msg.id}
+              className={`mobile-chat-message ${msg.type === MESSAGE_TYPES.USER ? 'user' : 'assistant'}`}
               style={{
                 maxWidth: msg.type === MESSAGE_TYPES.USER ? '85%' : '90%',
                 marginLeft: msg.type === MESSAGE_TYPES.USER ? 'auto' : '0',
@@ -347,11 +380,39 @@ const MobileChat = () => {
               }}
             >
               {msg.type === MESSAGE_TYPES.ASSISTANT && (
-                <div style={{ marginBottom: '4px', fontSize: '11px', color: '#94a3b8' }}>
-                  🐝 Bee
+                <div style={{ marginBottom: '4px', fontSize: '11px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>🐝 Bee</span>
+                  {/* Review indicator */}
+                  {msg.review && msg.review.reviewed && (
+                    <span className={`review-badge ${msg.review.passed ? 'passed' : 'enhanced'}`}>
+                      {msg.review.enhanced ? (
+                        <><StarOutlined /> Enhanced</>
+                      ) : msg.review.passed ? (
+                        <><CheckCircleOutlined /> Verified</>
+                      ) : null}
+                      {msg.review.overall_score && (
+                        <span className="review-score">{Math.round(msg.review.overall_score * 100)}%</span>
+                      )}
+                    </span>
+                  )}
                 </div>
               )}
-              {msg.content}
+              {/* Render markdown for assistant messages */}
+              {msg.type === MESSAGE_TYPES.ASSISTANT ? (
+                <div className="mobile-chat-markdown">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {msg.content}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                msg.content
+              )}
+              {/* Strategy badge for debugging/transparency */}
+              {msg.strategy && (
+                <div style={{ marginTop: '8px', fontSize: '10px', color: '#64748b' }}>
+                  Strategy: {msg.strategy}
+                </div>
+              )}
             </div>
           ))
         )}

@@ -53,6 +53,7 @@ class CritiqueCategory(Enum):
     PII_CONCERN = "pii_concern"
     FACTUAL = "factual"
     GRAMMAR = "grammar"
+    REQUIREMENTS = "requirements"
 
 
 @dataclass
@@ -198,7 +199,7 @@ class ReviewBeeConfig:
     # Review behavior
     mode: ReviewBeeMode = ReviewBeeMode.THRESHOLD
     revision_threshold: float = 0.75  # Only revise if score below this
-    max_iterations: int = 1  # Usually 1 is enough with good feedback
+    max_iterations: int = 2  # Allow iterative refinement for complex reports
     critique_timeout_seconds: int = 30
     revision_timeout_seconds: int = 120
     
@@ -290,7 +291,7 @@ class ReviewBeeService:
             llm_service_url=os.environ.get('LLM_SERVICE_URL', 'http://external-ai:8091'),
             mode=ReviewBeeMode(os.environ.get('REVIEW_BEE_MODE', 'threshold')),
             revision_threshold=float(os.environ.get('REVIEW_BEE_THRESHOLD', '0.75')),
-            max_iterations=int(os.environ.get('REVIEW_BEE_MAX_ITERATIONS', '1')),
+            max_iterations=int(os.environ.get('REVIEW_BEE_MAX_ITERATIONS', '2')),
             include_pii_context=os.environ.get('REVIEW_BEE_PII_CONTEXT', 'true').lower() == 'true'
         )
     
@@ -316,7 +317,8 @@ class ReviewBeeService:
         original_prompt: str,
         pii_context: Optional[Dict[str, Any]] = None,
         user_id: Optional[str] = None,
-        generator_model: Optional[str] = None
+        generator_model: Optional[str] = None,
+        web_sources: Optional[List[Dict[str, Any]]] = None
     ) -> ReviewBeeResult:
         """
         Review content and optionally revise using Critic-Revise pattern.
@@ -328,6 +330,7 @@ class ReviewBeeService:
             pii_context: PII serialization context (for critic awareness)
             user_id: ID of the report owner
             generator_model: Model to use for revision (defaults to report model)
+            web_sources: Optional web sources used in generation for fact-checking
             
         Returns:
             ReviewBeeResult with critique and optionally revised content
@@ -361,26 +364,57 @@ class ReviewBeeService:
                 generator_model="none"
             )
         
-        # Step 1: Run critic model to get feedback
-        logger.info(f"🔍 Running critic model ({self.config.critic_model})...")
-        critique = await self._run_critic(content, pii_context)
+        # Multi-pass revision loop
+        current_content = content
+        previous_score = 0.0
+        last_critique = None
+        last_revision_prompt = None
+        iterations = 0
         
-        logger.info(f"📊 Critique complete: score={critique.overall_score:.0%}, "
-                   f"findings={len(critique.findings)}, needs_revision={critique.needs_revision}")
-        
-        # Step 2: Determine if revision is needed
-        should_revise = self._should_revise(critique)
-        
-        final_content = content
-        revision_prompt = None
-        iterations = 1
-        
-        if should_revise and original_prompt:
+        for iteration in range(self.config.max_iterations):
+            iterations = iteration + 1
+            
+            # Step 1: Run critic model to get feedback
+            logger.info(f"🔍 Running critic model ({self.config.critic_model}), iteration {iteration+1}/{self.config.max_iterations}...")
+            critique = await self._run_critic(current_content, pii_context, original_prompt=original_prompt, web_sources=web_sources)
+            
+            # Step 1b: Check extracted requirements and add findings for unmet ones
+            requirements = self._extract_requirements(original_prompt)
+            if requirements:
+                req_findings = self._check_requirements(current_content, requirements)
+                if req_findings:
+                    critique.findings.extend(req_findings)
+                    # Recalculate needs_revision with new findings
+                    major_count = len([f for f in critique.findings if f.severity == 'major'])
+                    critique.needs_revision = critique.overall_score < self.config.revision_threshold or major_count > 0
+            
+            last_critique = critique
+            
+            logger.info(f"📊 Critique complete (iteration {iteration+1}): score={critique.overall_score:.0%}, "
+                       f"findings={len(critique.findings)}, needs_revision={critique.needs_revision}")
+            
+            # Step 2: Determine if revision is needed
+            if not self._should_revise(critique):
+                break
+            
+            # Convergence detection: stop if improvement is marginal
+            if iteration > 0:
+                improvement = critique.overall_score - previous_score
+                if improvement < 0.05:
+                    logger.info(f"🐝 Converged after {iteration+1} iterations (improvement: {improvement:.2%})")
+                    break
+            
+            previous_score = critique.overall_score
+            
+            if not original_prompt:
+                break
+            
             # Step 3: Generate revision by appending feedback to original prompt
-            logger.info(f"🔄 Revision needed, generating improved version...")
+            logger.info(f"🔄 Revision needed, generating improved version (iteration {iteration+1})...")
             
             revision_feedback = critique.generate_revision_feedback()
             revision_prompt = original_prompt + revision_feedback
+            last_revision_prompt = revision_prompt
             
             # Call the powerful LLM with the augmented prompt
             revised_content = await self._generate_revision(
@@ -390,24 +424,25 @@ class ReviewBeeService:
             )
             
             if revised_content:
-                final_content = revised_content
-                logger.info(f"✅ Revision complete")
+                current_content = revised_content
+                logger.info(f"✅ Revision complete (iteration {iteration+1})")
             else:
-                logger.warning(f"⚠️ Revision failed, keeping original content")
+                logger.warning(f"⚠️ Revision failed at iteration {iteration+1}, keeping current content")
+                break
         
         total_time = time.time() - start_time
         
-        logger.info(f"🐝 ReviewBee complete: score={critique.overall_score:.0%}, "
-                   f"revised={should_revise and final_content != content}, time={total_time:.2f}s")
+        logger.info(f"🐝 ReviewBee complete: score={last_critique.overall_score:.0%}, "
+                   f"revised={current_content != content}, iterations={iterations}, time={total_time:.2f}s")
         
         return ReviewBeeResult(
             report_id=report_id,
             review_id=review_id,
             original_content=content,
-            final_content=final_content,
-            critique=critique,
-            revision_performed=final_content != content,
-            revision_prompt_used=revision_prompt if final_content != content else None,
+            final_content=current_content,
+            critique=last_critique,
+            revision_performed=current_content != content,
+            revision_prompt_used=last_revision_prompt if current_content != content else None,
             total_iterations=iterations,
             total_time_seconds=total_time,
             generator_model=generator_model or "default"
@@ -426,10 +461,29 @@ class ReviewBeeService:
     async def _run_critic(
         self,
         content: str,
-        pii_context: Optional[Dict[str, Any]]
+        pii_context: Optional[Dict[str, Any]],
+        original_prompt: Optional[str] = None,
+        web_sources: Optional[List[Dict[str, Any]]] = None
     ) -> CritiqueResult:
         """Run the lightweight critic model to analyze content"""
         start_time = time.time()
+        
+        # Programmatic checks before LLM critic
+        programmatic_findings: List[CritiqueFinding] = []
+        
+        # Content length validation (Fix 3)
+        if original_prompt:
+            content_words = len(content.split())
+            target_words = self._extract_target_word_count(original_prompt)
+            
+            if target_words and content_words < target_words * 0.8:
+                programmatic_findings.append(CritiqueFinding(
+                    id="length-check",
+                    category=CritiqueCategory.COMPLETENESS,
+                    severity="major",
+                    description=f"Report is {content_words} words but user requested {target_words}+ words",
+                    suggestion=f"Expand the report significantly to reach at least {target_words} words with more detailed analysis, examples, and evidence."
+                ))
         
         # Build critic prompt
         pii_note = ""
@@ -447,6 +501,31 @@ You may see [PII_*] tokens - these are INTENTIONAL and should NOT be flagged as 
         review_content = content[:6000] if len(content) > 6000 else content
         truncated = len(content) > 6000
         
+        # Requirements validation section (Fix 1)
+        requirements_section = ""
+        if original_prompt:
+            requirements = self._extract_requirements(original_prompt)
+            if requirements:
+                req_lines = ["REQUIREMENTS VALIDATION:"]
+                req_lines.append("The user's original request included these specific requirements. Evaluate whether they were met:")
+                for req_type, req_items in requirements.items():
+                    if req_items:
+                        req_lines.append(f"  - {req_type}: {', '.join(str(r) for r in req_items)}")
+                req_lines.append("Flag any unmet requirements as 'requirements' category findings with severity 'major'.")
+                req_lines.append("")
+                requirements_section = "\n".join(req_lines)
+        
+        # Fact-check section (Fix 4)
+        fact_check_section = ""
+        if web_sources:
+            source_lines = ["\nWEB SOURCES USED IN GENERATION:"]
+            for i, src in enumerate(web_sources[:5], 1):
+                title = src.get('title', 'Unknown')
+                snippet = src.get('snippet', '')[:200]
+                source_lines.append(f"\n[{i}] {title}: {snippet}")
+            source_lines.append("\nFACT-CHECK TASK: Verify claims in the report against these sources. Flag any claims that are NOT supported by the provided sources as 'factual' category findings with severity 'major'.")
+            fact_check_section = "\n".join(source_lines)
+        
         critic_prompt = f"""You are ReviewBee, a quality assurance critic for enterprise reports.
 Analyze the following report and provide structured feedback.
 {pii_note}
@@ -458,6 +537,7 @@ CONTENT TO REVIEW{' (truncated to 6000 chars)' if truncated else ''}:
 
 EVALUATION CATEGORIES: {enabled_cats}
 
+{requirements_section}{fact_check_section}
 TASK: Evaluate this report and identify specific issues that need improvement.
 Focus on actionable feedback - things that can actually be fixed in a revision.
 
@@ -474,7 +554,7 @@ Respond with ONLY a JSON object (no markdown):
     "summary": "One sentence overall assessment",
     "findings": [
         {{
-            "category": "clarity|completeness|accuracy|tone|structure|grammar|factual|pii_concern",
+            "category": "clarity|completeness|accuracy|tone|structure|grammar|factual|pii_concern|requirements",
             "severity": "minor|moderate|major",
             "description": "What the issue is",
             "suggestion": "How to fix it",
@@ -515,7 +595,7 @@ Be constructive - only flag issues that would meaningfully improve the report.""
             critique_data = self._parse_critic_response(response_text)
             
             # Convert to CritiqueResult
-            findings = []
+            findings = list(programmatic_findings)  # Start with programmatic checks
             for i, f in enumerate(critique_data.get('findings', [])):
                 try:
                     cat_str = f.get('category', 'clarity')
@@ -551,6 +631,153 @@ Be constructive - only flag issues that would meaningfully improve the report.""
         except Exception as e:
             logger.error(f"Critic failed: {e}")
             return self._default_critique(time.time() - start_time)
+    
+    def _extract_target_word_count(self, prompt: str) -> Optional[int]:
+        """Extract target word count from the original prompt"""
+        prompt_lower = prompt.lower()
+        
+        # Explicit word count patterns
+        patterns = [
+            r'(\d[\d,]+)\+?\s*words',
+            r'at\s+least\s+(\d[\d,]+)\s*words',
+            r'minimum\s+(?:of\s+)?(\d[\d,]+)\s*words',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, prompt_lower)
+            if match:
+                return int(match.group(1).replace(',', ''))
+        
+        # Keyword-based inference
+        keyword_map = {
+            'comprehensive': 2000,
+            'in-depth': 2500,
+            'in depth': 2500,
+            'detailed': 1500,
+            'thorough': 2000,
+            'brief': 500,
+            'concise': 500,
+            'summary': 800,
+        }
+        for keyword, word_count in keyword_map.items():
+            if keyword in prompt_lower:
+                return word_count
+        
+        return None
+    
+    def _extract_requirements(self, prompt: str) -> Dict[str, List[str]]:
+        """Parse the original prompt for specific user requirements"""
+        requirements: Dict[str, List[str]] = {
+            'sections': [],
+            'word_count': [],
+            'deliverables': [],
+            'format': [],
+        }
+        
+        prompt_lower = prompt.lower()
+        
+        # Section requests: numbered lists like "1. ...\n2. ..." or "include X section"
+        section_patterns = [
+            r'include\s+(?:a\s+)?(.+?)\s+section',
+            r'provide\s+(?:a\s+)?(.+?)\s+(?:section|analysis|overview)',
+            r'add\s+(?:a\s+)?(.+?)\s+section',
+        ]
+        for pattern in section_patterns:
+            for match in re.finditer(pattern, prompt_lower):
+                requirements['sections'].append(match.group(1).strip())
+        
+        # Numbered list items (e.g., "1. Executive Summary\n2. Gap Analysis")
+        numbered_items = re.findall(r'^\s*\d+[\.\)]\s*(.+)', prompt, re.MULTILINE)
+        if len(numbered_items) >= 2:
+            requirements['sections'].extend(item.strip() for item in numbered_items)
+        
+        # Word count targets
+        target = self._extract_target_word_count(prompt)
+        if target:
+            requirements['word_count'].append(f"{target}+ words")
+        
+        # Specific deliverables
+        deliverables = [
+            'roadmap', 'gap analysis', 'threat model', 'comparison table',
+            'risk assessment', 'executive summary', 'action plan', 'timeline',
+            'swot analysis', 'cost analysis', 'benchmark', 'recommendation',
+            'maturity assessment', 'compliance matrix', 'implementation plan',
+        ]
+        for d in deliverables:
+            if d in prompt_lower:
+                requirements['deliverables'].append(d)
+        
+        # Output format requirements
+        format_patterns = {
+            'inline citations': r'inline\s+citations?',
+            'formal tone': r'formal\s+tone',
+            'executive summary': r'executive\s+summary',
+            'table of contents': r'table\s+of\s+contents',
+            'numbered sections': r'numbered\s+sections?',
+            'bullet points': r'bullet\s+points?',
+            'markdown': r'(?:in|use|with)\s+markdown',
+        }
+        for label, pattern in format_patterns.items():
+            if re.search(pattern, prompt_lower):
+                requirements['format'].append(label)
+        
+        # Remove empty categories
+        return {k: v for k, v in requirements.items() if v}
+    
+    def _check_requirements(self, content: str, requirements: Dict[str, List[str]]) -> List[CritiqueFinding]:
+        """Check content against extracted requirements, return findings for unmet ones"""
+        findings: List[CritiqueFinding] = []
+        content_lower = content.lower()
+        finding_idx = 0
+        
+        # Check deliverables
+        for deliverable in requirements.get('deliverables', []):
+            if deliverable not in content_lower:
+                findings.append(CritiqueFinding(
+                    id=f"req-deliverable-{finding_idx}",
+                    category=CritiqueCategory.REQUIREMENTS,
+                    severity="major",
+                    description=f"Missing required deliverable: '{deliverable}'",
+                    suggestion=f"Add a dedicated '{deliverable}' section with substantive content addressing the user's request."
+                ))
+                finding_idx += 1
+        
+        # Check section requests
+        for section in requirements.get('sections', []):
+            section_lower = section.lower().strip()
+            if len(section_lower) < 3:
+                continue
+            # Check for section heading or substantial mention
+            if section_lower not in content_lower:
+                findings.append(CritiqueFinding(
+                    id=f"req-section-{finding_idx}",
+                    category=CritiqueCategory.REQUIREMENTS,
+                    severity="major",
+                    description=f"Missing requested section: '{section}'",
+                    suggestion=f"Add a section covering '{section}' as requested by the user."
+                ))
+                finding_idx += 1
+        
+        # Check format requirements
+        format_checks = {
+            'inline citations': [r'\[\d+\]', r'\[source', r'\(source'],
+            'table of contents': [r'table of contents', r'## contents'],
+            'executive summary': [r'executive summary'],
+        }
+        for fmt in requirements.get('format', []):
+            fmt_lower = fmt.lower()
+            if fmt_lower in format_checks:
+                patterns = format_checks[fmt_lower]
+                if not any(re.search(p, content_lower) for p in patterns):
+                    findings.append(CritiqueFinding(
+                        id=f"req-format-{finding_idx}",
+                        category=CritiqueCategory.REQUIREMENTS,
+                        severity="moderate",
+                        description=f"Missing required format element: '{fmt}'",
+                        suggestion=f"Add '{fmt}' formatting as requested by the user."
+                    ))
+                    finding_idx += 1
+        
+        return findings
     
     def _parse_critic_response(self, response_text: str) -> Dict[str, Any]:
         """Parse JSON from critic model response"""

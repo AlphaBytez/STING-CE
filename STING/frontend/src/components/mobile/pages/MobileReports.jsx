@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { message, Spin, Modal, Input, Select } from 'antd';
+import { message, Spin, Modal, Input, Select, Progress } from 'antd';
 import {
   FileTextOutlined,
   PlusOutlined,
@@ -9,8 +9,12 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
+  LoadingOutlined,
+  DownloadOutlined,
+  EyeOutlined,
+  ShareAltOutlined,
+  ShoppingCartOutlined,
 } from '@ant-design/icons';
-import { externalAiApi, REPORT_TEMPLATES } from '../../../services/externalAiApi';
 import reportApi from '../../../services/reportApi';
 import { useUnifiedAuth } from '../../../auth/UnifiedAuthProvider';
 import MobileLoadingSpinner from '../MobileLoadingSpinner';
@@ -21,6 +25,8 @@ import '../../../styles/mobile.css';
  */
 const STATUS_FILTERS = [
   { key: 'all', label: 'All' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'queued', label: 'Queued' },
   { key: 'processing', label: 'Processing' },
   { key: 'completed', label: 'Completed' },
   { key: 'failed', label: 'Failed' },
@@ -43,14 +49,35 @@ const getStatusConfig = (status) => {
         color: '#ff4d4f',
         label: 'Failed',
       };
-    case 'processing':
-    case 'generating':
-    default:
+    case 'queued':
       return {
         icon: <ClockCircleOutlined />,
-        color: '#1890ff',
-        label: 'Processing',
+        color: '#faad14',
+        label: 'Queued',
       };
+    case 'processing':
+    case 'generating':
+    case 'pending':
+    default:
+      return {
+        icon: <LoadingOutlined />,
+        color: '#1890ff',
+        label: status === 'pending' ? 'Pending' : 'Processing',
+      };
+  }
+};
+
+/**
+ * Get type color for badges
+ */
+const getTypeColor = (type) => {
+  switch (type) {
+    case 'security': return '#ff4d4f';
+    case 'analytics': return '#1890ff';
+    case 'compliance': return '#722ed1';
+    case 'performance': return '#52c41a';
+    case 'storage': return '#fa8c16';
+    default: return '#8c8c8c';
   }
 };
 
@@ -70,123 +97,276 @@ const formatDate = (dateString) => {
 };
 
 /**
+ * Format file size
+ */
+const formatFileSize = (bytes) => {
+  if (!bytes) return null;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+};
+
+/**
  * MobileReports - Mobile reports list page
- * List all reports with status indicators and filtering options
+ * Full parity with desktop BeeReportsPage
  */
 const MobileReports = () => {
   const navigate = useNavigate();
-  const { user } = useUnifiedAuth();
+  const { user, identity } = useUnifiedAuth();
 
-  // State
+  // State - matching desktop BeeReportsPage
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [reports, setReports] = useState([]);
+  const [templates, setTemplates] = useState([]);
+  const [queueStatus, setQueueStatus] = useState(null);
+  const [reportQueue, setReportQueue] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creatingReport, setCreatingReport] = useState(false);
-  const [newReportTitle, setNewReportTitle] = useState('');
-  const [newReportType, setNewReportType] = useState('customer-insights');
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [basketAddedReports, setBasketAddedReports] = useState(new Set());
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 20,
+    total: 0
+  });
 
-  // Fetch reports - using same API as desktop BeeReportsPage
-  const fetchReports = useCallback(async () => {
-    setLoading(true);
+  // Load templates - same as desktop
+  const loadTemplates = useCallback(async () => {
     try {
-      // Use the same reportApi.listReports() as desktop
+      const response = await reportApi.getTemplates();
+      if (response.success && response.data?.templates) {
+        setTemplates(response.data.templates);
+      }
+    } catch (error) {
+      console.error('Failed to load templates:', error);
+    }
+  }, []);
+
+  // Load reports - same as desktop BeeReportsPage
+  const loadReports = useCallback(async (page = 1, pageSize = 20) => {
+    try {
+      const offset = (page - 1) * pageSize;
       const params = {
-        limit: 50,
-        offset: 0,
+        limit: pageSize,
+        offset,
         status: statusFilter === 'all' ? undefined : statusFilter
       };
       
       const response = await reportApi.listReports(params);
       
-      if (response.success && response.data?.reports?.length > 0) {
-        // Map API response to component format
-        const mappedReports = response.data.reports.map(report => ({
-          id: report.id || report.report_id,
-          title: report.title || report.name || 'Untitled Report',
-          type: report.template_type || report.type || 'general',
-          status: report.status || 'completed',
-          createdAt: report.created_at || report.createdAt || new Date().toISOString(),
-          duration: report.generation_time || report.duration || null,
-        }));
-        setReports(mappedReports);
+      if (response.success && response.data?.reports) {
+        setReports(response.data.reports);
+        setPagination({
+          current: page,
+          pageSize,
+          total: response.data.pagination?.total || response.data.reports.length
+        });
       } else {
-        // No reports found - show empty state
         setReports([]);
+        setPagination({ current: 1, pageSize, total: 0 });
       }
     } catch (error) {
       console.error('Failed to fetch reports:', error);
-      // On error, show empty state rather than mock data
       setReports([]);
-    } finally {
-      setLoading(false);
     }
   }, [statusFilter]);
 
-  // Initial data fetch
+  // Load queue status - same as desktop
+  const loadQueueStatus = useCallback(async () => {
+    try {
+      const response = await reportApi.getQueueStatus();
+      if (response.success && response.data) {
+        setQueueStatus(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to load queue status:', error);
+    }
+  }, []);
+
+  // Initial data load
   useEffect(() => {
-    fetchReports();
-  }, [fetchReports]);
+    const loadAll = async () => {
+      setLoading(true);
+      await Promise.all([loadTemplates(), loadReports(), loadQueueStatus()]);
+      setLoading(false);
+    };
+    loadAll();
+  }, []);
 
-  // Filter reports based on status
-  const filteredReports = reports.filter((report) => {
-    if (statusFilter === 'all') return true;
-    if (statusFilter === 'processing') return report.status === 'processing' || report.status === 'generating';
-    return report.status === statusFilter;
-  });
+  // Reload when filters change
+  useEffect(() => {
+    if (!loading) {
+      loadReports();
+    }
+  }, [statusFilter]);
 
-  // Handle report click
+  // Update report queue when reports change
+  useEffect(() => {
+    const queue = reports.filter(r => 
+      ['pending', 'queued', 'processing'].includes(r.status)
+    );
+    setReportQueue(queue);
+  }, [reports]);
+
+  // Smart polling for active reports - same as desktop
+  useEffect(() => {
+    const hasProcessing = reportQueue.some(r => r.status === 'processing');
+    const hasQueued = reportQueue.some(r => ['pending', 'queued'].includes(r.status));
+    
+    if (!hasProcessing && !hasQueued) return;
+    
+    const interval = hasProcessing ? 3000 : 10000;
+    const pollInterval = setInterval(() => {
+      loadReports(pagination.current, pagination.pageSize);
+    }, interval);
+    
+    return () => clearInterval(pollInterval);
+  }, [reportQueue, pagination.current, pagination.pageSize]);
+
+  // Handle report click - view details
   const handleReportClick = (report) => {
-    if (report.status === 'processing') {
+    if (['pending', 'queued', 'processing'].includes(report.status)) {
       message.info('Report is still generating. Please wait...');
       return;
     }
     navigate(`/m/reports/${report.id}`);
   };
 
-  // Handle create new report
-  const handleCreateReport = async () => {
-    if (!newReportTitle.trim()) {
-      message.warning('Please enter a report title');
-      return;
-    }
-
-    setCreatingReport(false);
+  // Handle generate report from template - same as desktop
+  const handleGenerateReport = async (template) => {
     try {
-      const response = await externalAiApi.generateReport({
-        title: newReportTitle.trim(),
-        type: newReportType,
-        user_id: user?.id,
-        created_at: new Date().toISOString(),
+      setCreatingReport(true);
+      const response = await reportApi.generateReport(template.id, {
+        title: `${template.display_name || template.name} - ${new Date().toLocaleDateString()}`,
+        description: template.description
       });
 
-      message.success('Report generation started');
-      setShowCreateModal(false);
-      setNewReportTitle('');
-
-      // Add new report to list
-      const newReport = {
-        id: response.report_id || `temp_${Date.now()}`,
-        title: newReportTitle.trim(),
-        type: newReportType,
-        status: 'processing',
-        createdAt: new Date().toISOString(),
-        duration: null,
-      };
-
-      setReports((prev) => [newReport, ...prev]);
+      if (response.success) {
+        message.success('Report queued for generation');
+        setShowCreateModal(false);
+        setSelectedTemplate(null);
+        await loadReports(1, pagination.pageSize);
+      }
     } catch (error) {
-      console.error('Failed to create report:', error);
-      message.error('Failed to start report generation');
+      console.error('Failed to generate report:', error);
+      message.error('Failed to generate report');
     } finally {
       setCreatingReport(false);
     }
   };
 
+  // Handle download report - same as desktop
+  const handleDownload = async (e, report) => {
+    e.stopPropagation();
+    try {
+      await reportApi.downloadReport(report.id);
+      message.success('Report downloaded successfully');
+      // Update local state with new download count
+      setReports(prev =>
+        prev.map(r =>
+          r.id === report.id
+            ? { ...r, download_count: (r.download_count || 0) + 1 }
+            : r
+        )
+      );
+    } catch (error) {
+      console.error('Failed to download report:', error);
+      message.error('Failed to download report');
+    }
+  };
+
+  // Handle add to basket - same as desktop
+  const handleAddToBasket = async (e, report) => {
+    e.stopPropagation();
+    try {
+      const timestamp = new Date(report.created_at).toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const sanitizedTitle = (report.title || 'report').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30);
+      const filename = `${sanitizedTitle}_${timestamp}.md`;
+
+      const reportContent = `# ${report.title}
+
+**Generated:** ${new Date(report.created_at).toLocaleString()}
+**Status:** ${report.status}
+**Type:** ${report.template?.category || 'analytics'}
+
+## Description
+${report.description || 'No description provided'}
+
+## Report Details
+- **Report ID:** ${report.id}
+- **Template:** ${report.template?.name || 'Unknown'}
+- **File Size:** ${report.result_size_bytes ? formatFileSize(report.result_size_bytes) : 'N/A'}
+- **Downloads:** ${report.download_count || 0}
+
+---
+*This report was exported to your Basket from Report Bee.*
+`;
+
+      const response = await fetch('/api/basket/add-report', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename,
+          content: reportContent,
+          content_type: 'text/markdown',
+          metadata: {
+            source: 'mobile_reports_page',
+            report_id: report.id,
+            report_title: report.title,
+            exported_at: new Date().toISOString()
+          }
+        })
+      });
+
+      setBasketAddedReports(prev => new Set([...prev, report.id]));
+      message.success(response.ok ? 'Report added to Basket' : 'Report marked for export');
+    } catch (error) {
+      console.error('Error adding report to basket:', error);
+      setBasketAddedReports(prev => new Set([...prev, report.id]));
+      message.info('Report marked for export');
+    }
+  };
+
+  // Handle cancel report - same as desktop
+  const handleCancel = async (e, reportId) => {
+    e.stopPropagation();
+    try {
+      const response = await reportApi.cancelReport(reportId);
+      if (response.success) {
+        message.success('Report cancelled');
+        await loadReports(pagination.current, pagination.pageSize);
+      }
+    } catch (error) {
+      console.error('Failed to cancel report:', error);
+      message.error('Failed to cancel report');
+    }
+  };
+
+  // Handle retry failed report - same as desktop
+  const handleRetry = async (e, reportId) => {
+    e.stopPropagation();
+    try {
+      const response = await reportApi.retryReport(reportId);
+      if (response.success) {
+        message.success('Report queued for retry');
+        await loadReports(pagination.current, pagination.pageSize);
+      }
+    } catch (error) {
+      console.error('Failed to retry report:', error);
+      message.error('Failed to retry report');
+    }
+  };
+
   // Handle refresh
-  const handleRefresh = () => {
-    fetchReports();
-    message.loading('Refreshing...', 0.5);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([loadTemplates(), loadReports(), loadQueueStatus()]);
+    setRefreshing(false);
+    message.success('Data refreshed');
   };
 
   // Loading state
@@ -195,7 +375,7 @@ const MobileReports = () => {
   }
 
   return (
-    <div style={{ padding: '0', minHeight: '100%' }}>
+    <div style={{ padding: '0', minHeight: '100%', paddingBottom: '80px' }}>
       {/* Header */}
       <div style={{ 
         display: 'flex', 
@@ -203,25 +383,134 @@ const MobileReports = () => {
         alignItems: 'center', 
         marginBottom: '16px' 
       }}>
-        <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 600, color: '#f1f5f9' }}>Reports</h1>
+        <div>
+          <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 600, color: '#f1f5f9' }}>Report Bee</h1>
+          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
+            Generate and manage reports
+          </p>
+        </div>
         <button
           onClick={handleRefresh}
+          disabled={refreshing}
           style={{
             background: '#2a3142',
             border: '1px solid #3a4356',
             borderRadius: '8px',
             padding: '8px',
-            color: '#f1f5f9',
-            cursor: 'pointer',
+            color: refreshing ? '#64748b' : '#f1f5f9',
+            cursor: refreshing ? 'not-allowed' : 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}
           aria-label="Refresh reports"
         >
-          <ReloadOutlined />
+          <ReloadOutlined spin={refreshing} />
         </button>
       </div>
+
+      {/* Queue Status Banner - same as desktop */}
+      {queueStatus && (queueStatus.currently_processing > 0 || queueStatus.pending_reports > 0) && (
+        <div style={{
+          background: 'rgba(234, 179, 8, 0.1)',
+          border: '1px solid rgba(234, 179, 8, 0.3)',
+          borderRadius: '8px',
+          padding: '12px',
+          marginBottom: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}>
+          <LoadingOutlined style={{ color: '#eab308' }} />
+          <span style={{ color: 'rgba(234, 179, 8, 0.8)', fontSize: '13px' }}>
+            {queueStatus.currently_processing > 0 && (
+              <>{queueStatus.currently_processing} report{queueStatus.currently_processing > 1 ? 's' : ''} generating</>
+            )}
+            {queueStatus.currently_processing > 0 && queueStatus.pending_reports > 0 && ' • '}
+            {queueStatus.pending_reports > 0 && (
+              <>{queueStatus.pending_reports} in queue</>
+            )}
+          </span>
+        </div>
+      )}
+
+      {/* In Progress Queue - if any */}
+      {reportQueue.length > 0 && (
+        <div style={{
+          background: '#2a3142',
+          borderRadius: '12px',
+          border: '1px solid #3a4356',
+          padding: '16px',
+          marginBottom: '16px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <ClockCircleOutlined style={{ color: '#eab308' }} />
+            <span style={{ fontWeight: 600, color: '#f1f5f9' }}>In Progress</span>
+            <span style={{ 
+              background: '#eab308', 
+              color: '#1a1f2e', 
+              padding: '2px 8px', 
+              borderRadius: '10px', 
+              fontSize: '11px',
+              fontWeight: 600 
+            }}>
+              {reportQueue.length}
+            </span>
+          </div>
+          {reportQueue.map((report) => (
+            <div key={report.id} style={{
+              background: '#1a1f2e',
+              borderRadius: '8px',
+              padding: '12px',
+              marginBottom: '8px',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ color: '#f1f5f9', fontSize: '13px', fontWeight: 500 }}>{report.title}</span>
+                <span style={{ 
+                  color: getStatusConfig(report.status).color, 
+                  fontSize: '11px',
+                  background: `${getStatusConfig(report.status).color}20`,
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                }}>
+                  {report.status}
+                </span>
+              </div>
+              {report.status === 'processing' && (
+                <>
+                  {report.status_message && (
+                    <p style={{ color: '#94a3b8', fontSize: '11px', margin: '0 0 8px 0', fontStyle: 'italic' }}>
+                      {report.status_message}
+                    </p>
+                  )}
+                  <Progress 
+                    percent={report.progress_percentage || 5} 
+                    size="small" 
+                    status="active"
+                    strokeColor={{ '0%': '#f59e0b', '100%': '#10b981' }}
+                    trailColor="#374151"
+                  />
+                </>
+              )}
+              <button
+                onClick={(e) => handleCancel(e, report.id)}
+                style={{
+                  marginTop: '8px',
+                  padding: '4px 12px',
+                  background: 'transparent',
+                  border: '1px solid #ef4444',
+                  borderRadius: '4px',
+                  color: '#ef4444',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Status Filters - Horizontal scroll */}
       <div style={{ marginBottom: '16px' }}>
@@ -237,7 +526,6 @@ const MobileReports = () => {
           {STATUS_FILTERS.map((filter) => {
             const count = reports.filter(r => {
               if (filter.key === 'all') return true;
-              if (filter.key === 'processing') return r.status === 'processing' || r.status === 'generating';
               return r.status === filter.key;
             }).length;
             const isActive = statusFilter === filter.key;
@@ -268,9 +556,13 @@ const MobileReports = () => {
 
       {/* Reports List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {filteredReports.length > 0 ? (
-          filteredReports.map((report) => {
+        {reports.length > 0 ? (
+          reports.map((report) => {
             const statusConfig = getStatusConfig(report.status);
+            const isCompleted = report.status === 'completed';
+            const hasFile = isCompleted && report.result_file_id;
+            const isInQueue = ['pending', 'queued', 'processing'].includes(report.status);
+            
             return (
               <div
                 key={report.id}
@@ -280,8 +572,8 @@ const MobileReports = () => {
                   background: '#2a3142',
                   borderRadius: '12px',
                   border: '1px solid #3a4356',
-                  cursor: report.status === 'processing' ? 'default' : 'pointer',
-                  opacity: report.status === 'processing' ? 0.8 : 1,
+                  cursor: isInQueue ? 'default' : 'pointer',
+                  opacity: isInQueue ? 0.9 : 1,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
@@ -341,34 +633,145 @@ const MobileReports = () => {
                     {/* Meta info */}
                     <div style={{ 
                       display: 'flex', 
-                      justifyContent: 'space-between', 
                       alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '6px',
                       fontSize: '12px',
                       color: '#94a3b8',
+                      marginBottom: '8px',
                     }}>
-                      <span>
-                        {REPORT_TEMPLATES[report.type]?.title || report.type} • {formatDate(report.createdAt)}
-                      </span>
-                      {report.duration && (
-                        <span style={{ color: '#64748b' }}>
-                          {report.duration}
+                      {report.template?.category && (
+                        <span style={{
+                          background: `${getTypeColor(report.template.category)}20`,
+                          color: getTypeColor(report.template.category),
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '10px',
+                        }}>
+                          {report.template.category}
                         </span>
+                      )}
+                      <span>{formatDate(report.created_at)}</span>
+                      {report.result_size_bytes && (
+                        <span>• {formatFileSize(report.result_size_bytes)}</span>
                       )}
                     </div>
                     
+                    {/* Progress bar for processing */}
+                    {report.status === 'processing' && report.progress_percentage > 0 && (
+                      <div style={{ marginBottom: '8px' }}>
+                        <Progress 
+                          percent={report.progress_percentage} 
+                          size="small" 
+                          status="active"
+                          strokeColor={{ '0%': '#f59e0b', '100%': '#10b981' }}
+                          trailColor="#374151"
+                          showInfo={false}
+                        />
+                      </div>
+                    )}
+                    
                     {/* Error message if failed */}
-                    {report.status === 'failed' && report.error && (
+                    {report.status === 'failed' && report.error_message && (
                       <div style={{ 
                         fontSize: '12px', 
                         color: '#ef4444', 
-                        marginTop: '8px',
+                        marginBottom: '8px',
                         padding: '8px',
                         background: 'rgba(239, 68, 68, 0.1)',
                         borderRadius: '6px',
                       }}>
-                        {report.error}
+                        {report.error_message}
                       </div>
                     )}
+                    
+                    {/* Action buttons - same as desktop */}
+                    <div style={{ 
+                      display: 'flex', 
+                      gap: '8px', 
+                      marginTop: '4px',
+                      flexWrap: 'wrap',
+                    }}>
+                      {hasFile && (
+                        <>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigate(`/m/reports/${report.id}`); }}
+                            style={{
+                              padding: '6px 12px',
+                              background: 'transparent',
+                              border: '1px solid #3a4356',
+                              borderRadius: '6px',
+                              color: '#94a3b8',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <EyeOutlined /> View
+                          </button>
+                          <button
+                            onClick={(e) => handleDownload(e, report)}
+                            style={{
+                              padding: '6px 12px',
+                              background: 'transparent',
+                              border: '1px solid #3a4356',
+                              borderRadius: '6px',
+                              color: '#52c41a',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <DownloadOutlined /> {report.download_count || 0}
+                          </button>
+                          <button
+                            onClick={(e) => handleAddToBasket(e, report)}
+                            disabled={basketAddedReports.has(report.id)}
+                            style={{
+                              padding: '6px 12px',
+                              background: 'transparent',
+                              border: '1px solid #3a4356',
+                              borderRadius: '6px',
+                              color: basketAddedReports.has(report.id) ? '#52c41a' : '#f59e0b',
+                              fontSize: '12px',
+                              cursor: basketAddedReports.has(report.id) ? 'default' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              opacity: basketAddedReports.has(report.id) ? 0.7 : 1,
+                            }}
+                          >
+                            <ShoppingCartOutlined />
+                            {basketAddedReports.has(report.id) ? 'Added' : 'Basket'}
+                          </button>
+                        </>
+                      )}
+                      {isCompleted && !report.result_file_id && (
+                        <span style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic' }}>
+                          File not available
+                        </span>
+                      )}
+                      {report.status === 'failed' && (
+                        <button
+                          onClick={(e) => handleRetry(e, report.id)}
+                          style={{
+                            padding: '6px 12px',
+                            background: '#ef4444',
+                            border: 'none',
+                            borderRadius: '6px',
+                            color: '#fff',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Retry
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -395,6 +798,18 @@ const MobileReports = () => {
         )}
       </div>
 
+      {/* Pagination info */}
+      {pagination.total > 0 && (
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '16px', 
+          color: '#64748b', 
+          fontSize: '12px' 
+        }}>
+          Showing {reports.length} of {pagination.total} reports
+        </div>
+      )}
+
       {/* Create Report FAB */}
       <button
         onClick={() => setShowCreateModal(true)}
@@ -420,77 +835,103 @@ const MobileReports = () => {
         <PlusOutlined style={{ fontSize: '24px' }} />
       </button>
 
-      {/* Create Report Modal */}
+      {/* Create Report Modal - Template Selection like desktop */}
       <Modal
-        title="Create New Report"
+        title="Generate New Report"
         open={showCreateModal}
-        onCancel={() => setShowCreateModal(false)}
-        footer={[
-          <button
-            key="cancel"
-            onClick={() => setShowCreateModal(false)}
-            style={{
-              padding: 'var(--mobile-space-sm) var(--mobile-space-md)',
-              background: 'var(--mobile-surface)',
-              border: '1px solid var(--mobile-border)',
-              borderRadius: 'var(--mobile-radius-md, 8px)',
-              color: 'var(--mobile-text-primary)',
-              cursor: 'pointer',
-            }}
-          >
-            Cancel
-          </button>,
-          <button
-            key="create"
-            onClick={handleCreateReport}
-            disabled={creatingReport || !newReportTitle.trim()}
-            style={{
-              padding: 'var(--mobile-space-sm) var(--mobile-space-md)',
-              background: 'var(--mobile-primary)',
-              border: 'none',
-              borderRadius: 'var(--mobile-radius-md, 8px)',
-              color: 'var(--mobile-text-inverse)',
-              cursor: creatingReport || !newReportTitle.trim() ? 'not-allowed' : 'pointer',
-              opacity: creatingReport || !newReportTitle.trim() ? 0.6 : 1,
-            }}
-          >
-            {creatingReport ? <Spin size="small" /> : 'Create Report'}
-          </button>,
-        ]}
+        onCancel={() => { setShowCreateModal(false); setSelectedTemplate(null); }}
+        footer={null}
+        width="90%"
+        style={{ maxWidth: '400px' }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--mobile-space-md)' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: 'var(--mobile-space-xs)', color: 'var(--mobile-text-secondary)', fontSize: 'var(--mobile-font-sm)' }}>
-              Report Title
-            </label>
-            <Input
-              placeholder="Enter report title"
-              value={newReportTitle}
-              onChange={(e) => setNewReportTitle(e.target.value)}
-              onPressEnter={handleCreateReport}
-              style={{ borderRadius: 'var(--mobile-radius-md, 8px)' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: 'var(--mobile-space-xs)', color: 'var(--mobile-text-secondary)', fontSize: 'var(--mobile-font-sm)' }}>
-              Report Type
-            </label>
-            <Select
-              value={newReportType}
-              onChange={setNewReportType}
-              style={{ width: '100%' }}
-              dropdownStyle={{ borderRadius: 'var(--mobile-radius-md, 8px)' }}
-            >
-              {Object.entries(REPORT_TEMPLATES).map(([key, template]) => (
-                <Select.Option key={key} value={key}>
-                  {template.title}
-                </Select.Option>
+        <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+          {templates.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
+              <FileTextOutlined style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.5 }} />
+              <p>No templates available</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {templates.map((template) => (
+                <div
+                  key={template.id}
+                  onClick={() => setSelectedTemplate(template)}
+                  style={{
+                    padding: '16px',
+                    background: selectedTemplate?.id === template.id ? 'rgba(234, 179, 8, 0.15)' : '#1a1f2e',
+                    borderRadius: '8px',
+                    border: selectedTemplate?.id === template.id ? '2px solid #eab308' : '1px solid #3a4356',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                    <h4 style={{ margin: 0, color: '#f1f5f9', fontSize: '14px', fontWeight: 500 }}>
+                      {template.display_name || template.name}
+                    </h4>
+                    {template.category && (
+                      <span style={{
+                        background: `${getTypeColor(template.category)}20`,
+                        color: getTypeColor(template.category),
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                      }}>
+                        {template.category}
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ margin: 0, color: '#94a3b8', fontSize: '12px', lineHeight: 1.4 }}>
+                    {template.description}
+                  </p>
+                  {template.estimated_time_minutes && (
+                    <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '11px' }}>
+                      ~{template.estimated_time_minutes} minutes
+                    </p>
+                  )}
+                </div>
               ))}
-            </Select>
-          </div>
-          <div style={{ fontSize: 'var(--mobile-font-xs)', color: 'var(--mobile-text-tertiary)', background: 'var(--mobile-surface)', padding: 'var(--mobile-space-sm)', borderRadius: 'var(--mobile-radius-md, 8px)' }}>
-            <strong>Note:</strong> Report generation may take a few minutes depending on the amount of data and complexity.
-          </div>
+            </div>
+          )}
+          
+          {/* Generate Button */}
+          {selectedTemplate && (
+            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #3a4356' }}>
+              <button
+                onClick={() => handleGenerateReport(selectedTemplate)}
+                disabled={creatingReport}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  background: creatingReport ? '#64748b' : '#eab308',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#1a1f2e',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: creatingReport ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+              >
+                {creatingReport ? (
+                  <>
+                    <Spin size="small" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <PlusOutlined />
+                    Generate {selectedTemplate.display_name || selectedTemplate.name}
+                  </>
+                )}
+              </button>
+              <p style={{ margin: '12px 0 0 0', color: '#64748b', fontSize: '11px', textAlign: 'center' }}>
+                Report generation may take a few minutes depending on data complexity.
+              </p>
+            </div>
+          )}
         </div>
       </Modal>
     </div>

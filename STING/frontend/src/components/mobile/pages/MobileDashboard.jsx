@@ -94,6 +94,8 @@ const MobileDashboard = () => {
   // DEBUG: Fully inline styles without CSS variables for iOS Safari testing
   const pageStyle = {
     padding: '16px',
+    paddingLeft: 'max(16px, env(safe-area-inset-left, 0px))',
+    paddingRight: 'max(16px, env(safe-area-inset-right, 0px))',
     background: '#1a1f2e',
     minHeight: '100%',
   };
@@ -104,6 +106,7 @@ const MobileDashboard = () => {
     border: '1px solid #3a4356',
     borderRadius: '8px',
     cursor: 'pointer',
+    minHeight: '100px',
   };
 
   return (
@@ -118,9 +121,9 @@ const MobileDashboard = () => {
         </p>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid - responsive */}
       <div style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+        <div className="mobile-card-grid-2">
           <div style={cardStyle} onClick={() => navigate('/m/chat')}>
             <MessageOutlined style={{ fontSize: 24, color: '#eab308', marginBottom: 8 }} />
             <div style={{ fontSize: '24px', fontWeight: 600, color: '#f1f5f9' }}>

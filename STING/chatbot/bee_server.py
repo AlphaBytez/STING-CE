@@ -118,18 +118,25 @@ knowledge_base = get_knowledge_base()
 system_prompt_file = os.path.join(os.path.dirname(__file__), 'prompts', 'bee_system_prompt.txt')
 try:
     with open(system_prompt_file, 'r') as f:
-        system_prompt_content = f.read()
+        system_prompt_template = f.read()
         logger.info("Loaded custom system prompt from file")
 except Exception as e:
     logger.warning(f"Failed to load custom prompt file: {e}, falling back to knowledge base")
-    system_prompt_content = knowledge_base.get_system_prompt('bee')
+    system_prompt_template = knowledge_base.get_system_prompt('bee')
+
+def get_dynamic_system_prompt():
+    """Generate system prompt with current date/time context"""
+    now = datetime.datetime.now(timezone.utc)
+    date_context = f"\n\n## Current Date/Time Context\nToday's date is {now.strftime('%B %d, %Y')}. The current time is {now.strftime('%H:%M UTC')}. Use this information when answering questions about dates, times, or current events.\n"
+    return system_prompt_template + date_context
 
 # Initialize configuration
 config = {
     "system_prompt": os.getenv(
         'BEE_SYSTEM_PROMPT',
-        system_prompt_content
+        system_prompt_template  # Store template, will be dynamically updated
     ),
+    "system_prompt_template": system_prompt_template,  # Keep the template for dynamic updates
     "max_history_length": int(os.getenv('BEE_MAX_HISTORY', '100')),
     "context_window": int(os.getenv('BEE_CONTEXT_WINDOW', '10')),
     "sentiment_analysis_enabled": os.getenv('BEE_SENTIMENT_ENABLED', 'true').lower() == 'true',
@@ -1332,7 +1339,8 @@ async def generate_bee_response(
 
     # Determine which system prompt to use
     # If this is a Nectar Bot fallback, use the bot's custom system prompt
-    effective_system_prompt = config['system_prompt']
+    # Use dynamic system prompt with current date/time for Bee
+    effective_system_prompt = get_dynamic_system_prompt()
     if bot_context and bot_context.get('is_nectar_bot'):
         custom_prompt = bot_context.get('system_prompt')
         if custom_prompt:

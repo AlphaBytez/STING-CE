@@ -3728,6 +3728,25 @@ Begin the report now.
             raw_response = result.get("response", "")
             clean_response = clean_llm_response(raw_response)
 
+            # ReviewBee checkpoint for quality assurance (async, doesn't block)
+            review_metadata = None
+            if bee_context_manager and bee_context_manager.review_enabled:
+                try:
+                    strategy = bee_context_manager._last_strategy or {'type': 'general', 'review_priority': 'low'}
+                    # Only review if strategy indicates it (avoid reviewing simple greetings)
+                    if strategy.get('review_priority') != 'low' or len(clean_response) > 300:
+                        enhanced_response, review_metadata = await bee_context_manager.enhance_response_with_review(
+                            request.message,  # Original query
+                            clean_response,
+                            strategy
+                        )
+                        if review_metadata and review_metadata.get('enhanced'):
+                            logger.info(f"✨ Response enhanced by ReviewBee (score: {review_metadata.get('overall_score', 'N/A')})")
+                            clean_response = enhanced_response
+                except Exception as e:
+                    logger.warning(f"ReviewBee checkpoint skipped: {e}")
+                    review_metadata = {'reviewed': False, 'error': str(e)}
+
             # PII Protection: Deserialize response with enhanced metadata for visual indicators
             pii_protected_metadata = None
             if pii_middleware and pii_context:
@@ -3810,6 +3829,8 @@ Begin the report now.
                 "processing_time": result.get('total_duration', 0) / 1e9,
                 "report_generated": False,
                 "pii_protection": pii_protected_metadata,  # PII metadata for frontend visual indicators
+                "review": review_metadata,  # ReviewBee quality check metadata
+                "strategy": bee_context_manager._last_strategy.get('type') if bee_context_manager and bee_context_manager._last_strategy else None,
                 "context_usage": {
                     "percentage": context_usage.get("usage_percentage", 0) if context_usage else 0,
                     "status": context_usage.get("status", "unknown") if context_usage else "unknown",

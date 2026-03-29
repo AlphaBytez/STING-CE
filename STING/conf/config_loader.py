@@ -2629,6 +2629,14 @@ class ConfigurationManager:
                     'WEB_SEARCH_FETCH_CONTENT': str(self.raw_config.get('llm_service', {}).get('external_ai', {}).get('web_search', {}).get('fetch_content', True)).lower(),
                     'WEB_SEARCH_MAX_RESULTS': str(self.raw_config.get('llm_service', {}).get('external_ai', {}).get('web_search', {}).get('max_results', 5)),
                     'WEB_SEARCH_TIMEOUT': str(self.raw_config.get('llm_service', {}).get('external_ai', {}).get('web_search', {}).get('timeout', 5)),
+                    # Bee Chat Enhancement Settings
+                    # Chat-first logic: determine if queries should be handled in chat vs reports
+                    'BEE_CHAT_FIRST_ENABLED': str(self.raw_config.get('ai', {}).get('bee', {}).get('chat_first', {}).get('enabled', True)).lower(),
+                    # ReviewBee for chat: uses same model as report review (critic model or fallback)
+                    'BEE_CHAT_REVIEW_ENABLED': str(self.raw_config.get('ai', {}).get('review_bee', {}).get('enabled', False)).lower(),
+                    'BEE_CHAT_REVIEW_THRESHOLD': str(self.raw_config.get('ai', {}).get('review_bee', {}).get('revision_threshold', 0.75)),
+                    # Review model: use ReviewBee critic model, or fall back to default local model
+                    'BEE_REVIEW_MODEL': self.raw_config.get('ai', {}).get('review_bee', {}).get('critic', {}).get('model', '') or self.processed_config.get('LLM_DEFAULT_MODEL', 'phi4'),
                     # PostgreSQL credentials for conversation persistence (sting_messaging database)
                     'POSTGRES_HOST': 'db',
                     'POSTGRES_PORT': '5432',

@@ -323,6 +323,34 @@ export const externalAiApi = {
             const response = await externalAiClient.get('/agent/tasks', { params });
             return response.data;
         }
+    },
+
+    sessionJar: {
+        uploadFile: async (file, conversationId) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('conversation_id', conversationId);
+            const response = await axios.post('/api/bee/session-jar/upload', formData, {
+                withCredentials: true,
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            return response.data;
+        },
+        getByConversation: async (conversationId) => {
+            const response = await axios.get(`/api/bee/session-jar/${conversationId}`, { withCredentials: true });
+            return response.data;
+        },
+        promote: async (conversationId, options = {}) => {
+            const response = await axios.post(`/api/bee/session-jar/${conversationId}/promote`, options, {
+                withCredentials: true,
+                headers: { 'Content-Type': 'application/json' }
+            });
+            return response.data;
+        },
+        delete: async (conversationId) => {
+            const response = await axios.delete(`/api/bee/session-jar/${conversationId}`, { withCredentials: true });
+            return response.data;
+        }
     }
 };
 

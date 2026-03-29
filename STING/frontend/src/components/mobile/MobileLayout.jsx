@@ -8,14 +8,15 @@ import '../../styles/mobile.css';
  * MobileLayout - Main mobile app shell
  * Contains header, content area (Outlet), and bottom navigation
  * 
- * DEBUG MODE: Using inline styles to bypass potential CSS loading issues on iOS Safari
+ * Supports iOS safe areas for notched devices (iPhone X+)
  */
 const MobileLayout = () => {
-  // Inline styles for iOS Safari debugging
+  // Inline styles for iOS Safari with safe area support
   const layoutStyle = {
     display: 'flex',
     flexDirection: 'column',
     minHeight: '100vh',
+    minHeight: '100dvh', // Dynamic viewport height for mobile
     background: '#161922',
     color: '#f1f5f9',
     position: 'relative',
@@ -23,15 +24,16 @@ const MobileLayout = () => {
 
   const contentStyle = {
     flex: 1,
-    marginTop: '48px',  // header height
-    marginBottom: '60px', // nav height
+    marginTop: 'calc(48px + env(safe-area-inset-top, 0px))',  // header height + safe area
+    marginBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))', // nav height + safe area
     overflowY: 'auto',
     overflowX: 'hidden',
     WebkitOverflowScrolling: 'touch',
     padding: '16px',
+    paddingLeft: 'max(16px, env(safe-area-inset-left, 0px))',
+    paddingRight: 'max(16px, env(safe-area-inset-right, 0px))',
     position: 'relative',
     minHeight: '100px',
-    // DEBUG: Add visible background to confirm content area renders
     background: '#1a1f2e',
   };
 

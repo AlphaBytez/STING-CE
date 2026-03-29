@@ -663,6 +663,15 @@ def create_app(config=None):
             logger.warning(f"Knowledge proxy blueprint registration failed: {e}")
             logger.info("Knowledge/honey jar features will be unavailable")
 
+        # Register session jar routes
+        try:
+            from app.routes.session_jar_routes import session_jar_bp
+            flask_app.register_blueprint(session_jar_bp, url_prefix='/api/bee/session-jar')
+            logger.info("Session jar blueprint registered successfully")
+        except Exception as e:
+            logger.warning(f"Session jar blueprint registration failed: {e}")
+            logger.info("Session jar file upload features will be unavailable")
+
         # Register messaging proxy routes
         try:
             from app.routes.messaging_proxy import messaging_proxy_bp

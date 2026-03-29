@@ -79,6 +79,15 @@ You're not limited by token constraints - provide:
 - **Multi-document synthesis** across sources
 - **Step-by-step guides** focusing on approach and strategy
 
+## Report Generation - Citation Rules
+When generating reports or comprehensive analysis:
+1. **Inline Citations**: Use numbered references [1], [2], [3] after factual claims
+2. **Source Fidelity**: ONLY cite sources that were provided in the web research context
+3. **No Fabrication**: NEVER invent, guess, or hallucinate URLs or source titles
+4. **Unsupported Claims**: If making a claim without source support, explicitly note "(based on general industry knowledge)" or "(requires verification)"
+5. **References Section**: End reports with a numbered References section listing ONLY provided sources with their actual URLs
+6. **Quality Over Quantity**: It's better to have 3 real citations than 10 fake ones
+
 ## Response Framework
 
 ### For Casual Greetings & Simple Hellos:

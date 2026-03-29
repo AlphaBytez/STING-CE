@@ -562,6 +562,52 @@ class HealthcareComplianceGenerator(BaseReportGenerator):
 class BeeConversationalReportGenerator(BaseReportGenerator):
     """Generator for Bee conversational reports - handles complex queries routed from chat"""
 
+    def _classify_report_type(self, user_query: str) -> tuple:
+        """Classify the report type and return (type_name, recommended_temperature).
+
+        Returns:
+            Tuple of (report_type: str, temperature: float)
+        """
+        query_lower = user_query.lower()
+
+        # Technical/security reports — low temperature for accuracy
+        technical_keywords = ['cybersecurity', 'security', 'technical', 'architecture',
+                             'infrastructure', 'network', 'system design', 'threat model',
+                             'vulnerability', 'penetration', 'audit', 'mitre att&ck',
+                             'nist', 'owasp', 'api security']
+
+        # Compliance/regulatory reports — lowest temperature for precision
+        compliance_keywords = ['compliance', 'hipaa', 'gdpr', 'sox', 'pci', 'regulatory',
+                              'audit', 'gap analysis', 'risk assessment', 'fda',
+                              'eu ai act', 'iso 27001', 'fedramp', 'cmmc']
+
+        # Financial/data reports — low temperature
+        financial_keywords = ['financial', 'budget', 'roi', 'cost analysis', 'revenue',
+                             'forecast', 'metrics', 'kpi', 'benchmark']
+
+        # Strategic/advisory reports — medium temperature
+        strategic_keywords = ['strategy', 'roadmap', 'recommendation', 'best practices',
+                             'implementation plan', 'transformation', 'innovation',
+                             'competitive analysis', 'market analysis']
+
+        # Creative/general reports — default temperature
+
+        compliance_score = sum(1 for k in compliance_keywords if k in query_lower)
+        technical_score = sum(1 for k in technical_keywords if k in query_lower)
+        financial_score = sum(1 for k in financial_keywords if k in query_lower)
+        strategic_score = sum(1 for k in strategic_keywords if k in query_lower)
+
+        if compliance_score >= 2 or (compliance_score >= 1 and technical_score >= 1):
+            return ('compliance', 0.3)
+        elif technical_score >= 2:
+            return ('technical', 0.4)
+        elif financial_score >= 2:
+            return ('financial', 0.4)
+        elif strategic_score >= 2:
+            return ('strategic', 0.6)
+        else:
+            return ('general', 0.7)
+
     async def collect_data(self) -> Dict[str, Any]:
         """Call external-ai service to generate the long-form content with progress updates"""
         try:
@@ -587,6 +633,10 @@ class BeeConversationalReportGenerator(BaseReportGenerator):
             )
             progress_thread.start()
 
+            # Classify report type for temperature tuning
+            report_type, recommended_temp = self._classify_report_type(user_query)
+            logger.info(f"📊 Report classified as '{report_type}' (temperature: {recommended_temp})")
+
             try:
                 # Call Bee chat with special report generation context
                 response = requests.post(
@@ -599,7 +649,9 @@ class BeeConversationalReportGenerator(BaseReportGenerator):
                             **context,
                             'generation_mode': 'report',
                             'output_format': 'detailed_markdown',
-                            'bypass_token_limit': True
+                            'bypass_token_limit': True,
+                            'report_type': report_type,
+                            'recommended_temperature': recommended_temp
                         },
                         'require_auth': False
                     },
@@ -628,7 +680,9 @@ class BeeConversationalReportGenerator(BaseReportGenerator):
                 'bee_response': bee_response,
                 'response_metadata': response_data.get('metadata', {}),
                 'word_count': len(bee_response.split()),
-                'char_count': len(bee_response)
+                'char_count': len(bee_response),
+                'report_type': report_type,
+                'recommended_temperature': recommended_temp
             }
 
         except Exception as e:
@@ -700,7 +754,9 @@ class BeeConversationalReportGenerator(BaseReportGenerator):
                 'word_count': raw_data.get('word_count', 0),
                 'char_count': raw_data.get('char_count', 0),
                 'conversation_id': raw_data.get('conversation_id'),
-                'original_query': user_query
+                'original_query': user_query,
+                'report_type': raw_data.get('report_type', 'general'),
+                'recommended_temperature': raw_data.get('recommended_temperature', 0.7)
             },
             'content_sections': self._parse_sections(bee_response)
         }

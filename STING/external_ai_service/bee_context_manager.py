@@ -10,6 +10,7 @@ import asyncio
 import json
 from pathlib import Path
 from typing import Dict, List, Optional, Any
+from datetime import datetime, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -101,6 +102,293 @@ class BeeContextManager:
         self.brain_knowledge = ""  # Core brain knowledge loaded in memory
         self.brain_loaded = False
         self.use_semantic_search = True  # Use ChromaDB when available
+        
+        # Chat-first logic configuration
+        self.chat_first_enabled = os.getenv('BEE_CHAT_FIRST_ENABLED', 'true').lower() == 'true'
+        
+        # ReviewBee integration for chat responses
+        # Uses the same ReviewBee config as reports - inherits critic model setting
+        self.review_enabled = os.getenv('BEE_CHAT_REVIEW_ENABLED', 'false').lower() == 'true'
+        self.review_threshold = float(os.getenv('BEE_CHAT_REVIEW_THRESHOLD', '0.75'))
+        self.llm_service_url = os.getenv('LLM_SERVICE_URL', 'http://localhost:8091')
+        # Review model inherits from ReviewBee critic model or uses the user's default local LLM
+        self.review_model = os.getenv('BEE_REVIEW_MODEL', os.getenv('LLM_DEFAULT_MODEL', 'phi4'))
+        
+        # Track last strategy for ReviewBee integration
+        self._last_strategy = None
+        
+        logger.info(f"🐝 BeeContextManager: chat_first={self.chat_first_enabled}, review={self.review_enabled}, review_model={self.review_model}")
+
+    def should_handle_in_chat(self, query: str) -> bool:
+        """Determine if query should be handled directly in chat vs delegating to report.
+        
+        This implements chat-first logic to make Bee more capable as a direct assistant.
+        """
+        if not self.chat_first_enabled:
+            return True  # Default to chat if feature disabled
+            
+        query_lower = query.lower()
+        
+        # Explicit report requests - always delegate
+        report_patterns = [
+            r'generate\s+(?:a\s+)?(?:full\s+|detailed\s+|comprehensive\s+)?report',
+            r'create\s+(?:a\s+)?(?:document|pdf|report)',
+            r'export\s+(?:to\s+)?(?:pdf|excel|csv)',
+            r'(?:full|detailed|comprehensive|in-depth)\s+analysis',
+            r'multi[- ]?page',
+            r'compliance\s+report',
+            r'audit\s+(?:report|trail)',
+            r'(?:write|draft)\s+(?:a\s+)?(?:formal\s+)?(?:report|document)',
+        ]
+        
+        for pattern in report_patterns:
+            if re.search(pattern, query_lower):
+                logger.debug(f"Query matches report pattern: {pattern}")
+                return False  # Delegate to report
+        
+        # Chat-friendly patterns - handle directly
+        chat_patterns = [
+            # Quick lookups and definitions
+            r'^(?:what\s+is|what\'s|define|explain|describe)\s+',
+            r'^(?:how\s+(?:to|do|can|does)|tell\s+me\s+(?:about|how))',
+            r'^(?:why|when|where|who)\s+',
+            
+            # Simple data queries
+            r'^(?:count|number\s+of|how\s+many)',
+            r'^(?:list|show\s+me|display|find)\s+(?:the\s+)?(?:top\s+\d+|recent|latest)',
+            r'^(?:what\s+are|show)\s+(?:the\s+)?(?:recent|latest|current)',
+            
+            # Conversational requests
+            r'^(?:can\s+you|could\s+you|would\s+you|please)\s+',
+            r'^(?:help\s+(?:me\s+)?(?:with|understand))',
+            
+            # Quick calculations
+            r'^(?:calculate|compute|what\s+is\s+the\s+(?:average|sum|total))',
+            r'^(?:percentage|ratio|compare)',
+            
+            # Status and summaries
+            r'^(?:summarize|brief|quick|overview|status)',
+            r'^(?:give\s+me\s+(?:a\s+)?(?:quick|brief))',
+        ]
+        
+        for pattern in chat_patterns:
+            if re.search(pattern, query_lower):
+                logger.debug(f"Query matches chat pattern: {pattern}")
+                return True  # Handle in chat
+        
+        # Default: shorter queries go to chat, longer to report consideration
+        word_count = len(query.split())
+        if word_count < 20:
+            return True  # Short queries handled in chat
+        
+        return True  # Default to chat-first
+    
+    def determine_response_strategy(self, query: str) -> dict:
+        """Determine optimal response strategy for the query.
+        
+        Returns strategy dict with type and guidelines.
+        """
+        query_lower = query.lower()
+        
+        strategies = {
+            'direct_answer': {
+                'type': 'direct_answer',
+                'description': 'Clear, concise answer',
+                'patterns': ['what is', 'what\'s', 'define', 'explain', 'who is', 'when did'],
+                'guidelines': 'Provide a clear, direct answer. Use examples if helpful.',
+                'review_priority': 'low'
+            },
+            'data_query': {
+                'type': 'data_query',
+                'description': 'Query and display data',
+                'patterns': ['show me', 'list', 'find', 'search for', 'display', 'get'],
+                'guidelines': 'Present data in a structured format. Use tables for lists (max 10 rows). Offer full report if data exceeds display limits.',
+                'review_priority': 'medium'
+            },
+            'calculation': {
+                'type': 'calculation',
+                'description': 'Perform calculations',
+                'patterns': ['calculate', 'compute', 'average', 'sum', 'total', 'percentage', 'how many'],
+                'guidelines': 'Show the calculation clearly. Present result prominently. Explain methodology if complex.',
+                'review_priority': 'high'
+            },
+            'analysis': {
+                'type': 'analysis',
+                'description': 'Analyze and provide insights',
+                'patterns': ['analyze', 'trends', 'patterns', 'insights', 'compare', 'evaluate'],
+                'guidelines': 'Provide key insights with supporting evidence. Summarize in chat, offer detailed report for deep dive.',
+                'review_priority': 'high'
+            },
+            'how_to': {
+                'type': 'how_to',
+                'description': 'Step-by-step guidance',
+                'patterns': ['how to', 'how do i', 'how can i', 'steps to', 'guide me'],
+                'guidelines': 'Provide numbered steps. Be specific and actionable. Include examples where helpful.',
+                'review_priority': 'medium'
+            },
+            'troubleshoot': {
+                'type': 'troubleshoot',
+                'description': 'Problem-solving assistance',
+                'patterns': ['error', 'issue', 'problem', 'not working', 'help with', 'fix', 'debug'],
+                'guidelines': 'Ask clarifying questions if needed. Provide diagnostic steps. Offer solutions in order of likelihood.',
+                'review_priority': 'medium'
+            }
+        }
+        
+        # Find matching strategy
+        for name, strategy in strategies.items():
+            for pattern in strategy['patterns']:
+                if pattern in query_lower:
+                    logger.debug(f"Query strategy: {name} (matched '{pattern}')")
+                    return strategy
+        
+        # Default strategy
+        return {
+            'type': 'general',
+            'description': 'General assistance',
+            'guidelines': 'Be helpful and informative. Provide context and examples where appropriate.',
+            'review_priority': 'low'
+        }
+
+    async def review_response(self, query: str, response: str, strategy: dict) -> dict:
+        """Review Bee's response using LLM-powered quality check.
+        
+        Returns review result with scores and optional enhanced response.
+        """
+        if not self.review_enabled:
+            return {'passed': True, 'skipped': True, 'reason': 'Review disabled'}
+        
+        # Skip review for simple queries
+        if strategy.get('review_priority') == 'low' and len(response) < 200:
+            return {'passed': True, 'skipped': True, 'reason': 'Simple query'}
+        
+        try:
+            import aiohttp
+            
+            review_prompt = f"""You are a quality reviewer for an AI assistant. Review this response.
+
+USER QUERY: {query[:500]}
+
+ASSISTANT RESPONSE: {response[:2000]}
+
+RESPONSE STRATEGY: {strategy.get('type', 'general')} - {strategy.get('guidelines', '')}
+
+Evaluate on these criteria (score 1-10 each):
+1. ACCURACY: Is the information factually correct? Any hallucinations?
+2. COMPLETENESS: Does it fully address the user's question?
+3. CLARITY: Is it easy to understand and well-structured?
+4. RELEVANCE: Does it stay on topic without unnecessary tangents?
+5. ACTIONABILITY: Can the user act on this information?
+
+Respond with ONLY a JSON object:
+{{"scores": {{"accuracy": 8, "completeness": 7, "clarity": 9, "relevance": 8, "actionability": 7}}, "passed": true, "issues": [], "suggestions": [], "enhanced_response": null}}
+
+If there are significant issues, set passed=false and provide an enhanced_response fixing them."""
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{self.llm_service_url}/generate",
+                    json={
+                        'model': self.review_model,
+                        'prompt': review_prompt,
+                        'options': {'num_predict': 500, 'temperature': 0.1}
+                    },
+                    timeout=aiohttp.ClientTimeout(total=15)
+                ) as resp:
+                    if resp.status == 200:
+                        result = await resp.json()
+                        result_text = result.get('response', '{}')
+                        
+                        # Parse JSON from response
+                        clean_text = result_text.strip()
+                        if clean_text.startswith('```'):
+                            clean_text = clean_text.split('```')[1]
+                            if clean_text.startswith('json'):
+                                clean_text = clean_text[4:]
+                        
+                        review = json.loads(clean_text)
+                        
+                        # Calculate overall score
+                        scores = review.get('scores', {})
+                        if scores:
+                            avg_score = sum(scores.values()) / len(scores)
+                            review['overall_score'] = round(avg_score / 10, 2)
+                            review['passed'] = avg_score >= (self.review_threshold * 10)
+                        
+                        logger.info(f"🔍 Review complete: passed={review.get('passed')}, score={review.get('overall_score', 'N/A')}")
+                        return review
+                        
+        except json.JSONDecodeError as e:
+            logger.warning(f"Review JSON parse error: {e}")
+        except Exception as e:
+            logger.warning(f"Review error: {e}")
+        
+        # Return passed if review fails (don't block response)
+        return {'passed': True, 'skipped': True, 'reason': f'Review unavailable'}
+
+    async def enhance_response_with_review(self, query: str, response: str, strategy: dict) -> tuple:
+        """Enhance response based on ReviewBee feedback.
+        
+        Returns (enhanced_response, review_metadata)
+        """
+        review = await self.review_response(query, response, strategy)
+        
+        if review.get('skipped'):
+            return response, {'reviewed': False, 'reason': review.get('reason')}
+        
+        if review.get('passed'):
+            return response, {
+                'reviewed': True,
+                'passed': True,
+                'scores': review.get('scores', {}),
+                'overall_score': review.get('overall_score', 0)
+            }
+        
+        # Response needs enhancement
+        enhanced = review.get('enhanced_response')
+        if enhanced:
+            logger.info("✨ Response enhanced by ReviewBee")
+            return enhanced, {
+                'reviewed': True,
+                'passed': False,
+                'enhanced': True,
+                'scores': review.get('scores', {}),
+                'overall_score': review.get('overall_score', 0),
+                'issues': review.get('issues', []),
+                'suggestions': review.get('suggestions', [])
+            }
+        
+        # Add disclaimer if issues but no enhancement
+        if review.get('issues'):
+            disclaimer = "\n\n_Note: This response may benefit from additional verification._"
+            return response + disclaimer, {
+                'reviewed': True,
+                'passed': False,
+                'issues': review.get('issues', []),
+                'scores': review.get('scores', {})
+            }
+        
+        return response, {'reviewed': True, 'passed': review.get('passed', True)}
+
+    def get_chat_guidelines(self, strategy: dict) -> str:
+        """Get chat-specific guidelines based on strategy."""
+        base_guidelines = """
+## Direct Response Guidelines
+You are responding directly in chat. Follow these principles:
+- Be concise but complete - users can ask follow-ups
+- Use markdown formatting for readability
+- For data/lists: use tables (max 10 rows), offer report for more
+- For calculations: show your work clearly
+- For analysis: provide key insights, offer detailed report for deep dive
+- Only suggest generating a report if the user's request truly warrants it
+"""
+        
+        strategy_specific = f"""
+## Strategy: {strategy.get('type', 'general').replace('_', ' ').title()}
+{strategy.get('guidelines', '')}
+"""
+        
+        return base_guidelines + strategy_specific
         
     async def load_brain_knowledge(self) -> str:
         """Load Bee brain knowledge from the brain file into memory"""
@@ -1612,33 +1900,39 @@ Return ONLY valid JSON, no explanation."""
         # Add web search context (if enabled and results found)
         # These sources should be cited in reports - we number them for easy reference
         if web_search_results:
-            context_parts.append("\n## Web Research Sources - COPY THESE URLs INTO YOUR REFERENCES")
-            context_parts.append("="*60)
-            context_parts.append("INSTRUCTION: For each source below, copy the FULL URL into your References section.")
-            context_parts.append("Format your references as: [Title](https://full-url-here)")
-            context_parts.append("="*60)
+            context_parts.append("\n## ⚠️ MANDATORY SOURCE CITATIONS ⚠️")
+            context_parts.append("=" * 60)
+            context_parts.append("CRITICAL RULES FOR CITATIONS:")
+            context_parts.append("1. You MUST cite sources inline using [1], [2], [3] notation after factual claims")
+            context_parts.append("2. You MUST ONLY cite from the numbered sources below — DO NOT fabricate or hallucinate URLs")
+            context_parts.append("3. If a claim is NOT supported by any source below, write: '(based on general industry knowledge)'")
+            context_parts.append("4. Your References/Sources section MUST list ONLY the URLs provided below — no others")
+            context_parts.append("5. If you cannot find supporting sources for a claim, acknowledge the limitation rather than inventing a citation")
+            context_parts.append("=" * 60)
+
             source_num = 1
             for result in web_search_results[:5]:  # Allow up to 5 sources for better citation coverage
                 title = result.get('title', 'Untitled')
                 snippet = result.get('snippet', '')[:250]
                 url = result.get('url', '')
                 full_content = result.get('full_content', '')
-                
-                context_parts.append(f"\n--- SOURCE {source_num} ---")
-                context_parts.append(f"TITLE: {title}")
-                context_parts.append(f"URL TO COPY: {url}")
-                context_parts.append(f"USE IN REFERENCES AS: [{title}]({url})")
-                
+                quality = result.get('quality_score', 'N/A')
+
+                context_parts.append(f"\n[{source_num}] {title}")
+                context_parts.append(f"    URL: {url}")
+                context_parts.append(f"    Quality Score: {quality}/100")
+
                 # Use full content if available, otherwise use snippet
                 if full_content:
-                    context_parts.append(f"CONTENT:\n{full_content[:2000]}")  # Up to 2000 chars per source
+                    context_parts.append(f"    Content:\n{full_content[:2000]}")  # Up to 2000 chars per source
                 else:
-                    context_parts.append(f"CONTENT: {snippet}...")
+                    context_parts.append(f"    Summary: {snippet}")
                 source_num += 1
-            
-            context_parts.append("\n" + "="*60)
-            context_parts.append("END OF WEB SOURCES - Remember to include these URLs in your References!")
-            context_parts.append("="*60)
+
+            context_parts.append("\n" + "=" * 60)
+            context_parts.append("END OF SOURCES — Use ONLY these URLs in your References section.")
+            context_parts.append("Any URL not listed above is FABRICATED and must not be included.")
+            context_parts.append("=" * 60)
 
         # Add documentation context (brief, helpful)
         if doc_results and any('help' in user_message.lower() or 'how' in user_message.lower() or 'what' in user_message.lower() for _ in [True]):
@@ -1656,6 +1950,19 @@ Return ONLY valid JSON, no explanation."""
         # Build the prompt - IMPORTANT: Critical rules come BEFORE system prompt
         # This ensures anti-hallucination and truthfulness take priority over general "be thorough" instructions
         context_section = f"\n\n{chr(10).join(context_parts)}\n" if context_parts else ""
+
+        # Add current date/time context so Bee knows today's date
+        now = datetime.now(timezone.utc)
+        date_context = f"\n\n## Current Date/Time Context\nToday's date is {now.strftime('%B %d, %Y')}. The current time is {now.strftime('%H:%M UTC')}. Use this information when answering questions about dates, times, or current events.\n"
+
+        # Add chat-first strategy guidelines if handling in chat
+        strategy = self.determine_response_strategy(user_message)
+        chat_guidelines = ""
+        if self.should_handle_in_chat(user_message):
+            chat_guidelines = self.get_chat_guidelines(strategy)
+        
+        # Store strategy for potential ReviewBee use (accessible after build_enhanced_prompt)
+        self._last_strategy = strategy
 
         prompt = f"""=== CRITICAL INSTRUCTIONS (HIGHEST PRIORITY) ===
 The following rules override any other instructions. You MUST follow these at all costs:
@@ -1678,6 +1985,8 @@ The following rules override any other instructions. You MUST follow these at al
 === END CRITICAL INSTRUCTIONS ===
 
 {system_prompt}
+{date_context}
+{chat_guidelines}
 {context_section}
 User: {user_message}
 

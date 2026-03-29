@@ -12,17 +12,22 @@
   --mobile-nav-height: 60px;
   --mobile-safe-top: env(safe-area-inset-top, 0px);
   --mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --mobile-safe-left: env(safe-area-inset-left, 0px);
+  --mobile-safe-right: env(safe-area-inset-right, 0px);
 
   /* Touch */
   --mobile-touch-min: 44px;
   --mobile-touch-target: 48px;
 
-  /* Spacing */
+  /* Spacing - responsive */
   --mobile-space-xs: 4px;
   --mobile-space-sm: 8px;
   --mobile-space-md: 16px;
   --mobile-space-lg: 24px;
   --mobile-space-xl: 32px;
+  
+  /* Page padding - accounts for safe areas */
+  --mobile-page-padding: max(16px, var(--mobile-safe-left, 16px));
 
   /* Typography */
   --mobile-font-xs: 10px;
@@ -201,7 +206,10 @@
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  /* Responsive padding with safe area support */
   padding: var(--mobile-space-md, 16px);
+  padding-left: max(var(--mobile-space-md, 16px), var(--mobile-safe-left, 0px));
+  padding-right: max(var(--mobile-space-md, 16px), var(--mobile-safe-right, 0px));
   /* Ensure content area takes remaining space */
   position: relative;
   /* Minimum height to prevent collapse */
@@ -303,21 +311,31 @@
 .mobile-profile-drawer .ant-drawer-body {
   padding: 0;
   background: var(--mobile-surface);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.mobile-profile-drawer .ant-drawer-content {
+  background: var(--mobile-surface);
 }
 
 .mobile-drawer-user-header {
   display: flex;
   align-items: center;
   gap: var(--mobile-space-md);
-  padding: var(--mobile-space-lg);
+  padding: var(--mobile-space-lg) var(--mobile-space-lg);
+  padding-top: calc(var(--mobile-safe-top) + var(--mobile-space-lg));
   background: var(--mobile-elevated);
   border-bottom: 1px solid var(--mobile-border);
 }
 
 .mobile-drawer-user-header .ant-avatar {
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
+  font-size: 20px;
   border: 2px solid var(--mobile-primary);
+  flex-shrink: 0;
 }
 
 .mobile-drawer-user-info {
@@ -332,6 +350,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.3;
 }
 
 .mobile-drawer-user-email {
@@ -340,12 +359,17 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 2px;
+  margin-top: 4px;
+  line-height: 1.3;
 }
 
 .mobile-drawer-section {
   padding: var(--mobile-space-sm) 0;
   border-bottom: 1px solid var(--mobile-border-subtle);
+}
+
+.mobile-drawer-section:last-of-type {
+  border-bottom: none;
 }
 
 .mobile-drawer-item {
@@ -369,19 +393,22 @@
 }
 
 .mobile-drawer-item-icon {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   color: var(--mobile-text-secondary);
+  flex-shrink: 0;
 }
 
 .mobile-drawer-item span {
   flex: 1;
+  font-weight: 500;
 }
 
 .mobile-drawer-item-arrow {
   width: 16px;
   height: 16px;
   color: var(--mobile-text-tertiary);
+  flex-shrink: 0;
 }
 
 .mobile-drawer-toggle {
@@ -389,7 +416,7 @@
   align-items: center;
   gap: var(--mobile-space-md);
   width: 100%;
-  padding: var(--mobile-space-md) var(--mobile-space-lg);
+  padding: var(--mobile-space-sm) var(--mobile-space-lg);
   background: none;
   border: none;
   color: var(--mobile-text-primary);
@@ -397,24 +424,30 @@
   text-align: left;
 }
 
+.mobile-drawer-toggle span {
+  flex: 1;
+}
+
 .mobile-drawer-footer {
-  padding: var(--mobile-space-md);
+  padding: var(--mobile-space-md) var(--mobile-space-lg);
+  padding-bottom: calc(var(--mobile-safe-bottom) + var(--mobile-space-md));
   margin-top: auto;
 }
 
 .mobile-drawer-logout {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--mobile-space-md);
   width: 100%;
-  padding: var(--mobile-space-md) var(--mobile-space-lg);
+  padding: var(--mobile-space-lg);
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: var(--mobile-radius-md, 8px);
   color: var(--color-error, #ef4444);
   font-size: var(--mobile-font-md);
-  font-weight: 500;
-  text-align: left;
+  font-weight: 600;
+  text-align: center;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: background-color var(--mobile-transition-fast);
@@ -590,8 +623,64 @@
 
 .mobile-page {
   padding: var(--mobile-space-md, 16px);
+  padding-left: max(var(--mobile-space-md, 16px), var(--mobile-safe-left, 0px));
+  padding-right: max(var(--mobile-space-md, 16px), var(--mobile-safe-right, 0px));
   /* Ensure content is visible */
   min-height: 100px;
+}
+
+/* Fixed page layout - page doesn't scroll, content areas do */
+.mobile-page-fixed {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--mobile-header-height, 48px) - var(--mobile-safe-top, 0px) - var(--mobile-nav-height, 60px) - var(--mobile-safe-bottom, 0px));
+  overflow: hidden;
+  padding: var(--mobile-space-md, 16px);
+  padding-left: max(var(--mobile-space-md, 16px), var(--mobile-safe-left, 0px));
+  padding-right: max(var(--mobile-space-md, 16px), var(--mobile-safe-right, 0px));
+}
+
+/* Scrollable content area within fixed page */
+.mobile-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 calc(-1 * var(--mobile-space-md, 16px));
+  padding: 0 var(--mobile-space-md, 16px);
+  padding-left: max(var(--mobile-space-md, 16px), var(--mobile-safe-left, 0px));
+  padding-right: max(var(--mobile-space-md, 16px), var(--mobile-safe-right, 0px));
+}
+
+/* Horizontal scrollable card container */
+.mobile-scroll-cards {
+  display: flex;
+  gap: var(--mobile-space-md, 16px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding-bottom: var(--mobile-space-sm, 8px);
+  margin: 0 calc(-1 * var(--mobile-space-md, 16px));
+  padding-left: max(var(--mobile-space-md, 16px), var(--mobile-safe-left, 0px));
+  padding-right: max(var(--mobile-space-md, 16px), var(--mobile-safe-right, 0px));
+}
+
+.mobile-scroll-cards::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-scroll-cards > * {
+  flex-shrink: 0;
+  scroll-snap-align: start;
+}
+
+/* Card that fits within scroll container */
+.mobile-scroll-card {
+  width: calc(100vw - var(--mobile-space-md, 16px) * 2 - max(0px, var(--mobile-safe-left, 0px)) - max(0px, var(--mobile-safe-right, 0px)) - 32px);
+  min-width: 280px;
+  max-width: 340px;
 }
 
 .mobile-page-title {
@@ -612,6 +701,46 @@
   letter-spacing: 0.5px;
   color: var(--mobile-text-secondary);
   margin-bottom: var(--mobile-space-sm);
+}
+
+/* ===== RESPONSIVE CARD GRID ===== */
+
+/* Auto-fit grid that adapts to screen width */
+.mobile-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: var(--mobile-space-md, 16px);
+  width: 100%;
+}
+
+/* 2-column grid with better sizing */
+.mobile-card-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--mobile-space-sm, 8px);
+  width: 100%;
+}
+
+/* Single column on very small screens */
+@media (max-width: 340px) {
+  .mobile-card-grid,
+  .mobile-card-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Smaller gaps on small screens */
+@media (max-width: 380px) {
+  .mobile-card-grid,
+  .mobile-card-grid-2 {
+    gap: var(--mobile-space-sm, 8px);
+  }
+  
+  .mobile-page,
+  .mobile-page-fixed {
+    padding-left: var(--mobile-space-sm, 8px);
+    padding-right: var(--mobile-space-sm, 8px);
+  }
 }
 
 /* ===== MOBILE CARD COMPONENT ===== */
@@ -1060,8 +1189,12 @@
   display: flex;
   gap: var(--mobile-space-sm);
   overflow-x: auto;
-  padding-bottom: var(--mobile-space-xs);
+  padding: var(--mobile-space-xs) 0;
+  margin: 0 calc(-1 * var(--mobile-space-md));
+  padding-left: var(--mobile-space-md);
+  padding-right: var(--mobile-space-md);
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 .mobile-search-filters::-webkit-scrollbar {
@@ -1077,7 +1210,9 @@
   font-size: var(--mobile-font-sm);
   white-space: nowrap;
   cursor: pointer;
+  flex-shrink: 0;
   transition: all var(--mobile-transition-fast);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-search-filter.active {
@@ -1564,3 +1699,234 @@
   background: transparent !important;
 }
 
+/* ===== MOBILE CHAT ENHANCEMENTS ===== */
+
+/* Review Badges */
+.review-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.review-badge.passed {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.review-badge.enhanced {
+  background: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.review-score {
+  margin-left: 4px;
+  font-weight: 600;
+}
+
+/* Mobile Chat Markdown Rendering */
+.mobile-chat-markdown {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.mobile-chat-markdown p {
+  margin: 0 0 8px 0;
+}
+
+.mobile-chat-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.mobile-chat-markdown h1,
+.mobile-chat-markdown h2,
+.mobile-chat-markdown h3,
+.mobile-chat-markdown h4 {
+  margin: 12px 0 8px 0;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.mobile-chat-markdown h1 { font-size: 18px; }
+.mobile-chat-markdown h2 { font-size: 16px; }
+.mobile-chat-markdown h3 { font-size: 15px; }
+.mobile-chat-markdown h4 { font-size: 14px; }
+
+.mobile-chat-markdown ul,
+.mobile-chat-markdown ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.mobile-chat-markdown li {
+  margin: 4px 0;
+}
+
+.mobile-chat-markdown code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-size: 13px;
+}
+
+.mobile-chat-markdown pre {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 8px 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-chat-markdown pre code {
+  background: none;
+  padding: 0;
+}
+
+.mobile-chat-markdown blockquote {
+  border-left: 3px solid var(--mobile-primary);
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: rgba(234, 179, 8, 0.1);
+  border-radius: 0 8px 8px 0;
+}
+
+.mobile-chat-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+  overflow-x: auto;
+  display: block;
+}
+
+.mobile-chat-markdown th,
+.mobile-chat-markdown td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+}
+
+.mobile-chat-markdown th {
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mobile-chat-markdown a {
+  color: var(--mobile-primary);
+  text-decoration: underline;
+}
+
+.mobile-chat-markdown strong {
+  font-weight: 600;
+}
+
+.mobile-chat-markdown em {
+  font-style: italic;
+}
+
+/* Confidence Indicator */
+.confidence-indicator {
+  position: relative;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.confidence-bar {
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 2px;
+}
+
+.confidence-bar.high {
+  background: #22c55e;
+}
+
+.confidence-bar.medium {
+  background: #eab308;
+}
+
+.confidence-bar.low {
+  background: #ef4444;
+}
+
+/* Processing Status */
+.mobile-chat-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(234, 179, 8, 0.1);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--mobile-text-secondary);
+}
+
+.mobile-chat-status .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+.mobile-chat-status .status-dot.connecting {
+  background: #3b82f6;
+}
+
+.mobile-chat-status .status-dot.thinking {
+  background: #eab308;
+}
+
+.mobile-chat-status .status-dot.generating {
+  background: #22c55e;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Quick Actions Bar */
+.mobile-quick-actions {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.mobile-quick-actions::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--mobile-surface);
+  border: 1px solid var(--mobile-border);
+  border-radius: 20px;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--mobile-text-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quick-action-btn:active {
+  background: var(--mobile-elevated);
+  transform: scale(0.98);
+}

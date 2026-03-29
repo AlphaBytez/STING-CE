@@ -3,7 +3,7 @@ import { Drawer, Avatar, Switch } from 'antd';
 import {
   UserOutlined,
   LockOutlined,
-  MoonOutlined,
+  BgColorsOutlined,
   DesktopOutlined,
   LogoutOutlined,
   RightOutlined,
@@ -18,6 +18,7 @@ import '../../styles/mobile.css';
 const DRAWER_ITEMS = [
   { key: 'profile', label: 'Profile Settings', icon: UserOutlined, path: '/m/settings/profile' },
   { key: 'security', label: 'Security', icon: LockOutlined, path: '/m/settings/security' },
+  { key: 'theme', label: 'Theme & Appearance', icon: BgColorsOutlined, path: '/m/settings' },
 ];
 
 /**
@@ -29,7 +30,6 @@ const MobileProfileDrawer = ({ open, onClose }) => {
   const { user, logout } = useUnifiedAuth();
 
   // Local state for toggles
-  const [darkMode, setDarkMode] = useState(false);
   const [preferDesktop, setPreferDesktop] = useState(
     typeof window !== 'undefined' && localStorage.getItem('sting-prefer-desktop') === '1'
   );
@@ -108,15 +108,6 @@ const MobileProfileDrawer = ({ open, onClose }) => {
 
       {/* Toggles */}
       <div className="mobile-drawer-section">
-        <div className="mobile-drawer-toggle">
-          <MoonOutlined className="mobile-drawer-item-icon" />
-          <span>Dark Mode</span>
-          <Switch
-            checked={darkMode}
-            onChange={setDarkMode}
-            size="small"
-          />
-        </div>
         <div className="mobile-drawer-toggle">
           <DesktopOutlined className="mobile-drawer-item-icon" />
           <span>View Desktop Site</span>

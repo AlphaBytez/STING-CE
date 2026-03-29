@@ -287,8 +287,8 @@ validate_service_env() {
                 
                 if [ -n "$file_password" ] && [ -n "$container_password" ] && [ "$file_password" != "$container_password" ]; then
                     log_message "⚠️  PASSWORD MISMATCH in ${service}: ${var}" "WARNING"
-                    log_message "   File password: ${file_password:0:10}..." "WARNING"
-                    log_message "   Container password: ${container_password:0:10}..." "WARNING"
+                    log_message "   File password: ${file_password:0:3}****" "WARNING"
+                    log_message "   Container password: ${container_password:0:3}****" "WARNING"
                     ((issues_found++))
                 fi
             fi
@@ -621,7 +621,9 @@ sync_vault_token_to_env() {
         return 0
     fi
     
-    log_message "[+] Retrieved Vault token: ${vault_token:0:30}..."
+    # Mask token for logging - only show first 4 and last 4 characters
+    local masked_token="${vault_token:0:4}****${vault_token: -4}"
+    log_message "[+] Retrieved Vault token: ${masked_token}"
     
     # Save token to persistent location on host for config_loader to read
     local vault_keys_dir="${INSTALL_DIR}/vault/keys"

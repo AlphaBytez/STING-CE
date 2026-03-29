@@ -262,6 +262,13 @@ ai:
     name: "B.E.E."
     description: "Bee Enhanced Entity - Your AI Security Assistant"
     personality: "helpful"
+    
+    # Chat-First Logic: Bee handles queries directly in chat when possible
+    # Instead of immediately suggesting reports, Bee provides helpful inline responses
+    chat_first:
+      enabled: true  # Enable chat-first response strategy
+      # Strategies: direct_answer, data_query, calculation, analysis, how_to, troubleshoot
+      # Bee automatically determines the best strategy based on query type
 
   # QE Bee (Quality Engineering Bee) - Output Validation Agent
   # ⚠️ DEPRECATED: QE Bee is being replaced by ReviewBee (review_bee)

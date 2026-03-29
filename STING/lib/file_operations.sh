@@ -299,6 +299,7 @@ check_structural_changes() {
     local project_dir="${SOURCE_DIR:-$(pwd)}"
     local structural_changes=()
     local dependency_changes=()
+    local config_changes=()
     local force_reinstall=false
     
     log_message "Checking for structural changes that may require full reinstall..."
@@ -306,10 +307,19 @@ check_structural_changes() {
     # Check docker-compose.yml changes
     if [ -f "$INSTALL_DIR/docker-compose.yml" ]; then
         if ! diff -q "$project_dir/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml" >/dev/null 2>&1; then
-            structural_changes+=("docker-compose.yml")
-            # Check if it's a major structural change (new services, networks, volumes)
-            if diff "$project_dir/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml" | grep -E "^\+.*services:|^\+.*networks:|^\+.*volumes:" >/dev/null 2>&1; then
+            # Check if it's a major structural change (new/removed services, networks, volumes)
+            # These patterns detect actual structural additions or removals
+            local diff_output=$(diff "$project_dir/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml" 2>/dev/null)
+            if echo "$diff_output" | grep -E "^[<>].*^\s*(services|networks|volumes):" >/dev/null 2>&1; then
+                structural_changes+=("docker-compose.yml (structural)")
                 force_reinstall=true
+            elif echo "$diff_output" | grep -E "^[<>]\s+[a-zA-Z_-]+:\s*$" | grep -v -E "(memory|cpus|reservation|limits|POSTGRES_|environment)" >/dev/null 2>&1; then
+                # New or removed service definitions (lines like "  servicename:")
+                # Exclude config-only changes like memory limits or environment vars
+                structural_changes+=("docker-compose.yml (service changes)")
+            else
+                # Just config tweaks (memory, environment vars, etc.) - not structural
+                config_changes+=("docker-compose.yml (config only - safe to update)")
             fi
         fi
     fi
@@ -380,6 +390,14 @@ check_structural_changes() {
             log_message "  Continue anyway: ./manage_sting.sh update --force" "WARNING"
             return 1  # Minor changes
         fi
+    fi
+    
+    # Report config-only changes (informational, doesn't block update)
+    if [ ${#config_changes[@]} -gt 0 ]; then
+        log_message "[*] Configuration differences detected (non-blocking):" "INFO"
+        for change in "${config_changes[@]}"; do
+            log_message "  - $change" "INFO"
+        done
     fi
     
     log_message "[+] No structural changes detected - update should be safe"

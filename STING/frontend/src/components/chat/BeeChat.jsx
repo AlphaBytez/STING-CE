@@ -11,6 +11,7 @@ import HoneyJarContextBar from './HoneyJarContextBar';
 import './HoneyJarContextBar.css';
 import MessageWithPII from './MessageWithPII';
 import BeeAuthModal from './BeeAuthModal';
+import SessionJarPromoteModal from './SessionJarPromoteModal';
 import { externalAiApi } from '../../services/externalAiApi';
 import { chatHistoryApi } from '../../services/messagingApi';
 import { systemApi } from '../../services/systemApi';
@@ -271,6 +272,9 @@ const BeeChat = () => {
 
   // Basket tracking for reports
   const [basketAddedMessages, setBasketAddedMessages] = useState(new Set());
+  const [sessionJar, setSessionJar] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [showPromoteModal, setShowPromoteModal] = useState(false);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -1801,6 +1805,29 @@ const BeeChat = () => {
                 onSearchStateChange={setIsSearchingHoneyJars}
               />
               
+              {/* Session jar indicator */}
+              {sessionJar && sessionJar.file_count > 0 && (
+                <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px',padding:'4px 8px',background:'rgba(234,179,8,0.15)',border:'1px solid rgba(234,179,8,0.3)',borderRadius:'8px',fontSize:'12px',color:'#fbbf24'}}>
+                  📎 <span>{sessionJar.file_count} file{sessionJar.file_count !== 1 ? 's' : ''} attached</span>
+                  <span style={{color:'#d97706'}}>({(sessionJar.total_size / 1024).toFixed(0)} KB)</span>
+                  <button
+                    style={{marginLeft:'auto',background:'none',border:'none',color:'#fbbf24',cursor:'pointer',fontSize:'12px',padding:'2px 6px'}}
+                    onClick={() => setShowPromoteModal(true)}
+                    title="Save as permanent Honey Jar"
+                  >🍯 Keep</button>
+                  <button
+                    style={{background:'none',border:'none',color:'#fbbf24',cursor:'pointer',fontSize:'12px'}}
+                    onClick={async () => {
+                      try {
+                        await fetch(`/api/bee/session-jar/${conversationId}`, {method:'DELETE',credentials:'include'});
+                        setSessionJar(null);
+                      } catch (e) { console.error('Failed to clear session jar:', e); }
+                    }}
+                    title="Clear uploaded files"
+                  >✕</button>
+                </div>
+              )}
+
               {/* Sticky Input - Hidden when searching honey jars */}
               {!isSearchingHoneyJars && (
                 <div className="p-3 sm:p-4 border-t border-gray-600 rounded-b-2xl bg-gray-800/98 backdrop-blur-md">
@@ -1984,6 +2011,19 @@ const BeeChat = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Session Jar Promote Modal */}
+      {showPromoteModal && (
+        <SessionJarPromoteModal
+          conversationId={conversationId}
+          sessionJar={sessionJar}
+          onClose={() => setShowPromoteModal(false)}
+          onPromoted={(result) => {
+            setSessionJar(null);
+            setShowPromoteModal(false);
+          }}
+        />
       )}
 
       {/* Bee Authentication Modal */}

@@ -83,20 +83,23 @@ const MobileHeader = () => {
   // Mock notification count (replace with actual hook)
   const unreadCount = 3;
 
-  // DEBUG: Inline styles for iOS Safari
+  // Inline styles for iOS Safari with safe area support
   const headerStyle = {
     position: 'fixed',
     top: 0,
     left: 0,
     right: 0,
-    height: '48px',
+    height: 'calc(48px + env(safe-area-inset-top, 0px))',
+    paddingTop: 'env(safe-area-inset-top, 0px)',
     background: '#1a1f2e',
     borderBottom: '1px solid #3a4356',
     display: 'flex',
     alignItems: 'center',
-    paddingLeft: '8px',
-    paddingRight: '8px',
+    paddingLeft: 'max(8px, env(safe-area-inset-left, 0px))',
+    paddingRight: 'max(8px, env(safe-area-inset-right, 0px))',
     zIndex: 1000,
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
   };
 
   const buttonStyle = {
