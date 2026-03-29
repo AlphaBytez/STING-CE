@@ -262,7 +262,7 @@ generate_initial_configuration() {
             fi
         "
         # Copy the generated config.yml from host into the container volume
-        docker cp '${CONFIG_DIR}/config.yml' sting-ce-utils:/app/conf/config.yml 2>&1 || true
+        docker cp "${CONFIG_DIR}/config.yml" sting-ce-utils:/app/conf/config.yml 2>&1 || true
         
         # Final verification
         if ! exec_in_utils "test -f /app/conf/config_loader.py && test -f /app/conf/config.yml"; then
