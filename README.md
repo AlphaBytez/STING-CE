@@ -135,14 +135,14 @@ nano STING/conf/config.yml  # Set your domain, email, etc.
 
 ## Documentation
 
-**Online docs**: [docs.sting.alphabytez.dev](https://alphabytez.github.io/sting-docs/) (coming soon) — searchable, mobile-friendly, dark mode included.
+**📖 [docs.stingassistant.com](https://docs.stingassistant.com/)** — Full documentation including architecture, deployment, configuration, security, and troubleshooting.
 
-**In the repo**: Everything's in `STING/docs/`:
-- [Installation Guide](STING/docs/platform/guides/fresh-install-guide.md)
-- [Configuration](STING/docs/operations/)
-- [API Reference](STING/docs/api/)
-- [Architecture Deep Dive](STING/docs/architecture/)
-- [Security Policies](SECURITY.md)
+Quick links:
+- [Getting Started](https://docs.stingassistant.com/docs/getting-started/)
+- [Architecture](https://docs.stingassistant.com/docs/architecture/)
+- [Security](https://docs.stingassistant.com/docs/security/)
+- [Troubleshooting](https://docs.stingassistant.com/docs/troubleshooting/)
+- [Security Policy](SECURITY.md)
 
 ## Day-to-Day Management
 
@@ -168,7 +168,7 @@ Then on each client:
 - **Linux**: `./install-ca-linux.sh`
 - **Windows**: `install-ca-windows.ps1`
 
-More details in the [Certificate Management Guide](STING/docs/guides/CERTIFICATE_MANAGEMENT.md).
+More details in the [documentation](https://docs.stingassistant.com/docs/deployment/).
 
 ## Under the Hood
 

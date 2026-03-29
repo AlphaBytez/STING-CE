@@ -2290,7 +2290,6 @@ class ConfigurationManager:
     def _generate_public_bee_env_vars(self):
         """Generate public-bee environment variables from configuration"""
         try:
-            # Get public_bee config from top-level section if it exists
             public_bee_config = self.raw_config.get('public_bee', {})
 
             # Get database credentials (URL-encoded password for DATABASE_URL)

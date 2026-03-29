@@ -224,8 +224,8 @@ redis:
     queue: 2
     pii_cache: 3
 
-# Email Configuration
-email:
+# Email Service Configuration
+email_service:
   mode: "${EMAIL_MODE:-development}"
   development:
     provider: "mailpit"
@@ -233,22 +233,71 @@ email:
     port: 1025
   production:
     provider: "${SMTP_PROVIDER:-smtp}"
-    host: "${SMTP_HOST:-mailpit}"      # Default to mailpit for development
-    port: "${SMTP_PORT:-1025}"          # Mailpit SMTP port (use 587 for real SMTP)
-    use_tls: true
-    username: "${SMTP_USERNAME:-}"      # Empty for mailpit (no auth needed)
-    from_address: "${SMTP_FROM_ADDRESS:-noreply@yourdomain.com}"
+    smtp:
+      host: "${SMTP_HOST:-mailpit}"
+      port: "${SMTP_PORT:-1025}"
+      username: "${SMTP_USERNAME:-}"
+      password: "${SMTP_PASSWORD:-}"
+      from_address: "${SMTP_FROM_ADDRESS:-noreply@yourdomain.com}"
+      from_name: "STING Platform"
+      tls_enabled: true
+      starttls_enabled: true
+
+# LLM Service Configuration
+llm_service:
+  enabled: true
+  default_model: "${LLM_MODEL:-llama3.2}"
+
+  ollama:
+    enabled: true
+    endpoint: "${LLM_ENDPOINT:-http://host.docker.internal:11434}"
+    default_model: "${LLM_MODEL:-llama3.2}"
+    models_to_install:
+      - "llama3.2"
+    auto_install: true
+
+  external_ai:
+    enabled: true
+    port: 8091
+    ollama_endpoint: "${LLM_ENDPOINT:-http://host.docker.internal:11434}"
+    web_search:
+      enabled: false
+      provider: "searxng"
+      searxng_url: "http://searxng:8080"
+      fetch_content: true
+      max_results: 5
+      timeout: 5
+
+  gateway:
+    port: 8080
+    timeout: 120
+    max_retries: 3
+
+  models: {}
+  filtering:
+    toxicity:
+      enabled: true
+      threshold: 0.7
+    data_leakage:
+      enabled: true
+      threshold: 0.7
+  model_lifecycle:
+    lazy_loading: true
+    idle_timeout: 300
+    max_loaded_models: 2
+    preload_on_startup: false
+
+# Public Bee Configuration
+public_bee:
+  port: 8092
+  host: "0.0.0.0"
+  external_ai_url: "http://external-ai:8091"
+  chatbot_url: "http://chatbot:8888"
+  knowledge_service_url: "http://knowledge:8090"
+  log_level: "INFO"
 
 # AI Services Configuration
 ai:
-  # Default LLM Configuration
-  llm:
-    enabled: true
-    provider: "${LLM_PROVIDER:-ollama}"
-    endpoint: "${LLM_ENDPOINT:-http://host.docker.internal:11434}"
-    model: "${LLM_MODEL:-llama3.2}"
-    timeout: 120
-
   # Knowledge Base (ChromaDB)
   knowledge:
     enabled: true
