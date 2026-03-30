@@ -3,7 +3,7 @@
 **Secure Trusted Intelligence and Networking Guardian**
 *Your Data. Your AI. Your Rules.*
 
-**Version:** 1.0.0-ce | **Architecture:** Self-hosted, Docker Compose orchestrated | **License:** Community Edition (CE)
+**Version:** 2.0.0-ce | **Architecture:** Self-hosted, Docker Compose orchestrated | **License:** Community Edition (CE)
 
 ---
 

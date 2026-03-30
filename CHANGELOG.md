@@ -5,6 +5,70 @@ All notable changes to STING-CE (Community Edition) will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0-ce] - 2026-03-30
+
+### 🚀 Major Release — Validated Fresh Install Pipeline
+
+Complete overhaul of the installation pipeline, configuration system, and mobile experience. First release with a fully validated end-to-end fresh install process.
+
+### ✨ Added
+
+#### Session Jar System
+- **Session Jar API** — Upload and manage temporary file-based knowledge during conversations
+- **Session Jar Promotion** — Promote session jars to permanent Honey Jars with AI-generated summaries
+- **Session Jar UI Modal** — Interactive modal for naming and promoting session jars
+
+#### Report Generation
+- **Report Progress Tracking** — Real-time status messages and stage tracking during report generation
+- **Report Quality Review** — Multi-pass iterative refinement with convergence detection via Review Bee
+- **Report Type Classification** — Dynamic LLM temperature tuning based on report content type
+- **Report Access Control** — Database-level access control for generated reports
+
+#### AI & Context Management
+- **Query Strategy Detection** — LLM-powered response strategy classification (direct answer, analysis, troubleshooting, etc.)
+- **Enhanced Bee Context Manager** — Improved web search with multi-query extraction and entity disambiguation
+- **Bee System Prompt Improvements** — More nuanced personality and response formatting
+
+#### Database & Migrations
+- **Database Management Module** (`database.sh`) — Automated migration tracking, application, and verification
+- **Migration 017** — Report progress columns (status_message, current_stage)
+- **Migration 018** — Session jar columns (jar_type, conversation_id, max_size_bytes)
+
+#### Documentation
+- **Features Overview** — Comprehensive feature catalog for community users
+- **Technical Features** — Detailed architecture and implementation reference
+- **Documentation Hub** — Quick-links README pointing to docs.stingassistant.com
+
+### 🔧 Changed
+
+#### Installation Pipeline (Breaking)
+- **Configuration Schema Alignment** — Restructured `config.yml.default` to match enterprise schema (`email` → `email_service`, `ai.llm` → `llm_service`, added `public_bee`)
+- **Config Loader Overhaul** — Full rewrite with LLM alias generation, feature limits, caching settings, and Hive Mode placeholders
+- **Bootstrap Mode** — Encryption key generation now works in bootstrap mode for fresh installs
+- **Docker Volume Handling** — Fixed config_data volume shadowing with conf-defaults fallback
+- **Utils Container** — Changed default INIT_MODE from `development` to `bootstrap`
+
+#### Mobile Experience
+- **Mobile Chat** — Enhanced with API fallback, improved message context, markdown rendering with syntax highlighting
+- **Mobile Reports** — Significant refactoring of report display, filtering, and navigation
+- **Mobile Report Detail** — Improved layout and readability for mobile viewports
+- **Mobile Navigation** — Updated bottom nav and header components
+
+#### Development Environment
+- **Dev Container** — Switched from `universal:2` (15GB) to `ubuntu-22.04` base (~1GB) with explicit Python 3.11, Node.js, and Docker-in-Docker features
+- **Tailscale Integration** — Graceful skip when not available in dev environments
+
+### 🐛 Fixed
+- **npm ci lock file mismatch** — Changed to `npm install` for Docker build tolerance across npm versions
+- **Docker volume shadowing** — Config files now properly populated on fresh installs via conf-defaults backup
+- **Config file quoting** — Fixed shell variable expansion in `docker cp` commands
+- **Mobile API fallback** — Graceful degradation from external AI endpoint to legacy chat endpoint
+
+### 🗑️ Removed
+- **Obsolete DNS docs** — Removed `dns-fix-implementation.md` and `troubleshooting-dns.md` (no longer needed)
+
+---
+
 ## [1.0.0-ce] - 2025-10-16
 
 ### 🎉 Initial Public Release

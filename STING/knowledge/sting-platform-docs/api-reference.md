@@ -523,7 +523,7 @@ Get comprehensive system health information.
       "total_embeddings": 12456
     }
   },
-  "version": "1.0.0-ce",
+  "version": "2.0.0-ce",
   "timestamp": "2024-11-12T10:30:00Z"
 }
 ```
@@ -861,5 +861,5 @@ For issues or feature requests, please open an issue on GitHub.
 
 ---
 
-**Last Updated:** November 2024
-**Version:** 1.0.0-ce
+**Last Updated:** March 2026
+**Version:** 2.0.0-ce

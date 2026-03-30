@@ -253,7 +253,7 @@ Full credits in [CREDITS.md](CREDITS.md).
 
 <div align="center">
 
-**Version 1.0.0-ce** · [Changelog](CHANGELOG.md) · Active Development
+**Version 2.0.0-ce** · [Changelog](CHANGELOG.md) · Active Development
 
 Linux (Ubuntu/Debian) · macOS · WSL2 · Python 3.11+ · React
 
