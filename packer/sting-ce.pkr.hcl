@@ -141,11 +141,17 @@ locals {
   # Architecture-specific QEMU settings
   qemu_binary = var.arch == "arm64" ? "qemu-system-aarch64" : "qemu-system-x86_64"
   qemu_machine = var.arch == "arm64" ? "virt,highmem=on" : "q35"
-  qemu_accelerator = var.arch == "arm64" ? "hvf" : "kvm"  # hvf for macOS ARM, kvm for Linux x86
 
-  # ARM64 requires UEFI firmware (homebrew location on macOS)
-  efi_firmware_code = "/opt/homebrew/share/qemu/edk2-aarch64-code.fd"
-  efi_firmware_vars = "/opt/homebrew/share/qemu/edk2-arm-vars.fd"
+  # Detect accelerator: hvf on macOS, kvm on native Linux, tcg for cross-arch emulation
+  is_macos = fileexists("/opt/homebrew/share/qemu/edk2-aarch64-code.fd")
+  qemu_accelerator = var.arch == "arm64" ? (local.is_macos ? "hvf" : "tcg") : "kvm"
+
+  # ARM64 UEFI firmware paths (macOS vs Linux)
+  efi_firmware_code = local.is_macos ? "/opt/homebrew/share/qemu/edk2-aarch64-code.fd" : "/usr/share/AAVMF/AAVMF_CODE.fd"
+  efi_firmware_vars = local.is_macos ? "/opt/homebrew/share/qemu/edk2-arm-vars.fd" : "/usr/share/AAVMF/AAVMF_VARS.fd"
+
+  # ARM64 CPU type: "host" on macOS (hvf), "cortex-a72" on Linux (tcg emulation)
+  arm64_cpu = local.is_macos ? "host" : "cortex-a72"
 
   # Output filename includes architecture
   output_name = "${var.vm_name}-${var.sting_version}-${var.arch}"
@@ -198,7 +204,7 @@ source "qemu" "sting-ce" {
   # ARM64-specific QEMU args (CPU, display devices, and boot menu)
   # Note: Don't include pflash here - use efi_* options above
   qemuargs = var.arch == "arm64" ? [
-    ["-cpu", "host"],
+    ["-cpu", local.arm64_cpu],
     ["-device", "virtio-gpu-pci"],
     ["-device", "usb-ehci"],
     ["-device", "usb-kbd"],
@@ -223,10 +229,10 @@ source "qemu" "sting-ce" {
   boot_wait        = local.boot_wait_time
   boot_command     = local.boot_cmd
 
-  # SSH configuration
+  # SSH configuration (longer timeout for arm64 emulation on x86)
   ssh_username     = var.ssh_username
   ssh_password     = var.ssh_password
-  ssh_timeout      = "60m"
+  ssh_timeout      = var.arch == "arm64" ? "180m" : "60m"
   ssh_handshake_attempts = 200
   ssh_wait_timeout = "60m"
 

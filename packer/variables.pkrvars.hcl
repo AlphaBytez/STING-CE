@@ -2,7 +2,7 @@
 # Copy this file and customize for your build
 
 # STING Version (should match git tag)
-sting_version = "1.0.0"
+sting_version = "2.0.0"
 
 # Ubuntu 24.04 LTS Server
 # NOTE: Do NOT set iso_url/iso_checksum here - they are auto-selected based on --arch
