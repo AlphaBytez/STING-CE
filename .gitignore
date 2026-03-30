@@ -147,3 +147,4 @@ packer/output/
 packer/sting-ce-images.tar.gz
 packer/sting-ce-source.tar.gz
 STING/conf/config.yml
+packer/output

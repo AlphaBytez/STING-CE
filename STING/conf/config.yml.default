@@ -226,19 +226,19 @@ redis:
 
 # Email Service Configuration
 email_service:
-  mode: "${EMAIL_MODE:-development}"
+  mode: development
   development:
     provider: "mailpit"
     host: "mailpit"
     port: 1025
   production:
-    provider: "${SMTP_PROVIDER:-smtp}"
+    provider: "smtp"
     smtp:
-      host: "${SMTP_HOST:-mailpit}"
-      port: "${SMTP_PORT:-1025}"
-      username: "${SMTP_USERNAME:-}"
-      password: "${SMTP_PASSWORD:-}"
-      from_address: "${SMTP_FROM_ADDRESS:-noreply@yourdomain.com}"
+      host: ""
+      port: 587
+      username: ""
+      password: ""
+      from_address: "noreply@yourdomain.com"
       from_name: "STING Platform"
       tls_enabled: true
       starttls_enabled: true

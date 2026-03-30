@@ -316,6 +316,23 @@ class ConfigurationManager:
         self.docker_host_gateway = self._get_docker_host_gateway()
         logger.info(f"Platform detected: {self.platform}, Docker host gateway: {self.docker_host_gateway}")
 
+    @staticmethod
+    def _resolve_config_value(value, fallback=None):
+        """Resolve shell-style ${VAR:-default} template strings in config values.
+
+        config.yml.default uses ${VAR:-default} patterns that YAML reads as literal
+        strings. This method resolves them using os.environ with fallback to the
+        embedded default value.
+        """
+        if not isinstance(value, str):
+            return value
+        m = re.match(r'^\$\{([^}:]+)(?::-(.*))?\}$', value)
+        if m:
+            var_name = m.group(1)
+            default = m.group(2) if m.group(2) is not None else (fallback or '')
+            return os.environ.get(var_name, default)
+        return value
+
     def _read_vault_token_from_file(self):
         """Read vault token from file without connecting to Vault"""
         auto_init_file = os.path.join(self.config_dir, '.vault-auto-init.json')
@@ -1557,6 +1574,8 @@ class ConfigurationManager:
         
         # Determine email mode (development or production)
         email_mode = existing_email_env.get('EMAIL_MODE', os.environ.get('EMAIL_MODE', email_config.get('mode', 'development')))
+        # Resolve shell-style template strings from config.yml.default (e.g. "${EMAIL_MODE:-development}")
+        email_mode = self._resolve_config_value(email_mode, 'development')
         
         env_vars = {
             'EMAIL_MODE': email_mode
@@ -1587,12 +1606,12 @@ class ConfigurationManager:
             smtp_config = prod_config.get('smtp', {})
             
             # Get SMTP credentials from existing email.env first, then environment, then config
-            smtp_host = existing_email_env.get('SMTP_HOST') or os.environ.get('SMTP_HOST', smtp_config.get('host', ''))
-            smtp_port = existing_email_env.get('SMTP_PORT') or os.environ.get('SMTP_PORT', str(smtp_config.get('port', 587)))
-            smtp_username = existing_email_env.get('SMTP_USERNAME') or os.environ.get('SMTP_USERNAME', smtp_config.get('username', ''))
-            smtp_password = existing_email_env.get('SMTP_PASSWORD') or os.environ.get('SMTP_PASSWORD', smtp_config.get('password', ''))
-            smtp_from = existing_email_env.get('SMTP_FROM') or os.environ.get('SMTP_FROM', smtp_config.get('from_address', 'noreply@yourdomain.com'))
-            smtp_from_name = existing_email_env.get('SMTP_FROM_NAME') or os.environ.get('SMTP_FROM_NAME', smtp_config.get('from_name', 'STING Platform'))
+            smtp_host = existing_email_env.get('SMTP_HOST') or os.environ.get('SMTP_HOST', self._resolve_config_value(smtp_config.get('host', ''), ''))
+            smtp_port = existing_email_env.get('SMTP_PORT') or os.environ.get('SMTP_PORT', str(self._resolve_config_value(smtp_config.get('port', 587), '587')))
+            smtp_username = existing_email_env.get('SMTP_USERNAME') or os.environ.get('SMTP_USERNAME', self._resolve_config_value(smtp_config.get('username', ''), ''))
+            smtp_password = existing_email_env.get('SMTP_PASSWORD') or os.environ.get('SMTP_PASSWORD', self._resolve_config_value(smtp_config.get('password', ''), ''))
+            smtp_from = existing_email_env.get('SMTP_FROM') or os.environ.get('SMTP_FROM', self._resolve_config_value(smtp_config.get('from_address', 'noreply@yourdomain.com'), 'noreply@yourdomain.com'))
+            smtp_from_name = existing_email_env.get('SMTP_FROM_NAME') or os.environ.get('SMTP_FROM_NAME', self._resolve_config_value(smtp_config.get('from_name', 'STING Platform'), 'STING Platform'))
             smtp_tls = existing_email_env.get('SMTP_TLS_ENABLED') or os.environ.get('SMTP_TLS_ENABLED', str(smtp_config.get('tls_enabled', True)).lower())
             smtp_starttls = existing_email_env.get('SMTP_STARTTLS_ENABLED') or os.environ.get('SMTP_STARTTLS_ENABLED', str(smtp_config.get('starttls_enabled', True)).lower())
             
@@ -1622,15 +1641,18 @@ class ConfigurationManager:
                 logger.warning("SMTP host/port not configured for production mode, falling back to mailpit")
                 smtp_uri = f"smtp://mailpit:1025/?skip_ssl_verify=true&disable_starttls=true"
             elif smtp_username and smtp_password:
+                # URL-encode credentials to handle special chars like @ in passwords
+                encoded_username = url_quote(smtp_username, safe='')
+                encoded_password = url_quote(smtp_password, safe='')
                 # Use STARTTLS for standard ports (587, 25)
-                if smtp_port in ['587', '25']:
-                    smtp_uri = f"smtp://{smtp_username}:{smtp_password}@{smtp_host}:{smtp_port}/?disable_starttls=false"
+                if str(smtp_port) in ['587', '25']:
+                    smtp_uri = f"smtp://{encoded_username}:{encoded_password}@{smtp_host}:{smtp_port}/?disable_starttls=false"
                 # Use direct TLS for secure ports (465)
-                elif smtp_port == '465':
-                    smtp_uri = f"smtps://{smtp_username}:{smtp_password}@{smtp_host}:{smtp_port}/"
+                elif str(smtp_port) == '465':
+                    smtp_uri = f"smtps://{encoded_username}:{encoded_password}@{smtp_host}:{smtp_port}/"
                 else:
                     # Default to SMTP with optional STARTTLS
-                    smtp_uri = f"smtp://{smtp_username}:{smtp_password}@{smtp_host}:{smtp_port}/"
+                    smtp_uri = f"smtp://{encoded_username}:{encoded_password}@{smtp_host}:{smtp_port}/"
             else:
                 logger.warning("SMTP credentials not configured for production mode, using host without auth")
                 smtp_uri = f"smtp://{smtp_host}:{smtp_port}/"
