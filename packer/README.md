@@ -116,10 +116,33 @@ When the VM boots for the first time:
 
 1. Login with credentials above (or auto-login on console)
 2. STING installer launches automatically
-3. Web wizard available at `http://VM_IP:5000`
+3. Web wizard available at `http://VM_IP:8335`
 4. User completes configuration
 5. STING services start
 6. Access STING at `https://VM_IP:8443`
+
+## Disk & Storage
+
+The OVA ships with a **40GB system disk** — enough for the OS, Docker, and initial install.
+
+**For production use, attach a separate data disk** and configure Docker to use it:
+
+```bash
+# 1. Attach a data disk (50GB+ recommended) in your hypervisor
+# 2. Partition, format, and mount it
+sudo mkfs.ext4 /dev/sdX1
+sudo mkdir -p /data
+sudo mount /dev/sdX1 /data
+echo "$(sudo blkid -s UUID -o value /dev/sdX1)  /data  ext4  defaults,nofail  0  2" | sudo tee -a /etc/fstab
+
+# 3. Move Docker data to the data disk
+sudo systemctl stop docker
+sudo rsync -aHAXx /var/lib/docker/ /data/docker/
+echo '{"data-root": "/data/docker"}' | sudo tee /etc/docker/daemon.json
+sudo systemctl start docker
+```
+
+This keeps the system disk clean and makes scaling storage easy.
 
 ## Troubleshooting
 

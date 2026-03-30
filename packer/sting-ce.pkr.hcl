@@ -69,7 +69,7 @@ variable "vm_name" {
 variable "disk_size" {
   type        = string
   description = "Disk size (e.g., 40G)"
-  default     = "15G"
+  default     = "40G"
 }
 
 variable "memory" {
