@@ -104,9 +104,17 @@ packer build -only=amazon-ebs.sting-ce -var-file=variables.pkrvars.hcl sting-ce.
 
 ## First Boot Experience
 
+**Default VM Credentials:**
+| | |
+|---|---|
+| **Username** | `sting` |
+| **Password** | `sting-install` |
+
+> ⚠️ Change the default password after first login: `passwd`
+
 When the VM boots for the first time:
 
-1. Auto-login as `sting` user
+1. Login with credentials above (or auto-login on console)
 2. STING installer launches automatically
 3. Web wizard available at `http://VM_IP:5000`
 4. User completes configuration
