@@ -111,12 +111,6 @@ log ""
 # Change to source directory and run installer
 cd "${STING_SOURCE}"
 
-# Set environment for OVA mode:
-# - Skip image pre-pull (images are pre-built in OVA)
-# - Skip Docker pull during build (images exist)
-export STING_SKIP_PREPULL=1
-export STING_SKIP_PULL=1
-
-# Run installer (it will handle the rest)
+# Run installer (it will handle the rest - builds images on first boot)
 # Using exec to replace this script with the installer
 exec "${INSTALLER}"

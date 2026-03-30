@@ -69,7 +69,7 @@ variable "vm_name" {
 variable "disk_size" {
   type        = string
   description = "Disk size (e.g., 40G)"
-  default     = "40G"
+  default     = "15G"
 }
 
 variable "memory" {
@@ -369,20 +369,11 @@ build {
     execute_command = "echo '${var.ssh_password}' | sudo -S bash '{{.Path}}'"
   }
 
-  # Copy pre-built Docker images tarball (if it exists)
-  # This is created by build-ova.sh on the host for faster VM builds
-  provisioner "file" {
-    source      = "sting-ce-images.tar.gz"
-    destination = "/tmp/sting-ce-images.tar.gz"
-    generated   = true  # Skip if file doesn't exist
-  }
-
-  # Load pre-built Docker images (significantly reduces first-boot install time)
-  # Uses pre-built images from tarball instead of building in VM (avoids slow network)
+  # Pre-cache Docker base images (pulls FROM images for faster first-boot build)
   provisioner "shell" {
     script = "scripts/05-prebuild-containers.sh"
     execute_command = "echo '${var.ssh_password}' | sudo -S bash '{{.Path}}'"
-    timeout = "90m"
+    timeout = "30m"
   }
 
   # Pre-build wizard Python venv (avoids pip install on first boot)

@@ -487,19 +487,9 @@ main() {
     # Always create fresh source tarball from local repo
     create_source_tarball
 
-    # Pre-build Docker images on host (unless skipped or tarball exists)
-    if [ "$SKIP_PREBUILD" = false ]; then
-        if [ -f "$IMAGES_TARBALL" ]; then
-            local existing_size
-            existing_size=$(du -h "$IMAGES_TARBALL" | cut -f1)
-            log "Using existing images tarball: $IMAGES_TARBALL ($existing_size)"
-            log "Use --skip-prebuild=false to force rebuild"
-        else
-            prebuild_docker_images
-        fi
-    else
-        log "Skipping Docker pre-build (--skip-prebuild specified)"
-    fi
+    # CE Edition: Docker images are built on first boot, not pre-baked
+    # This keeps the OVA small (~3-5GB vs ~15GB with pre-built images)
+    log "CE mode: Skipping Docker image pre-build (images built on first boot)"
 
     if [ "$SKIP_BUILD" = false ]; then
         run_packer_build

@@ -12,7 +12,7 @@ ubuntu_version = "24.04"
 
 # VM Configuration (aligned with docs minimum requirements)
 vm_name   = "sting-ce-quickstart"
-disk_size = "40G"  # 40GB - enough for Docker images
+disk_size = "15G"  # 15GB - OS + Docker engine + STING source (data on separate disk)
 memory    = 8192   # 8GB RAM (STING minimum requirement)
 cpus      = 4      # 4 cores (STING minimum requirement)
 
