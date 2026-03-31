@@ -4791,7 +4791,7 @@ try:
 except Exception as e:
     print(f'Kratos check failed: {e}')
     sys.exit(1)
-" 2>/dev/null; then
+"; then
             log_message "Services are ready, proceeding with passwordless admin creation..."
             break
         fi
