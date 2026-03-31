@@ -246,12 +246,12 @@ email_service:
 # LLM Service Configuration
 llm_service:
   enabled: true
-  default_model: "${LLM_MODEL:-llama3.2}"
+  default_model: "llama3.2"
 
   ollama:
     enabled: true
-    endpoint: "${LLM_ENDPOINT:-http://host.docker.internal:11434}"
-    default_model: "${LLM_MODEL:-llama3.2}"
+    endpoint: "http://localhost:11434"
+    default_model: "llama3.2"
     models_to_install:
       - "llama3.2"
     auto_install: true
@@ -259,7 +259,7 @@ llm_service:
   external_ai:
     enabled: true
     port: 8091
-    ollama_endpoint: "${LLM_ENDPOINT:-http://host.docker.internal:11434}"
+    ollama_endpoint: "http://localhost:11434"
     web_search:
       enabled: false
       provider: "searxng"
@@ -361,24 +361,24 @@ ai:
   #
   review_bee:
     # Master toggle - disabled by default (enable for production quality assurance)
-    enabled: "${REVIEW_BEE_ENABLED:-false}"
+    enabled: false
     
     # Critic model configuration (lightweight, fast analysis)
     # The critic reviews reports and identifies issues - doesn't need to be powerful
     critic:
-      model: "${REVIEW_BEE_CRITIC_MODEL:-phi4}"
+      model: "phi4"
       fallback_model: "qwen2.5-7b-instruct"
       timeout_seconds: 30
     
     # Review behavior modes:
     # - critique_only: Analyze but never regenerate (safe, for monitoring)
     # - critique_and_revise: Analyze and regenerate if needed (recommended)
-    mode: "${REVIEW_BEE_MODE:-critique_and_revise}"
+    mode: "critique_and_revise"
     
     # Score threshold for triggering revision (0.0-1.0)
     # Lower = more revisions, Higher = only revise poor reports
     # Recommended: 0.7-0.8 for production
-    revision_threshold: "${REVIEW_BEE_THRESHOLD:-0.75}"
+    revision_threshold: 0.75
     
     # Maximum revision iterations (usually 1 is enough)
     # Future: Multi-pass refinement with convergence detection
@@ -411,9 +411,9 @@ ai:
     # Webhook notifications for external integrations
     # Send review results to external systems (alerting, dashboards, audit)
     webhooks:
-      enabled: "${REVIEW_BEE_WEBHOOKS_ENABLED:-false}"
+      enabled: false
       # URL to POST review results to (empty = disabled)
-      url: "${REVIEW_BEE_WEBHOOK_URL:-}"
+      url: ""
       # Only send webhooks when safety or quality checks fail
       notify_on_failure_only: true
       # Timeout for webhook requests in seconds

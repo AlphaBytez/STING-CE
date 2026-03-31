@@ -396,9 +396,9 @@ ai:
   # Default LLM Configuration
   llm:
     enabled: true
-    provider: "${LLM_PROVIDER:-ollama}"
-    endpoint: "${LLM_ENDPOINT:-http://host.docker.internal:11434}"
-    model: "${LLM_MODEL:-llama3.2}"
+    provider: "ollama"
+    endpoint: "http://localhost:11434"
+    model: "llama3.2"
     timeout: 120
 
   # Knowledge Base (ChromaDB)

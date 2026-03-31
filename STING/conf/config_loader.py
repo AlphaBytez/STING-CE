@@ -2763,13 +2763,7 @@ class ConfigurationManager:
                     'EXTERNAL_AI_HOST': '0.0.0.0',
                     'EXTERNAL_AI_PORT': self.raw_config.get('llm_service', {}).get('external_ai', {}).get('port', '8091'),
                     'OLLAMA_BASE_URL': self.raw_config.get('llm_service', {}).get('ollama', {}).get('endpoint', 'http://localhost:11434'),
-                    # MiniMax Configuration (Primary LLM with Ollama fallback)
-                    # Use processed_config for Vault-retrieved credentials
-                    'MINIMAX_API_KEY': self.processed_config.get('MINIMAX_API_KEY', ''),
-                    'MINIMAX_BASE_URL': self.processed_config.get('MINIMAX_BASE_URL', 'https://api.minimax.io/v1'),
-                    'MINIMAX_DEFAULT_MODEL': self.processed_config.get('MINIMAX_DEFAULT_MODEL', 'MiniMax-Text-01'),
                     'LLM_PRIMARY_PROVIDER': self.processed_config.get('LLM_PRIMARY_PROVIDER', 'ollama'),
-                    'MINIMAX_ENABLED': self.processed_config.get('MINIMAX_ENABLED', 'false'),
                     'REDIS_HOST': 'redis',
                     'REDIS_PORT': '6379',
                     'REDIS_LLM_DB': '1',
