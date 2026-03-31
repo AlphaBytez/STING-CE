@@ -91,76 +91,46 @@ const EmailCodeAuth = ({ onSwitchToPasskey, onSuccess }) => {
       // Initialize fresh Kratos flow
       const flow = await initializeFlow(isAAL2);
       
-      // Use identifier-first approach
-      const identifierFormData = new URLSearchParams();
-      identifierFormData.append('identifier', userEmail);
+      // Submit identifier + method in a single request (Kratos v1.3.0 requires this)
+      const formData = new URLSearchParams();
+      formData.append('identifier', userEmail);
+      formData.append('method', 'code');
       
       const csrfToken = extractCSRFToken(flow);
       if (csrfToken) {
-        identifierFormData.append('csrf_token', csrfToken);
+        formData.append('csrf_token', csrfToken);
       }
       
-      // Submit identifier
-      const identifierResponse = await submitToFlow(flow, identifierFormData.toString());
+      const codeResponse = await submitToFlow(flow, formData.toString());
       
-      console.log('🔐 Identifier response:', identifierResponse.status, identifierResponse.data?.state);
+      console.log('🔐 Code request response:', codeResponse.status, codeResponse.data?.state);
       
-      // Check if we can proceed with code method
-      const updatedFlow = identifierResponse.data;
-      const hasCodeMethod = updatedFlow?.ui?.nodes?.some(
-        n => n.attributes?.name === 'method' && n.attributes?.value === 'code'
-      );
-      
-      if (hasCodeMethod) {
-        console.log('🔐 Code method available, requesting code...');
-        
-        const codeFormData = new URLSearchParams();
-        codeFormData.append('identifier', userEmail);
-        codeFormData.append('method', 'code');
-        
-        const updatedCsrfToken = extractCSRFToken(updatedFlow);
-        if (updatedCsrfToken) {
-          codeFormData.append('csrf_token', updatedCsrfToken);
-        }
-        
-        const codeResponse = await submitToFlow(updatedFlow, codeFormData.toString());
-        
-        console.log('🔐 Code request response:', codeResponse.status, codeResponse.data?.state);
-        
-        if (codeResponse.data?.state === 'sent_email' || codeResponse.data?.ui) {
-          console.log('✅ Email sent successfully');
-          setFlowData(codeResponse.data);
-          setStep('code');
-          setSuccessMessage('A verification code has been sent to your email address.');
-        } else {
-          throw new Error('Failed to send verification code');
-        }
-      } else {
-        // Check if user has passkeys but no code method
-        const hasWebAuthnMethod = updatedFlow?.ui?.nodes?.some(
+      if (codeResponse.data?.state === 'sent_email') {
+        console.log('✅ Email code sent successfully');
+        setFlowData(codeResponse.data);
+        setStep('code');
+        setSuccessMessage('A verification code has been sent to your email address.');
+      } else if (codeResponse.data?.state === 'choose_method') {
+        // Code method may not be available for this identity
+        const hasWebAuthnMethod = codeResponse.data?.ui?.nodes?.some(
           n => n.attributes?.name === 'method' && n.attributes?.value === 'webauthn'
         );
         
-        if (hasWebAuthnMethod && !hasCodeMethod) {
-          // Check actual passkey count
+        if (hasWebAuthnMethod) {
           const hasPasskeys = await checkEmailPasskeys(userEmail);
           if (hasPasskeys) {
             setError('This account has passkeys configured. Please use passkey authentication for better security.');
-            // Suggest switching to passkey
             if (onSwitchToPasskey) {
               setTimeout(() => onSwitchToPasskey(), 2000);
             }
             return;
-          } else {
-            // New user needs registration
-            console.log('🔐 New user needs registration');
-            sessionStorage.setItem('register_email', userEmail);
-            navigate('/register');
-            return;
           }
-        } else {
-          setError('Email authentication is not available for this account. Please try using passkey authentication.');
         }
+        // Identity may not exist — show generic message to prevent enumeration
+        setStep('code');
+        setSuccessMessage('If an account exists with this email, a verification code has been sent.');
+      } else {
+        throw new Error('Unexpected response from authentication server');
       }
     } catch (error) {
       console.error('🔐 Email submission failed:', error);

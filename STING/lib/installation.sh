@@ -4822,14 +4822,21 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 try:
-    # Create identity with only email and admin role - no password credentials
+    # Create identity with email, admin role, and verified email address
     create_data = {
         'schema_id': 'default',
         'traits': {
             'email': admin_email,
             'role': 'admin'
-        }
-        # Note: No credentials block - this creates a passwordless identity
+        },
+        'verifiable_addresses': [
+            {
+                'value': admin_email,
+                'verified': True,
+                'via': 'email',
+                'status': 'completed'
+            }
+        ]
     }
     
     create_response = requests.post(
