@@ -12,8 +12,8 @@ import urllib3
 # Suppress SSL warnings for self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Kratos configuration
-KRATOS_ADMIN_URL = 'http://kratos:4434'
+# Kratos configuration - uses localhost since this script runs on the host
+KRATOS_ADMIN_URL = 'https://localhost:4434'
 
 def check_admin_exists(email):
     """Check if admin user exists in Kratos"""
@@ -33,14 +33,8 @@ def check_admin_exists(email):
         # Check if admin with this email exists
         for identity in identities:
             if identity.get('traits', {}).get('email') == email:
-                # Check if has credentials
-                credentials = identity.get('credentials', {})
-                if credentials:
-                    print(f"✅ Admin user found: {email}")
-                    return True
-                else:
-                    print(f"⚠️  Admin user exists but has no credentials: {email}")
-                    return False
+                print(f"✅ Admin user found: {email}")
+                return True
 
         print(f"❌ Admin user not found: {email}")
         return False
