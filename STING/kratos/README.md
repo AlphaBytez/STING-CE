@@ -15,7 +15,7 @@
 1. **During Installation:**
    - `kratos.yml.template` is copied to install directory
    - `configure_hostname()` generates `kratos.yml` from template
-   - Hostname placeholder is replaced with actual hostname (e.g., `sting.local`, `mycompany.com`)
+   - Hostname placeholder is replaced with actual hostname (e.g., `sting-ce.local`, `mycompany.com`)
 
 2. **After Installation:**
    - Use `./update_hostname.sh` to change hostname
@@ -51,6 +51,6 @@ WebAuthn/Passkey authentication requires:
 - Dynamic configuration based on deployment environment
 
 Templates allow STING to work on:
-- ✅ VMs with custom hostnames (`sting.local`)
+- ✅ VMs with custom hostnames (`sting-ce.local`)
 - ✅ Production domains (`sting.company.com`)
 - ✅ Local development (`localhost`)

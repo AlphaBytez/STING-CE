@@ -35,7 +35,7 @@ noise:
 oidc:
   only_start_if_oidc_is_available: false
 
-# DNS configuration for support.sting.local
+# DNS configuration for support.sting-ce.local
 dns:
   nameservers:
     global:
@@ -43,7 +43,7 @@ dns:
       - 1.0.0.1
   search_domains: []
   magic_dns: true
-  base_domain: support.sting.local
+  base_domain: support.sting-ce.local
 
 # Default user for support sessions
 default_user: sting-support

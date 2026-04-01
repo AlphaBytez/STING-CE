@@ -64,7 +64,7 @@ def get_admin_session():
         login_data = {
             "method": "password",
             "password": admin_password,
-            "password_identifier": "admin@sting.local"
+            "password_identifier": "admin@sting-ce.local"
         }
         
         login_response = session.post(

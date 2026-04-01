@@ -39,7 +39,7 @@ def reset_admin_password():
         print("\n📋 Finding admin identity...")
         response = requests.get(
             f"{kratos_admin_url}/identities",
-            params={"credentials_identifier": "admin@sting.local"},
+            params={"credentials_identifier": "admin@sting-ce.local"},
             verify=False  # For self-signed certificates
         )
         
@@ -62,7 +62,7 @@ def reset_admin_password():
             "schemas": ["default"],
             "state": "active",
             "traits": {
-                "email": "admin@sting.local",
+                "email": "admin@sting-ce.local",
                 "role": "admin",
                 "force_password_change": False
             },
@@ -96,7 +96,7 @@ def reset_admin_password():
             
             print(f"\n✅ Admin password has been reset!")
             print(f"📝 New credentials:")
-            print(f"   Email: admin@sting.local")
+            print(f"   Email: admin@sting-ce.local")
             print(f"   Password: {new_password}")
             print(f"\n💾 Password saved to: {password_file}")
             

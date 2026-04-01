@@ -136,7 +136,7 @@ def get_basket_overview():
             and_(
                 or_(*owner_conditions),
                 # Exclude system/demo jars explicitly
-                ~HoneyJar.owner.in_(['system', 'system@sting.local']),
+                ~HoneyJar.owner.in_(['system', 'system@sting-ce.local']),
                 Document.status != 'deleted'
             )
         ).order_by(desc(Document.upload_date)).all()

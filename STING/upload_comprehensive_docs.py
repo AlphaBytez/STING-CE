@@ -13,7 +13,7 @@ import tempfile
 import uuid
 from pathlib import Path
 
-def get_session_token(email="admin@sting.local", password="Password1!"):
+def get_session_token(email="admin@sting-ce.local", password="Password1!"):
     """Get authentication token"""
     try:
         session = requests.Session()

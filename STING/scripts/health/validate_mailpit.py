@@ -27,7 +27,7 @@ SMTP_PORT = 1025
 WEB_UI_HOST = "localhost"
 WEB_UI_PORT = 8025
 CONTAINER_NAME = "sting-ce-mailpit"
-TEST_EMAIL = "healthcheck@sting.local"
+TEST_EMAIL = "healthcheck@sting-ce.local"
 
 # ANSI colors
 RED = '\033[0;31m'
@@ -177,7 +177,7 @@ def test_email_delivery() -> Tuple[bool, str]:
         # Send test email
         msg = EmailMessage()
         msg['Subject'] = f'Mailpit Health Check - {int(time.time())}'
-        msg['From'] = 'healthcheck@sting.local'
+        msg['From'] = 'healthcheck@sting-ce.local'
         msg['To'] = TEST_EMAIL
         msg.set_content('This is an automated health check email from STING mailpit validation.')
 

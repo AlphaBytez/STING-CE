@@ -185,7 +185,7 @@ def generate_totp():
         
         # Create TOTP URL
         issuer = "STING CE"
-        user_email = g.user_email if hasattr(g, 'user_email') else 'user@sting.local'
+        user_email = g.user_email if hasattr(g, 'user_email') else 'user@sting-ce.local'
         totp_url = pyotp.totp.TOTP(secret).provisioning_uri(
             name=user_email,
             issuer_name=issuer
@@ -316,7 +316,7 @@ def setup_totp_json():
         import os
 
         # Get user info
-        user_email = g.user_email if hasattr(g, 'user_email') else 'user@sting.local'
+        user_email = g.user_email if hasattr(g, 'user_email') else 'user@sting-ce.local'
         identity_id = session.get('identity_id') or getattr(g.user, 'kratos_id', None) if hasattr(g, 'user') else None
 
         # Check if credentials are blocked due to recent account recovery

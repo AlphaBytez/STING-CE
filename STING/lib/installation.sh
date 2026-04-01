@@ -120,7 +120,7 @@ prompt_smtp_configuration() {
         export SMTP_PORT="1025"
         export SMTP_USERNAME=""
         export SMTP_PASSWORD=""
-        export SMTP_FROM="noreply@sting.local"
+        export SMTP_FROM="noreply@sting-ce.local"
         export SMTP_FROM_NAME="STING Platform"
         export SMTP_TLS_ENABLED="false"
         export SMTP_STARTTLS_ENABLED="false"
@@ -657,7 +657,7 @@ SMTP_HOST=${SMTP_HOST:-mailpit}
 SMTP_PORT=${SMTP_PORT:-1025}
 SMTP_USERNAME=${SMTP_USERNAME:-}
 SMTP_PASSWORD=${SMTP_PASSWORD:-}
-SMTP_FROM=${SMTP_FROM:-noreply@sting.local}
+SMTP_FROM=${SMTP_FROM:-noreply@sting-ce.local}
 SMTP_FROM_NAME=${SMTP_FROM_NAME:-STING Platform}
 SMTP_TLS_ENABLED=${SMTP_TLS_ENABLED:-false}
 SMTP_STARTTLS_ENABLED=${SMTP_STARTTLS_ENABLED:-false}
@@ -4650,7 +4650,7 @@ except Exception as e:
     
     # Now create a fresh admin user (PASSWORDLESS)
     log_message "Creating fresh passwordless admin user..."
-    create_passwordless_admin_user "admin@sting.local"
+    create_passwordless_admin_user "admin@sting-ce.local"
 
     local sting_url=$(get_sting_url)
     local host_ip="${STING_HOST_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
@@ -4901,7 +4901,7 @@ except Exception as e:
 # Use create_passwordless_admin_user() instead for passwordless authentication
 # This function is kept for backward compatibility and emergency password recovery only
 create_admin_user_with_verification() {
-    local email="${1:-admin@sting.local}"
+    local email="${1:-admin@sting-ce.local}"
 
     log_message "[!]  WARNING: Creating admin with PASSWORD (legacy method)" "WARNING"
     log_message "Use create_passwordless_admin_user() for passwordless auth" "WARNING"

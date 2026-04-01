@@ -173,7 +173,7 @@ def create_admin_user(email, password=None, passwordless=True):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='Create a new admin user - PASSWORDLESS BY DEFAULT')
-    parser.add_argument('--email', default='admin@sting.local', help='Admin email')
+    parser.add_argument('--email', default='admin@sting-ce.local', help='Admin email')
     parser.add_argument('--password', help='LEGACY: Admin password (only used with --use-password)')
     parser.add_argument('--use-password', action='store_true', help='LEGACY: Create password-based admin (not recommended)')
     parser.add_argument('--passwordless', action='store_true', default=True, help='Create passwordless admin (DEFAULT)')

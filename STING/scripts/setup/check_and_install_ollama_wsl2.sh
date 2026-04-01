@@ -340,7 +340,7 @@ install_flow() {
 
 # Custom domain configuration helper
 configure_custom_domain() {
-    local domain="${1:-sting.local}"
+    local domain="${1:-sting-ce.local}"
     
     log "Configuring Ollama for custom domain: $domain"
     
@@ -407,7 +407,7 @@ case "${1:-check}" in
         download_models
         ;;
     configure-domain)
-        configure_custom_domain "${2:-sting.local}"
+        configure_custom_domain "${2:-sting-ce.local}"
         ;;
     test)
         # Test Ollama with a simple prompt

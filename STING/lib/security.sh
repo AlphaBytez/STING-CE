@@ -665,7 +665,7 @@ generate_ssl_certs() {
             -subj "/C=US/ST=State/L=City/O=STING/CN=localhost"
 
     elif is_local_domain "$domain"; then
-        # Local custom domain (e.g., sting.local) - use mkcert for browser trust
+        # Local custom domain (e.g., sting-ce.local) - use mkcert for browser trust
         log_message "Detected local custom domain: $domain"
         log_message "Using mkcert to generate locally-trusted certificates..."
 

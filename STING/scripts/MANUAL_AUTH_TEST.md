@@ -14,7 +14,7 @@
 - ❌ **Failure**: Page doesn't load or no email field
 
 #### Step 2: Enter Admin Email
-- Enter: `admin@sting.local`
+- Enter: `admin@sting-ce.local`
 - Click **Submit** or **Send Code**
 - ✅ **Expected**: Code input field appears OR redirect to enrollment
 - ❌ **Failure**: Error message or stuck on same page

@@ -54,7 +54,7 @@ def proxy_request(path, method='GET', **kwargs):
             # but indicate this is a public request
             session_token = "public-access"
             user_id = "public"
-            user_email = "public@sting.local"
+            user_email = "public@sting-ce.local"
         
         # Build the full URL
         url = f"{KNOWLEDGE_SERVICE_URL}/{path}"

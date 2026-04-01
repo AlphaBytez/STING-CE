@@ -164,11 +164,11 @@ The installer will attempt to detect your system's hostname:
 
 1. **For Local/VM Deployments:**
    ```
-   sting.local
+   sting-ce.local
    ```
    Then add to `/etc/hosts` on client machines:
    ```
-   192.168.1.100  sting.local
+   192.168.1.100  sting-ce.local
    ```
 
 2. **For Production with DNS:**
@@ -200,13 +200,13 @@ This will:
 
 #### Client Setup (For VMs)
 
-If you're using a custom hostname like `sting.local` on a VM, add this to `/etc/hosts` on **each client machine**:
+If you're using a custom hostname like `sting-ce.local` on a VM, add this to `/etc/hosts` on **each client machine**:
 
 **Linux/macOS:**
 ```bash
 sudo nano /etc/hosts
 # Add line:
-192.168.1.100  sting.local
+192.168.1.100  sting-ce.local
 ```
 
 **Windows:**
@@ -214,7 +214,7 @@ sudo nano /etc/hosts
 # Run as Administrator
 notepad C:\Windows\System32\drivers\etc\hosts
 # Add line:
-192.168.1.100  sting.local
+192.168.1.100  sting-ce.local
 ```
 
 Replace `192.168.1.100` with your server's actual IP address.

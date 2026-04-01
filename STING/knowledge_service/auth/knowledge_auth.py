@@ -45,7 +45,7 @@ class KnowledgeAuth:
             if not credentials and os.getenv('KNOWLEDGE_DEV_MODE', 'false').lower() == 'true':
                 return {
                     "id": os.getenv('KNOWLEDGE_DEV_USER_ID', 'dev-user'),
-                    "email": os.getenv('KNOWLEDGE_DEV_USER_EMAIL', 'dev@sting.local'),
+                    "email": os.getenv('KNOWLEDGE_DEV_USER_EMAIL', 'dev@sting-ce.local'),
                     "role": os.getenv('KNOWLEDGE_DEV_USER_ROLE', 'admin'),
                     "name": {
                         "first": os.getenv('KNOWLEDGE_DEV_USER_FIRST_NAME', 'Dev'),
@@ -412,7 +412,7 @@ class KnowledgeAuth:
                 logger.info("Development API key authenticated successfully")
                 return {
                     "id": "system",
-                    "email": "system@sting.local",
+                    "email": "system@sting-ce.local",
                     "role": "admin",
                     "name": {"first": "System", "last": "Operations"},
                     "auth_type": "api_key",
@@ -425,7 +425,7 @@ class KnowledgeAuth:
                 logger.info("Custom system API key authenticated successfully")
                 return {
                     "id": "custom_system",
-                    "email": "custom_system@sting.local", 
+                    "email": "custom_system@sting-ce.local", 
                     "role": "admin",
                     "auth_type": "api_key",
                     "permissions": ["system_operations"]
@@ -449,7 +449,7 @@ class KnowledgeAuth:
                         
                         return {
                             "id": key_data.get('user_id', 'api_user'),
-                            "email": key_data.get('user_email', 'api@sting.local'),
+                            "email": key_data.get('user_email', 'api@sting-ce.local'),
                             "role": "admin" if "admin" in key_data.get('scopes', []) else "user",
                             "name": {
                                 "first": key_data.get('name', 'API'),

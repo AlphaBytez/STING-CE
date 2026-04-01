@@ -35,7 +35,7 @@ class HiveManager:
                     "id": "sting-platform-docs",
                     "name": "STING Platform Knowledge",
                     "description": "Core documentation and API references for STING platform",
-                    "owner": "admin@sting.local",
+                    "owner": "admin@sting-ce.local",
                     "type": "public",
                     "status": "active",
                     "tags": ["documentation", "api", "platform"],
@@ -58,7 +58,7 @@ class HiveManager:
                     "id": "customer-support-faq",
                     "name": "Customer Support FAQ",
                     "description": "Frequently asked questions and troubleshooting guides",
-                    "owner": "support@sting.local",
+                    "owner": "support@sting-ce.local",
                     "type": "private",
                     "status": "active",
                     "tags": ["faq", "support", "troubleshooting"],
@@ -82,7 +82,7 @@ class HiveManager:
                     "id": "marketing-materials",
                     "name": "Marketing Materials",
                     "description": "Product brochures, case studies, and marketing content",
-                    "owner": "marketing@sting.local",
+                    "owner": "marketing@sting-ce.local",
                     "type": "private",
                     "status": "draft",
                     "tags": ["marketing", "content", "brochures"],
@@ -94,7 +94,7 @@ class HiveManager:
                         "public_read": False,
                         "public_write": False,
                         "admin_only": False,
-                        "allowed_users": ["marketing@sting.local", "admin@sting.local"]
+                        "allowed_users": ["marketing@sting-ce.local", "admin@sting-ce.local"]
                     },
                     "config": {
                         "chunk_size": 1200,

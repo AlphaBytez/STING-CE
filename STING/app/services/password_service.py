@@ -212,7 +212,7 @@ class PasswordService:
                     logger.info("Database transaction committed")
                     
                     # If this is the admin user, also mark in filesystem
-                    if user.email == 'admin@sting.local':
+                    if user.email == 'admin@sting-ce.local':
                         try:
                             # V2 approach: UserSettings database record is already updated above
                             # No need for additional marker files in V2 system
@@ -308,7 +308,7 @@ class PasswordService:
                 }
                 
             # Check if admin user still has force_password_change flag
-            identity = get_identity_by_email('admin@sting.local')
+            identity = get_identity_by_email('admin@sting-ce.local')
             
             if identity and not identity.get('traits', {}).get('force_password_change', False):
                 # Password has been changed, remove the file
@@ -320,7 +320,7 @@ class PasswordService:
                 
             return {
                 'show_notice': True,
-                'admin_email': 'admin@sting.local',
+                'admin_email': 'admin@sting-ce.local',
                 'admin_password': admin_password,
                 'message': 'Default admin credentials - MUST be changed on first login!'
             }

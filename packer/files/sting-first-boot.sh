@@ -68,8 +68,8 @@ cat << EOF
 ║   After installation completes, access STING at:              ║
 ║     https://${PRIMARY_IP}:8443
 ║                                                                ║
-║   Or if using .local hostname:                                 ║
-║     https://sting.local:8443                                   ║
+║   Or use mDNS hostname (works automatically):                  ║
+║     https://sting-ce.local:8443                                ║
 ║                                                                ║
 ╚════════════════════════════════════════════════════════════════╝
 

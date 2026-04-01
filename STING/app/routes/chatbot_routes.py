@@ -125,7 +125,7 @@ def chat_with_bee():
         else:
             # Fallback for API-only usage
             context['user_id'] = data.get('user_id', 'api_user')
-            context['user_email'] = 'api@sting.local'
+            context['user_email'] = 'api@sting-ce.local'
             context['user_role'] = 'user'
             context['auth_type'] = 'fallback'
         

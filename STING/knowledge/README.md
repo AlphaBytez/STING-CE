@@ -100,7 +100,7 @@ Once uploaded, Bee automatically has access to all knowledge repositories and ca
      "honey_jar": {
        "type": "internal",
        "status": "active",
-       "owner": "admin@sting.local",
+       "owner": "admin@sting-ce.local",
        "permissions": {...},
        "config": {...}
      },

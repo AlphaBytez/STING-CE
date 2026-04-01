@@ -108,16 +108,16 @@ def get_admin_kratos_id(app):
             identities = response.json()
             for identity in identities:
                 traits = identity.get('traits', {})
-                if traits.get('email') == 'admin@sting.local':
+                if traits.get('email') == 'admin@sting-ce.local':
                     return identity.get('id')
 
         # Fallback: generate a consistent UUID for admin
         print("⚠️  Could not fetch admin ID from Kratos, using generated UUID")
-        return str(uuid_module.uuid5(uuid_module.NAMESPACE_DNS, 'admin@sting.local'))
+        return str(uuid_module.uuid5(uuid_module.NAMESPACE_DNS, 'admin@sting-ce.local'))
 
     except Exception as e:
         print(f"⚠️  Error fetching admin ID: {e}, using generated UUID")
-        return str(uuid_module.uuid5(uuid_module.NAMESPACE_DNS, 'admin@sting.local'))
+        return str(uuid_module.uuid5(uuid_module.NAMESPACE_DNS, 'admin@sting-ce.local'))
 
 
 def create_nectar_bot_db(bot_config: Dict[str, Any], app, admin_id) -> bool:
@@ -129,7 +129,7 @@ def create_nectar_bot_db(bot_config: Dict[str, Any], app, admin_id) -> bool:
                 name=bot_config['name'],
                 description=bot_config['description'],
                 owner_id=admin_id,
-                owner_email='admin@sting.local',
+                owner_email='admin@sting-ce.local',
                 system_prompt=bot_config['system_prompt'],
                 honey_jar_ids=bot_config.get('honey_jar_ids', []),
                 max_conversation_length=bot_config.get('max_conversation_length', 20),

@@ -555,7 +555,7 @@ def update_pii_indicator_preferences():
             # Create new user settings
             user_settings = UserSettings(
                 user_id=user_id,
-                email=data.get('email', 'user@sting.local'),
+                email=data.get('email', 'user@sting-ce.local'),
                 role='user'
             )
             db.session.add(user_settings)

@@ -22,7 +22,7 @@ cd "$SCRIPT_DIR"
 # Configuration
 STING_URL="${STING_URL:-https://CONFIGURE_YOUR_DOMAIN.local:8443}"
 MAILPIT_URL="${MAILPIT_URL:-http://10.0.0.158:8025}"
-TEST_EMAIL="${TEST_EMAIL:-admin@sting.local}"
+TEST_EMAIL="${TEST_EMAIL:-admin@sting-ce.local}"
 
 echo -e "${BLUE}Configuration:${NC}"
 echo "  STING URL:    $STING_URL"

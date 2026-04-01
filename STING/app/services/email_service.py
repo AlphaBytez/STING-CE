@@ -25,7 +25,7 @@ class EmailService:
         self.smtp_username = os.getenv('SMTP_USERNAME', '')
         self.smtp_password = os.getenv('SMTP_PASSWORD', '')
         self.smtp_use_tls = os.getenv('SMTP_USE_TLS', 'false').lower() == 'true'
-        self.from_address = os.getenv('FROM_EMAIL', 'noreply@sting.local')
+        self.from_address = os.getenv('FROM_EMAIL', 'noreply@sting-ce.local')
         self.from_name = os.getenv('FROM_NAME', 'STING Platform')
         
         current_app.logger.info(f"Email service initialized - SMTP: {self.smtp_server}:{self.smtp_port}")

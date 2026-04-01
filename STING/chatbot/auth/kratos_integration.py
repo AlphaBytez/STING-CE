@@ -215,9 +215,9 @@ class KratosAuth:
         
         # Check for admin email patterns
         email = traits.get('email', '')
-        if email.endswith('@admin.sting.local') or email in self.config.get('admin_emails', []):
+        if email.endswith('@admin.sting-ce.local') or email in self.config.get('admin_emails', []):
             role = 'admin'
-        elif email.endswith('@support.sting.local'):
+        elif email.endswith('@support.sting-ce.local'):
             role = 'support'
         
         return role

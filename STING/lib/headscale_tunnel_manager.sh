@@ -354,7 +354,7 @@ get_headscale_status() {
     log_message "🌐 **Access Info:**"
     log_message "  • Headscale URL: $HEADSCALE_URL"
     log_message "  • Web Interface: http://localhost:8070"
-    log_message "  • Base Domain: support.sting.local"
+    log_message "  • Base Domain: support.sting-ce.local"
     log_message "  • Session Duration: 30 minutes (community)"
 }
 

@@ -35,7 +35,7 @@ def _send_email_code(email, code):
         smtp_username = os.environ.get('SMTP_USERNAME', '')
         smtp_password = os.environ.get('SMTP_PASSWORD', '')
         smtp_use_tls = os.environ.get('SMTP_TLS_ENABLED', 'false').lower() == 'true'
-        from_email = os.environ.get('SMTP_FROM', 'noreply@sting.local')
+        from_email = os.environ.get('SMTP_FROM', 'noreply@sting-ce.local')
         from_name = os.environ.get('SMTP_FROM_NAME', 'STING Platform')
         
         # Create message

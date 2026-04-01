@@ -11,7 +11,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_ADMIN_EMAIL = os.environ.get('DEFAULT_ADMIN_EMAIL', 'admin@sting.local')
+DEFAULT_ADMIN_EMAIL = os.environ.get('DEFAULT_ADMIN_EMAIL', 'admin@sting-ce.local')
 KRATOS_ADMIN_URL = os.environ.get('KRATOS_ADMIN_URL', 'https://kratos:4434')
 
 

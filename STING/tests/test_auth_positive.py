@@ -168,7 +168,7 @@ def enable_dev_mode_and_test():
             lines.append('\n# Temporary for testing\n')
             lines.append('KNOWLEDGE_DEV_MODE=true\n')
             lines.append('KNOWLEDGE_DEV_USER_ID=test-user-123\n')
-            lines.append('KNOWLEDGE_DEV_USER_EMAIL=test@sting.local\n')
+            lines.append('KNOWLEDGE_DEV_USER_EMAIL=test@sting-ce.local\n')
             lines.append('KNOWLEDGE_DEV_USER_ROLE=admin\n')
 
             with open(env_path, 'w') as f:

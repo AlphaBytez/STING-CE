@@ -1590,7 +1590,7 @@ class ConfigurationManager:
                 'SMTP_PORT': str(dev_config.get('port', 1025)),
                 'SMTP_USERNAME': '',
                 'SMTP_PASSWORD': '',
-                'SMTP_FROM': 'noreply@sting.local',
+                'SMTP_FROM': 'noreply@sting-ce.local',
                 'SMTP_FROM_NAME': 'STING Platform',
                 'SMTP_TLS_ENABLED': 'false',
                 'SMTP_STARTTLS_ENABLED': 'false',
@@ -1865,7 +1865,7 @@ class ConfigurationManager:
         
         # Add SMTP configuration
         env_vars['SMTP_CONNECTION_URI'] = courier_smtp_uri
-        env_vars['COURIER_SMTP_FROM_ADDRESS'] = email_env_vars.get('COURIER_SMTP_FROM_ADDRESS', 'noreply@sting.local')
+        env_vars['COURIER_SMTP_FROM_ADDRESS'] = email_env_vars.get('COURIER_SMTP_FROM_ADDRESS', 'noreply@sting-ce.local')
         env_vars['COURIER_SMTP_FROM_NAME'] = email_env_vars.get('COURIER_SMTP_FROM_NAME', 'STING Platform')
         
         # Webhook token for Kratos → App webhooks (uses service API key from Vault)
@@ -2043,7 +2043,7 @@ class ConfigurationManager:
             dev_user = auth_config.get('development_user', {})
             env_vars.update({
                 'KNOWLEDGE_DEV_USER_ID': dev_user.get('id', 'dev-user'),
-                'KNOWLEDGE_DEV_USER_EMAIL': dev_user.get('email', 'dev@sting.local'),
+                'KNOWLEDGE_DEV_USER_EMAIL': dev_user.get('email', 'dev@sting-ce.local'),
                 'KNOWLEDGE_DEV_USER_ROLE': dev_user.get('role', 'admin'),
                 'KNOWLEDGE_DEV_USER_FIRST_NAME': dev_user.get('name', {}).get('first', 'Dev'),
                 'KNOWLEDGE_DEV_USER_LAST_NAME': dev_user.get('name', {}).get('last', 'User')
@@ -2238,7 +2238,7 @@ class ConfigurationManager:
                 'HEADSCALE_DATABASE_TYPE': database_config.get('type', 'sqlite'),
                 'HEADSCALE_DATABASE_SQLITE_PATH': database_config.get('path', '/var/lib/headscale/db.sqlite'),
                 'HEADSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT': security_config.get('ephemeral_node_timeout', '30m'),
-                'HEADSCALE_BASE_DOMAIN': server_config.get('base_domain', 'support.sting.local'),
+                'HEADSCALE_BASE_DOMAIN': server_config.get('base_domain', 'support.sting-ce.local'),
                 'HEADSCALE_LISTEN_ADDR': server_config.get('listen_addr', '0.0.0.0:8070'),
                 'HEADSCALE_METRICS_LISTEN_ADDR': f"0.0.0.0:{server_config.get('metrics_port', 9090)}",
                 
@@ -2275,7 +2275,7 @@ class ConfigurationManager:
                 'HEADSCALE_DATABASE_TYPE': 'sqlite',
                 'HEADSCALE_DATABASE_SQLITE_PATH': '/var/lib/headscale/db.sqlite',
                 'HEADSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT': '30m',
-                'HEADSCALE_BASE_DOMAIN': 'support.sting.local',
+                'HEADSCALE_BASE_DOMAIN': 'support.sting-ce.local',
                 'HEADSCALE_LISTEN_ADDR': '0.0.0.0:8070',
                 'HEADSCALE_METRICS_LISTEN_ADDR': '0.0.0.0:9090',
                 'HEADSCALE_LOG_LEVEL': 'info',

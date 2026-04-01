@@ -30,12 +30,12 @@ def create_service_api_key():
     with app.app_context():
         with get_db_session() as db:
             # Find or create a service user
-            service_user = db.query(User).filter_by(email='service@sting.local').first()
+            service_user = db.query(User).filter_by(email='service@sting-ce.local').first()
 
             if not service_user:
                 print("📝 Creating service user...")
                 service_user = User(
-                    email='service@sting.local',
+                    email='service@sting-ce.local',
                     kratos_user_id='service-user-internal',
                     first_name='STING',
                     last_name='Service',

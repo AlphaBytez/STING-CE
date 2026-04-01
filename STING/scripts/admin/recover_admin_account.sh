@@ -15,7 +15,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 KRATOS_ADMIN_URL="https://localhost:8443"
-ADMIN_EMAIL="admin@sting.local"
+ADMIN_EMAIL="admin@sting-ce.local"
 
 # Function to show usage
 show_usage() {

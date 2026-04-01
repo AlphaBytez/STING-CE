@@ -171,7 +171,7 @@
                             <strong class="text-slate-100">Current IP:</strong> <span id="current-ip">Loading...</span>
                         </p>
                         <p class="text-xs text-slate-400 mt-2">
-                            💡 For remote access with hardware keys, add "<span id="current-ip-hosts">SERVER_IP</span> <span id="hostname-display">sting.local</span>" to /etc/hosts on client machines
+                            💡 For remote access with hardware keys, add "<span id="current-ip-hosts">SERVER_IP</span> <span id="hostname-display">sting-ce.local</span>" to /etc/hosts on client machines
                         </p>
                     </div>
                 </div>
@@ -423,7 +423,7 @@
                     <p class="text-sm text-slate-200">
                         <strong class="text-amber-400">💡 Mailpit is included by default</strong><br>
                         STING includes Mailpit for testing - a local email catcher accessible at <code class="text-amber-400 bg-slate-800/50 px-1 rounded">http://localhost:8025</code>.
-                        All emails sent to <code class="text-amber-400 bg-slate-800/50 px-1 rounded">*@sting.local</code> will be captured there.
+                        All emails sent to <code class="text-amber-400 bg-slate-800/50 px-1 rounded">*@sting-ce.local</code> will be captured there.
                     </p>
                 </div>
 
@@ -967,7 +967,7 @@
                 // Fallback: show simple text input
                 document.getElementById('hostname-options').innerHTML = `
                     <p class="text-red-400">Failed to load hostname options. Please enter manually:</p>
-                    <input type="text" id="hostname-fallback" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100" placeholder="sting.local">
+                    <input type="text" id="hostname-fallback" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100" placeholder="sting-ce.local">
                 `;
             }
         }
@@ -1665,13 +1665,13 @@
                     logDiv.innerHTML +=
                         '⚠️  Admin account creation failed (see logs above).\n' +
                         '🔧 Create admin manually after launching STING:\n' +
-                        '   sudo msting create admin ' + (adminEmail || 'admin@sting.local') + '\n\n';
+                        '   sudo msting create admin ' + (adminEmail || 'admin@sting-ce.local') + '\n\n';
                     
                     // Add copyable command below the log window
-                    addManualAdminCommand(adminEmail || 'admin@sting.local');
+                    addManualAdminCommand(adminEmail || 'admin@sting-ce.local');
                 } else {
                     logDiv.innerHTML +=
-                        '🐝 Admin account created: ' + (adminEmail || 'admin@sting.local') + '\n' +
+                        '🐝 Admin account created: ' + (adminEmail || 'admin@sting-ce.local') + '\n' +
                         '🔐 Check your email for the magic link to verify and set up security.\n\n';
                 }
 

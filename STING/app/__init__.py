@@ -449,15 +449,15 @@ def create_app(config=None):
         'http://localhost:8443',
         'https://localhost:4433',
         'http://localhost:4433',
-        'https://sting.local:8443',
-        'http://sting.local:8443',
-        'https://sting.local:4433',
-        'http://sting.local:4433'
+        'https://sting-ce.local:8443',
+        'http://sting-ce.local:8443',
+        'https://sting-ce.local:4433',
+        'http://sting-ce.local:4433'
     ]
     
     # Add custom hostname from config if present
     custom_domain = os.getenv('STING_HOSTNAME') or os.getenv('HOSTNAME')
-    if custom_domain and custom_domain not in ['localhost', 'sting.local']:
+    if custom_domain and custom_domain not in ['localhost', 'sting-ce.local']:
         allowed_origins.extend([
             f'https://{custom_domain}:8443',
             f'http://{custom_domain}:8443',

@@ -277,7 +277,7 @@ def create_default_honey_jars():
                 # Generate the API key
                 api_key, secret = ApiKey.generate_key(
                     user_id='bee-service',
-                    user_email='bee@sting.local',
+                    user_email='bee@sting-ce.local',
                     name='Bee Service API Key',
                     scopes=bee_scopes,
                     permissions={

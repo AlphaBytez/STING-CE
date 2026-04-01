@@ -48,7 +48,7 @@ def generate_recovery_token_endpoint():
             return jsonify({'error': 'Admin access required'}), 403
         
         data = request.get_json()
-        target_email = data.get('email', 'admin@sting.local')
+        target_email = data.get('email', 'admin@sting-ce.local')
         
         # Generate recovery token
         token = generate_recovery_token()
@@ -112,7 +112,7 @@ def reset_password_with_token():
             token_data['used'] = True
             
             # Save password for admin user (restricted permissions)
-            if token_data['email'] == 'admin@sting.local':
+            if token_data['email'] == 'admin@sting-ce.local':
                 password_file = os.path.expanduser('~/.sting-ce/admin_password.txt')
                 os.makedirs(os.path.dirname(password_file), mode=0o700, exist_ok=True)
                 # Write with restricted permissions (owner read/write only)
@@ -140,7 +140,7 @@ def reset_password_with_secret():
     try:
         data = request.get_json()
         recovery_secret = data.get('recovery_secret')
-        target_email = data.get('email', 'admin@sting.local')
+        target_email = data.get('email', 'admin@sting-ce.local')
         new_password = data.get('new_password')
         
         if not recovery_secret:
@@ -165,7 +165,7 @@ def reset_password_with_secret():
         
         if success:
             # Save password for admin user (restricted permissions)
-            if target_email == 'admin@sting.local':
+            if target_email == 'admin@sting-ce.local':
                 password_file = os.path.expanduser('~/.sting-ce/admin_password.txt')
                 os.makedirs(os.path.dirname(password_file), mode=0o700, exist_ok=True)
                 # Write with restricted permissions (owner read/write only)

@@ -38,7 +38,7 @@ def get_admin_user():
     try:
         # Try to find admin by role first
         admin = User.query.filter(
-            (User.role == 'admin') | (User.email == 'admin@sting.local')
+            (User.role == 'admin') | (User.email == 'admin@sting-ce.local')
         ).first()
 
         if admin:
@@ -945,9 +945,9 @@ def _create_demo_users():
     
     try:
         demo_users = [
-            {'email': 'demo.user1@sting.local', 'name': 'Demo User 1'},
-            {'email': 'demo.user2@sting.local', 'name': 'Demo User 2'},
-            {'email': 'demo.user3@sting.local', 'name': 'Demo User 3'}
+            {'email': 'demo.user1@sting-ce.local', 'name': 'Demo User 1'},
+            {'email': 'demo.user2@sting-ce.local', 'name': 'Demo User 2'},
+            {'email': 'demo.user3@sting-ce.local', 'name': 'Demo User 3'}
         ]
         
         for user_config in demo_users:
@@ -1615,7 +1615,7 @@ NEED HELP WITH:
                         name=config['name'],
                         description=config['description'],
                         owner_id=admin_kratos_id,  # Use actual admin user
-                        owner_email=admin_email or 'admin@sting.local',
+                        owner_email=admin_email or 'admin@sting-ce.local',
                         honey_jar_ids=jar_ids,
                         system_prompt=config['system_prompt'],
                         max_conversation_length=20,

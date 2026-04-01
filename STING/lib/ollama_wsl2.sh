@@ -23,7 +23,7 @@ install_ollama_wsl2_enhanced() {
     
     # Check if we should use custom domain
     local use_custom_domain=false
-    local custom_domain="sting.local"
+    local custom_domain="sting-ce.local"
     
     if [[ -f "${install_dir}/env/app.env" ]]; then
         source "${install_dir}/env/app.env"

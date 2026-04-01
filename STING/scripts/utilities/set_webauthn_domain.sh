@@ -7,7 +7,7 @@ echo ""
 echo "IMPORTANT: For passkeys to work across different machines, all machines"
 echo "must use the SAME domain name (RP ID). This can be:"
 echo ""
-echo "1. A real domain (e.g., sting.local) - Recommended"
+echo "1. A real domain (e.g., sting-ce.local) - Recommended"
 echo "2. An IP address (e.g., 192.168.1.100)"
 echo "3. localhost (only works on the same machine)"
 echo ""
@@ -21,7 +21,7 @@ echo "Current IP: ${CURRENT_IP:-Not detected}"
 echo ""
 
 # Prompt for domain
-read -p "Enter the domain/hostname to use for WebAuthn (e.g., sting.local, 192.168.1.100): " WEBAUTHN_DOMAIN
+read -p "Enter the domain/hostname to use for WebAuthn (e.g., sting-ce.local, 192.168.1.100): " WEBAUTHN_DOMAIN
 
 if [ -z "$WEBAUTHN_DOMAIN" ]; then
     echo "[-] No domain provided. Exiting."
@@ -61,7 +61,7 @@ if grep -q "WEBAUTHN_RP_ID=\"$WEBAUTHN_DOMAIN\"" ~/.sting-ce/env/app.env 2>/dev/
     echo "Next steps:"
     echo "1. Update app service: ./manage_sting.sh update app"
     echo "2. Add '$WEBAUTHN_DOMAIN' to /etc/hosts on all machines (if using custom domain)"
-    echo "   Example: echo '192.168.1.100 sting.local' | sudo tee -a /etc/hosts"
+    echo "   Example: echo '192.168.1.100 sting-ce.local' | sudo tee -a /etc/hosts"
     echo "3. Access STING using: https://$WEBAUTHN_DOMAIN:3000"
     echo ""
     echo "[!]  IMPORTANT: All machines must use the same domain to share passkeys!"

@@ -1313,7 +1313,7 @@ knowledge_service:
     # Mock user for development mode
     development_user:
       id: "dev-user"
-      email: "dev@sting.local"
+      email: "dev@sting-ce.local"
       role: "admin"
       name:
         first: "Dev"
@@ -1511,7 +1511,7 @@ honey_reserve:
     
     # User-specific quotas (override default)
     custom_quotas:
-      # admin@sting.local: 5368709120  # 5GB for admin
+      # admin@sting-ce.local: 5368709120  # 5GB for admin
   
   # Maintenance settings
   maintenance:
@@ -1546,7 +1546,7 @@ headscale:
   server:
     port: 8070  # Avoiding 8080 conflict
     metrics_port: 9090
-    base_domain: "support.sting.local"
+    base_domain: "support.sting-ce.local"
     listen_addr: "0.0.0.0:8070"
     
   # Database configuration
@@ -1569,7 +1569,7 @@ headscale:
   # DNS and networking
   dns:
     magic_dns: true
-    base_domain: "support.sting.local"
+    base_domain: "support.sting-ce.local"
     nameservers:
       - "1.1.1.1"
       - "1.0.0.1"

@@ -34,7 +34,7 @@ class HoneyJarService:
             login_response = requests.post(
                 f"{self.knowledge_url}/admin/login",
                 json={
-                    "email": "admin@sting.local",
+                    "email": "admin@sting-ce.local",
                     "password": admin_password
                 },
                 timeout=10

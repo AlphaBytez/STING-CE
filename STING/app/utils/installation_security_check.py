@@ -50,7 +50,7 @@ def ensure_passwordless_setup():
     
     # Log passwordless status
     logger.info("🔐 Passwordless authentication is active")
-    logger.info("Default admin: admin@sting.local")
+    logger.info("Default admin: admin@sting-ce.local")
     
     return True  # Always passwordless now
 

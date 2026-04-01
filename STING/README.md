@@ -190,7 +190,7 @@ Streamlined command-line installation for automation and headless environments:
 - Perfect for automation and remote servers
 
 Both modes configure:
-- **Hostname/Domain**: Platform-specific recommendations (sting.local for macOS, localhost for Codespaces, etc.)
+- **Hostname/Domain**: Platform-specific recommendations (sting-ce.local for macOS, localhost for Codespaces, etc.)
 - **LLM Setup**: Provider-agnostic configuration (Ollama, LM Studio, OpenAI-compatible APIs)
 - **Email/SMTP**: Development (Mailpit) or production SMTP server
 - **Admin User**: First administrator account creation
@@ -202,10 +202,10 @@ STING automatically detects your environment and recommends the best hostname co
 | Platform | Recommendation | Reason |
 |----------|---------------|---------|
 | **GitHub Codespaces** | `localhost` | `.local` domains don't work in cloud environments |
-| **macOS** | `sting.local` | Bonjour/mDNS built-in, perfect for local network |
-| **WSL2 (with mDNS)** | `sting.local` | Accessible from Windows via `.local` domain |
+| **macOS** | `sting-ce.local` | Bonjour/mDNS built-in, perfect for local network |
+| **WSL2 (with mDNS)** | `sting-ce.local` | Accessible from Windows via `.local` domain |
 | **WSL2 (no mDNS)** | IP address | No Avahi daemon detected |
-| **Linux (with Avahi)** | `sting.local` | mDNS support enabled |
+| **Linux (with Avahi)** | `sting-ce.local` | mDNS support enabled |
 | **Linux (no Avahi)** | IP/FQDN | No mDNS support |
 | **Docker Container** | `localhost` | For local access only |
 

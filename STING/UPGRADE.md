@@ -493,10 +493,10 @@ This is why we now **refuse to auto-generate new keys** - it's better to fail lo
 
 ## Support
 
-- 📖 Documentation: https://docs.sting.local
+- 📖 Documentation: https://docs.sting-ce.local
 - 🐛 Issues: https://github.com/alphabytez/STING-CE/issues
 - 💬 Discussions: https://github.com/alphabytez/STING-CE/discussions
-- 📧 Email: support@sting.local
+- 📧 Email: support@sting-ce.local
 
 ## Version History
 

@@ -639,12 +639,12 @@ def get_hostname_options():
         # Check if detected_hostname is an IP address
         is_ip = re.match(r'^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$', detected_hostname)
 
-        # Option 1: sting.local (generic .local hostname)
+        # Option 1: sting-ce.local (generic .local hostname)
         # Mark as recommended if it matches CLI selection
-        is_sting_local_recommended = (cli_selected_hostname == 'sting.local')
+        is_sting_local_recommended = (cli_selected_hostname == 'sting-ce.local')
         options.append({
-            'value': 'sting.local',
-            'label': 'sting.local',
+            'value': 'sting-ce.local',
+            'label': 'sting-ce.local',
             'description': 'Generic STING hostname (works with WebAuthn)',
             'requires_mdns': True,
             'recommended': is_sting_local_recommended,
@@ -663,8 +663,8 @@ def get_hostname_options():
         })
 
         # Option 3: Detected/CLI-selected hostname
-        # Only add if different from sting.local and localhost
-        if detected_hostname not in ['sting.local', 'localhost']:
+        # Only add if different from sting-ce.local and localhost
+        if detected_hostname not in ['sting-ce.local', 'localhost']:
             # Mark as recommended if it's the CLI-selected value, or if no CLI selection and it's a .local hostname
             is_detected_recommended = bool(cli_selected_hostname and cli_selected_hostname == detected_hostname) or \
                                       (not cli_selected_hostname and detected_hostname.endswith('.local'))
@@ -701,13 +701,13 @@ def get_hostname_options():
         elif platform == 'vm':
             if mdns_available:
                 guidance = '.local domains work great for remote VM access with mDNS/Avahi'
-                recommendation = 'Use sting.local or hostname.local for WebAuthn support'
+                recommendation = 'Use sting-ce.local or hostname.local for WebAuthn support'
             else:
-                guidance = 'Use sting.local hostname - Avahi will be installed for .local support'
-                recommendation = 'Use sting.local (recommended) - IP addresses do NOT work with WebAuthn'
+                guidance = 'Use sting-ce.local hostname - Avahi will be installed for .local support'
+                recommendation = 'Use sting-ce.local (recommended) - IP addresses do NOT work with WebAuthn'
         else:
             guidance = 'localhost works for local testing, or use a .local domain for remote access'
-            recommendation = 'Use sting.local or localhost for WebAuthn support'
+            recommendation = 'Use sting-ce.local or localhost for WebAuthn support'
 
         return jsonify({
             'platform': platform,
@@ -993,7 +993,7 @@ def transform_wizard_data_to_config(wizard_data):
         admin_data = wizard_data['admin']
         # Admin config is handled separately via create-new-admin.py
         # Just store for reference
-        config.setdefault('_wizard_metadata', {})['admin_email'] = admin_data.get('email', 'admin@sting.local')
+        config.setdefault('_wizard_metadata', {})['admin_email'] = admin_data.get('email', 'admin@sting-ce.local')
 
     # Transform email configuration
     if 'email' in wizard_data:
@@ -1019,7 +1019,7 @@ def transform_wizard_data_to_config(wizard_data):
             config['email_service']['production']['smtp']['port'] = int(email_data.get('port', 587))
             config['email_service']['production']['smtp']['username'] = email_data.get('username', '')
             config['email_service']['production']['smtp']['password'] = email_data.get('password', '')
-            config['email_service']['production']['smtp']['from_address'] = email_data.get('from_address', f'noreply@{config.get("system", {}).get("domain", "sting.local")}')
+            config['email_service']['production']['smtp']['from_address'] = email_data.get('from_address', f'noreply@{config.get("system", {}).get("domain", "sting-ce.local")}')
             config['email_service']['production']['smtp']['from_name'] = email_data.get('from_name', 'STING Platform')
             config['email_service']['production']['smtp']['tls_enabled'] = email_data.get('tls_enabled', True)
             config['email_service']['production']['smtp']['starttls_enabled'] = email_data.get('starttls_enabled', True)
@@ -1627,7 +1627,7 @@ def apply_config():
     if not admin_email:
         # Fallback: use configured hostname for admin email
         system_data = config_data.get('system') or {}
-        hostname = system_data.get('hostname', 'sting.local') if system_data else 'sting.local'
+        hostname = system_data.get('hostname', 'sting-ce.local') if system_data else 'sting-ce.local'
         admin_email = f'admin@{hostname}'
 
     # Final validation

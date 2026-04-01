@@ -218,7 +218,7 @@ secrets:
 courier:
   smtp:
     connection_uri: ${SMTP_CONNECTION_URI}
-    from_address: noreply@sting.local
+    from_address: noreply@sting-ce.local
     from_name: STING Platform
   template_override_path: /etc/config/kratos/courier-templates/
 

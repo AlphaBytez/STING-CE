@@ -56,7 +56,7 @@ Tests use environment variables or defaults:
 |----------|---------|-------------|
 | `STING_URL` | `https://captain-den.local:8443` | STING frontend URL |
 | `MAILPIT_URL` | `http://10.0.0.158:8025` | Mailpit API URL |
-| `TEST_EMAIL` | `admin@sting.local` | Email address to test |
+| `TEST_EMAIL` | `admin@sting-ce.local` | Email address to test |
 
 ### Setting Custom Configuration
 
@@ -247,7 +247,7 @@ jobs:
         env:
           STING_URL: https://localhost:8443
           MAILPIT_URL: http://localhost:8025
-          TEST_EMAIL: admin@sting.local
+          TEST_EMAIL: admin@sting-ce.local
 
       - name: Upload test results
         if: always()

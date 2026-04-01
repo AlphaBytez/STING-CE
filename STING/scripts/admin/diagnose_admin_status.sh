@@ -64,11 +64,11 @@ if [ $? -ne 0 ] || [ -z "$IDENTITIES_RESPONSE" ]; then
 fi
 
 # Parse admin identity
-ADMIN_IDENTITY=$(echo "$IDENTITIES_RESPONSE" | jq -r '.[] | select(.traits.email=="admin@sting.local")')
+ADMIN_IDENTITY=$(echo "$IDENTITIES_RESPONSE" | jq -r '.[] | select(.traits.email=="admin@sting-ce.local")')
 
 if [ "$ADMIN_IDENTITY" = "null" ] || [ -z "$ADMIN_IDENTITY" ]; then
     echo -e "${RED}[-] Admin identity not found in Kratos${NC}"
-    echo "   Expected email: admin@sting.local"
+    echo "   Expected email: admin@sting-ce.local"
     echo
     echo -e "${YELLOW}📊 All identities found:${NC}"
     echo "$IDENTITIES_RESPONSE" | jq -r '.[] | .traits.email // "no-email"'
@@ -145,7 +145,7 @@ try:
     from app.models.user_settings import UserSettings
     app = create_app()
     with app.app_context():
-        admin_setting = UserSettings.query.filter_by(email='admin@sting.local').first()
+        admin_setting = UserSettings.query.filter_by(email='admin@sting-ce.local').first()
         if admin_setting:
             print(f'UserSettings found: force_password_change={admin_setting.force_password_change}')
         else:

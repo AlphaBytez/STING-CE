@@ -158,7 +158,7 @@ detect_system_hostname() {
 # Returns the best hostname for WebAuthn/Passkey compatibility
 get_sting_hostname() {
     local detected_hostname=""
-    local default_hostname="sting.local"
+    local default_hostname="sting-ce.local"
     local interactive="${1:-true}"  # Default to interactive mode
 
     # 1. Check for explicit environment variable override
@@ -201,7 +201,7 @@ get_sting_hostname() {
                 ;;
             macos)
                 echo "🍎 Platform: macOS" >&2
-                echo "   Recommendation: Use 'sting.local' (option 1)" >&2
+                echo "   Recommendation: Use 'sting-ce.local' (option 1)" >&2
                 echo "   Note: Bonjour/mDNS built-in, .local works perfectly" >&2
                 default_option="1"
                 ;;
@@ -219,8 +219,8 @@ get_sting_hostname() {
                     echo "   Note: .local domains work great for remote VM access with mDNS/Avahi" >&2
                     default_option="3"
                 else
-                    # mDNS not available - recommend sting.local and note Avahi installation
-                    echo "   Recommendation: Use sting.local (option 1)" >&2
+                    # mDNS not available - recommend sting-ce.local and note Avahi installation
+                    echo "   Recommendation: Use sting-ce.local (option 1)" >&2
                     echo "   Note: Avahi will be installed automatically for .local hostname support" >&2
                     echo "   [!]  IP addresses are NOT compatible with WebAuthn/passkeys (except localhost)" >&2
                     default_option="1"
@@ -233,7 +233,7 @@ get_sting_hostname() {
                     echo "   Note: .local domains work with mDNS/Avahi" >&2
                     default_option="3"
                 else
-                    echo "   Recommendation: Use sting.local (option 1)" >&2
+                    echo "   Recommendation: Use sting-ce.local (option 1)" >&2
                     echo "   Note: Avahi will be installed for .local hostname support" >&2
                     echo "   [!]  IP addresses are NOT compatible with WebAuthn/passkeys (except localhost)" >&2
                     default_option="1"
@@ -255,7 +255,7 @@ get_sting_hostname() {
         # Determine recommended hostname based on platform
         local recommended_hostname
         case "$default_option" in
-            "1") recommended_hostname="sting.local" ;;
+            "1") recommended_hostname="sting-ce.local" ;;
             "2") recommended_hostname="localhost" ;;
             "3") recommended_hostname="$detected_hostname" ;;
         esac
@@ -268,7 +268,7 @@ get_sting_hostname() {
             "3") star3=" ⭐ RECOMMENDED" ;;
         esac
 
-        echo "  1) sting.local       - Requires mDNS/Avahi${star1}" >&2
+        echo "  1) sting-ce.local       - Requires mDNS/Avahi${star1}" >&2
         echo "  2) localhost         - Local access only${star2}" >&2
 
         if [ -n "$detected_hostname" ]; then
@@ -302,7 +302,7 @@ get_sting_hostname() {
 
         case "$choice" in
             1)
-                echo "sting.local"
+                echo "sting-ce.local"
                 ;;
             2)
                 echo "localhost"
@@ -322,7 +322,7 @@ get_sting_hostname() {
                 echo "${custom_hostname:-$default_hostname}"
                 ;;
             *)
-                # Invalid choice - use default (sting.local)
+                # Invalid choice - use default (sting-ce.local)
                 echo "$default_hostname"
                 ;;
         esac

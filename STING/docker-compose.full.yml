@@ -894,7 +894,7 @@ services:
       - HEADSCALE_DATABASE_TYPE=sqlite
       - HEADSCALE_DATABASE_SQLITE_PATH=/var/lib/headscale/db.sqlite
       - HEADSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT=30m
-      - HEADSCALE_BASE_DOMAIN=support.sting.local
+      - HEADSCALE_BASE_DOMAIN=support.sting-ce.local
       - HEADSCALE_LISTEN_ADDR=0.0.0.0:8070
       - HEADSCALE_METRICS_LISTEN_ADDR=0.0.0.0:9090
     volumes:

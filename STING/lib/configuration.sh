@@ -398,7 +398,7 @@ generate_kratos_config() {
     if [[ "$email_mode" == "production" ]]; then
         # Production mode - use configured SMTP from email.env
         smtp_uri="${COURIER_SMTP_CONNECTION_URI:-}"
-        smtp_from_address="${COURIER_SMTP_FROM_ADDRESS:-noreply@sting.local}"
+        smtp_from_address="${COURIER_SMTP_FROM_ADDRESS:-noreply@sting-ce.local}"
         smtp_from_name="${COURIER_SMTP_FROM_NAME:-STING Platform}"
         log_message "Using production SMTP configuration (EMAIL_MODE=$email_mode)"
     else
@@ -412,7 +412,7 @@ generate_kratos_config() {
             smtp_uri="smtp://mailpit:1025/?skip_ssl_verify=true&disable_starttls=true"
             log_message "Detected Linux/WSL2 - using standard mailpit configuration"
         fi
-        smtp_from_address="noreply@sting.local"
+        smtp_from_address="noreply@sting-ce.local"
         smtp_from_name="STING Platform"
         log_message "Using development mailpit configuration (EMAIL_MODE=$email_mode)"
     fi

@@ -101,7 +101,7 @@ class AdaptiveContextManager:
         if user_email:
             if 'admin' in user_email:
                 return 8000  # Admin users get larger context
-            elif any(domain in user_email for domain in ['sting.local', 'support']):
+            elif any(domain in user_email for domain in ['sting-ce.local', 'support']):
                 return 6000  # Internal users
         return 3000  # Default for external users
 
