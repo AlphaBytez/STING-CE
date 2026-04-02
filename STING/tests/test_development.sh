@@ -31,7 +31,6 @@ run_test() {
 # Setup test environment
 setup_test_env() {
     rm -rf "$INSTALL_DIR"
-    mkdir -p "$INSTALL_DIR/authentication/data"
     mkdir -p "$INSTALL_DIR/frontend"
     mkdir -p "$CONFIG_DIR"
     

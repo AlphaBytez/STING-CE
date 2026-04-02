@@ -43,11 +43,6 @@ cleanup_development() {
         docker rmi -f $(docker images 'sting-ce_*' -q)
     fi
     
-    # Clean up auth data
-    if [ -d "${INSTALL_DIR}/authentication/data" ]; then
-        rm -rf "${INSTALL_DIR}/authentication/data"
-    fi
-
     # Clean Vault data if needed
     if docker volume ls | grep -q "vault-data"; then
         docker volume rm vault-data vault-logs vault-file
