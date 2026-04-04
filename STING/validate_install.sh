@@ -232,7 +232,7 @@ build_test() {
 build_test "frontend" "frontend" "frontend/Dockerfile.react-nginx" "builder"
 build_test "app" "." "app/Dockerfile.app"
 build_test "knowledge" "knowledge_service" "knowledge_service/Dockerfile"
-build_test "chatbot" "chatbot" "chatbot/Dockerfile"
+build_test "chatbot" "." "chatbot/Dockerfile"
 build_test "report-worker" "." "Dockerfile.minimal-worker"
 
 fi # end SKIP_BUILDS check

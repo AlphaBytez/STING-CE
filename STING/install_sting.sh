@@ -271,19 +271,9 @@ fi
 log_message ""
 
 # ============================================================================
-# PRE-INSTALLATION ENVIRONMENT SETUP
-# Source environment library and prepare basic directories/networks
-# ============================================================================
-if [ -f "$LIB_DIR/environment.sh" ]; then
-  source "$LIB_DIR/environment.sh"
-  prepare_basic_environment # Call the new function here
-else
-  log_message "Warning: Could not find environment.sh" "WARNING"
-fi
-
-# ============================================================================
 # SYSTEM DEPENDENCY CHECK
 # Now that sudo is acquired and keepalive is running, check/install dependencies
+# (Must run before environment setup since it installs Docker)
 # ============================================================================
 
 log_message "Checking system dependencies..."
@@ -292,6 +282,17 @@ if ! check_and_install_dependencies; then
   exit 1
 fi
 log_message "✅ System dependencies check completed successfully" "SUCCESS"
+
+# ============================================================================
+# PRE-INSTALLATION ENVIRONMENT SETUP
+# Source environment library and prepare basic directories/networks
+# ============================================================================
+if [ -f "$LIB_DIR/environment.sh" ]; then
+  source "$LIB_DIR/environment.sh"
+  prepare_basic_environment
+else
+  log_message "Warning: Could not find environment.sh" "WARNING"
+fi
 log_message ""
 
 # ============================================================================
