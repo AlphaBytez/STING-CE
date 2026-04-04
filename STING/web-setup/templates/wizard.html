@@ -576,6 +576,12 @@
                                 <input type="text" id="letsencrypt-domain" placeholder="example.com" required
                                     class="w-full px-4 py-2.5 bg-slate-700/80 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all">
                                 <p class="text-xs text-slate-500 mt-1">The full domain name (e.g., hive.yourcompany.com)</p>
+                                <div id="le-domain-warning" style="display: none;" class="mt-2 p-3 bg-red-900/30 border border-red-500/40 rounded-lg">
+                                    <p class="text-xs text-red-400 flex items-start gap-2">
+                                        <span class="text-sm mt-0.5">⚠️</span>
+                                        <span><strong>This domain won't work with Let's Encrypt.</strong> Private/internal hostnames (.local, .internal, .lan, .home, localhost, or bare IP addresses) cannot be validated by Let's Encrypt — it requires a publicly resolvable domain name. Use <strong>Self-Signed</strong> certificates for internal deployments.</span>
+                                    </p>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-300 mb-2">Email Address <span class="text-red-400">*</span></label>
@@ -765,9 +771,58 @@
                         document.getElementById('ssl-upload').style.display = 'block';
                     } else if (this.value === 'letsencrypt') {
                         document.getElementById('ssl-letsencrypt').style.display = 'block';
+                        // Pre-fill domain from hostname if available and validate it
+                        const hostname = document.getElementById('hostname')?.value || '';
+                        const domainInput = document.getElementById('letsencrypt-domain');
+                        if (hostname && !domainInput.value) {
+                            domainInput.value = hostname;
+                        }
+                        validateLetsEncryptDomain(domainInput.value);
                     }
                 });
             });
+
+            // Let's Encrypt domain validation — warn on private/internal hostnames
+            function validateLetsEncryptDomain(domain) {
+                const warning = document.getElementById('le-domain-warning');
+                const domainInput = document.getElementById('letsencrypt-domain');
+                if (!domain || !warning) return false;
+
+                const d = domain.trim().toLowerCase();
+                const isPrivate = (
+                    d.endsWith('.local') ||
+                    d.endsWith('.internal') ||
+                    d.endsWith('.lan') ||
+                    d.endsWith('.home') ||
+                    d.endsWith('.localhost') ||
+                    d.endsWith('.test') ||
+                    d.endsWith('.example') ||
+                    d.endsWith('.invalid') ||
+                    d === 'localhost' ||
+                    /^(\d{1,3}\.){3}\d{1,3}$/.test(d) ||       // IPv4
+                    /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(d) || // RFC1918
+                    !d.includes('.')                             // bare hostname
+                );
+
+                if (isPrivate) {
+                    warning.style.display = 'block';
+                    domainInput.classList.add('border-red-500');
+                    domainInput.classList.remove('border-slate-600');
+                    return false;
+                } else {
+                    warning.style.display = 'none';
+                    domainInput.classList.remove('border-red-500');
+                    domainInput.classList.add('border-slate-600');
+                    return true;
+                }
+            }
+
+            const leDomainInput = document.getElementById('letsencrypt-domain');
+            if (leDomainInput) {
+                leDomainInput.addEventListener('input', function() {
+                    validateLetsEncryptDomain(this.value);
+                });
+            }
 
             // Check for existing certificates on server
             fetch('/api/check-server-certs')
@@ -844,8 +899,9 @@
         }
 
         async function nextStep() {
-            // Save current step data
-            await saveStepData(currentStep);
+            // Save current step data — returns null if validation fails
+            const result = await saveStepData(currentStep);
+            if (result === null) return;
 
             if (currentStep < totalSteps) {
                 currentStep++;
@@ -1347,7 +1403,12 @@
                         type: sslType
                     };
                     if (sslType === 'letsencrypt') {
-                        stepData.ssl.domain = document.getElementById('letsencrypt-domain').value.trim();
+                        const leDomain = document.getElementById('letsencrypt-domain').value.trim();
+                        if (!validateLetsEncryptDomain(leDomain)) {
+                            alert('Let\'s Encrypt requires a publicly resolvable domain name.\n\nPrivate/internal hostnames (.local, .lan, IPs, etc.) cannot be validated by Let\'s Encrypt. Please use Self-Signed certificates for internal deployments.');
+                            return null;
+                        }
+                        stepData.ssl.domain = leDomain;
                         stepData.ssl.email = document.getElementById('letsencrypt-email').value.trim();
                     } else if (sslType === 'upload') {
                         // Handle custom certificate upload
