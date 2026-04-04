@@ -1073,7 +1073,20 @@ manage_services() {
 
     case "$action" in
         start)
-            # Check if required environment files exist first
+            # Single service start — just start the requested service directly
+            if [ -n "$service" ] && [ "$service" != "all" ]; then
+                log_message "Starting single service: $service"
+                
+                # Mailpit needs --profile development
+                if [[ "$service" == "mailpit" ]]; then
+                    docker_compose --profile development up -d mailpit
+                else
+                    docker_compose up -d "$service"
+                fi
+                return $?
+            fi
+            
+            # Full startup: Check if required environment files exist first
             local required_services=(db vault kratos app frontend)
             local missing_env_files=()
             
