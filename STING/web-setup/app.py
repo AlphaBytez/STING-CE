@@ -995,16 +995,16 @@ def transform_wizard_data_to_config(wizard_data):
         config.setdefault('_wizard_metadata', {})['admin_email'] = admin_data.get('email', 'admin@sting-ce.local')
 
     # Transform email configuration
+    # Always set email_service mode — default to development (mailpit) when no SMTP configured
+    if 'email_service' not in config:
+        config['email_service'] = {}
+    
     if 'email' in wizard_data:
         email_data = wizard_data['email']
         
         # Determine if user configured external SMTP
         smtp_host = email_data.get('host', '').strip()
         has_smtp_config = bool(smtp_host and smtp_host != 'mailpit')
-        
-        # Set email_service mode
-        if 'email_service' not in config:
-            config['email_service'] = {}
         
         if has_smtp_config:
             # User configured external SMTP - use production mode
@@ -1034,6 +1034,9 @@ def transform_wizard_data_to_config(wizard_data):
         config['mail']['smtp_port'] = int(email_data.get('port', 587))
         config['mail']['smtp_user'] = email_data.get('username', '')
         config['mail']['smtp_password'] = email_data.get('password', '')
+    else:
+        # No email section in wizard data — user skipped SMTP config, use mailpit
+        config['email_service']['mode'] = 'development'
 
     # Transform SSL configuration
     if 'ssl' in wizard_data:

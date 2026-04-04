@@ -109,7 +109,7 @@ show_enhanced_status() {
     get_service_endpoint() {
         case "$1" in
             "app") echo "https://localhost:5050/health" ;;
-            "frontend") echo "https://localhost:8443" ;;
+            "frontend") echo "https://localhost" ;;
             "knowledge") echo "http://localhost:8090/health" ;;
             "messaging") echo "http://localhost:8082/health" ;;
             "external-ai") echo "http://localhost:8091/health" ;;
@@ -118,6 +118,7 @@ show_enhanced_status() {
             "vault") echo "https://localhost:8200/v1/sys/health" ;;
             "db") echo "postgresql://postgres:password@localhost:5432/sting_app" ;;
             "report-worker") echo "" ;;
+            "mailpit") echo "http://localhost:8025" ;;
             "chroma") echo "http://localhost:8000/api/v1/heartbeat" ;;
             "redis") echo "" ;;
             "searxng") echo "" ;;  # Internal only - uses container healthcheck
@@ -141,6 +142,7 @@ show_enhanced_status() {
             "external-ai") echo "sting-ce-external-ai" ;;
             "chatbot") echo "sting-ce-chatbot" ;;
             "report-worker") echo "sting-ce-report-worker" ;;
+            "mailpit") echo "sting-ce-mailpit" ;;
             "chroma") echo "sting-ce-chroma" ;;
             "redis") echo "sting-ce-redis" ;;
             "searxng") echo "sting-ce-searxng" ;;
@@ -164,6 +166,7 @@ show_enhanced_status() {
             "external-ai") echo "External AI Bridge" ;;
             "chatbot") echo "Bee AI Assistant" ;;
             "report-worker") echo "Report Generation Worker" ;;
+            "mailpit") echo "Mailpit (Dev Email)" ;;
             "chroma") echo "ChromaDB (Vector Store)" ;;
             "redis") echo "Redis (Cache/Queue)" ;;
             "searxng") echo "SearXNG (Web Search)" ;;
@@ -319,6 +322,55 @@ show_enhanced_status() {
             fi
         fi
     done
+    
+    # Email Service section (mode-aware: mailpit for dev, SMTP config for production)
+    echo ""
+    echo "📧 Email Service:"
+    echo "─────────────────────────────────────────────────────────────────────────────"
+    
+    # Determine email mode from email.env or config
+    local email_mode="development"
+    local email_env_file="${INSTALL_DIR}/env/email.env"
+    if [ -f "$email_env_file" ]; then
+        local env_email_mode=$(grep -E '^EMAIL_MODE=' "$email_env_file" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+        [ -n "$env_email_mode" ] && email_mode="$env_email_mode"
+    fi
+    
+    if [[ "$email_mode" == "dev" || "$email_mode" == "development" ]]; then
+        # Development mode — check mailpit container
+        local mailpit_container="sting-ce-mailpit"
+        local mailpit_running=$(docker ps --format "{{.Names}}" | grep -w "$mailpit_container" 2>/dev/null)
+        
+        if [ -n "$mailpit_running" ]; then
+            local mailpit_health=$(get_container_health "$mailpit_container")
+            if [ "$mailpit_health" = "healthy" ]; then
+                printf "%-20s %-25s ${GREEN}[+] Healthy${NC}\n" "mailpit:" "Mailpit (Dev Email)"
+                echo "   Mode: Development | Web UI: http://localhost:8025/mailpit"
+            elif [ "$mailpit_health" = "unhealthy" ]; then
+                printf "%-20s %-25s ${RED}[!]  Unhealthy${NC}\n" "mailpit:" "Mailpit (Dev Email)"
+                unhealthy_count=$((unhealthy_count + 1))
+            else
+                printf "%-20s %-25s ${YELLOW}⏳ Starting${NC}\n" "mailpit:" "Mailpit (Dev Email)"
+            fi
+        else
+            printf "%-20s %-25s ${RED}[-] Not Running${NC}\n" "mailpit:" "Mailpit (Dev Email)"
+            echo "   ⚠ Dev email requires mailpit. Start with: msting restart"
+            unhealthy_count=$((unhealthy_count + 1))
+        fi
+    else
+        # Production mode — show SMTP configuration
+        local smtp_host=$(grep -E '^SMTP_HOST=' "$email_env_file" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+        local smtp_port=$(grep -E '^SMTP_PORT=' "$email_env_file" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+        
+        if [ -n "$smtp_host" ] && [ "$smtp_host" != "mailpit" ]; then
+            printf "%-20s %-25s ${GREEN}[+] Configured${NC}\n" "email:" "External SMTP"
+            echo "   Mode: Production | SMTP: ${smtp_host}:${smtp_port:-587}"
+        else
+            printf "%-20s %-25s ${RED}[-] Not Configured${NC}\n" "email:" "External SMTP"
+            echo "   ⚠ Production email mode set but no SMTP host configured"
+            unhealthy_count=$((unhealthy_count + 1))
+        fi
+    fi
     
     # Resource usage section
     echo ""
