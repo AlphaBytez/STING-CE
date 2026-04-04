@@ -1049,34 +1049,6 @@ class ConfigurationManager:
     def _process_llm_service_config(self) -> LLMServiceConfig:
         """Process and return LLM service configuration."""
         return LLMServiceConfig.process_config(self.raw_config)
-    
-    def _process_profile_service_config(self) -> Dict[str, Any]:
-        """Process and return profile service configuration."""
-        profile_config = self.raw_config.get('profile_service', {})
-        
-        return {
-            'enabled': profile_config.get('enabled', True),
-            'port': profile_config.get('port', 8092),
-            'max_file_size': profile_config.get('max_file_size', 52428800),  # 50MB
-            'allowed_image_types': profile_config.get('allowed_image_types', [
-                'image/jpeg', 'image/png', 'image/webp'
-            ]),
-            'image_processing': profile_config.get('image_processing', {
-                'max_width': 1024,
-                'max_height': 1024,
-                'quality': 85
-            }),
-            'features': profile_config.get('features', {
-                'profile_pictures': True,
-                'profile_extensions': True,
-                'activity_logging': True,
-                'search': True
-            }),
-            'privacy': profile_config.get('privacy', {
-                'default_visibility': 'private',
-                'allow_public_profiles': True
-            })
-        }
 
     def invalidate_cache(self):
         """Invalidate the configuration cache."""
@@ -1312,7 +1284,6 @@ class ConfigurationManager:
         db_config = self._process_database_config()
         # st_config removed - Supertokens deprecated in favor of Kratos
         llm_config = self._process_llm_service_config()
-        profile_config = self._process_profile_service_config()
 
         # Add remaining configuration
         self.processed_config.update({
@@ -1479,22 +1450,7 @@ class ConfigurationManager:
                 }
                 self.processed_config.update(model_env)
 
-        # Add Profile service specific ENV vars
-        self.processed_config.update({
-            'PROFILE_SERVICE_ENABLED': str(profile_config.get('enabled', True)).lower(),
-            'PROFILE_SERVICE_PORT': str(profile_config.get('port', 8092)),
-            'PROFILE_MAX_FILE_SIZE': str(profile_config.get('max_file_size', 52428800)),
-            'PROFILE_ALLOWED_IMAGE_TYPES': ','.join(profile_config.get('allowed_image_types', [])),
-            'PROFILE_IMAGE_MAX_WIDTH': str(profile_config.get('image_processing', {}).get('max_width', 1024)),
-            'PROFILE_IMAGE_MAX_HEIGHT': str(profile_config.get('image_processing', {}).get('max_height', 1024)),
-            'PROFILE_IMAGE_QUALITY': str(profile_config.get('image_processing', {}).get('quality', 85)),
-            'PROFILE_FEATURES_PICTURES': str(profile_config.get('features', {}).get('profile_pictures', True)).lower(),
-            'PROFILE_FEATURES_EXTENSIONS': str(profile_config.get('features', {}).get('profile_extensions', True)).lower(),
-            'PROFILE_FEATURES_ACTIVITY_LOG': str(profile_config.get('features', {}).get('activity_logging', True)).lower(),
-            'PROFILE_FEATURES_SEARCH': str(profile_config.get('features', {}).get('search', True)).lower(),
-            'PROFILE_DEFAULT_VISIBILITY': profile_config.get('privacy', {}).get('default_visibility', 'private'),
-            'PROFILE_ALLOW_PUBLIC': str(profile_config.get('privacy', {}).get('allow_public_profiles', True)).lower(),
-        })
+        # Profile service removed - functionality integrated into main app
         
         # Add Honey Reserve configuration
         honey_reserve_config = self.raw_config.get('honey_reserve', {})

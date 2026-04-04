@@ -415,28 +415,6 @@ email_service:
       # For SendGrid: Use API key as password
       # For AWS SES: Configure IAM credentials
 
-# Profile Service Configuration
-profile_service:
-  enabled: true
-  port: 8092
-  max_file_size: 52428800  # 50MB in bytes
-  allowed_image_types:
-    - "image/jpeg"
-    - "image/png"
-    - "image/webp"
-  image_processing:
-    max_width: 1024
-    max_height: 1024
-    quality: 85
-  features:
-    profile_pictures: true
-    profile_extensions: true
-    activity_logging: true
-    search: true
-  privacy:
-    default_visibility: "private"
-    allow_public_profiles: true
-
 # Docker Configuration
 docker:
   network: sting_local

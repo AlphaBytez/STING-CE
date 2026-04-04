@@ -199,7 +199,7 @@ copy_files_to_install_dir() {
 # Function to symlink or copy the .env file to main component folders
 symlink_env_to_main_components() {
     local env_file="${INSTALL_DIR}/conf/.env"
-    local main_components=("frontend" "app" "authentication")  # Add more components if needed
+    local main_components=("frontend" "app")  # Add more components if needed
 
     for component in "${main_components[@]}"; do
         local component_env="${INSTALL_DIR}/${component}/.env"

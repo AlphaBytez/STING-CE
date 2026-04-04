@@ -1,7 +1,7 @@
 FROM oryd/kratos:latest
 
 # Copy the configuration files
-COPY main.kratos.yml /etc/config/kratos/kratos.yml
+COPY kratos.yml /etc/config/kratos/kratos.yml
 COPY identity.schema.json /etc/config/kratos/identity.schema.json
 COPY passkey-identity.schema.json /etc/config/kratos/passkey-identity.schema.json
 

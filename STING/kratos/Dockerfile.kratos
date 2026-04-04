@@ -4,6 +4,6 @@ FROM oryd/kratos:latest
 COPY identity.schema.json /etc/config/kratos/identity.schema.json
 
 # Copy the minimal configuration file
-COPY minimal.kratos.yml /etc/config/kratos/kratos.yml
+COPY kratos.yml /etc/config/kratos/kratos.yml
 
 # The container will be started with the migration command in docker-compose
