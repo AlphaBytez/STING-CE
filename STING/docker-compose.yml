@@ -394,8 +394,8 @@ services:
     env_file:
     - ${INSTALL_DIR}/env/frontend.env
     environment:
-      REACT_APP_API_URL: https://${HOSTNAME:-localhost}:${REACT_PORT:-8443}/api
-      REACT_APP_KRATOS_PUBLIC_URL: https://${HOSTNAME:-localhost}:${REACT_PORT:-8443}/.ory
+      REACT_APP_API_URL: https://${HOSTNAME:-localhost}:${REACT_PORT:-443}/api
+      REACT_APP_KRATOS_PUBLIC_URL: https://${HOSTNAME:-localhost}:${REACT_PORT:-443}/.ory
       PUBLIC_URL: /
       NODE_ENV: production
       TZ: ${TZ:-America/New_York}
@@ -404,7 +404,7 @@ services:
     networks:
     - sting_local
     ports:
-    - ${REACT_PORT:-8443}:80
+    - ${REACT_PORT:-443}:80
     depends_on:
     - app
     - kratos

@@ -4,7 +4,7 @@ log:
   level: debug
 serve:
   public:
-    base_url: https://__STING_HOSTNAME__:8443
+    base_url: https://__STING_HOSTNAME__
     host: 0.0.0.0
     port: 4433
     tls:
@@ -15,8 +15,8 @@ serve:
     cors:
       enabled: true
       allowed_origins:
-      - http://__STING_HOSTNAME__:8443
-      - https://__STING_HOSTNAME__:8443
+      - http://__STING_HOSTNAME__
+      - https://__STING_HOSTNAME__
       allowed_methods:
       - GET
       - POST
@@ -39,49 +39,49 @@ identity:
   - id: default
     url: file:///etc/config/kratos/identity.schema.json
 selfservice:
-  default_browser_return_url: https://__STING_HOSTNAME__:8443/dashboard
+  default_browser_return_url: https://__STING_HOSTNAME__/dashboard
   allowed_return_urls:
-  - https://__STING_HOSTNAME__:8443
-  - https://__STING_HOSTNAME__:8443/dashboard
-  - https://__STING_HOSTNAME__:8443/dashboard/reports
-  - https://__STING_HOSTNAME__:8443/dashboard/settings
-  - https://__STING_HOSTNAME__:8443/login
-  - https://__STING_HOSTNAME__:8443/register
-  - https://__STING_HOSTNAME__:8443/post-registration
-  - http://__STING_HOSTNAME__:8443
-  - http://__STING_HOSTNAME__:8443/dashboard
-  - http://__STING_HOSTNAME__:8443/dashboard/reports
-  - http://__STING_HOSTNAME__:8443/dashboard/settings
-  - http://__STING_HOSTNAME__:8443/login
-  - http://__STING_HOSTNAME__:8443/register
-  - http://__STING_HOSTNAME__:8443/post-registration
-  - https://__STING_HOSTNAME__:8443/*
-  - http://__STING_HOSTNAME__:8443/*
+  - https://__STING_HOSTNAME__
+  - https://__STING_HOSTNAME__/dashboard
+  - https://__STING_HOSTNAME__/dashboard/reports
+  - https://__STING_HOSTNAME__/dashboard/settings
+  - https://__STING_HOSTNAME__/login
+  - https://__STING_HOSTNAME__/register
+  - https://__STING_HOSTNAME__/post-registration
+  - http://__STING_HOSTNAME__
+  - http://__STING_HOSTNAME__/dashboard
+  - http://__STING_HOSTNAME__/dashboard/reports
+  - http://__STING_HOSTNAME__/dashboard/settings
+  - http://__STING_HOSTNAME__/login
+  - http://__STING_HOSTNAME__/register
+  - http://__STING_HOSTNAME__/post-registration
+  - https://__STING_HOSTNAME__/*
+  - http://__STING_HOSTNAME__/*
   flows:
     error:
-      ui_url: https://__STING_HOSTNAME__:8443/error
+      ui_url: https://__STING_HOSTNAME__/error
     settings:
-      ui_url: https://__STING_HOSTNAME__:8443/dashboard/settings?tab=security
+      ui_url: https://__STING_HOSTNAME__/dashboard/settings?tab=security
       lifespan: 1h
       privileged_session_max_age: 24h
       required_aal: aal1  # TEMPORARY: Allow AAL1 access to existing TOTP/passkeys
     login:
       # RESTORED: Custom STING UI that works for AAL1 authentication
-      ui_url: https://__STING_HOSTNAME__:8443/login
+      ui_url: https://__STING_HOSTNAME__/login
       lifespan: 1h
       after:
-        default_browser_return_url: https://__STING_HOSTNAME__:8443/dashboard
+        default_browser_return_url: https://__STING_HOSTNAME__/dashboard
     registration:
-      ui_url: https://__STING_HOSTNAME__:8443/register
+      ui_url: https://__STING_HOSTNAME__/register
       lifespan: 1h
       after:
         password:
           hooks:
           - hook: session
-        default_browser_return_url: https://__STING_HOSTNAME__:8443/post-registration
+        default_browser_return_url: https://__STING_HOSTNAME__/post-registration
     verification:
       enabled: true
-      ui_url: https://__STING_HOSTNAME__:8443/verification
+      ui_url: https://__STING_HOSTNAME__/verification
       lifespan: 1h
       after:
         hooks:
@@ -96,10 +96,10 @@ selfservice:
                 name: X-Webhook-Token
                 value: ${KRATOS_WEBHOOK_TOKEN}
                 in: header
-        default_browser_return_url: https://__STING_HOSTNAME__:8443/dashboard
+        default_browser_return_url: https://__STING_HOSTNAME__/dashboard
     recovery:
       enabled: true
-      ui_url: https://__STING_HOSTNAME__:8443/recovery
+      ui_url: https://__STING_HOSTNAME__/recovery
       lifespan: 1h
       after:
         hooks:
@@ -114,10 +114,10 @@ selfservice:
                 name: X-Webhook-Token
                 value: ${KRATOS_WEBHOOK_TOKEN}
                 in: header
-        default_browser_return_url: https://__STING_HOSTNAME__:8443/dashboard
+        default_browser_return_url: https://__STING_HOSTNAME__/dashboard
     logout:
       after:
-        default_browser_return_url: https://__STING_HOSTNAME__:8443/login
+        default_browser_return_url: https://__STING_HOSTNAME__/login
   methods:
     password:
       enabled: false
@@ -132,8 +132,8 @@ selfservice:
           id: __STING_HOSTNAME__
           display_name: STING Platform
           origins:
-          - https://__STING_HOSTNAME__:8443
-          - http://__STING_HOSTNAME__:8443
+          - https://__STING_HOSTNAME__
+          - http://__STING_HOSTNAME__
     totp:
       enabled: true
       config:

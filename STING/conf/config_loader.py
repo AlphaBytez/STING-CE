@@ -246,8 +246,6 @@ class DatabaseConfig:
             password=db_config.get('password', 'postgres')
         )
 
-# SupertokensConfig removed - deprecated in favor of Kratos authentication
-
 @dataclass
 class KratosConfig:
     """Ory Kratos configuration container."""
@@ -290,7 +288,6 @@ class ConfigurationManager:
         # Ensure environment directory exists
         os.makedirs(self.env_dir, exist_ok=True)
         self._database_config = None
-        self._supertokens_config = None
         self.raw_config = {}
         self.processed_config = {}
         self.mode = mode  # Can be 'runtime', 'build', 'reinstall', 'initialize'
@@ -631,12 +628,11 @@ class ConfigurationManager:
         logger.debug("No domain configured, defaulting to localhost")
         return 'localhost'
 
-    def _generate_secret(self, length: int = 32, supertokens_safe: bool = False) -> str:
+    def _generate_secret(self, length: int = 32) -> str:
         """Generate a secure secret using proper base64 encoding.
         
         Args:
             length: The length of the secret to generate (in bytes)
-            supertokens_safe: Legacy parameter, ignored
         """
         # Generate proper base64-encoded secrets for all uses
         key_bytes = secrets.token_bytes(length)
@@ -707,7 +703,7 @@ class ConfigurationManager:
     # These keys must NEVER be auto-regenerated as it would make existing data unreadable
     ENCRYPTION_KEY_PATHS = {'honey_reserve'}
     
-    def _get_secret(self, path: str, key: str, supertokens_safe: bool = False) -> str:
+    def _get_secret(self, path: str, key: str) -> str:
         """Retrieve a secret from Vault with fallback to generation.
         
         For database passwords (path='database'), uses web-safe alphanumeric
@@ -728,10 +724,7 @@ class ConfigurationManager:
                 
                 logger.info(f"Secret read status for {path}: {'[EXISTS]' if secret else '[NOT_FOUND]'}")
                 
-                if secret and supertokens_safe:
-                    if all(c in string.ascii_letters + string.digits + "=-" for c in secret):
-                        return secret
-                elif secret:
+                if secret:
                     # Validate database passwords don't have problematic characters
                     if path == 'database' and key == 'password':
                         if not self._is_url_safe_password(secret):
@@ -796,7 +789,7 @@ class ConfigurationManager:
             new_secret = self._generate_web_safe_password(length=32)
             logger.info(f"Generated web-safe database password (no special characters)")
         else:
-            new_secret = self._generate_secret(length=32, supertokens_safe=False)
+            new_secret = self._generate_secret(length=32)
         
         if self.client:
             try:
@@ -1023,9 +1016,7 @@ class ConfigurationManager:
         critical_vars = [
             'POSTGRES_USER',
             'POSTGRES_PASSWORD',
-            'POSTGRES_DB',
-            'ST_API_KEY',
-            'SUPERTOKENS_URL'
+            'POSTGRES_DB'
         ]
 
         missing_vars = [var for var in critical_vars if not self.processed_config.get(var)]
@@ -1063,10 +1054,6 @@ class ConfigurationManager:
 
         # Initialize instance attributes early to prevent AttributeError
         # These must be set before any early returns from cache/state checks
-        # SuperTokens secrets removed - no longer used (Kratos handles auth)
-        self.api_key = None  # SuperTokens removed, set to None to prevent AttributeError
-        self.dashboard_api_key = None  # SuperTokens removed, set to None to prevent AttributeError
-
         # Initialize service keys early (before any early returns from cache/state)
         # These are accessed in generate_env_file() even when using cached config
         self.db_password = None
@@ -1080,9 +1067,9 @@ class ConfigurationManager:
             self.processed_config = self._config_cache[self.cache_key]
             # Still need to populate secrets from Vault even when using in-memory cache
             # These are accessed directly by generate_env_file() and kratos.yml generation
-            self.db_password = self._clean_value(self._get_secret('database', 'password', supertokens_safe=False))
-            self.honey_reserve_master_key = self._clean_value(self._get_secret('honey_reserve', 'master_key', supertokens_safe=False))
-            self.service_api_key = self._clean_value(self._get_secret('sting/service_auth', 'api_key', supertokens_safe=False))
+            self.db_password = self._clean_value(self._get_secret('database', 'password'))
+            self.honey_reserve_master_key = self._clean_value(self._get_secret('honey_reserve', 'master_key'))
+            self.service_api_key = self._clean_value(self._get_secret('sting/service_auth', 'api_key'))
             bee_api_secret = self._get_secret('service/bee-api-key', 'api_key')
             self.bee_service_api_key = self._clean_value(bee_api_secret) if bee_api_secret else None
             return self.processed_config
@@ -1096,9 +1083,9 @@ class ConfigurationManager:
                     self.processed_config = state_data
                     # Still need to populate secrets from Vault even when using cached state
                     # These are accessed directly by generate_env_file()
-                    self.db_password = self._clean_value(self._get_secret('database', 'password', supertokens_safe=False))
-                    self.honey_reserve_master_key = self._clean_value(self._get_secret('honey_reserve', 'master_key', supertokens_safe=False))
-                    self.service_api_key = self._clean_value(self._get_secret('sting/service_auth', 'api_key', supertokens_safe=False))
+                    self.db_password = self._clean_value(self._get_secret('database', 'password'))
+                    self.honey_reserve_master_key = self._clean_value(self._get_secret('honey_reserve', 'master_key'))
+                    self.service_api_key = self._clean_value(self._get_secret('sting/service_auth', 'api_key'))
                     bee_api_secret = self._get_secret('service/bee-api-key', 'api_key')
                     self.bee_service_api_key = self._clean_value(bee_api_secret) if bee_api_secret else None
                     
@@ -1113,13 +1100,13 @@ class ConfigurationManager:
         logger.info(f"Generated/Retrieved Flask secret key status: {'[EXISTS]' if flask_secret else '[NOT_FOUND]'}")
 
         # Generate and set database password
-        self.db_password = self._clean_value(self._get_secret('database', 'password', supertokens_safe=False))
+        self.db_password = self._clean_value(self._get_secret('database', 'password'))
 
         # Generate Honey Reserve encryption master key
-        self.honey_reserve_master_key = self._clean_value(self._get_secret('honey_reserve', 'master_key', supertokens_safe=False))
+        self.honey_reserve_master_key = self._clean_value(self._get_secret('honey_reserve', 'master_key'))
 
         # Generate STING service API key for inter-service authentication
-        self.service_api_key = self._clean_value(self._get_secret('sting/service_auth', 'api_key', supertokens_safe=False))
+        self.service_api_key = self._clean_value(self._get_secret('sting/service_auth', 'api_key'))
 
         # Get Bee service API key for agentic operations
         bee_api_secret = self._get_secret('service/bee-api-key', 'api_key')
@@ -1133,20 +1120,9 @@ class ConfigurationManager:
         protocol = system_config.get('protocol', 'https')
         ports = system_config.get('ports', {})
         
-        # Determine frontend port: use standard HTTPS (443) for production domains
-        # Use 8443 only for localhost, .local, or IP addresses
-        # This logic must match update_hostname.sh for consistency
-        import re
-        is_ip_address = bool(re.match(r'^\d+\.\d+\.\d+\.\d+$', domain))
-        is_production = (
-            domain != 'localhost' and 
-            '.local' not in domain and 
-            not is_ip_address
-        )
-        if is_production:
-            frontend_port = 443  # Standard HTTPS for production
-        else:
-            frontend_port = ports.get('frontend', 8443)  # Dev port for local
+        # Use standard HTTPS port (443) for all domains
+        # Port 443 is what browsers expect for HTTPS
+        frontend_port = ports.get('frontend', 443)
         
         api_port = ports.get('api', 5050)
         kratos_port = ports.get('kratos', 4433)
@@ -1209,11 +1185,8 @@ class ConfigurationManager:
             'LC_ALL': 'en_US.utf8'
         }
 
-        # Clean Supertokens database variables
+        # Additional database connection variables
         st_db_vars = {
-            'API_KEY': self._clean_value(self.api_key),
-            'ST_API_KEY': self._clean_value(self.api_key),
-            'ST_DASHBOARD_API_KEY': self._clean_value(self.dashboard_api_key),
             'POSTGRESQL_USER': self._clean_value(db_vars['POSTGRES_USER']),
             'POSTGRESQL_PASSWORD': self._clean_value(self.db_password),
             'POSTGRESQL_DATABASE_NAME': 'sting_app',
@@ -1221,10 +1194,6 @@ class ConfigurationManager:
             'POSTGRESQL_PORT': '5432',
             'DATABASE_URL': database_url,  # Already URL-encoded, don't clean it
             'POSTGRESQL_CONNECTION_URI': database_url,  # Already URL-encoded, don't clean it
-            # SuperTokens removed - using Kratos for authentication
-            # 'SUPERTOKENS_API_DOMAIN': 'http://localhost:5050',
-            # 'SUPERTOKENS_URL': 'http://supertokens:3567',
-            # 'SUPERTOKENS_CORS_ORIGINS': 'http://localhost:8443'
         }
         
         self.processed_config.update({
@@ -1282,7 +1251,6 @@ class ConfigurationManager:
 
         # Process configurations
         db_config = self._process_database_config()
-        # st_config removed - Supertokens deprecated in favor of Kratos
         llm_config = self._process_llm_service_config()
 
         # Add remaining configuration
@@ -1301,24 +1269,15 @@ class ConfigurationManager:
             'GUNICORN_TIMEOUT': str(app_config.get('gunicorn_timeout', 120)),
             'DATABASE_URL': database_url,  # Already URL-encoded, don't clean it
             'SQLALCHEMY_DATABASE_URI': database_url,  # Already URL-encoded, don't clean it
-            # SuperTokens API keys removed - no longer used
-            # 'ST_API_KEY': self._clean_value(self.api_key),
-            # 'API_KEY': self._clean_value(self.api_key),
-            # 'ST_DASHBOARD_API_KEY': self._clean_value(self.dashboard_api_key),
-            # SuperTokens removed - using Kratos for authentication
-            # 'SUPERTOKENS_URL': 'http://supertokens:3567',
-            # 'SUPERTOKENS_CORS_ORIGINS': 'http://localhost:8443',
-            # 'SUPERTOKENS_API_DOMAIN': api_domain,
             'ST_ACCESS_TOKEN_VALIDITY': '3600',
             'ST_REFRESH_TOKEN_VALIDITY': '2592000',
             # REACT_PORT: Check both paths for compatibility with wizard and manual config
             # Primary: frontend.react.port (config_loader standard)
             # Fallback: system.ports.frontend (wizard metadata)
             'REACT_PORT': self.raw_config.get('frontend', {}).get('react', {}).get('port',
-                          self.raw_config.get('system', {}).get('ports', {}).get('frontend', 8443)),
+                          self.raw_config.get('system', {}).get('ports', {}).get('frontend', 443)),
             'HF_TOKEN': hf_token,
             'REACT_APP_API_URL': api_domain,
-            # 'REACT_APP_SUPERTOKENS_URL': 'http://localhost:3567',  # Removed - using Kratos
             'REACT_APP_KRATOS_PUBLIC_URL': self.processed_config.get('KRATOS_PUBLIC_URL', kratos_public_url),
             'REACT_APP_KRATOS_BROWSER_URL': self.processed_config.get('KRATOS_BROWSER_URL', kratos_browser_url),
             'NODE_ENV': app_config.get('env', 'development'),
@@ -1328,13 +1287,6 @@ class ConfigurationManager:
             'HEALTH_CHECK_TIMEOUT': self.raw_config.get('monitoring', {}).get('health_checks', {}).get('timeout', '10s'),
             'HEALTH_CHECK_RETRIES': str(self.raw_config.get('monitoring', {}).get('health_checks', {}).get('retries', 3)),
             'HEALTH_CHECK_START_PERIOD': self.raw_config.get('monitoring', {}).get('health_checks', {}).get('start_period', '40s'),
-            # SuperTokens WebAuthn removed - Kratos handles this natively
-            # 'SUPERTOKENS_WEBAUTHN_ENABLED': 'true',
-            # 'SUPERTOKENS_WEBAUTHN_RP_ID': '${HOSTNAME:-localhost}',
-            # 'SUPERTOKENS_WEBAUTHN_RP_NAME': 'STING',
-            # 'SUPERTOKENS_WEBAUTHN_RP_ORIGINS': '["http://localhost:8443", "https://${HOSTNAME:-' +
-            #     self.processed_config.get('APP_HOST','your-production-domain.com') +
-            #     '}"]'
         })
 
         # Add LLM service specific ENV vars
@@ -1647,10 +1599,10 @@ class ConfigurationManager:
         ports = system_config.get('ports', {})
 
         # KRATOS is behind nginx proxy at frontend_port with /.ory path prefix
-        public_url = kratos_config.get('public_url', f"{protocol}://{domain}:{ports.get('frontend', 8443)}/.ory")
+        public_url = kratos_config.get('public_url', f"{protocol}://{domain}:{ports.get('frontend', 443)}/.ory")
         admin_url = kratos_config.get('admin_url', f"{protocol}://{domain}:4434")
         # Build frontend URL using resolved domain
-        frontend_url = f"{protocol}://{domain}:{ports.get('frontend', 8443)}"
+        frontend_url = f"{protocol}://{domain}:{ports.get('frontend', 443)}"
         
         # Self-service configuration
         selfservice = kratos_config.get('selfservice', {})
@@ -1675,13 +1627,7 @@ class ConfigurationManager:
         methods = kratos_config.get('methods', {})
         
         # WebAuthn (Passkeys)
-        # Check for WebAuthn config in deprecated supertokens section first
-        supertokens_config = self.raw_config.get('security', {}).get('supertokens', {})
-        webauthn_config = supertokens_config.get('webauthn', {})
-        
-        # If not found, check in methods
-        if not webauthn_config:
-            webauthn_config = methods.get('webauthn', {})
+        webauthn_config = methods.get('webauthn', {})
             
         webauthn_enabled = str(webauthn_config.get('enabled', True)).lower()
         
@@ -1717,10 +1663,10 @@ class ConfigurationManager:
                 expanded_origin = origin.replace('${HOSTNAME:-your-production-domain.com}', hostname)
                 expanded_origin = expanded_origin.replace('${STING_HOSTNAME:-dev-ubuntu.local}', self.sting_domain)
                 expanded_origin = expanded_origin.replace('${HOSTNAME:-${STING_HOSTNAME:-dev-ubuntu.local}}', self.sting_domain)
-                # For production domains (not localhost), remove :8443 port since they use standard HTTPS
+                # For production domains (not localhost), remove :443 port since it's standard HTTPS
                 if self.sting_domain != 'localhost' and '.local' not in self.sting_domain:
                     # Production domain - use standard HTTPS port (no port in URL)
-                    expanded_origin = expanded_origin.replace(':8443', '')
+                    expanded_origin = expanded_origin.replace(':443', '')
                 webauthn_origins.append(expanded_origin)
             # Deduplicate origins while preserving order
             seen = set()
@@ -1732,7 +1678,7 @@ class ConfigurationManager:
             if self.sting_domain != 'localhost' and '.local' not in self.sting_domain:
                 default_origin = f"https://{self.sting_domain}"
             else:
-                default_origin = f"https://{self.sting_domain}:8443"
+                default_origin = f"https://{self.sting_domain}"
             
             # Check if config has a placeholder or actual value
             config_origin = webauthn_config.get('origin', '')
@@ -2536,21 +2482,6 @@ class ConfigurationManager:
             
     def generate_env_file(self, env_path: Optional[str] = None, service_specific: bool = True) -> None:
         """Generate service-specific .env files with processed configuration."""
-        # ALWAYS remove any supertokens.env file if it exists (no conditions)
-        st_env_files = [
-            os.path.join(self.env_dir, "supertokens.env"),
-            os.path.join(self.config_dir, "supertokens.env"),
-            os.path.join(os.path.expanduser("~/.sting-ce/env"), "supertokens.env")
-        ]
-        
-        for st_file in st_env_files:
-            if os.path.exists(st_file):
-                try:
-                    os.remove(st_file)
-                    logger.info(f"Removed deprecated supertokens.env file at {st_file}")
-                except Exception as e:
-                    logger.warning(f"Failed to remove supertokens.env at {st_file}: {e}")
-            
         # Debug logging before processing
         logger.info("===== BEFORE ENV GENERATION =====")
         for key in ['POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB', 'HF_TOKEN']:
@@ -2586,9 +2517,9 @@ class ConfigurationManager:
             # Define service-specific configurations
             service_configs = {
                 'app.env': {
-                    'APP_ENV', 'FLASK_DEBUG', 'DATABASE_URL', 'ST_API_KEY',
+                    'APP_ENV', 'FLASK_DEBUG', 'DATABASE_URL',
                     'SQLALCHEMY_DATABASE_URI', 'FLASK_APP', 'APP_PORT', 'API_URL',
-                    'FLASK_SECRET_KEY','SECRET_KEY', 'SUPERTOKENS_URL', 'SUPERTOKENS_API_DOMAIN',
+                    'FLASK_SECRET_KEY','SECRET_KEY',
                     'WEBAUTHN_RP_ID', 'WEBAUTHN_RP_NAME', 'WEBAUTHN_RP_ORIGIN',
                     'HONEY_RESERVE_ENABLED', 'HONEY_RESERVE_DEFAULT_QUOTA', 'HONEY_RESERVE_MAX_FILE_SIZE',
                     'HONEY_RESERVE_TEMP_RETENTION_HOURS', 'HONEY_RESERVE_WARNING_THRESHOLD',
@@ -2610,7 +2541,7 @@ class ConfigurationManager:
                     'VAULT_TOKEN', 'VAULT_ADDR', 'VAULT_API_ADDR'
                 },
                 'frontend.env': {
-                    'REACT_APP_API_URL', 'REACT_APP_SUPERTOKENS_URL',
+                    'REACT_APP_API_URL',
                     'REACT_APP_KRATOS_PUBLIC_URL', 'REACT_APP_KRATOS_BROWSER_URL',
                     'NODE_ENV', 'REACT_PORT', 'PUBLIC_URL'
                 },
@@ -2771,8 +2702,6 @@ class ConfigurationManager:
                 'email.env': self._generate_email_env_vars(),
                 'nectar-worker.env': self._generate_nectar_worker_env_vars(),
                 'report-bee.env': self._generate_report_bee_env_vars()
-                # SUPERTOKENS IS COMPLETELY REMOVED - DO NOT UNCOMMENT
-                # DO NOT ADD ANY SUPERTOKENS ENV FILES HERE
             }
             
             # Generate service-specific env files in both config and env directories
@@ -2783,11 +2712,6 @@ class ConfigurationManager:
                     os.path.join(self.env_dir, filename)
                 ]
                 for service_env_path in paths:
-                    # Skip any supertokens.env files
-                    if "supertokens.env" in service_env_path:
-                        logger.warning(f"Skipping deprecated {service_env_path}, SuperTokens is no longer used")
-                        continue
-                        
                     logger.info(f"Generating {filename} at {service_env_path}")
                     # Ensure directory exists
                     os.makedirs(os.path.dirname(service_env_path), exist_ok=True)
@@ -2872,16 +2796,16 @@ class ConfigurationManager:
                     sting_hostname = self.sting_domain
                     content = content.replace('__STING_HOSTNAME__', sting_hostname)
                     
-                    # Resolve frontend port — use 443 for production domains, 8443 for local dev
+                    # Resolve frontend port — use standard HTTPS 443 as default
                     ports = self.raw_config.get('ports', {})
-                    if sting_hostname not in ('localhost', '127.0.0.1') and '.' in sting_hostname:
-                        frontend_port = 443
-                    else:
-                        frontend_port = ports.get('frontend', 8443)
+                    frontend_port = ports.get('frontend', 443)
                     
-                    # Replace port: standard HTTPS (443) doesn't need explicit port in URLs
+                    # Remove any leftover non-standard port references from template
+                    # Standard HTTPS (443) doesn't need explicit port in URLs
                     if frontend_port == 443:
+                        # Clean up any legacy :8443 or explicit :443 from template
                         content = content.replace(':8443', '')
+                        content = content.replace(':443', '')
                     elif frontend_port != 8443:
                         content = content.replace(':8443', f':{frontend_port}')
                     
@@ -2940,8 +2864,8 @@ class ConfigurationManager:
                     'cors': {
                         'enabled': True,
                         'allowed_origins': [
-                            'http://localhost:8443',
-                            'https://localhost:8443'
+                            'http://localhost',
+                            'https://localhost'
                         ],
                         'allowed_methods': [
                             'GET',
@@ -3095,26 +3019,17 @@ class ConfigurationManager:
             self.process_config()
         
         return {
-            'supertokens': {
-                'environment': {
-                    'POSTGRESQL_CONNECTION_URI': self.processed_config['DATABASE_URL'],
-                    'API_KEY': self.processed_config['ST_API_KEY'],
-                    'DASHBOARD_API_KEY': self.processed_config.get('ST_DASHBOARD_API_KEY', ''),
-                }
-            },
             'app': {
                 'environment': {
                     'APP_ENV': self.processed_config['APP_ENV'],
                     'FLASK_DEBUG': str(self.processed_config['APP_DEBUG']).lower(),
                     'DATABASE_URL': self.processed_config['DATABASE_URL'],
-                    'ST_API_KEY': self.processed_config['ST_API_KEY'],
                 }
             },
             'frontend': {
                 'environment': {
                     'NODE_ENV': self.processed_config['APP_ENV'],
                     'REACT_APP_API_URL': self.processed_config['REACT_APP_API_URL'],
-                    'REACT_APP_SUPERTOKENS_URL': self.processed_config['REACT_APP_SUPERTOKENS_URL'],
                 }
             }
         }

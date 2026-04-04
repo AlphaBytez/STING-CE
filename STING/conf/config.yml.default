@@ -9,7 +9,7 @@ system:
   domain: localhost
   protocol: https
   ports:
-    frontend: 8443
+    frontend: 443
     api: 5050
     kratos: 4433
 
@@ -212,7 +212,7 @@ vault:
 kratos:
   public_url: https://localhost:4433
   admin_url: http://kratos:4434
-  browser_url: https://localhost:8443
+  browser_url: https://localhost
 
 # Redis Cache
 redis:

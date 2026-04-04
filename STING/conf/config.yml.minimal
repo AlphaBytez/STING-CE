@@ -9,7 +9,7 @@ APP_ENV: development
 APP_HOST: app
 
 # React settings
-REACT_PORT: 8443
+REACT_PORT: 443
 
 # Database settings
 POSTGRES_USER: postgres

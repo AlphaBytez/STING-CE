@@ -360,8 +360,8 @@ security:
         rp_id: "${HOSTNAME:-${STING_HOSTNAME:-dev-ubuntu.local}}"  # Updated default to configured domain
         rp_name: "STING"
         rp_origins:
-          - "https://${STING_HOSTNAME:-dev-ubuntu.local}:8443"  # Updated to configured domain
-          - "https://${HOSTNAME:-${STING_HOSTNAME:-dev-ubuntu.local}}:8443"  # Updated default
+          - "https://${STING_HOSTNAME:-dev-ubuntu.local}"  # Updated to configured domain
+          - "https://${HOSTNAME:-${STING_HOSTNAME:-dev-ubuntu.local}}"  # Updated default
 
 # Frontend Configuration
 frontend:
@@ -826,12 +826,12 @@ kratos:
   
   # Self-service flow settings
   selfservice:
-    default_return_url: "https://localhost:8443"
+    default_return_url: "https://localhost"
     login:
-      ui_url: "https://localhost:8443/login"
+      ui_url: "https://localhost/login"
       lifespan: "1h"
     registration:
-      ui_url: "https://localhost:8443/register"
+      ui_url: "https://localhost/register"
       lifespan: "1h"
   
   # Authentication methods
@@ -842,7 +842,7 @@ kratos:
       enabled: true
       rp_id: "${STING_HOSTNAME:-dev-ubuntu.local}"  # Updated to match configured domain
       display_name: "STING Authentication"
-      origin: "https://${STING_HOSTNAME:-dev-ubuntu.local}:8443"  # Updated to match configured domain
+      origin: "https://${STING_HOSTNAME:-dev-ubuntu.local}"  # Updated to match configured domain
     oidc:
       enabled: false
       providers:

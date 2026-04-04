@@ -951,9 +951,8 @@ def transform_wizard_data_to_config(wizard_data):
         hostname = system_data.get('hostname', '').strip()
         if hostname:
             config['system']['domain'] = hostname
-            # Set initial kratos URLs - these may be updated by SSL config section
-            # Default to 8443 here, SSL section will update to 443 if needed
-            config['kratos']['browser_url'] = f'https://{hostname}:8443'
+            # Set initial kratos URLs using standard HTTPS port
+            config['kratos']['browser_url'] = f'https://{hostname}'
             config['kratos']['public_url'] = f'https://{hostname}:4433'
 
     # Transform LLM configuration
@@ -1043,20 +1042,9 @@ def transform_wizard_data_to_config(wizard_data):
         config.setdefault('_wizard_metadata', {})['ssl_type'] = ssl_type
         config.setdefault('_wizard_metadata', {})['ssl_enabled'] = True
 
-        # Determine frontend port based on deployment mode:
-        # Production indicators (use port 443):
-        #   - SSL type is letsencrypt or upload (valid production certificates)
-        #   - Email service is in production mode (custom SMTP configured)
-        # Development mode (use port 8443):
-        #   - Self-signed SSL with development email (mailpit)
-        
-        is_production_ssl = ssl_type in ('letsencrypt', 'upload')
-        is_production_email = config.get('email_service', {}).get('mode') == 'production'
-        
-        if is_production_ssl or is_production_email:
-            frontend_port = 443
-        else:
-            frontend_port = 8443
+        # Use standard HTTPS port (443) for all installations
+        # Port 443 is what browsers expect and avoids user confusion
+        frontend_port = 443
         
         # Write to the correct config path that config_loader.py reads from
         # config_loader.py reads: config['frontend']['react']['port'] (line 1041)
@@ -1518,15 +1506,10 @@ def run_installation_background(install_id, config_data, admin_email):
             # Fallback: Try env var (for backward compatibility), then localhost
             redirect_hostname = configured_hostname or os.environ.get('STING_HOSTNAME') or 'localhost'
             
-            # Determine port based on SSL type:
-            # - self-signed uses 8443 (local dev, avoids conflicts)
-            # - letsencrypt/upload use 443 (production standard)
-            ssl_data = config_data.get('ssl') or {}
-            ssl_type = ssl_data.get('type', 'self-signed')
-            if ssl_type in ('letsencrypt', 'upload'):
-                redirect_port = 443
-            else:
-                redirect_port = 8443
+            # Read the actual configured frontend port from the saved config
+            frontend_data = config_data.get('frontend', {}).get('react', {})
+            ports_data = config_data.get('system', {}).get('ports', {})
+            redirect_port = frontend_data.get('port') or ports_data.get('frontend', 443)
             
             # Build redirect URL - omit port for standard HTTPS port
             if redirect_port == 443:

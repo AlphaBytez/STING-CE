@@ -85,19 +85,13 @@ if [ -f "$INSTALL_DIR/kratos/kratos.yml.template" ]; then
         # Set session cookie domain for real domains
         if [[ "$(uname)" == "Darwin" ]]; then
             sed -i '' "s|# domain: __STING_HOSTNAME__.*|domain: $STING_HOSTNAME|" "$INSTALL_DIR/kratos/kratos.yml"
-            # Remove dev port :8443 for production (use standard HTTPS 443)
-            sed -i '' "s|:8443||g" "$INSTALL_DIR/kratos/kratos.yml"
-            # Also fix API port :5050 to standard for production if behind reverse proxy
-            # (leaving 5050 for now as internal service port)
         else
             sed -i "s|# domain: __STING_HOSTNAME__.*|domain: $STING_HOSTNAME|" "$INSTALL_DIR/kratos/kratos.yml"
-            # Remove dev port :8443 for production (use standard HTTPS 443)
-            sed -i "s|:8443||g" "$INSTALL_DIR/kratos/kratos.yml"
         fi
         echo -e "    ${GREEN}✓${NC} Cookie domain set to $STING_HOSTNAME"
-        echo -e "    ${GREEN}✓${NC} Ports updated for production (standard HTTPS)"
+        echo -e "    ${GREEN}✓${NC} Ports updated for standard HTTPS (443)"
     else
-        echo -e "    ${YELLOW}ℹ${NC} Development/IP address detected - using dev port 8443"
+        echo -e "    ${YELLOW}ℹ${NC} Development/IP address detected - using standard HTTPS port 443"
     fi
     
     echo -e "    ${GREEN}✓${NC} kratos.yml updated"
@@ -113,17 +107,16 @@ for env_file in \
     if [ -f "$env_file" ]; then
         echo "  • Updating $(basename $(dirname $env_file))/$(basename $env_file)"
 
-        # Determine URLs based on production vs dev
         if [ "$IS_PRODUCTION" = true ]; then
             # Production: use standard HTTPS (no port) and /.ory proxy path
             PUBLIC_URL="https://$STING_HOSTNAME"
             API_URL="https://$STING_HOSTNAME/api"
             KRATOS_URL="https://$STING_HOSTNAME/.ory"
         else
-            # Development: use explicit ports
-            PUBLIC_URL="https://$STING_HOSTNAME:8443"
-            API_URL="https://$STING_HOSTNAME:5050"
-            KRATOS_URL="https://$STING_HOSTNAME:4433"
+            # Local/dev: also use standard HTTPS port 443
+            PUBLIC_URL="https://$STING_HOSTNAME"
+            API_URL="https://$STING_HOSTNAME/api"
+            KRATOS_URL="https://$STING_HOSTNAME/.ory"
         fi
 
         # Cross-platform sed -i (macOS requires '', Linux doesn't)
@@ -223,7 +216,7 @@ echo -e "${BLUE}  Local DNS Configuration (Optional)${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "For local development, you can add this hostname to /etc/hosts"
-echo -e "so you can access STING at ${GREEN}https://$STING_HOSTNAME:8443${NC}"
+echo -e "so you can access STING at ${GREEN}https://$STING_HOSTNAME${NC}"
 echo ""
 
 # Get primary IP address for hosts file entry
@@ -285,5 +278,5 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo -e "${GREEN}✅ Hostname configuration complete!${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-echo -e "Access STING at: ${GREEN}https://$STING_HOSTNAME:8443${NC}"
+echo -e "Access STING at: ${GREEN}https://$STING_HOSTNAME${NC}"
 echo ""
