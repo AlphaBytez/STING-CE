@@ -204,7 +204,10 @@ setup_environment() {
     if [ ! -f "${INSTALL_DIR}/certs/server.crt" ]; then
         # Source security.sh to get generate_ssl_certs function
         source "${SCRIPT_DIR}/security.sh"
-        generate_ssl_certs
+        generate_ssl_certs || {
+            log_message "ERROR: SSL certificate generation failed - Kratos requires TLS certificates" "ERROR"
+            return 1
+        }
 
         # Export client certificates for web UI download (passkey setup)
         log_message "Exporting client certificates for web UI..."

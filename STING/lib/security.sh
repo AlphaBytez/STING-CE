@@ -238,7 +238,15 @@ install_mkcert() {
             return 1
         fi
     else
-        # Linux installation
+        # Linux installation — detect architecture
+        local arch
+        case "$(uname -m)" in
+            x86_64)  arch="amd64" ;;
+            aarch64) arch="arm64" ;;
+            armv7l)  arch="arm" ;;
+            *)       log_message "ERROR: Unsupported architecture $(uname -m) for mkcert" "ERROR"; return 1 ;;
+        esac
+
         if command -v apt-get &> /dev/null; then
             # Debian/Ubuntu
             # Use DEBIAN_FRONTEND=noninteractive to prevent any prompts
@@ -251,7 +259,7 @@ install_mkcert() {
 
             # Download and install mkcert
             local mkcert_version="v1.4.4"
-            wget -q -O /tmp/mkcert "https://github.com/FiloSottile/mkcert/releases/download/${mkcert_version}/mkcert-${mkcert_version}-linux-amd64"
+            wget -q -O /tmp/mkcert "https://github.com/FiloSottile/mkcert/releases/download/${mkcert_version}/mkcert-${mkcert_version}-linux-${arch}"
             chmod +x /tmp/mkcert
             sudo mv /tmp/mkcert /usr/local/bin/mkcert
 
@@ -264,7 +272,7 @@ install_mkcert() {
 
             # Download and install mkcert
             local mkcert_version="v1.4.4"
-            wget -q -O /tmp/mkcert "https://github.com/FiloSottile/mkcert/releases/download/${mkcert_version}/mkcert-${mkcert_version}-linux-amd64"
+            wget -q -O /tmp/mkcert "https://github.com/FiloSottile/mkcert/releases/download/${mkcert_version}/mkcert-${mkcert_version}-linux-${arch}"
             chmod +x /tmp/mkcert
             sudo mv /tmp/mkcert /usr/local/bin/mkcert
             mkcert -install
