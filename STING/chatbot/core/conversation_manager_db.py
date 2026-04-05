@@ -102,8 +102,11 @@ class ConversationManagerDB:
         if not self._initialized:
             await self.initialize()
         
+        # Treat temporary frontend IDs (e.g. "temp_123456") as new conversations
+        is_valid_id = conversation_id and not conversation_id.startswith('temp_')
+        
         # Check cache first
-        if conversation_id and conversation_id in self.conversation_cache:
+        if is_valid_id and conversation_id in self.conversation_cache:
             cached = self.conversation_cache[conversation_id]
             if cached['user_id'] == user_id:
                 # Update activity
@@ -111,7 +114,7 @@ class ConversationManagerDB:
                 return cached
         
         # Try to get from database
-        if conversation_id:
+        if is_valid_id:
             conversation = await self.db.get_conversation(conversation_id, user_id)
             if conversation:
                 # Update cache

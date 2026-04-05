@@ -103,7 +103,11 @@ class DatabaseManager:
         
         async with self.pool.acquire() as conn:
             query = "SELECT * FROM conversations WHERE id = $1"
-            params = [UUID(str(conversation_id))]
+            try:
+                params = [UUID(str(conversation_id))]
+            except ValueError:
+                logger.warning(f"Invalid UUID format: '{conversation_id}', returning None")
+                return None
             
             if user_id:
                 query += " AND user_id = $2"
