@@ -1480,8 +1480,9 @@ class ConfigurationManager:
         # Load existing email environment variables
         existing_email_env = self._load_existing_email_env()
         
-        # Determine email mode (development or production)
-        email_mode = existing_email_env.get('EMAIL_MODE', os.environ.get('EMAIL_MODE', email_config.get('mode', 'development')))
+        # Determine email mode — config.yml is the sole authority
+        # Default to development (mailpit) unless explicitly set to production
+        email_mode = email_config.get('mode', 'development')
         # Resolve shell-style template strings from config.yml.default (e.g. "${EMAIL_MODE:-development}")
         email_mode = self._resolve_config_value(email_mode, 'development')
         
