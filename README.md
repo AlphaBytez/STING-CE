@@ -6,6 +6,8 @@
 >
 > *Bee Smart. Bee Secure.*
 
+> **Deprecated:** STING CE has been deprecated. Team server functionality is now available as part of **Hive Free**. Visit **stingassistant.com/hive** for more information.
+
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
@@ -13,9 +15,9 @@
 
 **Your data. Your AI. Your rules.**
 
-STING-CE is for teams and organizations who want to run AI on their own terms. No cloud dependencies, no data leaving your servers, no third-party snooping. You get a complete AI-powered knowledge platform that runs entirely on your infrastructure.
+STING-CE is for teams and organizations who want to run AI on their own terms. No cloud dependencies, no data leaving your servers, no third-party snooping. You get a complete AI-powered knowledge platform with document chat, enterprise auth, user management, and deployment flexibility.
 
-Think of it as your private ChatGPT—but one that actually knows your company's documents, respects your privacy policies, and doesn't phone home. Store your knowledge in "Honey Jars," chat with Bee (our AI assistant), and keep everything locked down with enterprise-grade security.
+Think of it as your private ChatGPT—but one that actually knows your company's documents, respects your privacy policies, and doesn't phone home. Store your knowledge in "Honey Jars," chat with it through Bee, and keep everything under your control.
 
 <p align="center">
   <img src="assets/screenshots/dashboard-v1.png" alt="STING-CE Dashboard" width="750"/>
@@ -25,7 +27,7 @@ Think of it as your private ChatGPT—but one that actually knows your company's
 
 ### Honey Jars: Your Knowledge, Organized
 
-Honey Jars are where your documents live. Drop in PDFs, Word docs, markdown files, or plain text—STING automatically processes them, breaks them into searchable chunks, and creates vector embeddings. When you (or Bee) ask a question, the system finds the most relevant pieces of your knowledge instantly.
+Honey Jars are where your documents live. Drop in PDFs, Word docs, markdown files, or plain text—STING automatically processes them, breaks them into searchable chunks, and creates vector embeddings so Bee can actually understand and retrieve the right information.
 
 - Supports PDF, DOCX, HTML, JSON, Markdown, and TXT
 - Semantic search that understands meaning, not just keywords
@@ -37,7 +39,7 @@ Honey Jars are where your documents live. Drop in PDFs, Word docs, markdown file
 
 ### Bee: Your AI Assistant That Actually Knows Your Stuff
 
-Bee (B. Sting, if we're being formal) is your conversational AI that's connected to your Honey Jars. Ask questions in plain English, and Bee pulls relevant context from your documents before generating responses. It's like having a colleague who's read everything and remembers it perfectly.
+Bee (B. Sting, if we're being formal) is your conversational AI that's connected to your Honey Jars. Ask questions in plain English, and Bee pulls relevant context from your documents before generating a response.
 
 - Natural conversation with your knowledge base
 - Works with Ollama (local), OpenAI, LM Studio, or vLLM
@@ -49,7 +51,7 @@ Bee (B. Sting, if we're being formal) is your conversational AI that's connected
 
 ### Security That Doesn't Get in the Way
 
-We built STING-CE for organizations that take security seriously. Passwordless login with passkeys, multi-factor auth, automatic PII detection, and HashiCorp Vault for secrets. All traffic encrypted, all services isolated, all access logged.
+We built STING-CE for organizations that take security seriously. Passwordless login with passkeys, multi-factor auth, automatic PII detection, and HashiCorp Vault for secrets. All traffic encrypts over HTTPS, and the architecture follows zero-trust principles throughout.
 
 - Passwordless auth with WebAuthn/passkeys and magic links
 - MFA options: TOTP, SMS, biometrics
@@ -58,7 +60,7 @@ We built STING-CE for organizations that take security seriously. Passwordless l
 
 ### Modern Interface, Easy Setup
 
-One command gets you up and running. A web wizard walks you through configuration. The interface is clean, responsive, and works on any device. Pick from multiple themes (including a slick glass morphism design) and dark mode support.
+One command gets you up and running. A web wizard walks you through configuration. The interface is clean, responsive, and works on any device. Pick from multiple themes (including a slick glass mode), and manage the platform without wrestling with YAML all day.
 
 - Docker-based: `bash bootstrap.sh` and you're off
 - Web setup wizard for painless configuration
@@ -66,7 +68,7 @@ One command gets you up and running. A web wizard walks you through configuratio
 
 ## Heads Up: This Is a Work in Progress
 
-STING-CE is under active development. The core platform works and you can deploy it today, but some features are still being polished. You might hit rough edges, and some things may need extra configuration to work perfectly.
+STING-CE is under active development. The core platform works and you can deploy it today, but some features are still being polished. You might hit rough edges, and some things may need extra configuration depending on your environment.
 
 **We'd love your help making it better:**
 
@@ -105,7 +107,7 @@ cd STING-CE
 ./install_sting.sh
 ```
 
-The installer handles everything: checking your system, installing Docker if needed, launching a setup wizard at `http://localhost:8335`, and getting all 20+ services running. You'll configure your domain, email settings, and LLM preferences through the web interface.
+The installer handles everything: checking your system, installing Docker if needed, launching a setup wizard at `http://localhost:8335`, and getting all 20+ services running. You'll configure your admin user, LLM endpoint, and domain through the UI.
 
 **Once it's done:**
 - Open https://localhost:8443 for the main interface
@@ -156,7 +158,7 @@ Quick links:
 
 ### Setting Up Passkeys Across Machines
 
-If you're using WebAuthn/passkeys (and you should—they're great), you'll need to distribute your CA certificate to client machines. Otherwise browsers will complain about self-signed certs and passkeys won't work.
+If you're using WebAuthn/passkeys (and you should—they're great), you'll need to distribute your CA certificate to client machines. Otherwise browsers will complain about self-signed certs and passkey registration/login may fail.
 
 ```bash
 ./manage_sting.sh export-certs ./client-certs
@@ -237,7 +239,7 @@ STING-CE is built by **[AlphaBytez](https://github.com/AlphaBytez)**, a team foc
 
 STING-CE wouldn't exist without these amazing open-source projects:
 
-**Infrastructure**: [Ory Kratos](https://www.ory.sh/kratos/) (auth), [HashiCorp Vault](https://www.vaultproject.io/) (secrets), [PostgreSQL](https://www.postgresql.org/), [Redis](https://redis.io/), [Docker](https://www.docker.com/)
+**Infrastructure**: [Ory Kratos](https://www.ory.sh/kratos/) (auth), [HashiCorp Vault](https://www.vaultproject.io/) (secrets), [PostgreSQL](https://www.postgresql.org/), [Redis](https://redis.io/)
 
 **AI/ML**: [Ollama](https://ollama.ai/), [ChromaDB](https://www.trychroma.com/), [Sentence Transformers](https://www.sbert.net/)
 
